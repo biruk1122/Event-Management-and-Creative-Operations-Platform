@@ -95,8 +95,9 @@ services:
         "pnpm",
         "--filter",
         "@event-platform/web",
+        "exec",
+        "next",
         "dev",
-        "--",
         "--hostname",
         "0.0.0.0",
       ]

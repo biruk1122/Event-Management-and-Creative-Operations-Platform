@@ -5,7 +5,11 @@ FROM node:24-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
-RUN corepack enable && corepack prepare pnpm@10.18.1 --activate
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/* \
+    && corepack enable \
+    && corepack prepare pnpm@10.18.1 --activate
 
 WORKDIR /workspace
 
@@ -48,6 +52,10 @@ FROM node:24-bookworm-slim AS production
 ENV API_HOST=0.0.0.0
 ENV API_PORT=4000
 ENV NODE_ENV=production
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

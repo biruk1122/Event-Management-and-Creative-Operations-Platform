@@ -28,7 +28,7 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["pnpm", "--filter", "@event-platform/web", "dev", "--", "--hostname", "0.0.0.0"]
+CMD ["pnpm", "--filter", "@event-platform/web", "exec", "next", "dev", "--hostname", "0.0.0.0"]
 
 FROM dependencies AS build
 
