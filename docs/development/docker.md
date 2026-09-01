@@ -22,6 +22,8 @@ The frontend is available at `http://localhost:3000`, the API at
 `http://localhost:4000`, and Swagger UI at `http://localhost:4000/api/docs`.
 PostgreSQL is published on host port `5433` by default to avoid colliding with a
 locally installed PostgreSQL server; containers communicate with it internally on port `5432`.
+The named volume is mounted at `/var/lib/postgresql`, which is the PostgreSQL 18 image's
+version-aware persistence root.
 
 Migrations are intentionally not run by the API container. Keeping migration deployment in
 a one-shot service prevents multiple API replicas from racing to change the schema.
