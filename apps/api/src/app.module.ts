@@ -1,0 +1,42 @@
+import { randomUUID } from "node:crypto";
+
+import { Module } from "@nestjs/common";
+import { LoggerModule } from "nestjs-pino";
+
+import { environment } from "./config/environment.js";
+import { EnvironmentModule } from "./config/environment.module.js";
+import { DatabaseModule } from "./database/database.module.js";
+import { HealthModule } from "./health/health.module.js";
+
+@Module({
+  imports: [
+    EnvironmentModule,
+    LoggerModule.forRoot({
+      pinoHttp: {
+        autoLogging: {
+          ignore: (request) => request.url === "/health/live",
+        },
+        genReqId: (request, response) => {
+          const incomingId = request.headers["x-request-id"];
+          const requestId =
+            (Array.isArray(incomingId) ? incomingId[0] : incomingId)?.trim() ||
+            randomUUID();
+          response.setHeader("x-request-id", requestId);
+          return requestId;
+        },
+        level: environment.LOG_LEVEL,
+        redact: {
+          paths: [
+            "req.headers.authorization",
+            "req.headers.cookie",
+            "res.headers.set-cookie",
+          ],
+          censor: "[REDACTED]",
+        },
+      },
+    }),
+    DatabaseModule,
+    HealthModule,
+  ],
+})
+export class AppModule {}

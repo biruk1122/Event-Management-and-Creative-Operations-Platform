@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backend Development"
+  short_description: "Build secure modular NestJS application behavior"
+  default_prompt: "Use $backend-development to implement this approved API issue."

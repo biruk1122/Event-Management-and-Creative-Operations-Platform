@@ -1,0 +1,152 @@
+name: event-platform
+
+services:
+  db:
+    image: postgres:18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-event_platform}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_USER: ${POSTGRES_USER:-event_platform}
+      TZ: UTC
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    stop_grace_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: development
+    init: true
+    restart: unless-stopped
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 4000
+      API_RATE_LIMIT_MAX: ${API_RATE_LIMIT_MAX:-100}
+      API_RATE_LIMIT_TTL_MS: ${API_RATE_LIMIT_TTL_MS:-60000}
+      AUTH_ACCESS_TOKEN_SECRET: ${AUTH_ACCESS_TOKEN_SECRET:-replace-with-at-least-32-random-characters}
+      AUTH_ACCESS_TOKEN_TTL: ${AUTH_ACCESS_TOKEN_TTL:-15m}
+      AUTH_COOKIE_SAME_SITE: ${AUTH_COOKIE_SAME_SITE:-lax}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      AUTH_REFRESH_TOKEN_SECRET: ${AUTH_REFRESH_TOKEN_SECRET:-replace-with-at-least-32-random-characters}
+      AUTH_REFRESH_TOKEN_TTL: ${AUTH_REFRESH_TOKEN_TTL:-30d}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-event_platform}:${POSTGRES_PASSWORD:-change-me}@db:5432/${POSTGRES_DB:-event_platform}?schema=public
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: development
+      TSC_WATCHDIRECTORY: DynamicPriorityPolling
+      TSC_WATCHFILE: UseFsEventsWithFallbackDynamicPolling
+    command:
+      [
+        "sh",
+        "-c",
+        "pnpm db:generate && exec pnpm --filter @event-platform/api dev",
+      ]
+    ports:
+      - "${API_PORT:-4000}:4000"
+    volumes:
+      - .:/workspace
+      - root_node_modules:/workspace/node_modules
+      - api_node_modules:/workspace/apps/api/node_modules
+      - api_generated:/workspace/apps/api/src/generated
+      - api_client_node_modules:/workspace/packages/api-client/node_modules
+      - shared_node_modules:/workspace/packages/shared/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:4000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    stop_grace_period: 15s
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      target: development
+    init: true
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:4000/api/v1
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api/v1}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-http://localhost:4000}
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+    command:
+      [
+        "pnpm",
+        "--filter",
+        "@event-platform/web",
+        "dev",
+        "--",
+        "--hostname",
+        "0.0.0.0",
+      ]
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - .:/workspace
+      - root_node_modules:/workspace/node_modules
+      - web_node_modules:/workspace/apps/web/node_modules
+      - api_client_node_modules:/workspace/packages/api-client/node_modules
+      - shared_node_modules:/workspace/packages/shared/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    stop_grace_period: 15s
+
+  migrate:
+    profiles: ["tools"]
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: development
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-event_platform}:${POSTGRES_PASSWORD:-change-me}@db:5432/${POSTGRES_DB:-event_platform}?schema=public
+    command: ["pnpm", "db:migrate:deploy"]
+    volumes:
+      - ./apps/api/prisma:/workspace/apps/api/prisma:ro
+      - ./apps/api/prisma.config.ts:/workspace/apps/api/prisma.config.ts:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  api_client_node_modules:
+  api_generated:
+  api_node_modules:
+  postgres_data:
+  root_node_modules:
+  shared_node_modules:
+  web_node_modules:

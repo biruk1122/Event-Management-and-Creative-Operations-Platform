@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Architecture"
+  short_description: "Guide cross-cutting architecture decisions"
+  default_prompt: "Use $project-architecture to review this system design change."

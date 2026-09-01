@@ -1,0 +1,2 @@
+-- Infrastructure-only baseline for the Event and Creative Operations Platform.
+-- Business tables are intentionally deferred to issue-driven feature development.

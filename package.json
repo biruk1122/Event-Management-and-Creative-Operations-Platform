@@ -1,0 +1,38 @@
+{
+  "name": "event-management-and-creative-operations-platform",
+  "private": true,
+  "packageManager": "pnpm@10.18.1",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "dev:api": "pnpm --filter @event-platform/api dev",
+    "dev:web": "pnpm --filter @event-platform/web dev",
+    "db:generate": "pnpm --filter @event-platform/api db:generate",
+    "db:migrate": "pnpm --filter @event-platform/api db:migrate",
+    "db:migrate:create": "pnpm --filter @event-platform/api db:migrate:create",
+    "db:migrate:deploy": "pnpm --filter @event-platform/api db:migrate:deploy",
+    "db:migrate:status": "pnpm --filter @event-platform/api db:migrate:status",
+    "db:studio": "pnpm --filter @event-platform/api db:studio",
+    "docker:build": "docker compose build",
+    "docker:config": "docker compose config",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs --follow",
+    "docker:migrate": "docker compose run --rm migrate",
+    "docker:ps": "docker compose ps",
+    "docker:up": "docker compose up --build --detach",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "typecheck": "turbo typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "turbo": "^2.5.8",
+    "typescript": "^5.9.3"
+  }
+}

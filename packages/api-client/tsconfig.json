@@ -1,0 +1,7 @@
+{
+  "extends": "@event-platform/typescript-config/base.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2023"]
+  },
+  "include": ["src/**/*.ts"]
+}

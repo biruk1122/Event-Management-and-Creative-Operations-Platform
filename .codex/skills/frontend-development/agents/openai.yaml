@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Development"
+  short_description: "Build maintainable Next.js feature interfaces"
+  default_prompt: "Use $frontend-development to implement this approved frontend issue."

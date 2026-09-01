@@ -1,0 +1,13 @@
+{
+  "name": "@event-platform/typescript-config",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    "./base.json": "./base.json",
+    "./nestjs.json": "./nestjs.json",
+    "./nextjs.json": "./nextjs.json"
+  },
+  "files": [
+    "*.json"
+  ]
+}
