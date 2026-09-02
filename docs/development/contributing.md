@@ -24,6 +24,30 @@ approval from an eligible identity.
 Direct pushes, force pushes, and deletion of `main` are prohibited. Resolve review conversations
 before merging and dismiss approvals when new commits materially change the reviewed diff.
 
+## Local Codex files
+
+The `.codex` directory is workstation-local state and is intentionally ignored by Git. Before
+checking out the first change that removes previously tracked Codex files, run this built-in
+PowerShell backup from the existing branch:
+
+```powershell
+$repositoryRoot = (git rev-parse --show-toplevel).Trim()
+$gitDirectory = (git rev-parse --absolute-git-dir).Trim()
+$skillsDirectory = Join-Path $repositoryRoot ".codex"
+$backupDirectory = Join-Path $gitDirectory "codex-backup"
+if (Test-Path -LiteralPath $backupDirectory) { throw "Backup already exists: $backupDirectory" }
+Copy-Item -LiteralPath $skillsDirectory -Destination $backupDirectory -Recurse
+```
+
+After updating the branch, restore the files if Git removed them:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/preserve-local-codex-skills.ps1 -Mode Restore
+```
+
+The backup remains in the repository's private Git metadata until the developer removes it
+manually. Restore copies only missing files and never overwrites existing local Codex state.
+
 ## Required local checks
 
 ```sh

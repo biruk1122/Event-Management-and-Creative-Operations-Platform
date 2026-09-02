@@ -49,7 +49,6 @@ packages/shared          Framework-neutral primitives only
 packages/typescript-config Shared strict TypeScript configuration
 docker                   Container definitions
 docs                     Requirements, architecture, decisions, and workflow guidance
-.codex/skills             Repository-specific Codex instructions
 ```
 
 Only `apps/api` may access Prisma or PostgreSQL. Backend DTOs and generated Prisma types must not
