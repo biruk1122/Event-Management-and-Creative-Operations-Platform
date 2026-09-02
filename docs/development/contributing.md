@@ -58,13 +58,17 @@ blocking checkout. After updating the branch, restore the customized files with 
 PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/preserve-local-codex-skills.ps1 -Mode Restore
+$repositoryRoot = (git rev-parse --show-toplevel).Trim()
+$restoreScript = Join-Path $repositoryRoot "scripts/preserve-local-codex-skills.ps1"
+powershell -ExecutionPolicy Bypass -File $restoreScript -Mode Restore
 ```
 
 On Linux, macOS, or Windows with PowerShell 7, use:
 
-```sh
-pwsh -File scripts/preserve-local-codex-skills.ps1 -Mode Restore
+```powershell
+$repositoryRoot = (git rev-parse --show-toplevel).Trim()
+$restoreScript = Join-Path $repositoryRoot "scripts/preserve-local-codex-skills.ps1"
+pwsh -File $restoreScript -Mode Restore
 ```
 
 The backup remains in the repository's private Git metadata until the developer removes it
