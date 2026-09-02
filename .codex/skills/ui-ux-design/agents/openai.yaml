@@ -1,4 +1,0 @@
-interface:
-  display_name: "UI/UX Design"
-  short_description: "Design accessible professional SaaS interfaces"
-  default_prompt: "Use $ui-ux-design to design and review this interface."
