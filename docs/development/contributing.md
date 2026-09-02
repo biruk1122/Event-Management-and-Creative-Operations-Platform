@@ -48,7 +48,7 @@ $mismatches = foreach ($sourceFile in $sourceFiles) {
   ) { $relativePath }
 }
 if (@($mismatches).Count -gt 0) { throw "Backup verification failed: $mismatches" }
-git restore --source=HEAD --staged --worktree -- .codex
+git -C $repositoryRoot restore --source=HEAD --staged --worktree -- .codex
 if ($LASTEXITCODE -ne 0) { throw "Unable to reset the backed-up tracked Codex files." }
 ```
 
