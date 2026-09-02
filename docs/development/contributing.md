@@ -54,10 +54,17 @@ if ($LASTEXITCODE -ne 0) { throw "Unable to reset the backed-up tracked Codex fi
 
 The scoped restore command resets only the tracked `.codex` paths after their hashes are verified;
 untracked local files are unaffected. The branch can then be updated without local tracked changes
-blocking checkout. After updating the branch, restore the customized files:
+blocking checkout. After updating the branch, restore the customized files with Windows
+PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/preserve-local-codex-skills.ps1 -Mode Restore
+```
+
+On Linux, macOS, or Windows with PowerShell 7, use:
+
+```sh
+pwsh -File scripts/preserve-local-codex-skills.ps1 -Mode Restore
 ```
 
 The backup remains in the repository's private Git metadata until the developer removes it
