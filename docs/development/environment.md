@@ -22,7 +22,7 @@ must be injected by the deployment environment rather than committed or baked in
 | Variable            | Used by     | Purpose                                                                              |
 | ------------------- | ----------- | ------------------------------------------------------------------------------------ |
 | `POSTGRES_DB`       | Compose     | Database created by the PostgreSQL container.                                        |
-| `POSTGRES_PORT`     | Compose     | Host port mapped to container port `5432`; development defaults to `5433`.           |
+| `POSTGRES_PORT`     | Compose     | Host port mapped to container port `5432`; development defaults to `55432`.          |
 | `POSTGRES_USER`     | Compose     | PostgreSQL application user.                                                         |
 | `POSTGRES_PASSWORD` | Compose     | PostgreSQL application password; it must be replaced outside disposable development. |
 | `DATABASE_URL`      | API, Prisma | PostgreSQL connection URL used by the application and migration tooling.             |
