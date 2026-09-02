@@ -37,9 +37,24 @@ $skillsDirectory = Join-Path $repositoryRoot ".codex"
 $backupDirectory = Join-Path $gitDirectory "codex-backup"
 if (Test-Path -LiteralPath $backupDirectory) { throw "Backup already exists: $backupDirectory" }
 Copy-Item -LiteralPath $skillsDirectory -Destination $backupDirectory -Recurse
+$sourceFiles = Get-ChildItem -LiteralPath $skillsDirectory -Recurse -File
+$mismatches = foreach ($sourceFile in $sourceFiles) {
+  $relativePath = $sourceFile.FullName.Substring($skillsDirectory.Length + 1)
+  $backupFile = Join-Path $backupDirectory $relativePath
+  if (
+    -not (Test-Path -LiteralPath $backupFile) -or
+    (Get-FileHash -LiteralPath $sourceFile.FullName).Hash -ne
+      (Get-FileHash -LiteralPath $backupFile).Hash
+  ) { $relativePath }
+}
+if (@($mismatches).Count -gt 0) { throw "Backup verification failed: $mismatches" }
+git restore --source=HEAD --staged --worktree -- .codex
+if ($LASTEXITCODE -ne 0) { throw "Unable to reset the backed-up tracked Codex files." }
 ```
 
-After updating the branch, restore the files if Git removed them:
+The scoped restore command resets only the tracked `.codex` paths after their hashes are verified;
+untracked local files are unaffected. The branch can then be updated without local tracked changes
+blocking checkout. After updating the branch, restore the customized files:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/preserve-local-codex-skills.ps1 -Mode Restore
