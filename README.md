@@ -13,6 +13,11 @@ The repository is currently in its foundation phase. Business modules are intent
 - `packages/typescript-config` - shared strict TypeScript configuration
 - `docs` - requirements, architecture decisions, and development documentation
 
+The canonical business terms and approved lifecycle transitions are documented in
+[`docs/product/product-vocabulary-and-lifecycles.md`](docs/product/product-vocabulary-and-lifecycles.md).
+The permission keys and role-to-permission matrix are documented in
+[`docs/product/permission-catalog-and-role-matrix.md`](docs/product/permission-catalog-and-role-matrix.md).
+
 ## Frontend development
 
 1. Copy `.env.example` to `.env` at the repository root.

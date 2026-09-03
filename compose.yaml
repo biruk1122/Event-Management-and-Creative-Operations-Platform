@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-event_platform}
       TZ: UTC
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "${POSTGRES_PORT:-55432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
