@@ -14,6 +14,9 @@ The repository is currently in its foundation phase. Business modules are intent
 - `docs` - requirements, architecture decisions, and development documentation
 - `.codex/skills` - project-specific Codex skills
 
+The canonical business terms and approved lifecycle transitions are documented in
+[`docs/product/product-vocabulary-and-lifecycles.md`](docs/product/product-vocabulary-and-lifecycles.md).
+
 ## Frontend development
 
 1. Copy `.env.example` to `.env` at the repository root.
