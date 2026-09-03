@@ -13,6 +13,10 @@ test-results/
 
 # Local environment and secrets
 .codex
+.claude
+/AGENT.md
+/AGENTS.md
+/CLAUDE.md
 .env
 .env.*
 !.env.example
