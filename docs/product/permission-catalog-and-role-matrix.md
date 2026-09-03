@@ -28,7 +28,8 @@ permission to invent policy and must be resolved before implementation depends o
 - **Scope.** A qualifier applied to each grant that bounds the records the grant covers:
   `organization`, `department`, `team`, `workspace`, `self`, or `management`. `workspace` means the
   connected workspace of one event, project, or campaign the user manages or is assigned to.
-  `management` marks data that is only ever exposed to organization-wide management roles.
+  `management` is `organization` scope further restricted to organization-wide management data, and
+  is only ever attached to grants for the Super Admin and Management/Administrator roles.
 - **Grant.** A `(role, permission key, scope)` triple. A role's effective permissions are the union
   of its grants. A future role is defined entirely by its set of grants.
 - **Deny by default.** A request is authorized only when the acting user holds a grant whose
@@ -203,16 +204,20 @@ data and are additive to the role matrix below.
 Each role section lists only the grants that role holds, in addition to the
 [baseline grants](#baseline-grants-for-every-authenticated-user). Any key and scope not listed is
 denied for that role, since there is no inheritance between roles. Roles are the five named in SRS
-section 4; they are seed data, not code branches.
+section 4; they are seed data, not code branches. Role names follow the canonical terms in
+[`product-vocabulary-and-lifecycles.md`](product-vocabulary-and-lifecycles.md): the SRS forms
+**Team Member/Employee** and **Talent/Artist Manager** are written here as **Team Member** and
+**Talent Manager**.
 
 ### Super Admin
 
-Holds every permission key in this catalog at `organization` scope. This is expressed as an explicit
-set of grants in seed data, not a code-level bypass; the representation choice is open in
-[PC-08](#open-authorization-decisions). Includes `user.*`, `role.*`, `settings.*`, `audit.read`,
-`activity.read`, and all operational and reporting keys.
+Holds every administrative and operational permission key in this catalog at `organization` scope,
+plus the baseline grants at `self`. This is expressed as an explicit set of grants in seed data, not
+a code-level bypass; the representation choice is open in [PC-08](#open-authorization-decisions).
+Includes `user.*`, `role.*`, `settings.*`, `audit.read`, `activity.read`, and all operational and
+reporting keys.
 
-### Management / Administrator
+### Management/Administrator
 
 | Permission key                                                                                                                     | Scope        |
 | ---------------------------------------------------------------------------------------------------------------------------------- | ------------ |
@@ -234,7 +239,8 @@ Management does not hold `user.*`, `role.*`, `settings.*`, `*.delete`, or `audit
 matrix. Whether Management may administer users or roles is open in
 [PC-02](#open-authorization-decisions); delete versus archive is open in
 [PC-03](#open-authorization-decisions); audit read is open in
-[PC-05](#open-authorization-decisions).
+[PC-05](#open-authorization-decisions). `report.review` is granted here to Management only;
+whether Department Managers may also review reports is part of EVE-30 open decision OD-07.
 
 ### Department Manager
 
@@ -256,7 +262,7 @@ matrix. Whether Management may administer users or roles is open in
 behavior is open in [PC-01](#open-authorization-decisions). Whether a Department Manager may read
 budgets for their department's work is open in [PC-04](#open-authorization-decisions).
 
-### Team Member / Employee
+### Team Member
 
 | Permission key                                  | Scope |
 | ----------------------------------------------- | ----- |
@@ -271,8 +277,11 @@ budgets for their department's work is open in [PC-04](#open-authorization-decis
 `self` scope means records the user is assigned to, authored, or was invited to. A Team Member holds
 no grant for any key in [Sensitive management data](#sensitive-management-data). This is the SRS
 requirement that employees shall not access sensitive management information unless authorized.
+Whether an assigned Team Member also receives `event.read`, `project.read`, or `campaign.read` for
+the specific record they are assigned to, as implied by the SRS event workspace, is open in
+[PC-11](#open-authorization-decisions).
 
-### Talent / Artist Manager
+### Talent Manager
 
 | Permission key                                                              | Scope        |
 | --------------------------------------------------------------------------- | ------------ |
@@ -296,7 +305,7 @@ and whether it is modeled as a grant or as a distinct assignment concept is open
 ## Sensitive management data
 
 The following keys expose organization-wide management information. They are granted only to Super
-Admin and, where shown, Management / Administrator, and are never part of the baseline or of the
+Admin and, where shown, Management/Administrator, and are never part of the baseline or of the
 Team Member or Talent Manager matrix. Every listed operation is denied unless the acting user holds
 the specific key at the required scope.
 
@@ -355,18 +364,19 @@ The acceptance criterion that future roles can be added without code changes is 
 
 ## Open authorization decisions
 
-| ID    | Decision required                                                                                                                                                                                           |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PC-01 | Define scope resolution: how `department`, `team`, `workspace`, and `self` are computed per request; single versus multiple department assignment; cross-department delegation.                             |
-| PC-02 | Decide whether Management / Administrator may perform `user.*` and `role.*` operations, or whether those remain exclusive to Super Admin. SRS 5.2 says "authorized administrators" without naming the role. |
-| PC-03 | Decide whether events, projects, and campaigns are deleted or archived, and which roles may do so. Coordinate with EVE-30 open decisions OD-02 and OD-03.                                                   |
-| PC-04 | Define budget visibility for Department Managers and for assigned event, project, and campaign managers.                                                                                                    |
-| PC-05 | Decide audit-log read access for Management and Department Manager roles. Coordinate with EN-07 (EVE-33).                                                                                                   |
-| PC-06 | Define the Talent Manager boundary: whether the role may create tasks, channels, or meetings for talent activities, or only manage talent records and assignments.                                          |
-| PC-07 | Define the entity-manager assignment: its `workspace`-scoped key set, and whether it is a grant or a separate assignment concept, for event, project, campaign, and team managers.                          |
-| PC-08 | Decide the Super Admin representation: an explicit full grant set in seed data versus a superuser bypass flag.                                                                                              |
-| PC-09 | Define which profile fields a Team Member may change through `profile.update` on their own account.                                                                                                         |
-| PC-10 | Confirm the contents of `directory.read`: the minimum user attributes visible to every authenticated user for assignment and mentions.                                                                      |
+| ID    | Decision required                                                                                                                                                                                         |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-01 | Define scope resolution: how `department`, `team`, `workspace`, and `self` are computed per request; single versus multiple department assignment; cross-department delegation.                           |
+| PC-02 | Decide whether Management/Administrator may perform `user.*` and `role.*` operations, or whether those remain exclusive to Super Admin. SRS 5.2 says "authorized administrators" without naming the role. |
+| PC-03 | Decide whether events, projects, and campaigns are deleted or archived, and which roles may do so. Coordinate with EVE-30 open decisions OD-02 and OD-03.                                                 |
+| PC-04 | Define budget visibility for Department Managers and for assigned event, project, and campaign managers.                                                                                                  |
+| PC-05 | Decide audit-log read access for Management and Department Manager roles. Coordinate with EN-07 (EVE-33).                                                                                                 |
+| PC-06 | Define the Talent Manager boundary: whether the role may create tasks, channels, or meetings for talent activities, or only manage talent records and assignments.                                        |
+| PC-07 | Define the entity-manager assignment: its `workspace`-scoped key set, and whether it is a grant or a separate assignment concept, for event, project, campaign, and team managers.                        |
+| PC-08 | Decide the Super Admin representation: an explicit full grant set in seed data versus a superuser bypass flag.                                                                                            |
+| PC-09 | Define which profile fields a Team Member may change through `profile.update` on their own account.                                                                                                       |
+| PC-10 | Confirm the contents of `directory.read`: the minimum user attributes visible to every authenticated user for assignment and mentions.                                                                    |
+| PC-11 | Decide whether an assigned Team Member receives `event.read`, `project.read`, or `campaign.read` scoped to the records they are assigned to, and the scope value used for that grant.                     |
 
 ## SRS traceability
 
@@ -374,7 +384,7 @@ The acceptance criterion that future roles can be added without code changes is 
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
 | 4 User Roles and Permissions (intro)      | Authorization model; deny-by-default; configurability; five seeded roles                  |
 | 4.1 Super Admin                           | Super Admin section; identity and access administration keys; sensitive management data   |
-| 4.2 Management / Administrator            | Management / Administrator matrix; analytics and reporting keys; PC-02, PC-03, PC-05      |
+| 4.2 Management / Administrator            | Management/Administrator matrix; analytics and reporting keys; PC-02, PC-03, PC-05        |
 | 4.3 Department Manager                    | Department Manager matrix; `department` scope; PC-01, PC-04                               |
 | 4.4 Team Member / Employee                | Team Member matrix; baseline grants; sensitive management data exclusion                  |
 | 4.5 Talent / Artist Manager               | Talent Manager matrix; talent keys; PC-06                                                 |
