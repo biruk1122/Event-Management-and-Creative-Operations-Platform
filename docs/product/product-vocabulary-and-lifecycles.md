@@ -19,6 +19,10 @@ naming its values, this catalog supplies the product-level values and transition
 EVE-30. An entry marked **open** is not permission to invent behavior; the decision must be resolved
 before implementation depends on it.
 
+The permission keys and role-to-permission matrix that operationalize the **Role**, **Permission**,
+and **RBAC** terms defined below are maintained in
+[`permission-catalog-and-role-matrix.md`](permission-catalog-and-role-matrix.md).
+
 ## Naming rules
 
 - Use the canonical term as the unqualified name in product and technical documentation.

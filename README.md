@@ -16,6 +16,8 @@ The repository is currently in its foundation phase. Business modules are intent
 
 The canonical business terms and approved lifecycle transitions are documented in
 [`docs/product/product-vocabulary-and-lifecycles.md`](docs/product/product-vocabulary-and-lifecycles.md).
+The permission keys and role-to-permission matrix are documented in
+[`docs/product/permission-catalog-and-role-matrix.md`](docs/product/permission-catalog-and-role-matrix.md).
 
 ## Frontend development
 
