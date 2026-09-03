@@ -1,4 +1,0 @@
-interface:
-  display_name: "Database Development"
-  short_description: "Design safe PostgreSQL and Prisma changes"
-  default_prompt: "Use $database-development to design and verify this schema change."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Real-Time Communication"
-  short_description: "Build reliable authenticated real-time behavior"
-  default_prompt: "Use $realtime-communication to design this live update workflow."

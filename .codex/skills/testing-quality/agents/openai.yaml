@@ -1,4 +1,0 @@
-interface:
-  display_name: "Testing and Quality"
-  short_description: "Verify changes with risk-based automated testing"
-  default_prompt: "Use $testing-quality to verify this implementation against its acceptance criteria."
