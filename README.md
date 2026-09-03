@@ -17,6 +17,7 @@ The canonical business terms and approved lifecycle transitions are documented i
 [`docs/product/product-vocabulary-and-lifecycles.md`](docs/product/product-vocabulary-and-lifecycles.md).
 The permission keys and role-to-permission matrix are documented in
 [`docs/product/permission-catalog-and-role-matrix.md`](docs/product/permission-catalog-and-role-matrix.md).
+Architecture decision records are kept in [`docs/decisions/`](docs/decisions/README.md).
 
 ## Frontend development
 
