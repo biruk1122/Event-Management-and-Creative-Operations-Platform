@@ -12,12 +12,8 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 
-import { HealthService, type ReadinessResponse } from "./health.service.js";
-
-interface LivenessResponse {
-  status: "ok";
-  timestamp: string;
-}
+import { LivenessResponse, ReadinessResponse } from "./health.contracts.js";
+import { HealthService } from "./health.service.js";
 
 @ApiTags("Health")
 @Controller({ path: "health", version: VERSION_NEUTRAL })
@@ -27,17 +23,7 @@ export class HealthController {
   @Get("live")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Verify that the API process is running" })
-  @ApiOkResponse({
-    schema: {
-      example: { status: "ok", timestamp: "2026-09-01T09:00:00.000Z" },
-      properties: {
-        status: { enum: ["ok"], type: "string" },
-        timestamp: { format: "date-time", type: "string" },
-      },
-      required: ["status", "timestamp"],
-      type: "object",
-    },
-  })
+  @ApiOkResponse({ type: LivenessResponse })
   getLiveness(): LivenessResponse {
     return { status: "ok", timestamp: new Date().toISOString() };
   }
@@ -45,26 +31,7 @@ export class HealthController {
   @Get("ready")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Verify that PostgreSQL is ready" })
-  @ApiOkResponse({
-    schema: {
-      example: {
-        checks: { database: "up" },
-        status: "ready",
-        timestamp: "2026-09-01T09:00:00.000Z",
-      },
-      properties: {
-        checks: {
-          properties: { database: { enum: ["up"], type: "string" } },
-          required: ["database"],
-          type: "object",
-        },
-        status: { enum: ["ready"], type: "string" },
-        timestamp: { format: "date-time", type: "string" },
-      },
-      required: ["checks", "status", "timestamp"],
-      type: "object",
-    },
-  })
+  @ApiOkResponse({ type: ReadinessResponse })
   @ApiServiceUnavailableResponse({
     description: "PostgreSQL is unavailable",
   })

@@ -1,28 +1,22 @@
-import { z } from "zod";
+import { createApiClient, type components } from "@event-platform/api-client";
 
-const backendLivenessSchema = z.object({
-  status: z.literal("ok"),
-  timestamp: z.iso.datetime(),
-});
-
-export type BackendLiveness = z.infer<typeof backendLivenessSchema>;
+export type BackendLiveness = components["schemas"]["LivenessResponse"];
 
 export async function fetchBackendLiveness(
   apiBaseUrl: string,
   request: typeof fetch = fetch,
 ): Promise<BackendLiveness> {
-  const livenessUrl = new URL("/health/live", apiBaseUrl);
-  const response = await request(livenessUrl.toString(), {
+  const client = createApiClient({ baseUrl: apiBaseUrl, fetch: request });
+  const { data, response } = await client.GET("/health/live", {
     cache: "no-store",
-    headers: { accept: "application/json" },
     signal: AbortSignal.timeout(5_000),
   });
 
-  if (!response.ok) {
+  if (!response.ok || !data) {
     throw new Error(
       `Backend liveness request failed with status ${response.status}.`,
     );
   }
 
-  return backendLivenessSchema.parse(await response.json());
+  return data;
 }

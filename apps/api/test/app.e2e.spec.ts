@@ -15,8 +15,18 @@ interface HealthBody {
 }
 
 interface OpenApiBody {
+  components: {
+    schemas: Record<string, unknown>;
+  };
   info: { title: string };
-  paths: Record<string, unknown>;
+  paths: {
+    "/health/live": {
+      get: { operationId: string };
+    };
+    "/health/ready": {
+      get: { operationId: string };
+    };
+  };
 }
 
 describe("API foundation", () => {
@@ -57,6 +67,14 @@ describe("API foundation", () => {
     expect(body.info.title).toBe("Event and Creative Operations Platform API");
     expect(body.paths).toHaveProperty("/health/live");
     expect(body.paths).toHaveProperty("/health/ready");
+    expect(body.paths["/health/live"].get.operationId).toBe(
+      "Health_getLiveness",
+    );
+    expect(body.paths["/health/ready"].get.operationId).toBe(
+      "Health_getReadiness",
+    );
+    expect(body.components.schemas).toHaveProperty("LivenessResponse");
+    expect(body.components.schemas).toHaveProperty("ReadinessResponse");
   });
 
   it("returns Problem Details for unknown routes", async () => {
