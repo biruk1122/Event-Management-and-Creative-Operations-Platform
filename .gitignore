@@ -33,6 +33,6 @@ Thumbs.db
 
 # Generated sources
 apps/api/src/generated/
-packages/api-client/src/generated/
+# packages/api-client/src/generated/schema.ts is a committed contract; see docs/development/openapi.md
 **/next-env.d.ts
 *.tsbuildinfo

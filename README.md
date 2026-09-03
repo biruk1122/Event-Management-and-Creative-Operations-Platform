@@ -39,6 +39,10 @@ The API is available at `http://localhost:4000`, with liveness at `/health/live`
 database-backed readiness at `/health/ready`, OpenAPI documentation at `/api/docs`,
 and its JSON document at `/api/docs-json`.
 
+Run `pnpm openapi:generate` after changing an API contract and commit the generated OpenAPI document
+and TypeScript schema. See [`docs/development/openapi.md`](docs/development/openapi.md) for the
+generation and compatibility-review workflow.
+
 ## Database development
 
 PostgreSQL is the authoritative data store and Prisma migrations are committed to Git.
@@ -75,3 +79,4 @@ branch and protected pull request workflow is documented in `docs/development/co
 - `pnpm test`
 - `pnpm build`
 - `pnpm format:check`
+- `pnpm openapi:check`

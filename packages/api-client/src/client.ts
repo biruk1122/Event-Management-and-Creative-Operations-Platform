@@ -1,16 +1,6 @@
-export interface ProblemDetails {
-  type: string;
-  title: string;
-  status: number;
-  detail?: string;
-  instance?: string;
-  code?: string;
-  requestId?: string;
-  errors?: ReadonlyArray<{
-    field?: string;
-    message: string;
-  }>;
-}
+import createOpenApiClient, { type Client } from "openapi-fetch";
+
+import type { paths } from "./generated/schema";
 
 export interface ApiClientOptions {
   baseUrl: string;
@@ -18,55 +8,29 @@ export interface ApiClientOptions {
   getHeaders?: () => HeadersInit | Promise<HeadersInit>;
 }
 
-export class ApiProblemError extends Error {
-  constructor(public readonly problem: ProblemDetails) {
-    super(problem.detail ?? problem.title);
-    this.name = "ApiProblemError";
-  }
-}
+export type ApiClient = Client<paths>;
 
-export interface ApiClient {
-  request<TResponse>(path: string, init?: RequestInit): Promise<TResponse>;
+function normalizeApiOrigin(baseUrl: string): string {
+  const url = new URL(baseUrl);
+  url.pathname = url.pathname.replace(/\/api\/v1\/?$/, "");
+  return url.toString().replace(/\/$/, "");
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const request = options.fetch ?? globalThis.fetch;
-  const baseUrl = options.baseUrl.replace(/\/$/, "");
 
-  return {
-    async request<TResponse>(
-      path: string,
-      init?: RequestInit,
-    ): Promise<TResponse> {
-      const configuredHeaders = await options.getHeaders?.();
-      const headers = new Headers(configuredHeaders);
+  return createOpenApiClient<paths>({
+    baseUrl: normalizeApiOrigin(options.baseUrl),
+    credentials: "include",
+    fetch: async (input) => {
+      const headers = new Headers(await options.getHeaders?.());
+      input.headers.forEach((value, key) => headers.set(key, value));
 
-      new Headers(init?.headers).forEach((value, key) =>
-        headers.set(key, value),
-      );
-      headers.set("accept", "application/json");
-
-      const response = await request(`${baseUrl}/${path.replace(/^\//, "")}`, {
-        ...init,
-        credentials: "include",
-        headers,
-      });
-
-      if (!response.ok) {
-        const fallback: ProblemDetails = {
-          type: "about:blank",
-          title: response.statusText || "Request failed",
-          status: response.status,
-        };
-        const problem = await response.json().catch(() => fallback);
-        throw new ApiProblemError(problem as ProblemDetails);
+      if (!headers.has("accept")) {
+        headers.set("accept", "application/json");
       }
 
-      if (response.status === 204) {
-        return undefined as TResponse;
-      }
-
-      return (await response.json()) as TResponse;
+      return request(new Request(input, { headers }));
     },
-  };
+  });
 }

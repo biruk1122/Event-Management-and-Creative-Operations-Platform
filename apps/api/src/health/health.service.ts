@@ -5,12 +5,7 @@ import {
 } from "@nestjs/common";
 
 import { DatabaseService } from "../database/database.service.js";
-
-export interface ReadinessResponse {
-  checks: { database: "up" };
-  status: "ready";
-  timestamp: string;
-}
+import { ReadinessResponse } from "./health.contracts.js";
 
 @Injectable()
 export class HealthService {

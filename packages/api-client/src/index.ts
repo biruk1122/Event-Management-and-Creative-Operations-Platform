@@ -1,7 +1,6 @@
 export {
-  ApiProblemError,
   createApiClient,
   type ApiClient,
   type ApiClientOptions,
-  type ProblemDetails,
 } from "./client";
+export type { components, operations, paths } from "./generated/schema";

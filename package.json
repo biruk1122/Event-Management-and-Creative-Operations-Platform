@@ -26,6 +26,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "turbo lint",
+    "openapi:check": "pnpm openapi:generate && node scripts/check-generated-openapi.mjs",
+    "openapi:generate": "pnpm --filter @event-platform/api openapi:document && pnpm --filter @event-platform/api-client generate && prettier --write packages/api-client/openapi/openapi.json packages/api-client/src/generated/schema.ts",
     "test": "turbo test",
     "typecheck": "turbo typecheck"
   },
