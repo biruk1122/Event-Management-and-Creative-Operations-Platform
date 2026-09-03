@@ -4,7 +4,12 @@ import path from "node:path";
 import { z } from "zod";
 
 const monorepoRoot = path.resolve(import.meta.dirname, "../..");
-loadEnvConfig(monorepoRoot);
+loadEnvConfig(
+  monorepoRoot,
+  process.env.NODE_ENV === "development",
+  undefined,
+  true,
+);
 
 const environmentSchema = z.object({
   API_INTERNAL_URL: z.url(),
