@@ -1,0 +1,11 @@
+{
+  "extends": "@event-platform/typescript-config/base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "moduleResolution": "Bundler",
+    "verbatimModuleSyntax": false,
+    "noEmit": true
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules", "playwright-report", "test-results"]
+}

@@ -1,0 +1,77 @@
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+import { existsSync } from "node:fs";
+
+import { config as loadDotenv } from "dotenv";
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
+export const repositoryRoot = resolve(currentDir, "..", "..");
+
+/** Load the repository `.env` without overriding values already in the environment (CI sets them). */
+export function loadRepositoryEnv(): void {
+  const envPath = resolve(repositoryRoot, ".env");
+  if (existsSync(envPath)) {
+    loadDotenv({ path: envPath });
+  }
+}
+
+const WEB_PORT = process.env.WEB_PORT ?? "3000";
+const API_PORT = process.env.API_PORT ?? "4000";
+const HOST = "127.0.0.1";
+
+export const webBaseUrl = `http://${HOST}:${WEB_PORT}`;
+export const apiBaseUrl = `http://${HOST}:${API_PORT}`;
+export const apiReadinessUrl = `${apiBaseUrl}/health/ready`;
+export const webPort = WEB_PORT;
+
+/**
+ * The base PostgreSQL URL the harness derives per-run schemas from. Global setup
+ * replaces its `schema` parameter with a unique value and exports the result on
+ * `process.env.DATABASE_URL`, which the servers then inherit.
+ */
+export function baseDatabaseUrl(): string {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error(
+      "DATABASE_URL is required to run the end-to-end harness. Start PostgreSQL and set it in .env.",
+    );
+  }
+  return url;
+}
+
+/**
+ * Non-database environment shared by the API and web servers Playwright builds
+ * and starts, with test-safe defaults. `DATABASE_URL` is deliberately excluded
+ * so the per-run value that global setup places on `process.env` wins.
+ */
+export function serverEnv(): Record<string, string> {
+  const defaults: Record<string, string> = {
+    NODE_ENV: "production",
+    API_HOST: HOST,
+    API_PORT,
+    WEB_PORT,
+    LOG_LEVEL: "silent",
+    CORS_ORIGINS: webBaseUrl,
+    API_RATE_LIMIT_MAX: "1000",
+    API_RATE_LIMIT_TTL_MS: "60000",
+    AUTH_ACCESS_TOKEN_SECRET: "e2e-access-token-secret-at-least-32-characters",
+    AUTH_ACCESS_TOKEN_TTL: "15m",
+    AUTH_REFRESH_TOKEN_SECRET:
+      "e2e-refresh-token-secret-at-least-32-characters",
+    AUTH_REFRESH_TOKEN_TTL: "30d",
+    AUTH_COOKIE_SECURE: "false",
+    AUTH_COOKIE_SAME_SITE: "lax",
+    API_INTERNAL_URL: `${apiBaseUrl}/api/v1`,
+    NEXT_PUBLIC_API_URL: `${apiBaseUrl}/api/v1`,
+    NEXT_PUBLIC_WS_URL: apiBaseUrl,
+  };
+
+  const resolved: Record<string, string> = { ...defaults };
+  for (const key of Object.keys(defaults)) {
+    const fromEnv = process.env[key];
+    if (fromEnv && fromEnv.length > 0) {
+      resolved[key] = fromEnv;
+    }
+  }
+  return resolved;
+}

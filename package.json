@@ -23,6 +23,7 @@
     "docker:migrate": "docker compose run --rm migrate",
     "docker:ps": "docker compose ps",
     "docker:up": "docker compose up --build --detach",
+    "e2e": "turbo build --filter=@event-platform/api --filter=@event-platform/web && pnpm --filter @event-platform/e2e e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "turbo lint",

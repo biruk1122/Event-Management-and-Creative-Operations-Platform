@@ -80,3 +80,9 @@ branch and protected pull request workflow is documented in `docs/development/co
 - `pnpm build`
 - `pnpm format:check`
 - `pnpm openapi:check`
+- `pnpm e2e`
+
+`pnpm e2e` runs the Playwright end-to-end harness against the real web application, API, and
+PostgreSQL in an isolated database schema. It needs a reachable `DATABASE_URL` and, on first use,
+`pnpm --filter @event-platform/e2e exec playwright install chromium`. See
+[`e2e/README.md`](e2e/README.md).
