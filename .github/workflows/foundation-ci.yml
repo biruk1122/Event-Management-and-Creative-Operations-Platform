@@ -117,6 +117,9 @@ jobs:
           pnpm db:migrate:deploy
           pnpm db:migrate:status
 
+      - name: Run database integration tests
+        run: pnpm test:integration
+
       - name: Build API
         run: pnpm --filter @event-platform/api build
 

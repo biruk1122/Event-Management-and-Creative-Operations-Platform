@@ -7,3 +7,87 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+/// Authentication-core account. Profile fields, role, department, and team
+/// assignment are added by USR-01 (user and profile administration) as a
+/// non-destructive extension of this table. `email` uniqueness is
+/// case-sensitive at the database; IAM-02 normalises addresses to lower case
+/// on every write and lookup.
+enum UserAccountStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("user_account_status")
+}
+
+/// Why a refresh session stopped being valid. Set together with `revoked_at`.
+enum SessionRevocationReason {
+  LOGOUT
+  ROTATED
+  REUSE_DETECTED
+  EXPIRED
+  ADMIN_REVOKED
+  PASSWORD_CHANGED
+
+  @@map("session_revocation_reason")
+}
+
+model User {
+  id        String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  email     String            @unique
+  status    UserAccountStatus @default(ACTIVE)
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  credential UserCredential?
+  sessions   AuthSession[]
+
+  @@map("users")
+}
+
+/// Argon2id password credential. Exactly one per user; deleted with the user.
+model UserCredential {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId             String    @unique @map("user_id") @db.Uuid
+  passwordHash       String    @map("password_hash")
+  passwordUpdatedAt  DateTime  @default(now()) @map("password_updated_at") @db.Timestamptz(6)
+  failedAttemptCount Int       @default(0) @map("failed_attempt_count")
+  lockedUntil        DateTime? @map("locked_until") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_credentials")
+}
+
+/// A rotated, hashed refresh session. The raw refresh token is never stored;
+/// `refresh_token_hash` holds its digest. On rotation the previous row is
+/// revoked with reason `ROTATED` and linked to its successor through
+/// `replaced_by_session_id`; reuse of a rotated token revokes the whole
+/// `family_id`.
+model AuthSession {
+  id                  String                   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId              String                   @map("user_id") @db.Uuid
+  familyId            String                   @map("family_id") @db.Uuid
+  refreshTokenHash    String                   @unique @map("refresh_token_hash")
+  issuedAt            DateTime                  @default(now()) @map("issued_at") @db.Timestamptz(6)
+  expiresAt           DateTime                  @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt          DateTime?                @map("last_used_at") @db.Timestamptz(6)
+  rotatedAt           DateTime?                @map("rotated_at") @db.Timestamptz(6)
+  revokedAt           DateTime?                @map("revoked_at") @db.Timestamptz(6)
+  revokedReason       SessionRevocationReason? @map("revoked_reason")
+  replacedBySessionId String?                  @unique @map("replaced_by_session_id") @db.Uuid
+  ipAddress           String?                  @map("ip_address") @db.Inet
+  userAgent           String?                  @map("user_agent")
+  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy AuthSession? @relation("SessionRotation", fields: [replacedBySessionId], references: [id], onDelete: SetNull)
+  replaces   AuthSession? @relation("SessionRotation")
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
