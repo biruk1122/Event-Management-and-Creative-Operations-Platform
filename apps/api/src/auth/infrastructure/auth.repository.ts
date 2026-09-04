@@ -214,12 +214,14 @@ export class AuthRepository {
     });
   }
 
+  /** A session backs an authenticated request only while it and its user are live. */
   async isSessionActive(sessionId: string): Promise<boolean> {
     const active = await this.db.authSession.findFirst({
       where: {
         id: sessionId,
         revokedAt: null,
         expiresAt: { gt: new Date() },
+        user: { status: "ACTIVE" },
       },
       select: { id: true },
     });

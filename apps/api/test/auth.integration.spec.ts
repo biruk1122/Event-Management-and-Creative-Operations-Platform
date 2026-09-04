@@ -1,6 +1,6 @@
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import request from "supertest";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import {
   createIsolatedDatabase,
@@ -59,6 +59,7 @@ describe("authentication API", () => {
       "integration-access-token-secret-at-least-32-chars";
     process.env.AUTH_REFRESH_TOKEN_SECRET ??=
       "integration-refresh-token-secret-at-least-32-chars";
+    process.env.AUTH_LOGIN_RATE_LIMIT_MAX = "10000";
 
     const [{ Test }, appModule, appSetup, hasherModule] = await Promise.all([
       import("@nestjs/testing"),
@@ -285,14 +286,187 @@ describe("authentication API", () => {
     expect(document.components.schemas).toHaveProperty("SessionResponse");
     expect(document.components.schemas).toHaveProperty("ProblemDetails");
   });
+
+  it("sets the expected cookie attributes on login", async () => {
+    const login = await request(http)
+      .post("/api/v1/auth/login")
+      .send({ email: ACTIVE_EMAIL, password: PASSWORD });
+    const raw = setCookies(login);
+
+    const access = raw.find((c) => c.startsWith("access_token="))!;
+    const refresh = raw.find((c) => c.startsWith("refresh_token="))!;
+    const csrf = raw.find((c) => c.startsWith("csrf_token="))!;
+
+    expect(access).toMatch(/HttpOnly/i);
+    expect(access).toMatch(/SameSite=Lax/i);
+    expect(access).toMatch(/Path=\/(;|$)/);
+    expect(refresh).toMatch(/HttpOnly/i);
+    expect(refresh).toMatch(/Path=\/api\/v1\/auth/i);
+    expect(csrf).not.toMatch(/HttpOnly/i);
+  });
+
+  it("validates each login field", async () => {
+    const cases = [
+      { email: ACTIVE_EMAIL },
+      { password: PASSWORD },
+      { email: ACTIVE_EMAIL, password: "short" },
+      { email: ACTIVE_EMAIL, password: "x".repeat(500) },
+      { email: 42, password: PASSWORD },
+    ];
+    for (const payload of cases) {
+      const response = await request(http)
+        .post("/api/v1/auth/login")
+        .send(payload);
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+    }
+  });
+
+  it("rejects refresh with a missing or unknown token", async () => {
+    const missing = await request(http)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", ["csrf_token=abc"])
+      .set("x-csrf-token", "abc");
+    expect(missing.status).toBe(401);
+    expect(body<ProblemBody>(missing).code).toBe("AUTH_INVALID_SESSION");
+
+    const unknown = await request(http)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", ["refresh_token=not-a-real-token", "csrf_token=abc"])
+      .set("x-csrf-token", "abc");
+    expect(unknown.status).toBe(401);
+    expect(body<ProblemBody>(unknown).code).toBe("AUTH_INVALID_SESSION");
+  });
+
+  it("rejects refresh when the CSRF header and cookie disagree", async () => {
+    const login = await request(http)
+      .post("/api/v1/auth/login")
+      .send({ email: ACTIVE_EMAIL, password: PASSWORD });
+    const cookies = setCookies(login);
+    const refresh = cookieValue(cookies, "refresh_token")!;
+    const csrf = cookieValue(cookies, "csrf_token")!;
+
+    const mismatch = await request(http)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", [`refresh_token=${refresh}`, `csrf_token=${csrf}`])
+      .set("x-csrf-token", `${csrf}tampered`);
+    expect(mismatch.status).toBe(403);
+    expect(body<ProblemBody>(mismatch).code).toBe("CSRF_TOKEN_INVALID");
+  });
+
+  it("stops honouring the session once the account is deactivated", async () => {
+    const userId = await seedAccount(
+      db,
+      "deactivate@e2e.test",
+      await hashFor(PASSWORD),
+      "ACTIVE",
+    );
+    const login = await request(http)
+      .post("/api/v1/auth/login")
+      .send({ email: "deactivate@e2e.test", password: PASSWORD });
+    const cookies = setCookies(login);
+    const refresh = cookieValue(cookies, "refresh_token")!;
+    const csrf = cookieValue(cookies, "csrf_token")!;
+
+    await db.query(`UPDATE users SET status = 'INACTIVE' WHERE id = $1`, [
+      userId,
+    ]);
+
+    const me = await request(http)
+      .get("/api/v1/auth/me")
+      .set("Cookie", cookies);
+    expect(me.status).toBe(401);
+
+    const refreshed = await request(http)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", [`refresh_token=${refresh}`, `csrf_token=${csrf}`])
+      .set("x-csrf-token", csrf);
+    expect(refreshed.status).toBe(401);
+    expect(body<ProblemBody>(refreshed).code).toBe("AUTH_INVALID_SESSION");
+  });
+
+  it("returns exactly id, email and status from /me", async () => {
+    const login = await request(http)
+      .post("/api/v1/auth/login")
+      .send({ email: ACTIVE_EMAIL, password: PASSWORD });
+    const me = await request(http)
+      .get("/api/v1/auth/me")
+      .set("Cookie", setCookies(login));
+
+    expect(me.status).toBe(200);
+    expect(Object.keys(body<UserBody>(me)).sort()).toEqual([
+      "email",
+      "id",
+      "status",
+    ]);
+  });
 });
+
+describe("authentication rate limiting", () => {
+  let db: IsolatedDatabase;
+  let app: NestExpressApplication;
+  let http: ReturnType<NestExpressApplication["getHttpServer"]>;
+
+  beforeAll(async () => {
+    db = await createIsolatedDatabase();
+    process.env.DATABASE_URL = db.url;
+    process.env.NODE_ENV = "test";
+    process.env.AUTH_ACCESS_TOKEN_SECRET ??=
+      "integration-access-token-secret-at-least-32-chars";
+    process.env.AUTH_REFRESH_TOKEN_SECRET ??=
+      "integration-refresh-token-secret-at-least-32-chars";
+    process.env.AUTH_LOGIN_RATE_LIMIT_MAX = "3";
+    // Re-evaluate the config module so the new limit takes effect.
+    vi.resetModules();
+
+    const [{ Test }, appModule, appSetup] = await Promise.all([
+      import("@nestjs/testing"),
+      import("../src/app.module.js"),
+      import("../src/app.setup.js"),
+    ]);
+    const moduleRef = await Test.createTestingModule({
+      imports: [appModule.AppModule],
+    }).compile();
+    app = moduleRef.createNestApplication<NestExpressApplication>();
+    appSetup.configureApplication(app);
+    await app.init();
+    http = app.getHttpServer();
+  });
+
+  afterAll(async () => {
+    process.env.AUTH_LOGIN_RATE_LIMIT_MAX = "10000";
+    await app?.close();
+    await db?.drop();
+  });
+
+  it("returns AUTH_RATE_LIMITED after the per-IP login ceiling", async () => {
+    let sawLimit = false;
+    for (let i = 0; i < 6; i += 1) {
+      const response = await request(http)
+        .post("/api/v1/auth/login")
+        .send({ email: "rl@e2e.test", password: "the wrong password" });
+      if (response.status === 429) {
+        expect(body<ProblemBody>(response).code).toBe("AUTH_RATE_LIMITED");
+        sawLimit = true;
+        break;
+      }
+    }
+    expect(sawLimit).toBe(true);
+  });
+});
+
+async function hashFor(password: string): Promise<string> {
+  const { PasswordHasher } =
+    await import("../src/auth/domain/password-hasher.js");
+  return new PasswordHasher().hash(password);
+}
 
 async function seedAccount(
   db: IsolatedDatabase,
   email: string,
   passwordHash: string,
   status: "ACTIVE" | "INACTIVE",
-): Promise<void> {
+): Promise<string> {
   const [user] = await db.query<{ id: string }>(
     `INSERT INTO users (email, status) VALUES ($1, $2) RETURNING id`,
     [email, status],
@@ -301,4 +475,5 @@ async function seedAccount(
     `INSERT INTO user_credentials (user_id, password_hash) VALUES ($1, $2)`,
     [user!.id, passwordHash],
   );
+  return user!.id;
 }
