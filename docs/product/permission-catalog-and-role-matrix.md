@@ -13,7 +13,10 @@ without adding business behavior, and it builds on the canonical role terms and 
 [`product-vocabulary-and-lifecycles.md`](product-vocabulary-and-lifecycles.md). The
 [technical architecture](../architecture/technical-architecture.md) still applies: authentication
 and authorization are enforced at transport and application-service boundaries, and a record has one
-concrete owning module.
+concrete owning module. The navigation surfaces that render destinations from these keys, and the
+route owner for each destination, are defined in
+[`navigation-and-information-architecture.md`](navigation-and-information-architecture.md);
+navigation visibility is a convenience and never a substitute for enforcement.
 
 This document does not define database column names, API wire formats, guard class names, or seed
 migrations. Those are approved as part of the issue that implements Role-Based Access Control

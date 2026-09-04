@@ -21,7 +21,10 @@ before implementation depends on it.
 
 The permission keys and role-to-permission matrix that operationalize the **Role**, **Permission**,
 and **RBAC** terms defined below are maintained in
-[`permission-catalog-and-role-matrix.md`](permission-catalog-and-role-matrix.md).
+[`permission-catalog-and-role-matrix.md`](permission-catalog-and-role-matrix.md). The route owner
+for every destination, the workspace tab set for the **event workspace**, and the responsive
+navigation model are defined in
+[`navigation-and-information-architecture.md`](navigation-and-information-architecture.md).
 
 ## Naming rules
 
