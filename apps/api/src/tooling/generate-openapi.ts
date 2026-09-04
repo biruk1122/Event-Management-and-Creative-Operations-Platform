@@ -9,6 +9,10 @@ process.env.DATABASE_URL ??=
   "postgresql://openapi:openapi@127.0.0.1:5432/openapi?schema=public";
 process.env.LOG_LEVEL ??= "silent";
 process.env.NODE_ENV ??= "test";
+process.env.AUTH_ACCESS_TOKEN_SECRET ??=
+  "openapi-generation-access-token-secret-placeholder";
+process.env.AUTH_REFRESH_TOKEN_SECRET ??=
+  "openapi-generation-refresh-token-secret-placeholder";
 
 function sortJson(value: unknown): unknown {
   if (Array.isArray(value)) {

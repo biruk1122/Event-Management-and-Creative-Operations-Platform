@@ -8,14 +8,19 @@ import {
 
 const documentOptions: SwaggerDocumentOptions = {
   autoTagControllers: false,
-  operationIdFactory: (controllerKey, methodKey, version) =>
-    [
+  operationIdFactory: (controllerKey, methodKey, version) => {
+    const normalizedVersion =
+      version == null || version === ""
+        ? undefined
+        : `v${String(version).replace(/^v/i, "")}`;
+    return [
       controllerKey.replace(/Controller$/, ""),
       methodKey,
-      version ? `v${version}` : undefined,
+      normalizedVersion,
     ]
       .filter(Boolean)
-      .join("_"),
+      .join("_");
+  },
 };
 
 function createOpenApiConfiguration() {

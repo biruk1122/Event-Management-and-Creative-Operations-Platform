@@ -1,5 +1,6 @@
 import { RequestMethod, ValidationPipe, VersioningType } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
+import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 
@@ -16,6 +17,7 @@ export function configureApplication(app: NestExpressApplication): void {
   const environment = app.get<Environment>(ENVIRONMENT);
 
   app.use(helmet());
+  app.use(cookieParser());
   app.enableCors({
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
