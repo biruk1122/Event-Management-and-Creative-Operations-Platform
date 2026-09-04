@@ -17,8 +17,15 @@ export class DatabaseService
   private readonly logger = new Logger(DatabaseService.name);
 
   constructor(@Inject(ENVIRONMENT) environment: Environment) {
+    // The pg driver adapter ignores the `?schema=` connection parameter, so the
+    // schema is passed explicitly.
+    const schema =
+      new URL(environment.DATABASE_URL).searchParams.get("schema") ?? undefined;
     super({
-      adapter: new PrismaPg({ connectionString: environment.DATABASE_URL }),
+      adapter: new PrismaPg(
+        { connectionString: environment.DATABASE_URL },
+        schema ? { schema } : undefined,
+      ),
     });
   }
 

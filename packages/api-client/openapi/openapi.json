@@ -1,6 +1,27 @@
 {
   "components": {
     "schemas": {
+      "AuthenticatedUserResponse": {
+        "properties": {
+          "email": {
+            "example": "manager@example.com",
+            "format": "email",
+            "type": "string"
+          },
+          "id": {
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": ["ACTIVE", "INACTIVE"],
+            "example": "ACTIVE",
+            "type": "string"
+          }
+        },
+        "required": ["id", "email", "status"],
+        "type": "object"
+      },
       "LivenessResponse": {
         "properties": {
           "status": {
@@ -15,6 +36,68 @@
           }
         },
         "required": ["status", "timestamp"],
+        "type": "object"
+      },
+      "LoginDto": {
+        "properties": {
+          "email": {
+            "example": "manager@example.com",
+            "format": "email",
+            "type": "string"
+          },
+          "password": {
+            "example": "correct horse battery staple",
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": ["email", "password"],
+        "type": "object"
+      },
+      "ProblemDetails": {
+        "properties": {
+          "code": {
+            "example": "VALIDATION_ERROR",
+            "type": "string"
+          },
+          "detail": {
+            "example": "One or more request values are invalid.",
+            "type": "string"
+          },
+          "errors": {
+            "description": "Field-level details when the failure is a validation error.",
+            "type": "object"
+          },
+          "instance": {
+            "example": "/api/v1/auth/login",
+            "type": "string"
+          },
+          "requestId": {
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "type": "string"
+          },
+          "status": {
+            "example": 400,
+            "type": "number"
+          },
+          "title": {
+            "example": "Validation Failed",
+            "type": "string"
+          },
+          "type": {
+            "example": "https://api.event-platform.local/problems/validation_error",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code",
+          "requestId"
+        ],
         "type": "object"
       },
       "ReadinessChecks": {
@@ -46,6 +129,15 @@
         },
         "required": ["checks", "status", "timestamp"],
         "type": "object"
+      },
+      "SessionResponse": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/AuthenticatedUserResponse"
+          }
+        },
+        "required": ["user"],
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -71,6 +163,201 @@
   },
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "Auth_login_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid credentials"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Account inactive or locked"
+          }
+        },
+        "summary": "Exchange email and password for session cookies",
+        "tags": ["Authentication"]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "operationId": "Auth_logout_v1",
+        "parameters": [],
+        "responses": {
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Revoke the current session and clear cookies",
+        "tags": ["Authentication"]
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "operationId": "Auth_me_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthenticatedUserResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Return the authenticated account",
+        "tags": ["Authentication"]
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "Auth_refresh_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Validation failed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing, expired, revoked, or replayed session"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Rotate the refresh session and reissue cookies",
+        "tags": ["Authentication"]
+      }
+    },
     "/health/live": {
       "get": {
         "operationId": "Health_getLiveness",
