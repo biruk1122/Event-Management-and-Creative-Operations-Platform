@@ -10,12 +10,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { submitLogin as defaultSubmitLogin } from "../api/submit-login";
 import type { SubmitLogin } from "../lib/login-outcome";
 import { loginSchema, type LoginValues } from "../lib/login-schema";
 
 const FORM_ERRORS: Record<
-  "invalid_credentials" | "account_locked" | "rate_limited" | "unexpected",
+  | "invalid_credentials"
+  | "account_locked"
+  | "account_inactive"
+  | "rate_limited"
+  | "unexpected",
   { title: string; description: string }
 > = {
   invalid_credentials: {
@@ -26,6 +29,11 @@ const FORM_ERRORS: Record<
     title: "This account is temporarily locked",
     description:
       "There have been too many failed attempts. Wait a few minutes, then try again or contact an administrator.",
+  },
+  account_inactive: {
+    title: "This account is not active",
+    description:
+      "Ask an administrator to reactivate your account, then sign in again.",
   },
   rate_limited: {
     title: "Too many attempts",
@@ -38,15 +46,13 @@ const FORM_ERRORS: Record<
 };
 
 interface LoginFormProps {
-  /** Injected by the route; tests pass a stub. Defaults to the placeholder. */
-  onSubmit?: SubmitLogin;
+  /** Runs the sign-in request and reports a mapped outcome. */
+  onSubmit: SubmitLogin;
   /** Where the user was heading before being sent to sign in. */
   redirectTo?: string;
 }
 
 export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
-  const submit = onSubmit ?? defaultSubmitLogin;
-
   const emailErrorId = useId();
   const passwordErrorId = useId();
 
@@ -68,7 +74,7 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
 
   async function run(values: LoginValues) {
     setFormErrorKey(null);
-    const outcome = await submit(values);
+    const outcome = await onSubmit(values);
 
     switch (outcome.status) {
       case "success":
@@ -93,7 +99,7 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
         <AlertDescription>
           {redirectTo
             ? "Taking you back to where you left off…"
-            : "Taking you to your dashboard…"}
+            : "Taking you to your workspace…"}
         </AlertDescription>
       </Alert>
     );

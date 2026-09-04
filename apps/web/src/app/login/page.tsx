@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { AuthShell, LoginForm } from "@/features/auth";
+import { AuthShell, Login } from "@/features/auth";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -15,7 +15,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
       title="Sign in to Nexo Operations"
       description="Use your work account to continue."
     >
-      <LoginForm {...(redirectTo ? { redirectTo } : {})} />
+      <Login {...(redirectTo ? { redirectTo } : {})} />
     </AuthShell>
   );
 }

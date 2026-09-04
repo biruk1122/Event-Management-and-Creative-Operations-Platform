@@ -5,15 +5,12 @@ import { LoaderCircle, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-import { signOut as defaultSignOut } from "../api/sign-out";
-
 interface SignOutButtonProps {
-  /** Injected by the caller; tests pass a stub. Defaults to the placeholder. */
-  onSignOut?: () => Promise<void>;
+  /** Revokes the session; the caller handles navigation afterwards. */
+  onSignOut: () => Promise<void>;
 }
 
 export function SignOutButton({ onSignOut }: SignOutButtonProps) {
-  const run = onSignOut ?? defaultSignOut;
   const [pending, setPending] = useState(false);
 
   return (
@@ -25,7 +22,7 @@ export function SignOutButton({ onSignOut }: SignOutButtonProps) {
       aria-busy={pending}
       onClick={() => {
         setPending(true);
-        void run().finally(() => {
+        void onSignOut().finally(() => {
           setPending(false);
         });
       }}

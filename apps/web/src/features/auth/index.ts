@@ -1,6 +1,10 @@
+export { useCurrentUser } from "./api/auth-queries";
+export type { AuthUser } from "./api/auth-gateway";
 export { AuthShell } from "./components/auth-shell";
+export { Login } from "./components/login";
 export { LoginForm } from "./components/login-form";
 export { SessionExpiredNotice } from "./components/session-expired-notice";
+export { SignOut } from "./components/sign-out";
 export { SignOutButton } from "./components/sign-out-button";
 export type { LoginOutcome, SubmitLogin } from "./lib/login-outcome";
 export { loginSchema, type LoginValues } from "./lib/login-schema";
