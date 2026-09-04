@@ -38,6 +38,12 @@ const environmentSchema = z.object({
   AUTH_REFRESH_TOKEN_TTL: z.string().min(1).default("30d"),
   AUTH_MAX_FAILED_ATTEMPTS: z.coerce.number().int().positive().default(10),
   AUTH_LOCKOUT_DURATION_MS: z.coerce.number().int().positive().default(900_000),
+  AUTH_LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+  AUTH_LOGIN_RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(300_000),
   AUTH_COOKIE_SECURE: booleanFromString.default(false),
   AUTH_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
 });
