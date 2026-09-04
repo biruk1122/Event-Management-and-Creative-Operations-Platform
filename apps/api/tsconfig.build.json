@@ -9,6 +9,7 @@
     "test",
     "prisma.config.ts",
     "vitest.config.ts",
+    "vitest.integration.config.ts",
     "**/*.spec.ts"
   ]
 }
