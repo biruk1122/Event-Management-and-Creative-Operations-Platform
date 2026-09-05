@@ -8,9 +8,12 @@ datasource db {
   provider = "postgresql"
 }
 
-/// Authentication-core account. Profile fields, role, department, and team
+/// Authentication-core account. Profile fields and department/team
 /// assignment are added by USR-01 (user and profile administration) as a
-/// non-destructive extension of this table. `email` uniqueness is
+/// non-destructive extension of this table. Role assignment is
+/// `UserRoleAssignment`, owned by RBAC-02 rather than added here, so that
+/// policy evaluation works before USR-01 exists; USR-01/02 add the
+/// `user.assign_role`-gated endpoint that writes to it. `email` uniqueness is
 /// case-sensitive at the database; IAM-02 normalises addresses to lower case
 /// on every write and lookup.
 enum UserAccountStatus {
@@ -41,6 +44,7 @@ model User {
 
   credential UserCredential?
   sessions   AuthSession[]
+  roleAssignment UserRoleAssignment?
 
   @@map("users")
 }
@@ -138,6 +142,7 @@ model Role {
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   rolePermissions RolePermission[]
+  userAssignments UserRoleAssignment[]
 
   @@map("roles")
 }
@@ -174,4 +179,24 @@ model BaselineGrant {
 
   @@id([permissionKey, scope])
   @@map("baseline_grants")
+}
+
+/// Which single role a user currently holds. Owned by RBAC (RBAC-02), not
+/// USR-01: a join table rather than a column on `users`, so it requires no
+/// change to that table. This is what lets guards resolve an acting user's
+/// grants, and what a role needs to be free of before it can be deleted.
+/// USR-01/02 later add the `user.assign_role`-gated endpoint that writes
+/// here; until then, rows exist only for accounts an operator has assigned
+/// directly.
+model UserRoleAssignment {
+  userId    String   @id @map("user_id") @db.Uuid
+  roleId    String   @map("role_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@index([roleId])
+  @@map("user_role_assignments")
 }

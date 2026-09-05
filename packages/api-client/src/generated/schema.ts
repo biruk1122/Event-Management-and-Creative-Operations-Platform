@@ -72,6 +72,94 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/permissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the fixed permission catalog */
+    get: operations["Permissions_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/roles": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List configurable roles */
+    get: operations["Roles_list_v1"];
+    put?: never;
+    /** Create a configurable role */
+    post: operations["Roles_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/roles/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one role and its permission grants */
+    get: operations["Roles_get_v1"];
+    put?: never;
+    post?: never;
+    /** Remove a role that is not built in or in use */
+    delete: operations["Roles_remove_v1"];
+    options?: never;
+    head?: never;
+    /** Rename or describe a role */
+    patch: operations["Roles_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/roles/{id}/permissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Grant a permission to a role at a scope */
+    post: operations["Roles_addPermission_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/roles/{id}/permissions/{permissionKey}/{scope}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Remove a permission grant from a role */
+    delete: operations["Roles_removePermission_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/health/live": {
     parameters: {
       query?: never;
@@ -110,6 +198,21 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    AddRolePermissionDto: {
+      /** @example task.review */
+      permissionKey: string;
+      /**
+       * @example ORGANIZATION
+       * @enum {string}
+       */
+      scope:
+        | "ORGANIZATION"
+        | "DEPARTMENT"
+        | "TEAM"
+        | "WORKSPACE"
+        | "SELF"
+        | "MANAGEMENT";
+    };
     AuthenticatedUserResponse: {
       /**
        * Format: email
@@ -126,6 +229,12 @@ export interface components {
        * @enum {string}
        */
       status: "ACTIVE" | "INACTIVE";
+    };
+    CreateRoleDto: {
+      /** @example Coordinates activity across one region. */
+      description?: string;
+      /** @example Regional Coordinator */
+      name: string;
     };
     LivenessResponse: {
       /**
@@ -147,6 +256,12 @@ export interface components {
       email: string;
       /** @example correct horse battery staple */
       password: string;
+    };
+    PermissionResponse: {
+      /** @example Record Approved or Changes Requested while a task is Under Review. */
+      description: string;
+      /** @example task.review */
+      key: string;
     };
     ProblemDetails: {
       /** @example VALIDATION_ERROR */
@@ -186,8 +301,70 @@ export interface components {
        */
       timestamp: string;
     };
+    RoleGrantResponse: {
+      /** @example task.review */
+      permissionKey: string;
+      /**
+       * @example ORGANIZATION
+       * @enum {string}
+       */
+      scope:
+        | "ORGANIZATION"
+        | "DEPARTMENT"
+        | "TEAM"
+        | "WORKSPACE"
+        | "SELF"
+        | "MANAGEMENT";
+    };
+    RoleResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      /** @example Coordinates activity across one region. */
+      description: string | null;
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /**
+       * @description Whether this is one of the five built-in SRS roles.
+       * @example false
+       */
+      isSystem: boolean;
+      /** @example Regional Coordinator */
+      name: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    RoleWithGrantsResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      /** @example Coordinates activity across one region. */
+      description: string | null;
+      grants: components["schemas"]["RoleGrantResponse"][];
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /**
+       * @description Whether this is one of the five built-in SRS roles.
+       * @example false
+       */
+      isSystem: boolean;
+      /** @example Regional Coordinator */
+      name: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
     SessionResponse: {
       user: components["schemas"]["AuthenticatedUserResponse"];
+    };
+    UpdateRoleDto: {
+      /** @example Coordinates activity across one region. */
+      description?: string;
+      /** @example Regional Coordinator */
+      name?: string;
     };
   };
   responses: never;
@@ -351,6 +528,390 @@ export interface operations {
       };
       /** @description CSRF token invalid */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Permissions_list_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PermissionResponse"][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Roles_list_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RoleResponse"][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Roles_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateRoleDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RoleResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description A role with that name already exists */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Roles_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RoleWithGrantsResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Role not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Roles_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Role not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The role is built in or assigned to a user */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Roles_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateRoleDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RoleResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Role not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description A role with that name already exists */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Roles_addPermission_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AddRolePermissionDto"];
+      };
+    };
+    responses: {
+      /** @description The grant was added */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Role not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The role already holds this grant */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Roles_removePermission_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        permissionKey: string;
+        scope: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Role or grant not found */
+      404: {
         headers: {
           [name: string]: unknown;
         };

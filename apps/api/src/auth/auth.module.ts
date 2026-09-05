@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 
+import { PermissionsModule } from "../common/security/permissions.module.js";
 import { AuthAuditService } from "./auth-audit.service.js";
 import { AuthCookies } from "./auth-cookies.js";
 import { AuthController } from "./auth.controller.js";
@@ -11,6 +12,7 @@ import { CsrfGuard } from "./guards/csrf.guard.js";
 import { AuthRepository } from "./infrastructure/auth.repository.js";
 
 @Module({
+  imports: [PermissionsModule],
   controllers: [AuthController],
   providers: [
     AuthService,
@@ -22,6 +24,17 @@ import { AuthRepository } from "./infrastructure/auth.repository.js";
     AccessTokenGuard,
     CsrfGuard,
   ],
-  exports: [AccessTokenGuard],
+  // NestJS resolves a guard used via `@UseGuards(ClassRef)` in the DI scope
+  // of the module that declares the *consuming* controller, not the module
+  // that declares the guard. RbacModule uses AccessTokenGuard and CsrfGuard,
+  // so every one of their constructor dependencies must be exported too, not
+  // just the guard classes themselves.
+  exports: [
+    AccessTokenGuard,
+    AccessTokenService,
+    AuthCookies,
+    AuthRepository,
+    CsrfGuard,
+  ],
 })
 export class AuthModule {}

@@ -1,6 +1,28 @@
 {
   "components": {
     "schemas": {
+      "AddRolePermissionDto": {
+        "properties": {
+          "permissionKey": {
+            "example": "task.review",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "ORGANIZATION",
+              "DEPARTMENT",
+              "TEAM",
+              "WORKSPACE",
+              "SELF",
+              "MANAGEMENT"
+            ],
+            "example": "ORGANIZATION",
+            "type": "string"
+          }
+        },
+        "required": ["permissionKey", "scope"],
+        "type": "object"
+      },
       "AuthenticatedUserResponse": {
         "properties": {
           "email": {
@@ -20,6 +42,22 @@
           }
         },
         "required": ["id", "email", "status"],
+        "type": "object"
+      },
+      "CreateRoleDto": {
+        "properties": {
+          "description": {
+            "example": "Coordinates activity across one region.",
+            "type": "string"
+          },
+          "name": {
+            "example": "Regional Coordinator",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["name"],
         "type": "object"
       },
       "LivenessResponse": {
@@ -52,6 +90,20 @@
           }
         },
         "required": ["email", "password"],
+        "type": "object"
+      },
+      "PermissionResponse": {
+        "properties": {
+          "description": {
+            "example": "Record Approved or Changes Requested while a task is Under Review.",
+            "type": "string"
+          },
+          "key": {
+            "example": "task.review",
+            "type": "string"
+          }
+        },
+        "required": ["key", "description"],
         "type": "object"
       },
       "ProblemDetails": {
@@ -130,6 +182,115 @@
         "required": ["checks", "status", "timestamp"],
         "type": "object"
       },
+      "RoleGrantResponse": {
+        "properties": {
+          "permissionKey": {
+            "example": "task.review",
+            "type": "string"
+          },
+          "scope": {
+            "enum": [
+              "ORGANIZATION",
+              "DEPARTMENT",
+              "TEAM",
+              "WORKSPACE",
+              "SELF",
+              "MANAGEMENT"
+            ],
+            "example": "ORGANIZATION",
+            "type": "string"
+          }
+        },
+        "required": ["permissionKey", "scope"],
+        "type": "object"
+      },
+      "RoleResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "example": "Coordinates activity across one region.",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isSystem": {
+            "description": "Whether this is one of the five built-in SRS roles.",
+            "example": false,
+            "type": "boolean"
+          },
+          "name": {
+            "example": "Regional Coordinator",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "isSystem",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "RoleWithGrantsResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "example": "Coordinates activity across one region.",
+            "nullable": true,
+            "type": "string"
+          },
+          "grants": {
+            "items": {
+              "$ref": "#/components/schemas/RoleGrantResponse"
+            },
+            "type": "array"
+          },
+          "id": {
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "type": "string"
+          },
+          "isSystem": {
+            "description": "Whether this is one of the five built-in SRS roles.",
+            "example": false,
+            "type": "boolean"
+          },
+          "name": {
+            "example": "Regional Coordinator",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "isSystem",
+          "createdAt",
+          "updatedAt",
+          "grants"
+        ],
+        "type": "object"
+      },
       "SessionResponse": {
         "properties": {
           "user": {
@@ -137,6 +298,21 @@
           }
         },
         "required": ["user"],
+        "type": "object"
+      },
+      "UpdateRoleDto": {
+        "properties": {
+          "description": {
+            "example": "Coordinates activity across one region.",
+            "type": "string"
+          },
+          "name": {
+            "example": "Regional Coordinator",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
         "type": "object"
       }
     },
@@ -356,6 +532,535 @@
         ],
         "summary": "Rotate the refresh session and reissue cookies",
         "tags": ["Authentication"]
+      }
+    },
+    "/api/v1/permissions": {
+      "get": {
+        "operationId": "Permissions_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the fixed permission catalog",
+        "tags": ["Roles and permissions"]
+      }
+    },
+    "/api/v1/roles": {
+      "get": {
+        "operationId": "Roles_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RoleResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List configurable roles",
+        "tags": ["Roles and permissions"]
+      },
+      "post": {
+        "operationId": "Roles_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "A role with that name already exists"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a configurable role",
+        "tags": ["Roles and permissions"]
+      }
+    },
+    "/api/v1/roles/{id}": {
+      "delete": {
+        "operationId": "Roles_remove_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The role is built in or assigned to a user"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Remove a role that is not built in or in use",
+        "tags": ["Roles and permissions"]
+      },
+      "get": {
+        "operationId": "Roles_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleWithGrantsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get one role and its permission grants",
+        "tags": ["Roles and permissions"]
+      },
+      "patch": {
+        "operationId": "Roles_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "A role with that name already exists"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Rename or describe a role",
+        "tags": ["Roles and permissions"]
+      }
+    },
+    "/api/v1/roles/{id}/permissions": {
+      "post": {
+        "operationId": "Roles_addPermission_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddRolePermissionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "The grant was added"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The role already holds this grant"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Grant a permission to a role at a scope",
+        "tags": ["Roles and permissions"]
+      }
+    },
+    "/api/v1/roles/{id}/permissions/{permissionKey}/{scope}": {
+      "delete": {
+        "operationId": "Roles_removePermission_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "permissionKey",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role or grant not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Remove a permission grant from a role",
+        "tags": ["Roles and permissions"]
       }
     },
     "/health/live": {

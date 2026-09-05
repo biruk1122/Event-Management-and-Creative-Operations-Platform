@@ -8,6 +8,7 @@ import { environment } from "./config/environment.js";
 import { EnvironmentModule } from "./config/environment.module.js";
 import { DatabaseModule } from "./database/database.module.js";
 import { HealthModule } from "./health/health.module.js";
+import { RbacModule } from "./rbac/rbac.module.js";
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { HealthModule } from "./health/health.module.js";
     DatabaseModule,
     HealthModule,
     AuthModule,
+    RbacModule,
   ],
 })
 export class AppModule {}
