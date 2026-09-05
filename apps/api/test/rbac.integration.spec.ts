@@ -442,6 +442,126 @@ describe("configurable roles and permissions API", () => {
     });
   });
 
+  describe("request validation", () => {
+    it("rejects a malformed permission key", async () => {
+      const created = await createTestRole();
+      const response = await request(http)
+        .post(`/api/v1/roles/${created.id}/permissions`)
+        .set("Cookie", superAdmin.cookies)
+        .set("x-csrf-token", superAdmin.csrfToken)
+        .send({ permissionKey: "NotDotSeparated", scope: "ORGANIZATION" });
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+    });
+
+    it("rejects an invalid scope value in the request body", async () => {
+      const created = await createTestRole();
+      const response = await request(http)
+        .post(`/api/v1/roles/${created.id}/permissions`)
+        .set("Cookie", superAdmin.cookies)
+        .set("x-csrf-token", superAdmin.csrfToken)
+        .send({ permissionKey: "task.review", scope: "NOT_A_SCOPE" });
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+    });
+
+    it("rejects an invalid scope path segment on grant removal", async () => {
+      const created = await createTestRole();
+      const response = await request(http)
+        .delete(
+          `/api/v1/roles/${created.id}/permissions/task.review/NOT_A_SCOPE`,
+        )
+        .set("Cookie", superAdmin.cookies)
+        .set("x-csrf-token", superAdmin.csrfToken);
+      expect(response.status).toBe(400);
+    });
+
+    it("rejects an unexpected field in the request body", async () => {
+      const response = await request(http)
+        .post("/api/v1/roles")
+        .set("Cookie", superAdmin.cookies)
+        .set("x-csrf-token", superAdmin.csrfToken)
+        .send({ name: "Whitelist Test Role", notARealField: true });
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+    });
+
+    it("accepts an empty update body as a no-op", async () => {
+      const created = await createTestRole();
+      const response = await request(http)
+        .patch(`/api/v1/roles/${created.id}`)
+        .set("Cookie", superAdmin.cookies)
+        .set("x-csrf-token", superAdmin.csrfToken)
+        .send({});
+      expect(response.status).toBe(200);
+      expect(body<RoleBody>(response).name).toBe(created.body.name);
+    });
+
+    it("accepts renaming a role to its own current name", async () => {
+      const created = await createTestRole();
+      const response = await request(http)
+        .patch(`/api/v1/roles/${created.id}`)
+        .set("Cookie", superAdmin.cookies)
+        .set("x-csrf-token", superAdmin.csrfToken)
+        .send({ name: created.body.name });
+      expect(response.status).toBe(200);
+    });
+  });
+
+  describe("concurrent requests", () => {
+    it("lets exactly one of two simultaneous same-name role creations succeed", async () => {
+      const name = `Race Role ${Math.random().toString(36).slice(2)}`;
+      const [first, second] = await Promise.all([
+        request(http)
+          .post("/api/v1/roles")
+          .set("Cookie", superAdmin.cookies)
+          .set("x-csrf-token", superAdmin.csrfToken)
+          .send({ name }),
+        request(http)
+          .post("/api/v1/roles")
+          .set("Cookie", superAdmin.cookies)
+          .set("x-csrf-token", superAdmin.csrfToken)
+          .send({ name }),
+      ]);
+
+      const statuses = [first.status, second.status].sort();
+      expect(statuses).toEqual([201, 409]);
+
+      const listed = await request(http)
+        .get("/api/v1/roles")
+        .set("Cookie", superAdmin.cookies);
+      expect(
+        body<RoleBody[]>(listed).filter((role) => role.name === name),
+      ).toHaveLength(1);
+    });
+
+    it("lets exactly one of two simultaneous same grant additions succeed", async () => {
+      const created = await createTestRole();
+      const [first, second] = await Promise.all([
+        request(http)
+          .post(`/api/v1/roles/${created.id}/permissions`)
+          .set("Cookie", superAdmin.cookies)
+          .set("x-csrf-token", superAdmin.csrfToken)
+          .send({ permissionKey: "task.review", scope: "ORGANIZATION" }),
+        request(http)
+          .post(`/api/v1/roles/${created.id}/permissions`)
+          .set("Cookie", superAdmin.cookies)
+          .set("x-csrf-token", superAdmin.csrfToken)
+          .send({ permissionKey: "task.review", scope: "ORGANIZATION" }),
+      ]);
+
+      const statuses = [first.status, second.status].sort();
+      expect(statuses).toEqual([201, 409]);
+
+      const fetched = await request(http)
+        .get(`/api/v1/roles/${created.id}`)
+        .set("Cookie", superAdmin.cookies);
+      expect(body<RoleWithGrantsBody>(fetched).grants).toEqual([
+        { permissionKey: "task.review", scope: "ORGANIZATION" },
+      ]);
+    });
+  });
+
   describe("permission catalog", () => {
     it("lists the fixed permission catalog", async () => {
       const response = await request(http)

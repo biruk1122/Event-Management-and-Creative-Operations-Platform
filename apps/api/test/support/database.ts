@@ -81,6 +81,10 @@ export async function createIsolatedDatabase(): Promise<IsolatedDatabase> {
 export const PG_ERROR = {
   uniqueViolation: "23505",
   foreignKeyViolation: "23503",
+  // An explicit `ON DELETE/UPDATE RESTRICT` failure is its own SQLSTATE,
+  // distinct from the general foreign-key-violation code above (which covers
+  // e.g. inserting a row that references a non-existent parent).
+  restrictViolation: "23001",
   checkViolation: "23514",
   notNullViolation: "23502",
 } as const;
