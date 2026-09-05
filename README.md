@@ -55,6 +55,8 @@ After configuring `DATABASE_URL` in the root `.env` file, use:
 - `pnpm db:migrate -- --name <migration-name>` for local development migrations.
 - `pnpm db:migrate:deploy` to apply committed migrations in shared and production environments.
 - `pnpm db:migrate:status` to inspect migration state.
+- `pnpm db:seed` to idempotently seed the permission catalog, the five baseline roles, and their
+  grants. Safe to run repeatedly.
 - `pnpm db:studio` to open Prisma Studio for local development.
 
 Do not use `prisma db push` in shared or production environments.

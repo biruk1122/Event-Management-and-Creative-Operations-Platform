@@ -15,6 +15,7 @@
     "db:migrate:create": "pnpm --filter @event-platform/api db:migrate:create",
     "db:migrate:deploy": "pnpm --filter @event-platform/api db:migrate:deploy",
     "db:migrate:status": "pnpm --filter @event-platform/api db:migrate:status",
+    "db:seed": "pnpm --filter @event-platform/api db:seed",
     "db:studio": "pnpm --filter @event-platform/api db:studio",
     "docker:build": "docker compose build",
     "docker:config": "docker compose config",

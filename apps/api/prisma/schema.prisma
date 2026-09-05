@@ -91,3 +91,87 @@ model AuthSession {
   @@index([expiresAt])
   @@map("auth_sessions")
 }
+
+/// A qualifier bounding which records a grant covers. `management` is
+/// `organization` scope further restricted to organization-wide management
+/// data, attached only to Super Admin and Management/Administrator grants.
+/// See docs/product/permission-catalog-and-role-matrix.md.
+enum PermissionScope {
+  ORGANIZATION
+  DEPARTMENT
+  TEAM
+  WORKSPACE
+  SELF
+  MANAGEMENT
+
+  @@map("permission_scope")
+}
+
+/// The fixed enforcement vocabulary: one `resource.action` key per authorized
+/// operation, scope-free. `key` is the primary key rather than a surrogate id
+/// because the catalog is referenced by this literal string throughout the
+/// application, never by an opaque identifier. Rows are seed data (RBAC-01);
+/// a new key is added only when a later issue introduces a newly authorized
+/// operation. See docs/product/permission-catalog-and-role-matrix.md.
+model Permission {
+  key         String   @id
+  description String
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  rolePermissions RolePermission[]
+  baselineGrants  BaselineGrant[]
+
+  @@map("permissions")
+}
+
+/// A configurable role: its access is entirely the set of `RolePermission`
+/// grants below, with no inheritance between roles. The five SRS roles are
+/// seeded rows, not code branches; `isSystem` marks them so administration
+/// can protect them from deletion or rename without ever comparing a role's
+/// name in code.
+model Role {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name        String   @unique
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+/// A `(role, permission key, scope)` grant. A role's effective permissions
+/// are the union of its rows here; absence of a row is denial. The composite
+/// primary key is the grant triple itself, so it cannot be represented twice.
+model RolePermission {
+  roleId        String          @map("role_id") @db.Uuid
+  permissionKey String          @map("permission_key")
+  scope         PermissionScope
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@id([roleId, permissionKey, scope])
+  @@index([permissionKey])
+  @@map("role_permissions")
+}
+
+/// A `(permission key, scope)` grant held by every authenticated active user,
+/// independent of role and additive to the role matrix. Kept separate from
+/// `RolePermission` rather than as a synthetic "Baseline" role, since it is
+/// not part of role administration and no user is ever assigned it directly.
+/// See "Baseline grants for every authenticated user" in the permission
+/// catalog.
+model BaselineGrant {
+  permissionKey String          @map("permission_key")
+  scope         PermissionScope
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  permission Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@id([permissionKey, scope])
+  @@map("baseline_grants")
+}
