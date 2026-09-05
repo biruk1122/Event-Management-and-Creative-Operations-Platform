@@ -171,6 +171,25 @@ describe("RoleDetailDialog", () => {
     expect(props.onDelete).not.toHaveBeenCalled();
   });
 
+  it("moves focus onto the confirm button, and back onto Delete on cancel", async () => {
+    const user = userEvent.setup();
+    const props = baseProps(CUSTOM_ROLE);
+    render(<RoleDetailDialog {...props} />);
+
+    await screen.findByDisplayValue("Regional Coordinator");
+    await user.click(screen.getByRole("button", { name: "Delete role" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Confirm delete" }),
+    ).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Delete role" }),
+    ).toHaveFocus();
+  });
+
   it("shows an in-use error and keeps the dialog open on a blocked delete", async () => {
     const user = userEvent.setup();
     const props = baseProps(CUSTOM_ROLE);

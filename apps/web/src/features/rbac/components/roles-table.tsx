@@ -55,7 +55,10 @@ export function RolesTable({ roles, onSelect }: RolesTableProps) {
                     </Badge>
                   ) : null}
                 </th>
-                <td className="text-muted-foreground max-w-xs truncate px-4 py-3">
+                <td
+                  className="text-muted-foreground max-w-xs truncate px-4 py-3"
+                  title={role.description ?? undefined}
+                >
                   {role.description ?? "—"}
                 </td>
                 <td className="text-muted-foreground px-4 py-3">

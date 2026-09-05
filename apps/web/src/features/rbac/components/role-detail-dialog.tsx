@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -132,6 +132,25 @@ function RoleDetailBody({
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const deleteButtonRef = useRef<HTMLButtonElement>(null);
+  const confirmDeleteButtonRef = useRef<HTMLButtonElement>(null);
+  const hasToggledDeleteControls = useRef(false);
+
+  // The confirm/cancel controls replace the Delete button in the DOM (rather
+  // than just changing its label), which would otherwise drop keyboard focus
+  // back to the document body on every transition.
+  useEffect(() => {
+    if (!hasToggledDeleteControls.current) {
+      hasToggledDeleteControls.current = true;
+      return;
+    }
+    if (confirmingDelete) {
+      confirmDeleteButtonRef.current?.focus();
+    } else {
+      deleteButtonRef.current?.focus();
+    }
+  }, [confirmingDelete]);
 
   useEffect(() => {
     let cancelled = false;
@@ -340,6 +359,7 @@ function RoleDetailBody({
                 Cancel
               </Button>
               <Button
+                ref={confirmDeleteButtonRef}
                 type="button"
                 variant="destructive"
                 size="sm"
@@ -352,6 +372,7 @@ function RoleDetailBody({
             </div>
           ) : (
             <Button
+              ref={deleteButtonRef}
               type="button"
               variant="destructive"
               size="sm"
