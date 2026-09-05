@@ -82,3 +82,21 @@ export async function countAppliedMigrations(
     return Number(result.rows[0]?.count ?? "0");
   });
 }
+
+/**
+ * Run a read or write against the run's isolated schema. `search_path` is set
+ * explicitly because node-postgres ignores the `schema` connection parameter.
+ */
+export async function queryInSchema<Row extends Record<string, unknown>>(
+  connectionString: string,
+  sql: string,
+  params: readonly unknown[] = [],
+): Promise<Row[]> {
+  const schema = schemaOf(connectionString);
+  assertSchemaName(schema);
+  return withClient(connectionString, async (client) => {
+    await client.query(`SET search_path TO "${schema}"`);
+    const result = await client.query<Row>(sql, [...params]);
+    return result.rows;
+  });
+}

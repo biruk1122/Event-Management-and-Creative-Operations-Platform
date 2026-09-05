@@ -27,26 +27,39 @@ Requirements:
 
 Each run is confined to its own PostgreSQL **schema**:
 
-1. `global-setup.ts` creates `e2e_<timestamp>_<random>`, applies committed migrations to it with
-   `prisma migrate deploy`, and runs `fixtures/seed.ts`.
-2. The scoped `DATABASE_URL` is exported on `process.env`, so the API server Playwright starts uses
-   the isolated schema.
+1. `scripts/provision.mjs` creates `e2e_<timestamp>_<random>`, applies committed migrations to it
+   with `prisma migrate deploy`, and seeds the canonical accounts.
+2. It writes the scoped connection string to `.e2e-datasource.json` (gitignored, and deliberately
+   outside `test-results/`, which Playwright empties at startup). `playwright.config.ts` reads
+   that file to put `DATABASE_URL` in the servers' own environment, and `global-setup.ts` reads it
+   again to republish the value onto the test runner's `process.env`, for test files and
+   `global-teardown.ts`.
 3. `global-teardown.ts` drops the schema.
 
 Runs therefore do not contaminate each other or the development database, and a failed run leaves no
 residue beyond one droppable schema.
 
+Provisioning runs as a **plain Node script before `playwright test` starts** (see the `"e2e"`
+script in `package.json`), not as Playwright's `globalSetup` hook. Playwright starts `webServer`
+processes _before_ running `globalSetup` - too late to hand a freshly created, seeded
+`DATABASE_URL` to servers that have already booted with the wrong one. `scripts/provision.mjs` is
+JavaScript rather than TypeScript because it runs outside Playwright's own loader, which is what
+resolves this package's `./foo.js` specifiers to their `./foo.ts` sources; a plain `node` process
+can't.
+
 ## Deterministic accounts
 
-`fixtures/test-users.ts` is the single source of truth for end-to-end accounts. The platform has no
-`User` model or authentication yet (IAM-01 / IAM-02), so `fixtures/seed.ts` does not insert them and
-no journey signs in. When credential storage exists:
+`fixtures/test-users.ts` is the source of truth for the end-to-end accounts' shape and role
+assignment. `scripts/provision.mjs` seeds them into `users` / `user_credentials`, hashing the
+password with `@node-rs/argon2` (its defaults match the API's `PasswordHasher`); its email and
+password literals are mirrored from `test-users.ts` (see that file's header comment - it cannot be
+imported from provisioning, so keep them in sync by hand).
 
-- seed `TEST_USERS` in `fixtures/seed.ts`, hashing each `password`;
-- add an `auth.setup.ts` project that signs in as each user and saves `storageState` under
-  `e2e/.auth/<key>.json`;
-- add an `authenticated` project to `playwright.config.ts` with
-  `dependencies: ["auth.setup"]` and `use: { storageState: "e2e/.auth/<key>.json" }`.
+- `tests/auth.setup.ts` is the `setup` project: it signs in as each account through the real
+  `/login` UI and saves the resulting `storageState` to `e2e/.auth/<key>.json` (gitignored). The
+  `chromium` project depends on it.
+- An authenticated suite reuses that state per file with
+  `test.use({ storageState: authStatePath("<key>") })` (see `tests/auth-session.spec.ts`).
 
 ## Artifacts
 

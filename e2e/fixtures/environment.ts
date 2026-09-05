@@ -25,9 +25,9 @@ export const apiReadinessUrl = `${apiBaseUrl}/health/ready`;
 export const webPort = WEB_PORT;
 
 /**
- * The base PostgreSQL URL the harness derives per-run schemas from. Global setup
- * replaces its `schema` parameter with a unique value and exports the result on
- * `process.env.DATABASE_URL`, which the servers then inherit.
+ * The base PostgreSQL URL the harness derives per-run schemas from.
+ * `scripts/provision.mjs` replaces its `schema` parameter with a unique value
+ * before Playwright starts.
  */
 export function baseDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;
@@ -40,9 +40,25 @@ export function baseDatabaseUrl(): string {
 }
 
 /**
+ * Where `scripts/provision.mjs` records the schema it created, migrated, and
+ * seeded: `{ schema, databaseUrl, adminUrl }`. Playwright starts `webServer`
+ * processes *before* running its `globalSetup` hook, so anything the servers
+ * need at boot has to exist on disk before `playwright test` is even
+ * invoked - `playwright.config.ts` reads this file synchronously to build the
+ * servers' env, and `global-setup.ts` reads it again to republish the values
+ * onto the test runner's own `process.env` for test files and
+ * `global-teardown.ts`. Deliberately outside `test-results/`: Playwright
+ * empties its `outputDir` at startup, which would delete the marker before
+ * `global-setup.ts` gets to read it.
+ */
+export function datasourceMarkerPath(): string {
+  return resolve(repositoryRoot, "e2e", ".e2e-datasource.json");
+}
+
+/**
  * Non-database environment shared by the API and web servers Playwright builds
- * and starts, with test-safe defaults. `DATABASE_URL` is deliberately excluded
- * so the per-run value that global setup places on `process.env` wins.
+ * and starts, with test-safe defaults. `DATABASE_URL` is added separately by
+ * `playwright.config.ts` from {@link datasourceMarkerPath}.
  */
 export function serverEnv(): Record<string, string> {
   const defaults: Record<string, string> = {

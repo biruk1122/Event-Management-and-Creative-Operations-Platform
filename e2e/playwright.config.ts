@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+
 import { defineConfig, devices } from "@playwright/test";
 
 import {
   apiBaseUrl,
   apiReadinessUrl,
+  datasourceMarkerPath,
   loadRepositoryEnv,
   serverEnv,
   webBaseUrl,
@@ -12,7 +15,15 @@ import {
 loadRepositoryEnv();
 
 const isCI = Boolean(process.env.CI);
-const sharedEnv = serverEnv();
+
+// `scripts/provision.mjs` (run by the "e2e" script before this config loads)
+// already created, migrated, and seeded the isolated schema; the servers
+// below need its connection string in their own spawn env, because
+// Playwright starts `webServer` processes before running `globalSetup`.
+const { databaseUrl } = JSON.parse(
+  readFileSync(datasourceMarkerPath(), "utf8"),
+) as { databaseUrl: string };
+const sharedEnv = { ...serverEnv(), DATABASE_URL: databaseUrl };
 
 export default defineConfig({
   testDir: "./tests",
@@ -36,7 +47,15 @@ export default defineConfig({
     video: "retain-on-failure",
     actionTimeout: 10_000,
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "setup", testMatch: /auth\.setup\.ts$/ },
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
+      testIgnore: /auth\.setup\.ts$/,
+    },
+  ],
   webServer: [
     {
       command:

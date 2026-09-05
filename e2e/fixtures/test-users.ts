@@ -1,10 +1,10 @@
 /**
  * Canonical, deterministic accounts for authenticated end-to-end journeys.
  *
- * Authentication and the `User` model are delivered by later issues (IAM-01 /
- * IAM-02). Until then these definitions are the single source of truth for the
- * seed routine and for the `authenticated` Playwright project described in
- * `README.md`; no journey signs in yet because there is nothing to sign in to.
+ * `tests/auth.setup.ts` signs in as each of these through the real UI. The
+ * email and password literals are mirrored in `scripts/provision.mjs`, which
+ * seeds them - that script runs as plain Node before Playwright starts (see
+ * its header comment) and cannot import this file, so keep the two in sync.
  */
 
 export interface TestUser {
