@@ -16,6 +16,7 @@
     "db:migrate:status": "prisma migrate status",
     "db:studio": "prisma studio",
     "db:seed": "nest build && node dist/tooling/seed-rbac.js",
+    "db:seed:admin": "nest build && node dist/tooling/seed-dev-admin.js",
     "lint": "eslint . --max-warnings=0",
     "openapi:document": "nest build && node dist/tooling/generate-openapi.js",
     "preopenapi:document": "cross-env DATABASE_URL=postgresql://openapi:openapi@127.0.0.1:5432/openapi?schema=public prisma generate",
