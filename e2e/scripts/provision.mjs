@@ -29,12 +29,12 @@ const SCHEMA_PREFIX = "e2e_";
 // The canonical end-to-end accounts. Mirrors `fixtures/test-users.ts`, the
 // source of truth for their shape and intent; duplicated here as literals
 // because this script cannot import that file at runtime (see header comment).
-// Keep the emails and password in sync with `fixtures/test-users.ts`.
+// Keep the emails, password, and role names in sync with `fixtures/test-users.ts`.
 const TEST_USER_PASSWORD = "e2e-Passw0rd!";
-const TEST_USER_EMAILS = [
-  "super-admin@e2e.test",
-  "manager@e2e.test",
-  "member@e2e.test",
+const TEST_USERS = [
+  { email: "super-admin@e2e.test", role: "Super Admin" },
+  { email: "manager@e2e.test", role: "Management/Administrator" },
+  { email: "member@e2e.test", role: "Team Member" },
 ];
 
 function baseDatabaseUrl() {
@@ -79,9 +79,25 @@ async function main() {
     stdio: "inherit",
   });
 
+  // Seed the permission catalog, the five SRS roles and their grants, and the
+  // baseline grants from the canonical `rbac-catalog.ts` (the same `db:seed`
+  // developers run). Migrations only create the tables; the RBAC journeys need
+  // the rows. `db:seed` compiles the API, which needs a generated Prisma
+  // client, so make provisioning self-sufficient rather than assuming an
+  // earlier build ran.
+  execSync("pnpm --filter @event-platform/api exec prisma generate", {
+    cwd: repositoryRoot,
+    stdio: "inherit",
+  });
+  execSync("pnpm --filter @event-platform/api db:seed", {
+    cwd: repositoryRoot,
+    env: { ...process.env, DATABASE_URL: scopedUrl },
+    stdio: "inherit",
+  });
+
   await withClient(scopedUrl, async (client) => {
     await client.query(`SET search_path TO "${schema}"`);
-    for (const email of TEST_USER_EMAILS) {
+    for (const { email, role } of TEST_USERS) {
       const passwordHash = await hash(TEST_USER_PASSWORD);
       const { rows } = await client.query(
         `INSERT INTO users (email, status) VALUES ($1, 'ACTIVE') RETURNING id`,
@@ -95,6 +111,20 @@ async function main() {
         `INSERT INTO user_credentials (user_id, password_hash) VALUES ($1, $2)`,
         [id, passwordHash],
       );
+      // Give the account its catalog role so permission-aware journeys have
+      // real, resolvable grants (Super Admin -> full role.* access; Team
+      // Member -> none, which the denied journey depends on).
+      const { rows: roleRows } = await client.query(
+        `INSERT INTO user_role_assignments (user_id, role_id)
+         SELECT $1, id FROM roles WHERE name = $2
+         RETURNING role_id`,
+        [id, role],
+      );
+      if (!roleRows[0]?.role_id) {
+        throw new Error(
+          `Failed to assign end-to-end user ${email} to role "${role}".`,
+        );
+      }
     }
   });
 
