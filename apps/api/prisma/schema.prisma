@@ -13,11 +13,12 @@ datasource db {
 /// non-destructive extension. All profile fields are nullable: existing rows
 /// predate them and USR-02's create-user API is where a name becomes
 /// mandatory. Role assignment is `UserRoleAssignment`, owned by RBAC-02 so
-/// policy evaluation works before this issue; department assignment
-/// (`department_id`) and team membership are added later by DEP-01 and
-/// TEAM-01, which model those tables. `email` uniqueness is case-sensitive at
-/// the database; IAM-02 normalises addresses to lower case on every write and
-/// lookup.
+/// policy evaluation works before this issue; team membership is added later
+/// by TEAM-01, which models that table. DEP-01 adds `department_id` (the
+/// optional employee -> department assignment) and the inverse
+/// `managedDepartments` for the Department Manager slot. `email` uniqueness is
+/// case-sensitive at the database; IAM-02 normalises addresses to lower case
+/// on every write and lookup.
 enum UserAccountStatus {
   ACTIVE
   INACTIVE
@@ -48,16 +49,24 @@ model User {
   /// Set when `status` becomes INACTIVE and cleared on reactivation; a CHECK
   /// keeps it exactly in step with `status`.
   deactivatedAt DateTime?         @map("deactivated_at") @db.Timestamptz(6)
+  /// The one department this user is an employee of, or NULL when unassigned.
+  /// Cleared, not cascaded, if that department row is ever removed (DEP-01);
+  /// deactivation keeps the assignment.
+  departmentId  String?           @map("department_id") @db.Uuid
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  credential     UserCredential?
-  sessions       AuthSession[]
-  roleAssignment UserRoleAssignment?
+  credential         UserCredential?
+  sessions           AuthSession[]
+  roleAssignment     UserRoleAssignment?
+  department         Department?         @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
+  managedDepartments Department[]        @relation("DepartmentManager")
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
   @@index([lastName, firstName])
+  // Scoped visibility and the department roster both filter users by department.
+  @@index([departmentId])
   @@map("users")
 }
 
@@ -216,4 +225,35 @@ model UserRoleAssignment {
 
   @@index([roleId])
   @@map("user_role_assignments")
+}
+
+/// A stable organizational unit that groups employees and department-owned
+/// work (SRS 5.3). DEP-01 models only the unit itself and its two direct
+/// relationships to `users`: `manager_id` for the Department Manager and the
+/// inverse of `users.department_id` for its employees. Teams carry their own
+/// `department_id` added by TEAM-01; "Active Projects/Tasks" are derived
+/// summaries a later slice computes, not columns here.
+///
+/// `name` is unique case-sensitively at the database, matching `users.email`;
+/// DEP-02 trims and normalises on write. `deactivated_at` (NULL = active) is
+/// the safe-deactivation marker only — departments have no SRS status field
+/// and the archive/delete/reassignment policy is OD-02.
+model Department {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name          String    @unique
+  description   String?
+  managerId     String?   @map("manager_id") @db.Uuid
+  /// Set when the department is deactivated and cleared on reactivation;
+  /// NULL means active.
+  deactivatedAt DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  manager   User?  @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  employees User[] @relation("DepartmentEmployees")
+
+  // Look up the departments a user manages, and list active departments.
+  @@index([managerId])
+  @@index([deactivatedAt])
+  @@map("departments")
 }
