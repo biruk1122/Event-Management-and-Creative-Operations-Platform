@@ -23,6 +23,19 @@
         "required": ["permissionKey", "scope"],
         "type": "object"
       },
+      "AssignUserRoleDto": {
+        "properties": {
+          "roleId": {
+            "description": "The role to assign, or null to remove the user's role.",
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["roleId"],
+        "type": "object"
+      },
       "AuthenticatedUserResponse": {
         "properties": {
           "email": {
@@ -58,6 +71,53 @@
           }
         },
         "required": ["name"],
+        "type": "object"
+      },
+      "CreateUserDto": {
+        "properties": {
+          "email": {
+            "example": "regional.coordinator@example.com",
+            "format": "email",
+            "maxLength": 320,
+            "type": "string"
+          },
+          "firstName": {
+            "example": "Ada",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "lastName": {
+            "example": "Lovelace",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "phone": {
+            "example": "+1 (555) 010-2030",
+            "maxLength": 32,
+            "type": "string"
+          },
+          "profileImage": {
+            "example": "avatars/ada.png",
+            "maxLength": 1024,
+            "type": "string"
+          },
+          "roleId": {
+            "description": "Assign this role on creation. Omit for baseline-only access.",
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "type": "string"
+          },
+          "temporaryPassword": {
+            "description": "Initial password set on the user's behalf; the account is flagged to require a change.",
+            "example": "a temporary secret the user rotates on first sign-in",
+            "maxLength": 256,
+            "minLength": 8,
+            "type": "string"
+          }
+        },
+        "required": ["email", "firstName", "lastName", "temporaryPassword"],
         "type": "object"
       },
       "CurrentAccessResponse": {
@@ -126,6 +186,36 @@
           }
         },
         "required": ["email", "password"],
+        "type": "object"
+      },
+      "Object": {
+        "properties": {},
+        "type": "object"
+      },
+      "PaginatedUsersResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/UserResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "1-based page number.",
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "description": "Total users matching the filter.",
+            "example": 137,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
       "PermissionResponse": {
@@ -349,6 +439,136 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UpdateUserDto": {
+        "properties": {
+          "email": {
+            "example": "regional.coordinator@example.com",
+            "format": "email",
+            "maxLength": 320,
+            "type": "string"
+          },
+          "firstName": {
+            "example": "Ada",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "lastName": {
+            "example": "Lovelace",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "phone": {
+            "example": "+1 (555) 010-2030",
+            "maxLength": 32,
+            "type": "string"
+          },
+          "profileImage": {
+            "example": "avatars/ada.png",
+            "maxLength": 1024,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deactivatedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "example": "regional.coordinator@example.com",
+            "format": "email",
+            "type": "string"
+          },
+          "firstName": {
+            "example": "Ada",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "example": "Lovelace",
+            "nullable": true,
+            "type": "string"
+          },
+          "mustChangePassword": {
+            "description": "True while the account still uses the password an operator set for it.",
+            "example": false,
+            "type": "boolean"
+          },
+          "phone": {
+            "example": "+1 (555) 010-2030",
+            "nullable": true,
+            "type": "string"
+          },
+          "profileImage": {
+            "example": "avatars/ada.png",
+            "nullable": true,
+            "type": "string"
+          },
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserRoleSummary"
+              }
+            ],
+            "description": "Null when the user holds only the baseline grants.",
+            "nullable": true,
+            "type": "object"
+          },
+          "status": {
+            "enum": ["ACTIVE", "INACTIVE"],
+            "example": "ACTIVE",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "phone",
+          "profileImage",
+          "status",
+          "deactivatedAt",
+          "role",
+          "mustChangePassword",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "UserRoleSummary": {
+        "properties": {
+          "id": {
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "example": "Regional Coordinator",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
         "type": "object"
       }
     },
@@ -1142,6 +1362,556 @@
         ],
         "summary": "Remove a permission grant from a role",
         "tags": ["Roles and permissions"]
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "operationId": "Users_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": ["ACTIVE", "INACTIVE"],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive match against email, first name, last name.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedUsersResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List users with optional status and text filters",
+        "tags": ["User administration"]
+      },
+      "post": {
+        "operationId": "Users_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The requested role does not exist"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "A user with that email already exists"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a user with an operator-set initial password",
+        "tags": ["User administration"]
+      }
+    },
+    "/api/v1/users/{id}": {
+      "get": {
+        "operationId": "Users_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "User not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get one user account and profile",
+        "tags": ["User administration"]
+      },
+      "patch": {
+        "operationId": "Users_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "User not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "A user with that email already exists"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Update a user's email and profile fields",
+        "tags": ["User administration"]
+      }
+    },
+    "/api/v1/users/{id}/deactivate": {
+      "post": {
+        "operationId": "Users_deactivate_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "User not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The user is already deactivated"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Deactivate a user (User access Active -> Inactive)",
+        "tags": ["User administration"]
+      }
+    },
+    "/api/v1/users/{id}/reactivate": {
+      "post": {
+        "operationId": "Users_reactivate_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "User not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The user is already active"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Reactivate a deactivated user (Inactive -> Active)",
+        "tags": ["User administration"]
+      }
+    },
+    "/api/v1/users/{id}/role": {
+      "put": {
+        "operationId": "Users_assignRole_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignUserRoleDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The user or the requested role does not exist"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Assign, change, or clear a user's role",
+        "tags": ["User administration"]
       }
     },
     "/health/live": {

@@ -26,15 +26,17 @@ import { AuthRepository } from "./infrastructure/auth.repository.js";
   ],
   // NestJS resolves a guard used via `@UseGuards(ClassRef)` in the DI scope
   // of the module that declares the *consuming* controller, not the module
-  // that declares the guard. RbacModule uses AccessTokenGuard and CsrfGuard,
-  // so every one of their constructor dependencies must be exported too, not
-  // just the guard classes themselves.
+  // that declares the guard. RbacModule and UsersModule use AccessTokenGuard
+  // and CsrfGuard, so every one of their constructor dependencies must be
+  // exported too, not just the guard classes themselves. `PasswordHasher` is
+  // exported for UsersModule, which sets an operator-chosen initial password.
   exports: [
     AccessTokenGuard,
     AccessTokenService,
     AuthCookies,
     AuthRepository,
     CsrfGuard,
+    PasswordHasher,
   ],
 })
 export class AuthModule {}

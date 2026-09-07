@@ -177,6 +177,93 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/users": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List users with optional status and text filters */
+    get: operations["Users_list_v1"];
+    put?: never;
+    /** Create a user with an operator-set initial password */
+    post: operations["Users_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one user account and profile */
+    get: operations["Users_get_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update a user's email and profile fields */
+    patch: operations["Users_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/users/{id}/deactivate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Deactivate a user (User access Active -> Inactive) */
+    post: operations["Users_deactivate_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/{id}/reactivate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reactivate a deactivated user (Inactive -> Active) */
+    post: operations["Users_reactivate_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/{id}/role": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Assign, change, or clear a user's role */
+    put: operations["Users_assignRole_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/health/live": {
     parameters: {
       query?: never;
@@ -230,6 +317,14 @@ export interface components {
         | "SELF"
         | "MANAGEMENT";
     };
+    AssignUserRoleDto: {
+      /**
+       * Format: uuid
+       * @description The role to assign, or null to remove the user's role.
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      roleId: string | null;
+    };
     AuthenticatedUserResponse: {
       /**
        * Format: email
@@ -252,6 +347,32 @@ export interface components {
       description?: string;
       /** @example Regional Coordinator */
       name: string;
+    };
+    CreateUserDto: {
+      /**
+       * Format: email
+       * @example regional.coordinator@example.com
+       */
+      email: string;
+      /** @example Ada */
+      firstName: string;
+      /** @example Lovelace */
+      lastName: string;
+      /** @example +1 (555) 010-2030 */
+      phone?: string;
+      /** @example avatars/ada.png */
+      profileImage?: string;
+      /**
+       * Format: uuid
+       * @description Assign this role on creation. Omit for baseline-only access.
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      roleId?: string;
+      /**
+       * @description Initial password set on the user's behalf; the account is flagged to require a change.
+       * @example a temporary secret the user rotates on first sign-in
+       */
+      temporaryPassword: string;
     };
     CurrentAccessResponse: {
       grants: components["schemas"]["EffectivePermissionResponse"][];
@@ -289,6 +410,22 @@ export interface components {
       email: string;
       /** @example correct horse battery staple */
       password: string;
+    };
+    Object: Record<string, never>;
+    PaginatedUsersResponse: {
+      items: components["schemas"]["UserResponse"][];
+      /**
+       * @description 1-based page number.
+       * @example 1
+       */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /**
+       * @description Total users matching the filter.
+       * @example 137
+       */
+      total: number;
     };
     PermissionResponse: {
       /** @example Record Approved or Changes Requested while a task is Under Review. */
@@ -398,6 +535,68 @@ export interface components {
       description?: string;
       /** @example Regional Coordinator */
       name?: string;
+    };
+    UpdateUserDto: {
+      /**
+       * Format: email
+       * @example regional.coordinator@example.com
+       */
+      email?: string;
+      /** @example Ada */
+      firstName?: string;
+      /** @example Lovelace */
+      lastName?: string;
+      /** @example +1 (555) 010-2030 */
+      phone?: string;
+      /** @example avatars/ada.png */
+      profileImage?: string;
+    };
+    UserResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      deactivatedAt: string | null;
+      /**
+       * Format: email
+       * @example regional.coordinator@example.com
+       */
+      email: string;
+      /** @example Ada */
+      firstName: string | null;
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /** @example Lovelace */
+      lastName: string | null;
+      /**
+       * @description True while the account still uses the password an operator set for it.
+       * @example false
+       */
+      mustChangePassword: boolean;
+      /** @example +1 (555) 010-2030 */
+      phone: string | null;
+      /** @example avatars/ada.png */
+      profileImage: string | null;
+      /** @description Null when the user holds only the baseline grants. */
+      role: components["schemas"]["UserRoleSummary"] | null;
+      /**
+       * @example ACTIVE
+       * @enum {string}
+       */
+      status: "ACTIVE" | "INACTIVE";
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    UserRoleSummary: {
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /** @example Regional Coordinator */
+      name: string;
     };
   };
   responses: never;
@@ -981,6 +1180,383 @@ export interface operations {
         };
       };
       /** @description Role or grant not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Users_list_v1: {
+    parameters: {
+      query?: {
+        status?: "ACTIVE" | "INACTIVE";
+        /** @description Case-insensitive match against email, first name, last name. */
+        search?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedUsersResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Users_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUserDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The requested role does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description A user with that email already exists */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Users_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description User not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Users_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateUserDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description User not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description A user with that email already exists */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Users_deactivate_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description User not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The user is already deactivated */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Users_reactivate_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description User not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The user is already active */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Users_assignRole_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignUserRoleDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The user or the requested role does not exist */
       404: {
         headers: {
           [name: string]: unknown;
