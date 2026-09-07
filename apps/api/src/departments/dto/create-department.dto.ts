@@ -3,15 +3,20 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   MaxLength,
   MinLength,
 } from "class-validator";
+
+/** Rejects a value that is empty once trimmed, matching the database CHECKs. */
+const NOT_BLANK = /\S/;
 
 export class CreateDepartmentDto {
   @ApiProperty({ example: "Event Management", minLength: 1, maxLength: 120 })
   @IsString()
   @MinLength(1)
   @MaxLength(120)
+  @Matches(NOT_BLANK, { message: "name must not be blank" })
   name!: string;
 
   @ApiPropertyOptional({
@@ -23,6 +28,7 @@ export class CreateDepartmentDto {
   @IsString()
   @MinLength(1)
   @MaxLength(1000)
+  @Matches(NOT_BLANK, { message: "description must not be blank" })
   description?: string;
 
   @ApiPropertyOptional({

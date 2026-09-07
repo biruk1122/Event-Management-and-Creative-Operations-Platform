@@ -85,6 +85,7 @@ describe("department management API", () => {
   let plainUserId: string;
   let deptManager: Principal;
   let deptManagerId: string;
+  let credentialHash: string;
 
   beforeAll(async () => {
     db = await createIsolatedDatabase();
@@ -110,9 +111,7 @@ describe("department management API", () => {
       import("../src/app.setup.js"),
       import("../src/auth/domain/password-hasher.js"),
     ]);
-    const credentialHash = await new hasherModule.PasswordHasher().hash(
-      PASSWORD,
-    );
+    credentialHash = await new hasherModule.PasswordHasher().hash(PASSWORD);
 
     const moduleRef = await Test.createTestingModule({
       imports: [appModule.AppModule],
@@ -481,6 +480,172 @@ describe("department management API", () => {
         .set("Cookie", deptManager.cookies);
       expect(list.status).toBe(200);
       expect(body<PageBody>(list).items).toHaveLength(0);
+    });
+  });
+
+  describe("request validation", () => {
+    it.each([
+      ["a name over 120 characters", { name: "x".repeat(121) }],
+      ["a description over 1000 characters", { description: "y".repeat(1001) }],
+      ["a manager id that is not a uuid", { name: "V", managerId: "not-uuid" }],
+      ["a whitespace-only name", { name: "   " }],
+      ["a blank description", { name: "V", description: " " }],
+    ])("400s %s with VALIDATION_ERROR", async (_label, payload) => {
+      const response = await asAdmin("post", "/api/v1/departments").send({
+        name: "Valid Name",
+        ...payload,
+      });
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+    });
+
+    it("400s an unknown status filter and an over-large pageSize", async () => {
+      expect(
+        (await asAdmin("get", "/api/v1/departments?status=BOGUS")).status,
+      ).toBe(400);
+      expect(
+        (await asAdmin("get", "/api/v1/departments?pageSize=101")).status,
+      ).toBe(400);
+    });
+
+    it("requires an explicit managerId on the manager route", async () => {
+      const created = await createDepartment();
+      const response = await asAdmin(
+        "put",
+        `/api/v1/departments/${created.id}/manager`,
+      ).send({});
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+    });
+  });
+
+  describe("granular authorization", () => {
+    let readerCookies: string[];
+
+    it("allows a reader with only department.read to list but not create", async () => {
+      const role = await prisma.role.create({
+        data: { name: `Dept Reader ${Math.random().toString(36).slice(2)}` },
+      });
+      await prisma.rolePermission.create({
+        data: {
+          roleId: role.id,
+          permissionKey: "department.read",
+          scope: "ORGANIZATION",
+        },
+      });
+      const email = `reader-${Math.random().toString(36).slice(2)}@dep.test`;
+      await prisma.user.create({
+        data: {
+          email,
+          credential: { create: { passwordHash: credentialHash } },
+          roleAssignment: { create: { roleId: role.id } },
+        },
+      });
+      const login = await request(http)
+        .post("/api/v1/auth/login")
+        .send({ email, password: PASSWORD });
+      readerCookies = setCookies(login);
+
+      expect(
+        (
+          await request(http)
+            .get("/api/v1/departments")
+            .set("Cookie", readerCookies)
+        ).status,
+      ).toBe(200);
+
+      const csrf = cookieValue(readerCookies, "csrf_token");
+      const create = await request(http)
+        .post("/api/v1/departments")
+        .set("Cookie", readerCookies)
+        .set("x-csrf-token", csrf)
+        .send({ name: "Reader Cannot Create" });
+      expect(create.status).toBe(403);
+      expect(body<ProblemBody>(create).code).toBe("PERMISSION_DENIED");
+      expect(
+        await prisma.department.findUnique({
+          where: { name: "Reader Cannot Create" },
+        }),
+      ).toBeNull();
+    });
+  });
+
+  describe("more transport cases", () => {
+    it("rejects manager and delete mutations missing the CSRF header", async () => {
+      const created = await createDepartment();
+      expect(
+        (
+          await request(http)
+            .put(`/api/v1/departments/${created.id}/manager`)
+            .set("Cookie", superAdmin.cookies)
+            .send({ managerId: null })
+        ).status,
+      ).toBe(403);
+      expect(
+        (
+          await request(http)
+            .delete(`/api/v1/departments/${created.id}`)
+            .set("Cookie", superAdmin.cookies)
+        ).status,
+      ).toBe(403);
+    });
+
+    it("404s employee assignment for an unknown department or user", async () => {
+      const created = await createDepartment();
+      const unknownDept = await asAdmin(
+        "put",
+        `/api/v1/departments/${UUID}/employees/${plainUserId}`,
+      );
+      expect(unknownDept.status).toBe(404);
+      expect(body<ProblemBody>(unknownDept).code).toBe("DEPARTMENT_NOT_FOUND");
+
+      const unknownUser = await asAdmin(
+        "put",
+        `/api/v1/departments/${created.id}/employees/${UUID}`,
+      );
+      expect(unknownUser.status).toBe(404);
+      expect(body<ProblemBody>(unknownUser).code).toBe("USER_NOT_FOUND");
+    });
+
+    it("409s a PATCH that renames onto an existing name", async () => {
+      const taken = await createDepartment({ name: "Already Taken" });
+      const other = await createDepartment();
+      const response = await asAdmin(
+        "patch",
+        `/api/v1/departments/${other.id}`,
+      ).send({ name: taken.name });
+      expect(response.status).toBe(409);
+      expect(body<ProblemBody>(response).code).toBe("DEPARTMENT_NAME_CONFLICT");
+    });
+
+    it("treats an empty PATCH as a no-op that returns the current row", async () => {
+      const created = await createDepartment({ description: "Keep me." });
+      const response = await asAdmin(
+        "patch",
+        `/api/v1/departments/${created.id}`,
+      ).send({});
+      expect(response.status).toBe(200);
+      expect(body<DepartmentBody>(response).description).toBe("Keep me.");
+    });
+
+    it("returns only the public contract from get and list", async () => {
+      const created = await createDepartment();
+      const one = await asAdmin("get", `/api/v1/departments/${created.id}`);
+      expect(Object.keys(body<DepartmentBody>(one)).sort()).toEqual(
+        DEPARTMENT_KEYS,
+      );
+      const page = await asAdmin("get", "/api/v1/departments?pageSize=1");
+      expect(Object.keys(body<PageBody>(page).items[0]!).sort()).toEqual(
+        DEPARTMENT_KEYS,
+      );
+    });
+
+    it("echoes the incoming x-request-id", async () => {
+      const response = await request(http)
+        .get("/api/v1/departments")
+        .set("Cookie", superAdmin.cookies)
+        .set("x-request-id", "dep-req-id-check");
+      expect(response.headers["x-request-id"]).toBe("dep-req-id-check");
     });
   });
 });

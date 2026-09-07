@@ -2,6 +2,7 @@ import { HttpException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DepartmentsService } from "../src/departments/departments.service.js";
+import { DepartmentActivityFilter } from "../src/departments/dto/list-departments-query.dto.js";
 import type { DepartmentRecord } from "../src/departments/infrastructure/departments.repository.js";
 import type { PermissionScope } from "../src/generated/prisma/client.js";
 
@@ -139,6 +140,33 @@ describe("DepartmentsService", () => {
       grantOnly(["department.read", "ORGANIZATION"]);
       repository.findById.mockResolvedValue(null);
       await expectCode(service.get(ACTOR, "ghost"), "DEPARTMENT_NOT_FOUND");
+    });
+
+    it("forwards the trimmed search term and status filter to the repository", async () => {
+      grantOnly(["department.read", "ORGANIZATION"]);
+      repository.list.mockResolvedValue({ items: [], total: 0 });
+
+      await service.list(ACTOR, {
+        page: 2,
+        pageSize: 10,
+        search: "  events  ",
+        status: DepartmentActivityFilter.INACTIVE,
+      });
+
+      expect(repository.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          search: "events",
+          active: false,
+          page: 2,
+          pageSize: 10,
+        }),
+      );
+    });
+
+    it("denies a department-scoped reader who has no department of their own", async () => {
+      grantOnly(["department.read", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue(null);
+      await expectCode(service.get(ACTOR, "dep-1"), "PERMISSION_DENIED");
     });
   });
 
