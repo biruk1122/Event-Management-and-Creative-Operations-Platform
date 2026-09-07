@@ -202,6 +202,70 @@ describe("configurable roles and permissions API", () => {
     return { id: created.id, body: created };
   }
 
+  describe("current permission scopes", () => {
+    it("requires a session and prevents HTTP caching", async () => {
+      const denied = await request(http).get("/api/v1/auth/me/permissions");
+      expect(denied.status).toBe(401);
+      const response = await request(http)
+        .get("/api/v1/auth/me/permissions")
+        .set("Cookie", superAdmin.cookies);
+      expect(response.status).toBe(200);
+      expect(response.headers["cache-control"]).toBe("private, no-store");
+      const currentAccess = body<{ userId: string; grants: GrantBody[] }>(
+        response,
+      );
+      expect(typeof currentAccess.userId).toBe("string");
+      expect(currentAccess.grants).toContainEqual({
+        permissionKey: "role.read",
+        scope: "ORGANIZATION",
+      });
+    });
+
+    it("returns baseline grants without requiring role administration access", async () => {
+      const response = await request(http)
+        .get("/api/v1/auth/me/permissions")
+        .set("Cookie", noRole.cookies);
+      expect(response.status).toBe(200);
+      const grants = body<{ grants: GrantBody[] }>(response).grants;
+      expect(grants).toContainEqual({
+        permissionKey: "profile.read",
+        scope: "SELF",
+      });
+      expect(grants.some((g) => g.permissionKey === "role.read")).toBe(false);
+    });
+
+    it("returns exact scopes and reflects revocation without reissuing a session", async () => {
+      const read = () =>
+        request(http)
+          .get("/api/v1/auth/me/permissions")
+          .set("Cookie", scopeLimited.cookies);
+      const before = body<{ grants: GrantBody[] }>(await read()).grants;
+      expect(before).toContainEqual({
+        permissionKey: "role.read",
+        scope: "SELF",
+      });
+      expect(before).not.toContainEqual({
+        permissionKey: "role.read",
+        scope: "ORGANIZATION",
+      });
+      const role = await prisma.role.findUniqueOrThrow({
+        where: { name: "Scope Limited Test Role" },
+      });
+      await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+      try {
+        expect(
+          body<{ grants: GrantBody[] }>(await read()).grants.some(
+            (g) => g.permissionKey === "role.read",
+          ),
+        ).toBe(false);
+      } finally {
+        await prisma.rolePermission.create({
+          data: { roleId: role.id, permissionKey: "role.read", scope: "SELF" },
+        });
+      }
+    });
+  });
+
   describe("authentication and authorization", () => {
     it("rejects an unauthenticated request", async () => {
       const response = await request(http).get("/api/v1/roles");

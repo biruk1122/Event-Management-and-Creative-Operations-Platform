@@ -13,8 +13,7 @@ export function RolesTable({ roles, onSelect }: RolesTableProps) {
       <div className="border-border rounded-xl border border-dashed py-12 text-center">
         <p className="text-sm font-medium">No roles yet</p>
         <p className="text-muted-foreground mt-1 text-sm">
-          Use the <span className="font-medium">New role</span> button above to
-          create the first one.
+          No configurable roles are available.
         </p>
       </div>
     );

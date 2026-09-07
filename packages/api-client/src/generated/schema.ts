@@ -55,6 +55,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/auth/me/permissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Return the current account's effective permission scopes */
+    get: operations["Auth_access_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/auth/refresh": {
     parameters: {
       query?: never;
@@ -235,6 +252,22 @@ export interface components {
       description?: string;
       /** @example Regional Coordinator */
       name: string;
+    };
+    CurrentAccessResponse: {
+      grants: components["schemas"]["EffectivePermissionResponse"][];
+      /** Format: uuid */
+      userId: string;
+    };
+    EffectivePermissionResponse: {
+      permissionKey: string;
+      /** @enum {string} */
+      scope:
+        | "ORGANIZATION"
+        | "DEPARTMENT"
+        | "TEAM"
+        | "WORKSPACE"
+        | "SELF"
+        | "MANAGEMENT";
     };
     LivenessResponse: {
       /**
@@ -469,6 +502,43 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AuthenticatedUserResponse"];
+        };
+      };
+      /** @description Validation failed */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Auth_access_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CurrentAccessResponse"];
         };
       };
       /** @description Validation failed */

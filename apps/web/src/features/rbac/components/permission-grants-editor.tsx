@@ -1,5 +1,7 @@
 "use client";
 
+import { RBAC_FAILURE_MESSAGES } from "../lib/rbac-outcome";
+
 import { useMemo, useState } from "react";
 import { Lock, Search } from "lucide-react";
 
@@ -27,6 +29,7 @@ const TOGGLE_ERRORS: Record<
   | Exclude<RemoveGrantOutcome["status"], "success">,
   string
 > = {
+  ...RBAC_FAILURE_MESSAGES,
   already_exists: "That grant already exists.",
   not_found: "That grant was already removed.",
   permission_denied:

@@ -30,8 +30,13 @@ export function useLoginMutation() {
 
   return useMutation<LoginResult, Error, LoginValues>({
     mutationFn: login,
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (result.outcome.status === "success") {
+        await queryClient.cancelQueries({ queryKey: ["rbac"] });
+        await queryClient.cancelQueries({ queryKey: ["auth", "access"] });
+        queryClient.removeQueries({ queryKey: ["rbac"] });
+        queryClient.setQueryData(["auth", "access"], null);
+        await queryClient.invalidateQueries({ queryKey: ["auth", "access"] });
         queryClient.setQueryData<AuthUser | null>(
           authKeys.currentUser,
           result.user,
@@ -47,7 +52,11 @@ export function useLogoutMutation() {
 
   return useMutation<void, Error, void>({
     mutationFn: logout,
-    onSettled: () => {
+    onSettled: async () => {
+      await queryClient.cancelQueries({ queryKey: ["rbac"] });
+      await queryClient.cancelQueries({ queryKey: ["auth", "access"] });
+      queryClient.removeQueries({ queryKey: ["rbac"] });
+      queryClient.setQueryData(["auth", "access"], null);
       queryClient.setQueryData<AuthUser | null>(authKeys.currentUser, null);
       void queryClient.invalidateQueries({ queryKey: authKeys.currentUser });
     },

@@ -98,3 +98,30 @@ describe("useLogoutMutation", () => {
     expect(client.getQueryData(authKeys.currentUser)).toBeNull();
   });
 });
+
+describe("permission cache isolation", () => {
+  it("does not let a late permission response restore grants after logout", async () => {
+    logout.mockResolvedValue(undefined);
+    const client = makeClient();
+    let resolveAccess!: (value: unknown) => void;
+    const request = client
+      .fetchQuery({
+        queryKey: ["auth", "access"],
+        queryFn: () =>
+          new Promise((resolve) => {
+            resolveAccess = resolve;
+          }),
+      })
+      .catch(() => undefined);
+    const { result } = renderHook(() => useLogoutMutation(), {
+      wrapper: wrapper(client),
+    });
+    await result.current.mutateAsync();
+    resolveAccess({
+      userId: "old-account",
+      grants: [{ permissionKey: "role.read", scope: "ORGANIZATION" }],
+    });
+    await request;
+    expect(client.getQueryData(["auth", "access"])).toBeNull();
+  });
+});

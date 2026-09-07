@@ -1,5 +1,7 @@
 "use client";
 
+import { RBAC_FAILURE_MESSAGES } from "../lib/rbac-outcome";
+
 import { useId, useState, type FormEvent } from "react";
 
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -15,16 +17,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import type { CreateRole } from "../lib/rbac-outcome";
+import type { CreateRole, RoleFormValues } from "../lib/rbac-outcome";
 import type { Role } from "../lib/rbac-types";
 
 const FORM_ERRORS: Record<string, string> = {
+  ...RBAC_FAILURE_MESSAGES,
   name_conflict: "A role with that name already exists.",
   permission_denied: "You do not have permission to create a role.",
   unexpected: "We could not create the role. Try again.",
 };
 
 interface CreateRoleDialogProps {
+  initialDraft?: RoleFormValues | undefined;
+  onDraftChange?: (draft: RoleFormValues) => void;
+  canCreate?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreate: CreateRole;
@@ -32,6 +38,9 @@ interface CreateRoleDialogProps {
 }
 
 export function CreateRoleDialog({
+  initialDraft,
+  onDraftChange,
+  canCreate = true,
   open,
   onOpenChange,
   onCreate,
@@ -40,23 +49,30 @@ export function CreateRoleDialog({
   const nameId = useId();
   const descriptionId = useId();
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState(initialDraft?.name ?? "");
+  const [description, setDescription] = useState(
+    initialDraft?.description ?? "",
+  );
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   function reset() {
+    onDraftChange?.({ name: "", description: "" });
     setName("");
     setDescription("");
     setNameError(null);
+    setDescriptionError(null);
     setFormError(null);
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!canCreate || submitting) return;
     setSubmitting(true);
     setNameError(null);
+    setDescriptionError(null);
     setFormError(null);
 
     const outcome = await onCreate({ name, description });
@@ -70,7 +86,8 @@ export function CreateRoleDialog({
         onOpenChange(false);
         return;
       case "field_errors":
-        setNameError(outcome.fieldErrors.name ?? "That name is not valid.");
+        setNameError(outcome.fieldErrors.name ?? null);
+        setDescriptionError(outcome.fieldErrors.description ?? null);
         return;
       default:
         setFormError(FORM_ERRORS[outcome.status] ?? FORM_ERRORS.unexpected!);
@@ -100,6 +117,12 @@ export function CreateRoleDialog({
           className="space-y-4"
           onSubmit={(event) => void handleSubmit(event)}
         >
+          {!canCreate ? (
+            <p role="alert">
+              You do not currently have permission to create a role. Your input
+              is kept here.
+            </p>
+          ) : null}
           {formError ? (
             <Alert variant="destructive" aria-live="assertive">
               <AlertTitle>{formError}</AlertTitle>
@@ -114,7 +137,10 @@ export function CreateRoleDialog({
               autoFocus
               required
               aria-invalid={nameError ? true : undefined}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                setName(event.target.value);
+                onDraftChange?.({ name: event.target.value, description });
+              }}
             />
             {nameError ? (
               <p className="text-destructive text-sm">{nameError}</p>
@@ -125,11 +151,20 @@ export function CreateRoleDialog({
             <Label htmlFor={descriptionId}>Description</Label>
             <Input
               id={descriptionId}
+              aria-invalid={descriptionError ? true : undefined}
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) => {
+                setDescription(event.target.value);
+                onDraftChange?.({ name, description: event.target.value });
+              }}
             />
           </div>
 
+          {descriptionError ? (
+            <p role="alert" className="text-destructive text-sm">
+              {descriptionError}
+            </p>
+          ) : null}
           <DialogFooter>
             <Button
               type="button"
@@ -142,8 +177,12 @@ export function CreateRoleDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting} aria-busy={submitting}>
-              {submitting ? "Creating…" : "Create role"}
+            <Button
+              type="submit"
+              disabled={submitting || !canCreate}
+              aria-busy={submitting}
+            >
+              {submitting ? "Creating..." : "Create role"}
             </Button>
           </DialogFooter>
         </form>

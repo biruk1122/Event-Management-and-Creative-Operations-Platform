@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Post,
@@ -23,8 +24,10 @@ import type { Request, Response } from "express";
 
 import type { RequestWithContext } from "../common/http/request-with-context.js";
 import { ProblemDetails } from "../common/http/problem-details.js";
+import { PermissionsService } from "../common/security/permissions.service.js";
 import {
   AuthenticatedUserResponse,
+  CurrentAccessResponse,
   SessionResponse,
 } from "./auth.contracts.js";
 import { unauthenticated } from "./auth.errors.js";
@@ -40,7 +43,33 @@ import { CsrfGuard } from "./guards/csrf.guard.js";
 })
 @Controller("auth")
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly permissions: PermissionsService,
+  ) {}
+
+  @Get("me/permissions")
+  @Header("Cache-Control", "private, no-store")
+  @UseGuards(AccessTokenGuard)
+  @ApiCookieAuth("access_token")
+  @ApiOperation({
+    summary: "Return the current account's effective permission scopes",
+  })
+  @ApiOkResponse({ type: CurrentAccessResponse })
+  @ApiUnauthorizedResponse({
+    type: ProblemDetails,
+    description: "Not authenticated",
+  })
+  async access(
+    @Req() request: RequestWithContext,
+  ): Promise<CurrentAccessResponse> {
+    const userId = request.user?.userId;
+    if (!userId) throw unauthenticated();
+    return {
+      userId,
+      grants: await this.permissions.getEffectiveGrants(userId),
+    };
+  }
 
   @Post("login")
   @HttpCode(HttpStatus.OK)

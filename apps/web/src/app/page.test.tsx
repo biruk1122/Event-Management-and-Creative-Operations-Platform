@@ -1,7 +1,10 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import Home from "./page";
+vi.mock("@/features/rbac/components/roles-navigation", () => ({
+  RolesNavigation: () => null,
+}));
 
 describe("frontend foundation", () => {
   it("identifies the foundation state without exposing business features", () => {

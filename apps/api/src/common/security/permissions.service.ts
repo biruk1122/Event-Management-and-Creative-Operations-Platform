@@ -18,7 +18,7 @@ export interface EffectiveGrant {
 export class PermissionsService {
   constructor(private readonly db: DatabaseService) {}
 
-  private async getEffectiveGrants(userId: string): Promise<EffectiveGrant[]> {
+  async getEffectiveGrants(userId: string): Promise<EffectiveGrant[]> {
     const [baseline, assignment] = await Promise.all([
       this.db.baselineGrant.findMany({
         select: { permissionKey: true, scope: true },
