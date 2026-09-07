@@ -1,6 +1,5 @@
-export { listUsers } from "./api/list-users";
-export { listAssignableRoles } from "./api/list-assignable-roles";
-export { UsersManager } from "./components/users-manager";
+export { UsersScreen } from "./components/users-screen";
+export { UsersNavigation } from "./components/users-navigation";
 export type {
   PaginatedUsers,
   User,

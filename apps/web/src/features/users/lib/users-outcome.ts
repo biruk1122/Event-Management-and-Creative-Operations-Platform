@@ -1,5 +1,8 @@
 import type { User } from "./users-types";
 
+/** Loads one user for the detail dialog; resolves `null` when it cannot. */
+export type GetUser = (id: string) => Promise<User | null>;
+
 export interface CreateUserValues {
   email: string;
   firstName: string;
@@ -27,6 +30,7 @@ export type SaveUserOutcome =
   | { status: "success"; user: User }
   | { status: "email_conflict" }
   | { status: "role_not_found" }
+  | { status: "not_found" }
   | {
       status: "field_errors";
       fieldErrors: Partial<Record<keyof CreateUserValues, string>>;

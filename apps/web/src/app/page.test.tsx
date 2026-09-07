@@ -5,6 +5,7 @@ import Home from "./page";
 vi.mock("@/features/rbac/components/roles-navigation", () => ({
   RolesNavigation: () => null,
 }));
+vi.mock("@/features/users", () => ({ UsersNavigation: () => null }));
 
 describe("frontend foundation", () => {
   it("identifies the foundation state without exposing business features", () => {

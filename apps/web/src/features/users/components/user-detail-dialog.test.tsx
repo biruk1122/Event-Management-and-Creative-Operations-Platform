@@ -11,6 +11,10 @@ import type {
 } from "../lib/users-outcome";
 import type { User, UserRoleSummary } from "../lib/users-types";
 
+// The dialog default-imports the gateway for its `getUser` fallback; every test
+// supplies `getUser` explicitly, so a bare stub keeps the env module out.
+vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
+
 const now = "2026-09-01T09:00:00.000Z";
 const ROLES: UserRoleSummary[] = [
   { id: "role-1", name: "Team Member" },

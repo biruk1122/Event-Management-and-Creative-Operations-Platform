@@ -23,10 +23,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getUser as defaultGetUser, type GetUser } from "../api/get-user";
+import { getUser as defaultGetUser } from "../api/users-gateway";
 import type {
   AssignRole,
   DeactivateUser,
+  GetUser,
   ProfileValues,
   ReactivateUser,
   UpdateUser,
@@ -133,18 +134,24 @@ function UserDetailBody({
 
   useEffect(() => {
     let cancelled = false;
-    void getUser(userId).then((loaded) => {
-      if (cancelled) {
-        return;
-      }
-      if (loaded) {
-        setUser(loaded);
-        setForm(profileOf(loaded));
-        setStatus("loaded");
-      } else {
-        setStatus("error");
-      }
-    });
+    void getUser(userId)
+      .then((loaded) => {
+        if (cancelled) {
+          return;
+        }
+        if (loaded) {
+          setUser(loaded);
+          setForm(profileOf(loaded));
+          setStatus("loaded");
+        } else {
+          setStatus("error");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStatus("error");
+        }
+      });
     return () => {
       cancelled = true;
     };
