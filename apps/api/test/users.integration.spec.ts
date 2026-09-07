@@ -503,5 +503,148 @@ describe("user and profile administration API", () => {
       expect(response.status).toBe(400);
       expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
     });
+
+    it("clears a role idempotently when the user has none", async () => {
+      const created = await createUser();
+      const response = await asAdmin(
+        "put",
+        `/api/v1/users/${created.id}/role`,
+      ).send({ roleId: null });
+      expect(response.status).toBe(200);
+      expect(body<UserBody>(response).role).toBeNull();
+    });
+
+    it("requires the roleId key to be present", async () => {
+      const created = await createUser();
+      const response = await asAdmin(
+        "put",
+        `/api/v1/users/${created.id}/role`,
+      ).send({});
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+    });
+  });
+
+  describe("request validation", () => {
+    it("rejects an unwhitelisted body field", async () => {
+      const response = await asAdmin("post", "/api/v1/users").send({
+        email: "extra-field@usr.test",
+        firstName: "Extra",
+        lastName: "Field",
+        temporaryPassword: "temp-password-123",
+        isSystemAdmin: true,
+      });
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+    });
+
+    it.each([["status=BOGUS"], ["page=0"], ["pageSize=0"], ["pageSize=101"]])(
+      "rejects the query %s",
+      async (query) => {
+        const response = await asAdmin("get", `/api/v1/users?${query}`);
+        expect(response.status).toBe(400);
+        expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+      },
+    );
+
+    it("treats an empty PATCH as a no-op and returns the unchanged user", async () => {
+      const created = await createUser({
+        firstName: "Same",
+        lastName: "Name",
+      });
+      const response = await asAdmin(
+        "patch",
+        `/api/v1/users/${created.id}`,
+      ).send({});
+      expect(response.status).toBe(200);
+      expect(body<UserBody>(response)).toMatchObject({
+        id: created.id,
+        firstName: "Same",
+        lastName: "Name",
+      });
+    });
+
+    it("allows a user to keep its own email on PATCH without a false conflict", async () => {
+      const created = await createUser({ email: "self-keep@usr.test" });
+      const response = await asAdmin(
+        "patch",
+        `/api/v1/users/${created.id}`,
+      ).send({ email: "SELF-KEEP@usr.test", firstName: "Kept" });
+      expect(response.status).toBe(200);
+      expect(body<UserBody>(response)).toMatchObject({
+        email: "self-keep@usr.test",
+        firstName: "Kept",
+      });
+    });
+  });
+
+  describe("concurrent requests", () => {
+    it("lets exactly one of two simultaneous creates with the same email win", async () => {
+      const email = `race-create-${Math.random().toString(36).slice(2)}@usr.test`;
+      const payload = {
+        email,
+        firstName: "Race",
+        lastName: "Create",
+        temporaryPassword: "temp-password-123",
+      };
+
+      const [first, second] = await Promise.all([
+        asAdmin("post", "/api/v1/users").send(payload),
+        asAdmin("post", "/api/v1/users").send(payload),
+      ]);
+
+      expect([first.status, second.status].sort()).toEqual([201, 409]);
+      expect(await prisma.user.count({ where: { email } })).toBe(1);
+    });
+
+    it("never corrupts the row under two simultaneous deactivations", async () => {
+      const created = await createUser();
+
+      const [first, second] = await Promise.all([
+        asAdmin("post", `/api/v1/users/${created.id}/deactivate`),
+        asAdmin("post", `/api/v1/users/${created.id}/deactivate`),
+      ]);
+
+      // The two requests can interleave before either write commits, so both
+      // may succeed; the guarantee is that at least one does, neither raises
+      // an unexpected error, and the row stays coherent.
+      const statuses = [first.status, second.status];
+      expect(
+        statuses.filter((code) => code === 200).length,
+      ).toBeGreaterThanOrEqual(1);
+      expect(statuses.every((code) => code === 200 || code === 409)).toBe(true);
+      const row = await prisma.user.findUniqueOrThrow({
+        where: { id: created.id },
+      });
+      expect(row.status).toBe("INACTIVE");
+      expect(row.deactivatedAt).not.toBeNull();
+    });
+
+    it("keeps a single role assignment under two simultaneous role writes", async () => {
+      const created = await createUser();
+      const roleA = await prisma.role.findUniqueOrThrow({
+        where: { name: "Team Member" },
+      });
+      const roleB = await prisma.role.findUniqueOrThrow({
+        where: { name: "Talent Manager" },
+      });
+
+      const [first, second] = await Promise.all([
+        asAdmin("put", `/api/v1/users/${created.id}/role`).send({
+          roleId: roleA.id,
+        }),
+        asAdmin("put", `/api/v1/users/${created.id}/role`).send({
+          roleId: roleB.id,
+        }),
+      ]);
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      const assignments = await prisma.userRoleAssignment.findMany({
+        where: { userId: created.id },
+      });
+      expect(assignments).toHaveLength(1);
+      expect([roleA.id, roleB.id]).toContain(assignments[0]!.roleId);
+    });
   });
 });

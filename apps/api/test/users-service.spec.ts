@@ -306,6 +306,54 @@ describe("UsersService", () => {
       expect(repository.setRole).toHaveBeenCalledWith("user-1", null);
       expect(result.role).toBeNull();
     });
+
+    it("returns the assigned role summary on success", async () => {
+      repository.setRole.mockResolvedValue(
+        makeUser({ role: { id: "role-9", name: "Regional Coordinator" } }),
+      );
+      const result = await service.assignRole(ACTOR, "user-1", "role-9");
+      expect(repository.setRole).toHaveBeenCalledWith("user-1", "role-9");
+      expect(result.role).toEqual({
+        id: "role-9",
+        name: "Regional Coordinator",
+      });
+    });
+  });
+
+  describe("list and update pass-through", () => {
+    it("trims the search term and forwards the filter and page", async () => {
+      repository.list.mockResolvedValue({ items: [makeUser()], total: 1 });
+      const page = await service.list(ACTOR, {
+        search: "  ada  ",
+        page: 2,
+        pageSize: 10,
+      });
+      expect(repository.list).toHaveBeenCalledWith({
+        search: "ada",
+        page: 2,
+        pageSize: 10,
+      });
+      expect(page).toMatchObject({ page: 2, pageSize: 10, total: 1 });
+      expect(page.items).toHaveLength(1);
+    });
+
+    it("forwards every provided profile field on update", async () => {
+      repository.update.mockResolvedValue(makeUser());
+      await service.update(ACTOR, "user-1", {
+        email: "New@Example.com",
+        firstName: "Grace",
+        lastName: "Hopper",
+        phone: "+1 555 0000",
+        profileImage: "avatars/grace.png",
+      });
+      expect(repository.update).toHaveBeenCalledWith("user-1", {
+        email: "new@example.com",
+        firstName: "Grace",
+        lastName: "Hopper",
+        phone: "+1 555 0000",
+        profileImage: "avatars/grace.png",
+      });
+    });
   });
 
   describe("response mapping", () => {
