@@ -7,6 +7,7 @@ import { AuthModule } from "./auth/auth.module.js";
 import { environment } from "./config/environment.js";
 import { EnvironmentModule } from "./config/environment.module.js";
 import { DatabaseModule } from "./database/database.module.js";
+import { DepartmentsModule } from "./departments/departments.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
 import { UsersModule } from "./users/users.module.js";
@@ -43,6 +44,7 @@ import { UsersModule } from "./users/users.module.js";
     AuthModule,
     RbacModule,
     UsersModule,
+    DepartmentsModule,
   ],
 })
 export class AppModule {}
