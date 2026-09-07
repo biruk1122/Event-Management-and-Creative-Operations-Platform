@@ -368,9 +368,10 @@ describe("authentication API", () => {
     const refresh = cookieValue(cookies, "refresh_token")!;
     const csrf = cookieValue(cookies, "csrf_token")!;
 
-    await db.query(`UPDATE users SET status = 'INACTIVE' WHERE id = $1`, [
-      userId,
-    ]);
+    await db.query(
+      `UPDATE users SET status = 'INACTIVE', deactivated_at = now() WHERE id = $1`,
+      [userId],
+    );
 
     const me = await request(http)
       .get("/api/v1/auth/me")
@@ -468,8 +469,8 @@ async function seedAccount(
   status: "ACTIVE" | "INACTIVE",
 ): Promise<string> {
   const [user] = await db.query<{ id: string }>(
-    `INSERT INTO users (email, status) VALUES ($1, $2) RETURNING id`,
-    [email, status],
+    `INSERT INTO users (email, status, deactivated_at) VALUES ($1, $2, $3) RETURNING id`,
+    [email, status, status === "INACTIVE" ? new Date() : null],
   );
   await db.query(
     `INSERT INTO user_credentials (user_id, password_hash) VALUES ($1, $2)`,

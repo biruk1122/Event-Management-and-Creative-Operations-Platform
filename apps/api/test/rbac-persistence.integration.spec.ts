@@ -227,7 +227,7 @@ describe("configurable roles and permissions persistence", () => {
 
       await prisma.user.update({
         where: { id: user.id },
-        data: { status: "INACTIVE" },
+        data: { status: "INACTIVE", deactivatedAt: new Date() },
       });
 
       const after = await request(http)
