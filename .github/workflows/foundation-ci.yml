@@ -209,6 +209,11 @@ jobs:
     name: End-to-end
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Full browser journeys make many more requests than the unit/integration
+      # rate-limit checks the workflow-wide value is tuned for; use the e2e
+      # harness's own default so a long suite is not throttled mid-run.
+      API_RATE_LIMIT_MAX: 1000
     services:
       postgres:
         image: postgres:18-bookworm
