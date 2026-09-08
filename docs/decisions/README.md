@@ -18,3 +18,4 @@ consequential, durable decision, its context, and its consequences.
 | ADR                                                        | Title                                      | Status   | Linear |
 | ---------------------------------------------------------- | ------------------------------------------ | -------- | ------ |
 | [0001](0001-durable-domain-events-and-audit-boundaries.md) | Durable domain events and audit boundaries | Accepted | EVE-33 |
+| [0002](0002-secure-managed-file-storage-and-lifecycle.md)  | Secure managed-file storage and lifecycle  | Accepted | EVE-36 |
