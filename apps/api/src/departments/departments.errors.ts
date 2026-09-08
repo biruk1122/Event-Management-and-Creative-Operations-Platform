@@ -53,7 +53,7 @@ export function departmentInUse(): HttpException {
     code: DEPARTMENT_ERROR.departmentInUse,
     error: "Conflict",
     detail:
-      "This department still has employees assigned and cannot be removed.",
+      "This department still has employees or teams and cannot be removed.",
   });
 }
 

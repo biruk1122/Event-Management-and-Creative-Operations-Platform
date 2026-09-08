@@ -221,15 +221,23 @@ export class DepartmentsRepository {
   }
 
   /**
-   * Removes the department only when it has no employees. The count and the
-   * delete run in one transaction so a concurrent assignment cannot slip a
-   * member past the check. Returns `"not_found"`, `"in_use"`, or `"deleted"`.
+   * Removes the department only when nothing depends on it: no employees and
+   * no teams (a team's `department_id` FK is `ON DELETE RESTRICT`, so deleting
+   * a department that still owns one would otherwise fail at the database).
+   * The counts and the delete run in one transaction so a concurrent
+   * assignment cannot slip past the check; a team created in the remaining
+   * window still trips the `RESTRICT` foreign key, which is mapped back to
+   * `"in_use"` rather than surfacing as a 500. Returns `"not_found"`,
+   * `"in_use"`, or `"deleted"`.
    */
   async deleteIfEmpty(id: string): Promise<"not_found" | "in_use" | "deleted"> {
     try {
       return await this.db.$transaction(async (tx) => {
-        const employees = await tx.user.count({ where: { departmentId: id } });
-        if (employees > 0) {
+        const [employees, teams] = await Promise.all([
+          tx.user.count({ where: { departmentId: id } }),
+          tx.team.count({ where: { departmentId: id } }),
+        ]);
+        if (employees > 0 || teams > 0) {
           return "in_use";
         }
         await tx.department.delete({ where: { id } });
@@ -238,6 +246,10 @@ export class DepartmentsRepository {
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
         return "not_found";
+      }
+      // A team raced in after the count: the RESTRICT foreign key held.
+      if (isPrismaError(error, PRISMA_ERROR.foreignKeyViolation)) {
+        return "in_use";
       }
       throw error;
     }

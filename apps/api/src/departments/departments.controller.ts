@@ -212,7 +212,9 @@ export class DepartmentsController {
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("department.delete")
-  @ApiOperation({ summary: "Remove a department that has no employees" })
+  @ApiOperation({
+    summary: "Remove a department that has no employees or teams",
+  })
   @ApiNoContentResponse({ description: "The department was removed" })
   @ApiNotFoundResponse({
     type: ProblemDetails,
@@ -220,7 +222,7 @@ export class DepartmentsController {
   })
   @ApiConflictResponse({
     type: ProblemDetails,
-    description: "The department still has employees assigned",
+    description: "The department still has employees or teams",
   })
   async remove(
     @Req() request: RequestWithContext,

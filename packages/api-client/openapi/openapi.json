@@ -1415,7 +1415,7 @@
                 }
               }
             },
-            "description": "The department still has employees assigned"
+            "description": "The department still has employees or teams"
           }
         },
         "security": [
@@ -1426,7 +1426,7 @@
             "csrf-token": []
           }
         ],
-        "summary": "Remove a department that has no employees",
+        "summary": "Remove a department that has no employees or teams",
         "tags": ["Department management"]
       },
       "get": {

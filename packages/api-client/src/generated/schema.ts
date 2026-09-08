@@ -118,7 +118,7 @@ export interface paths {
     get: operations["Departments_get_v1"];
     put?: never;
     post?: never;
-    /** Remove a department that has no employees */
+    /** Remove a department that has no employees or teams */
     delete: operations["Departments_remove_v1"];
     options?: never;
     head?: never;
@@ -1394,7 +1394,7 @@ export interface operations {
           "application/json": components["schemas"]["ProblemDetails"];
         };
       };
-      /** @description The department still has employees assigned */
+      /** @description The department still has employees or teams */
       409: {
         headers: {
           [name: string]: unknown;

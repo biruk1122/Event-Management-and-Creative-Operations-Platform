@@ -302,13 +302,15 @@ describe("department management persistence", () => {
         del(`/api/v1/departments/${deptId}`),
       ]);
 
-      const statuses = [assign.status, remove.status].sort();
-      // Either the delete won (204 + a clean 404/409 for the assign) or the
-      // assign won (200 + 409 IN_USE for the delete). Never a 500.
-      expect(
-        JSON.stringify(statuses) === JSON.stringify([204, 404]) ||
-          JSON.stringify(statuses) === JSON.stringify([200, 409]),
-      ).toBe(true);
+      // Neither request may 500, whatever the interleaving. The assign either
+      // lands (200) or finds the department already gone (404); the delete
+      // either succeeds (204) or is refused because the assign landed first
+      // (409).
+      for (const status of [assign.status, remove.status]) {
+        expect(status).toBeLessThan(500);
+      }
+      expect([200, 404]).toContain(assign.status);
+      expect([204, 409]).toContain(remove.status);
 
       const [dept] = await db.query<{ id: string }>(
         `SELECT id FROM departments WHERE id = $1`,
@@ -319,10 +321,13 @@ describe("department management persistence", () => {
         [employeeId],
       );
       if (dept) {
-        // Department survived: the member is attached to it.
+        // Department survived: the delete was refused and the assign landed.
+        expect(remove.status).toBe(409);
         expect(user?.department_id).toBe(deptId);
       } else {
-        // Department gone: the member points at nothing.
+        // Department gone: the FK `SET NULL` left the member pointing at
+        // nothing, whichever request observed the deletion.
+        expect(remove.status).toBe(204);
         expect(user?.department_id).toBeNull();
       }
     });
