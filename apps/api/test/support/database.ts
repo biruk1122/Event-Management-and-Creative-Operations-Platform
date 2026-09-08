@@ -87,4 +87,7 @@ export const PG_ERROR = {
   restrictViolation: "23001",
   checkViolation: "23514",
   notNullViolation: "23502",
+  // Raised when a string is not a valid representation of its target type,
+  // including an unknown label offered for a PostgreSQL enum.
+  invalidTextRepresentation: "22P02",
 } as const;

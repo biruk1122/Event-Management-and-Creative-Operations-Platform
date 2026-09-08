@@ -56,13 +56,15 @@ model User {
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  credential         UserCredential?
-  sessions           AuthSession[]
-  roleAssignment     UserRoleAssignment?
-  department         Department?         @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
-  managedDepartments Department[]        @relation("DepartmentManager")
-  managedTeams       Team[]              @relation("TeamManager")
-  teamMemberships    TeamMembership[]
+  credential              UserCredential?
+  sessions                AuthSession[]
+  roleAssignment          UserRoleAssignment?
+  department              Department?            @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
+  managedDepartments      Department[]           @relation("DepartmentManager")
+  managedTeams            Team[]                 @relation("TeamManager")
+  teamMemberships         TeamMembership[]
+  managedWorkspaces       Workspace[]            @relation("WorkspaceManager")
+  workspaceParticipations WorkspaceParticipant[]
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -293,6 +295,7 @@ model Team {
   department Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   manager    User?            @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
   members    TeamMembership[]
+  workspaces WorkspaceTeam[]
 
   // A department cannot hold two teams of the same name; this index also
   // serves the department-scoped team list.
@@ -322,4 +325,97 @@ model TeamMembership {
   // List every team a given user belongs to.
   @@index([userId])
   @@map("team_memberships")
+}
+
+/// Which module owns the work behind a workspace root. This is an explicit
+/// discriminator, not a polymorphic `entity_type` string: the owning module
+/// record (an event, a project, a production project, or a campaign, all
+/// delivered by later epics) points back at its `Workspace` with a unique
+/// `workspace_id`, and `kind` records which of those four it is. Production
+/// and project are kept distinct because Production Management retains
+/// ownership of production projects (see product vocabulary) even though both
+/// follow the common project lifecycle.
+enum WorkspaceKind {
+  EVENT
+  PROJECT
+  PRODUCTION
+  CAMPAIGN
+
+  @@map("workspace_kind")
+}
+
+/// The organization-owned ownership and authorization anchor for one unit of
+/// connected work (SRS 5.5 Event Workspace, 5.7 Production, 5.8 Promotion).
+/// WSP-01 models only the root and its shared manager, team, and participant
+/// relations; the connected records themselves (tasks, meetings, files,
+/// discussions, reports, calendar projections) stay owned by their modules and
+/// link back through explicit per-module relations added by later slices, never
+/// a generic `related_entity_type` / `related_entity_id` pair.
+///
+/// The root carries no name, description, or status: those belong to the owning
+/// module record, whose lifecycle (Planning / Ready / Completed, Planned /
+/// Active / Completed, ...) is not duplicated here. Any archive or deactivate
+/// marker for a workspace is deferred with OD-02.
+model Workspace {
+  id        String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  kind      WorkspaceKind
+  /// The user who manages this workspace and, through that assignment, holds
+  /// the `workspace`-scoped permission set for it (permission catalog, "Entity
+  /// manager assignments"). Cleared, not cascaded, when the user row is
+  /// removed; NULL means unassigned.
+  managerId String?       @map("manager_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  manager      User?                  @relation("WorkspaceManager", fields: [managerId], references: [id], onDelete: SetNull)
+  teams        WorkspaceTeam[]
+  participants WorkspaceParticipant[]
+
+  // "Workspaces of kind X" and "workspaces a user manages" are the two root
+  // access patterns.
+  @@index([kind])
+  @@index([managerId])
+  @@map("workspaces")
+}
+
+/// A team explicitly assigned to a workspace (SRS 5.4 "Teams can be assigned to
+/// events, projects, campaigns, and tasks"). The composite primary key is the
+/// pair itself, so a team cannot be assigned to the same workspace twice. Both
+/// sides cascade: the assignment is pure join data with no meaning once either
+/// the workspace or the team is gone.
+model WorkspaceTeam {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  teamId      String   @map("team_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team      Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, teamId])
+  // List every workspace a given team is assigned to.
+  @@index([teamId])
+  @@map("workspace_teams")
+}
+
+/// A user who individually participates in a workspace (an assigned employee,
+/// distinct from being on an assigned team). The composite primary key is the
+/// pair, so a user cannot be recorded in the same workspace twice. Both sides
+/// cascade: participation is pure join data. Approved participation metadata
+/// (role in the workspace, who assigned it), if a requirement lands, is added
+/// by a later slice; the EVE-33 audit catalog already records the actor of an
+/// assignment change.
+model WorkspaceParticipant {
+  workspaceId String   @map("workspace_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, userId])
+  // List every workspace a given user participates in.
+  @@index([userId])
+  @@map("workspace_participants")
 }
