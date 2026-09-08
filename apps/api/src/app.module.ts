@@ -10,6 +10,7 @@ import { DatabaseModule } from "./database/database.module.js";
 import { DepartmentsModule } from "./departments/departments.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
+import { TeamsModule } from "./teams/teams.module.js";
 import { UsersModule } from "./users/users.module.js";
 
 @Module({
@@ -45,6 +46,7 @@ import { UsersModule } from "./users/users.module.js";
     RbacModule,
     UsersModule,
     DepartmentsModule,
+    TeamsModule,
   ],
 })
 export class AppModule {}
