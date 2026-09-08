@@ -1,36 +1,30 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TeamsManager } from "./teams-manager";
-import type { DeleteTeamOutcome, SaveTeamOutcome } from "../lib/teams-outcome";
-import type {
-  AssignableDepartment,
-  AssignableUser,
-  PaginatedTeams,
-  Team,
-} from "../lib/teams-types";
+import type { CurrentAccess } from "@/features/auth/api/access-queries";
+import type { PaginatedTeams, Team } from "../lib/teams-types";
+
+const { get, post, patch, put, del } = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  put: vi.fn(),
+  del: vi.fn(),
+}));
+
+vi.mock("@/lib/api/browser", () => ({
+  browserApi: { GET: get, POST: post, PATCH: patch, PUT: put, DELETE: del },
+}));
 
 const now = "2026-09-01T09:00:00.000Z";
-
-const DEPARTMENTS: AssignableDepartment[] = [
-  { id: "dep-1", name: "Production" },
-  { id: "dep-2", name: "Marketing" },
-];
-
-const MANAGERS: AssignableUser[] = [
-  {
-    id: "m1",
-    email: "morgan@example.com",
-    firstName: "Morgan",
-    lastName: "Lead",
-  },
-];
 
 function makeTeam(overrides: Partial<Team> & Pick<Team, "id" | "name">): Team {
   return {
     description: null,
-    department: DEPARTMENTS[0]!,
+    department: { id: "dep-1", name: "Production" },
     manager: null,
     members: [],
     deactivatedAt: null,
@@ -40,137 +34,366 @@ function makeTeam(overrides: Partial<Team> & Pick<Team, "id" | "name">): Team {
   };
 }
 
-function page(items: Team[]): PaginatedTeams {
-  return { items, page: 1, pageSize: 25, total: items.length };
+function access(...permissions: string[]): CurrentAccess {
+  return {
+    userId: "operator-1",
+    grants: ["team.read", ...permissions].map((permissionKey) => ({
+      permissionKey,
+      scope: "ORGANIZATION",
+    })),
+  };
 }
 
-const THREE = [
-  makeTeam({ id: "t1", name: "Production Team", department: DEPARTMENTS[0]! }),
-  makeTeam({
-    id: "t2",
-    name: "Promotion Team",
-    department: DEPARTMENTS[1]!,
-    deactivatedAt: "2026-08-20T12:00:00.000Z",
-  }),
-  makeTeam({ id: "t3", name: "Marketing Team", department: DEPARTMENTS[1]! }),
-];
+const ok = (data: unknown, status = 200) => ({
+  data,
+  response: { ok: true, status },
+});
+const fail = (code: string, status: number) => ({
+  error: { code, status },
+  response: { ok: false, status },
+});
 
-function setup(overrides: Partial<Parameters<typeof TeamsManager>[0]> = {}) {
-  render(
-    <TeamsManager
-      initialPage={page(THREE)}
-      departments={DEPARTMENTS}
-      managers={MANAGERS}
-      {...overrides}
-    />,
+let page1: Team[];
+let page2: Team[];
+let total: number;
+
+function listResponse(query: Record<string, unknown> | undefined) {
+  const requestedPage = Number(query?.page ?? 1);
+  const items = requestedPage === 2 ? page2 : page1;
+  return ok({
+    items,
+    page: requestedPage,
+    pageSize: 10,
+    total,
+  } as PaginatedTeams);
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  page1 = [
+    makeTeam({ id: "t1", name: "Production Team" }),
+    makeTeam({ id: "t2", name: "Event Team" }),
+  ];
+  page2 = [];
+  total = 2;
+  get.mockImplementation(
+    async (
+      path: string,
+      opts?: {
+        params?: { query?: Record<string, unknown>; path?: { id?: string } };
+      },
+    ) => {
+      if (path === "/api/v1/teams") return listResponse(opts?.params?.query);
+      if (path === "/api/v1/users")
+        return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+      if (path === "/api/v1/departments")
+        return ok({
+          items: [{ id: "dep-1", name: "Production" }],
+          page: 1,
+          pageSize: 100,
+          total: 1,
+        });
+      if (path === "/api/v1/teams/{id}") {
+        const id = opts?.params?.path?.id;
+        return ok([...page1, ...page2].find((team) => team.id === id) ?? null);
+      }
+      return ok(null);
+    },
+  );
+});
+
+function setup(currentAccess = access("team.create", "team.update")) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <TeamsManager access={currentAccess} />
+    </QueryClientProvider>,
   );
 }
 
-describe("TeamsManager", () => {
-  it("shows the count and lists the initial page", () => {
+describe("TeamsManager API integration", () => {
+  it("renders the authoritative list and count from the API", async () => {
     setup();
-    expect(screen.getByText("3 teams")).toBeVisible();
+    expect(await screen.findByText("2 teams")).toBeVisible();
     expect(screen.getAllByText("Production Team")[0]).toBeVisible();
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/teams",
+      expect.objectContaining({
+        params: { query: expect.objectContaining({ page: 1, pageSize: 10 }) },
+      }),
+    );
   });
 
-  it("filters the list by the search term", async () => {
+  it("requests the next page from the server", async () => {
+    total = 15;
+    page2 = [makeTeam({ id: "t11", name: "Creative Team" })];
     const user = userEvent.setup();
     setup();
-    await user.type(screen.getByLabelText("Search"), "market");
-    expect(screen.getAllByText("Marketing Team")[0]).toBeVisible();
-    expect(screen.queryByText("Production Team")).not.toBeInTheDocument();
+
+    expect(await screen.findByText("Page 1 of 2")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/teams",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ page: 2 }) },
+        }),
+      ),
+    );
+    expect((await screen.findAllByText("Creative Team"))[0]).toBeVisible();
   });
 
-  it("filters by status", async () => {
+  it("passes the debounced search term to the API", async () => {
     const user = userEvent.setup();
     setup();
+    await screen.findByText("2 teams");
+
+    await user.type(screen.getByLabelText("Search"), "prod");
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/teams",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ search: "prod" }) },
+        }),
+      ),
+    );
+  });
+
+  it("passes the status filter to the API", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("2 teams");
+
     await user.click(
       screen.getByRole("combobox", { name: "Filter by status" }),
     );
     await user.click(await screen.findByRole("option", { name: "Inactive" }));
-    expect(screen.getAllByText("Promotion Team")[0]).toBeVisible();
-    expect(screen.queryByText("Production Team")).not.toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/teams",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ status: "INACTIVE" }) },
+        }),
+      ),
+    );
   });
 
-  it("filters by department", async () => {
+  it("passes the department filter to the API", async () => {
     const user = userEvent.setup();
     setup();
+    await screen.findByText("2 teams");
+
     await user.click(
       screen.getByRole("combobox", { name: "Filter by department" }),
     );
     await user.click(await screen.findByRole("option", { name: "Production" }));
-    expect(screen.getAllByText("Production Team")[0]).toBeVisible();
-    expect(screen.queryByText("Marketing Team")).not.toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/teams",
+        expect.objectContaining({
+          params: {
+            query: expect.objectContaining({ departmentId: "dep-1" }),
+          },
+        }),
+      ),
+    );
   });
 
-  it("opens the detail dialog for the selected team", async () => {
+  it("hides the create action without team.create", async () => {
+    setup(access("team.update"));
+    await screen.findByText("2 teams");
+    expect(
+      screen.queryByRole("button", { name: "New team" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the detail-dialog write controls for a read-only caller", async () => {
     const user = userEvent.setup();
-    const getTeam = vi.fn((id: string) =>
-      Promise.resolve(THREE.find((team) => team.id === id) ?? null),
-    );
-    setup({ getTeam });
+    setup(access());
+    await screen.findByText("2 teams");
 
     await user.click(
       screen.getAllByRole("button", { name: "Production Team" })[0]!,
     );
+    await screen.findByRole("heading", { name: "Production Team" });
 
-    expect(getTeam).toHaveBeenCalledWith("t1");
     expect(
-      await screen.findByRole("heading", { name: "Production Team" }),
-    ).toBeVisible();
+      screen.queryByRole("button", { name: "Save changes" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Deactivate team" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete team" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Add member" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("adds a team to the list after a successful create", async () => {
+  it("creates a team and refetches the list", async () => {
+    const created = makeTeam({ id: "t3", name: "New Team" });
+    post.mockResolvedValue(ok(created, 201));
     const user = userEvent.setup();
-    const created = makeTeam({
-      id: "t4",
-      name: "New Team",
-      department: DEPARTMENTS[0]!,
-    });
-    const createTeam = vi.fn((): Promise<SaveTeamOutcome> =>
-      Promise.resolve({ status: "success", team: created }),
-    );
-    setup({ createTeam });
+    setup();
+    await screen.findByText("2 teams");
+
+    page1 = [...page1, created];
+    total = 3;
 
     await user.click(screen.getByRole("button", { name: "New team" }));
-    await user.type(screen.getByLabelText("Name"), "New Team");
-    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Name"), "New Team");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Department" }),
+    );
     await user.click(await screen.findByRole("option", { name: "Production" }));
-    await user.click(screen.getByRole("button", { name: "Create team" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create team" }),
+    );
 
-    await waitFor(() => expect(screen.getByText("4 teams")).toBeVisible());
-    expect(screen.getAllByText("New Team")[0]).toBeVisible();
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/teams",
+        expect.objectContaining({
+          body: expect.objectContaining({
+            name: "New Team",
+            departmentId: "dep-1",
+          }),
+        }),
+      ),
+    );
+    expect(await screen.findByText("3 teams")).toBeVisible();
   });
 
-  it("removes a team from the list after a successful delete", async () => {
+  it("surfaces a name conflict and keeps the dialog open", async () => {
+    post.mockResolvedValue(fail("TEAM_NAME_CONFLICT", 409));
     const user = userEvent.setup();
-    const getTeam = vi.fn((id: string) =>
-      Promise.resolve(THREE.find((team) => team.id === id) ?? null),
+    setup();
+    await screen.findByText("2 teams");
+
+    await user.click(screen.getByRole("button", { name: "New team" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Name"), "Production Team");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Department" }),
     );
-    const deleteTeam = vi.fn((): Promise<DeleteTeamOutcome> =>
-      Promise.resolve({ status: "success" }),
+    await user.click(await screen.findByRole("option", { name: "Production" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create team" }),
     );
-    setup({ getTeam, deleteTeam });
+
+    expect(
+      await screen.findByText(
+        "That department already has a team with this name.",
+      ),
+    ).toBeVisible();
+    expect(within(dialog).getByLabelText("Name")).toHaveValue(
+      "Production Team",
+    );
+  });
+
+  it("adds a member from the detail dialog", async () => {
+    put.mockResolvedValue(
+      ok(
+        makeTeam({
+          id: "t1",
+          name: "Production Team",
+          members: [
+            {
+              id: "u9",
+              email: "u9@x.com",
+              firstName: "Uma",
+              lastName: "Nine",
+            },
+          ],
+        }),
+      ),
+    );
+    get.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/teams") return listResponse(undefined);
+      if (path === "/api/v1/users")
+        return ok({
+          items: [
+            {
+              id: "u9",
+              email: "u9@x.com",
+              firstName: "Uma",
+              lastName: "Nine",
+              status: "ACTIVE",
+            },
+          ],
+          page: 1,
+          pageSize: 100,
+          total: 1,
+        });
+      if (path === "/api/v1/departments")
+        return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+      if (path === "/api/v1/teams/{id}")
+        return ok(makeTeam({ id: "t1", name: "Production Team" }));
+      return ok(null);
+    });
+    const user = userEvent.setup();
+    setup(access("team.manage_members"));
+    await screen.findByText("2 teams");
 
     await user.click(
-      screen.getAllByRole("button", { name: "Marketing Team" })[0]!,
+      screen.getAllByRole("button", { name: "Production Team" })[0]!,
     );
-    await screen.findByRole("heading", { name: "Marketing Team" });
+    await screen.findByRole("heading", { name: "Production Team" });
+    await user.click(screen.getByRole("combobox", { name: "Add member" }));
+    await user.click(await screen.findByRole("option", { name: "Uma Nine" }));
+
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith(
+        "/api/v1/teams/{id}/members/{userId}",
+        expect.objectContaining({
+          params: { path: { id: "t1", userId: "u9" } },
+        }),
+      ),
+    );
+  });
+
+  it("removes a team from the list after a delete", async () => {
+    del.mockResolvedValue({ response: { ok: true, status: 204 } });
+    const user = userEvent.setup();
+    setup(access("team.delete"));
+    await screen.findByText("2 teams");
+
+    await user.click(screen.getAllByRole("button", { name: "Event Team" })[0]!);
+    await screen.findByRole("heading", { name: "Event Team" });
+    page1 = page1.filter((team) => team.id !== "t2");
+    total = 1;
+
     await user.click(screen.getByRole("button", { name: "Delete team" }));
     await user.click(screen.getByRole("button", { name: "Confirm delete" }));
 
-    await waitFor(() => expect(screen.getByText("2 teams")).toBeVisible());
+    await waitFor(() =>
+      expect(del).toHaveBeenCalledWith(
+        "/api/v1/teams/{id}",
+        expect.objectContaining({ params: { path: { id: "t2" } } }),
+      ),
+    );
+    expect(await screen.findByText("1 team")).toBeVisible();
   });
 
-  it("paginates when there are more than ten matches", () => {
-    const many = Array.from({ length: 12 }, (_, index) =>
-      makeTeam({
-        id: `p${index}`,
-        name: `Team ${index}`,
-        department: DEPARTMENTS[0]!,
-      }),
+  it("shows an actionable error when the list request is denied", async () => {
+    get.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/teams")
+        return { data: undefined, response: { ok: false, status: 403 } };
+      return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+    });
+    setup();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You do not have access to this area.",
     );
-    setup({ initialPage: page(many) });
-    expect(screen.getByText("Page 1 of 2")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 });

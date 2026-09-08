@@ -2,6 +2,10 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+// The dialog default-imports the gateway for its `getTeam` fallback; stub the
+// browser client so the env schema does not run at import time.
+vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
+
 import { TeamDetailDialog } from "./team-detail-dialog";
 import type {
   AssignManagerOutcome,

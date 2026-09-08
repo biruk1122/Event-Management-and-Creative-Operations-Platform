@@ -4,12 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
-import {
-  listAssignableDepartments,
-  listAssignableManagers,
-  listTeams,
-  TeamsManager,
-} from "@/features/teams";
+import { TeamsScreen } from "@/features/teams";
 
 export const metadata: Metadata = { title: "Teams" };
 
@@ -26,12 +21,6 @@ export default async function TeamsPage() {
       (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
   );
 
-  const [firstPage, departments, managers] = await Promise.all([
-    listTeams({ page: 1 }),
-    listAssignableDepartments(),
-    listAssignableManagers(),
-  ]);
-
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
       <Link href="/" className="text-sm underline underline-offset-4">
@@ -47,11 +36,7 @@ export default async function TeamsPage() {
             manage members, and manage status.
           </p>
           <div className="mt-6">
-            <TeamsManager
-              initialPage={firstPage}
-              departments={departments}
-              managers={managers}
-            />
+            <TeamsScreen />
           </div>
         </>
       ) : (

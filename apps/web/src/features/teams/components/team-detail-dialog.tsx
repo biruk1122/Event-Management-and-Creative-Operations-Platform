@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getTeam as defaultGetTeam } from "../api/get-team";
+import { getTeam as defaultGetTeam } from "../api/teams-gateway";
 import type {
   AddTeamMember,
   AssignManager,
@@ -63,6 +63,14 @@ interface TeamDetailDialogProps {
   teamId: string | null;
   onOpenChange: (open: boolean) => void;
   managers: readonly AssignableUser[];
+  /** Gate name/description edits and the deactivate/reactivate controls. */
+  canEdit?: boolean;
+  /** Gate the manager control. */
+  canAssignManager?: boolean;
+  /** Gate the member add/remove controls. */
+  canManageMembers?: boolean;
+  /** Gate the delete control. */
+  canDelete?: boolean;
   getTeam?: GetTeam;
   onUpdate: UpdateTeam;
   onAssignManager: AssignManager;
@@ -101,6 +109,10 @@ export function TeamDetailDialog({
 interface TeamDetailBodyProps {
   teamId: string;
   managers: readonly AssignableUser[];
+  canEdit?: boolean;
+  canAssignManager?: boolean;
+  canManageMembers?: boolean;
+  canDelete?: boolean;
   getTeam?: GetTeam;
   onUpdate: UpdateTeam;
   onAssignManager: AssignManager;
@@ -116,6 +128,10 @@ interface TeamDetailBodyProps {
 function TeamDetailBody({
   teamId,
   managers,
+  canEdit = true,
+  canAssignManager = true,
+  canManageMembers = true,
+  canDelete = true,
   getTeam = defaultGetTeam,
   onUpdate,
   onAssignManager,
@@ -340,6 +356,13 @@ function TeamDetailBody({
   const memberIds = new Set(team.members.map((member) => member.id));
   const addable = managers.filter((manager) => !memberIds.has(manager.id));
 
+  // Keep the current manager selectable even when the picker list did not
+  // include them (a read-only caller has no `managers` list of its own).
+  const managerOptions =
+    team.manager && !managers.some((manager) => manager.id === team.manager!.id)
+      ? [team.manager, ...managers]
+      : managers;
+
   return (
     <>
       <DialogHeader>
@@ -371,6 +394,7 @@ function TeamDetailBody({
             id={ids.name}
             required
             maxLength={120}
+            readOnly={!canEdit}
             value={form.name}
             onChange={(event) => setForm({ ...form, name: event.target.value })}
           />
@@ -381,6 +405,7 @@ function TeamDetailBody({
           <Input
             id={ids.description}
             maxLength={1000}
+            readOnly={!canEdit}
             value={form.description}
             onChange={(event) =>
               setForm({ ...form, description: event.target.value })
@@ -398,14 +423,16 @@ function TeamDetailBody({
           </p>
         </div>
 
-        <Button
-          type="submit"
-          size="sm"
-          disabled={!dirty || saving}
-          aria-busy={saving}
-        >
-          {saving ? "Saving…" : "Save changes"}
-        </Button>
+        {canEdit ? (
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!dirty || saving}
+            aria-busy={saving}
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        ) : null}
       </form>
 
       <div className="border-border space-y-3 border-t pt-4">
@@ -414,14 +441,14 @@ function TeamDetailBody({
           <Select
             value={team.manager?.id ?? NO_MANAGER}
             onValueChange={(value) => void handleManagerChange(value)}
-            disabled={managerBusy}
+            disabled={managerBusy || !canAssignManager}
           >
             <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NO_MANAGER}>No manager</SelectItem>
-              {managers.map((manager) => (
+              {managerOptions.map((manager) => (
                 <SelectItem key={manager.id} value={manager.id}>
                   {personName(manager)}
                 </SelectItem>
@@ -463,89 +490,97 @@ function TeamDetailBody({
                     {member.email}
                   </span>
                 </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={memberBusy !== null}
-                  aria-busy={memberBusy === member.id}
-                  aria-label={`Remove ${personName(member)}`}
-                  onClick={() => void handleRemoveMember(member.id)}
-                >
-                  <X aria-hidden="true" className="size-4" />
-                  Remove
-                </Button>
+                {canManageMembers ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={memberBusy !== null}
+                    aria-busy={memberBusy === member.id}
+                    aria-label={`Remove ${personName(member)}`}
+                    onClick={() => void handleRemoveMember(member.id)}
+                  >
+                    <X aria-hidden="true" className="size-4" />
+                    Remove
+                  </Button>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
 
-        <div className="space-y-2">
-          <Label htmlFor={ids.addMember}>Add member</Label>
-          <Select
-            value={addValue}
-            onValueChange={(value) => void handleAddMember(value)}
-            disabled={memberBusy !== null || addable.length === 0}
-          >
-            <SelectTrigger id={ids.addMember} aria-busy={memberBusy !== null}>
-              <SelectValue
-                placeholder={
-                  addable.length === 0
-                    ? "Everyone available is already a member"
-                    : "Choose a user to add"
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {addable.map((user) => (
-                <SelectItem key={user.id} value={user.id}>
-                  {personName(user)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {memberError ? (
-            <p className="text-destructive text-sm" role="alert">
-              {memberError}
-            </p>
-          ) : null}
-        </div>
+        {canManageMembers ? (
+          <div className="space-y-2">
+            <Label htmlFor={ids.addMember}>Add member</Label>
+            <Select
+              value={addValue}
+              onValueChange={(value) => void handleAddMember(value)}
+              disabled={memberBusy !== null || addable.length === 0}
+            >
+              <SelectTrigger id={ids.addMember} aria-busy={memberBusy !== null}>
+                <SelectValue
+                  placeholder={
+                    addable.length === 0
+                      ? "Everyone available is already a member"
+                      : "Choose a user to add"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {addable.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {personName(user)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {memberError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {memberError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="border-border space-y-3 border-t pt-4">
-        <div className="flex flex-wrap items-center gap-2">
-          {activity === "ACTIVE" ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirming("deactivate")}
-            >
-              Deactivate team
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              size="sm"
-              disabled={statusBusy}
-              aria-busy={statusBusy}
-              onClick={() => void runStatusChange("reactivate")}
-            >
-              {statusBusy ? "Reactivating…" : "Reactivate team"}
-            </Button>
-          )}
+        {canEdit || canDelete ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {canEdit ? (
+              activity === "ACTIVE" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirming("deactivate")}
+                >
+                  Deactivate team
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={statusBusy}
+                  aria-busy={statusBusy}
+                  onClick={() => void runStatusChange("reactivate")}
+                >
+                  {statusBusy ? "Reactivating…" : "Reactivate team"}
+                </Button>
+              )
+            ) : null}
 
-          {confirming === null ? (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => setConfirming("delete")}
-            >
-              Delete team
-            </Button>
-          ) : null}
-        </div>
+            {canDelete && confirming === null ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setConfirming("delete")}
+              >
+                Delete team
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
         {confirming !== null ? (
           <div className="flex flex-wrap items-center gap-2">
