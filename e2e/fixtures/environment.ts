@@ -18,11 +18,30 @@ export function loadRepositoryEnv(): void {
 const WEB_PORT = process.env.WEB_PORT ?? "3000";
 const API_PORT = process.env.API_PORT ?? "4000";
 const HOST = "127.0.0.1";
+const RUN_ID_PATTERN = /^[a-z0-9_]+$/;
+
+/**
+ * `scripts/run.mjs` provides a random ID for each invocation. Keeping every
+ * marker and artifact below that ID prevents concurrent e2e commands from
+ * sharing state. The fallback supports inspecting an already provisioned run
+ * manually, but normal execution must use the package scripts.
+ */
+export const e2eRunId = process.env.E2E_RUN_ID ?? "local";
+
+if (!RUN_ID_PATTERN.test(e2eRunId)) {
+  throw new Error(
+    "E2E_RUN_ID may contain only lower-case letters, digits, and underscores.",
+  );
+}
 
 export const webBaseUrl = `http://${HOST}:${WEB_PORT}`;
 export const apiBaseUrl = `http://${HOST}:${API_PORT}`;
 export const apiReadinessUrl = `${apiBaseUrl}/health/ready`;
 export const webPort = WEB_PORT;
+
+export function runDirectory(): string {
+  return resolve(repositoryRoot, "e2e", ".runs", e2eRunId);
+}
 
 /**
  * The base PostgreSQL URL the harness derives per-run schemas from.
@@ -52,7 +71,7 @@ export function baseDatabaseUrl(): string {
  * `global-setup.ts` gets to read it.
  */
 export function datasourceMarkerPath(): string {
-  return resolve(repositoryRoot, "e2e", ".e2e-datasource.json");
+  return resolve(runDirectory(), "datasource.json");
 }
 
 /**

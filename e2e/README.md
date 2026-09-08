@@ -25,21 +25,28 @@ Requirements:
 
 ## Isolation
 
-Each run is confined to its own PostgreSQL **schema**:
+Each invocation is confined to its own PostgreSQL **schema**, ports, and
+artifact directory. `scripts/run.mjs` creates a random run ID, selects unused
+local API and web ports, and passes all three values to provisioning and
+Playwright. This means two `pnpm e2e` commands can run at once without sharing
+servers, database state, auth files, or artifacts.
+
+Each run then follows this lifecycle:
 
 1. `scripts/provision.mjs` creates `e2e_<timestamp>_<random>`, applies committed migrations to it
    with `prisma migrate deploy`, seeds the RBAC catalog (permissions, the five SRS roles and their
    grants, baseline grants) with `pnpm --filter @event-platform/api db:seed`, and seeds the
    canonical accounts - each assigned its catalog role via `user_role_assignments`.
-2. It writes the scoped connection string to `.e2e-datasource.json` (gitignored, and deliberately
-   outside `test-results/`, which Playwright empties at startup). `playwright.config.ts` reads
+2. It writes the scoped connection string to
+   `.runs/<run-id>/datasource.json` (gitignored, and deliberately outside the
+   run's `test-results/`, which Playwright empties at startup). `playwright.config.ts` reads
    that file to put `DATABASE_URL` in the servers' own environment, and `global-setup.ts` reads it
    again to republish the value onto the test runner's `process.env`, for test files and
    `global-teardown.ts`.
-3. `global-teardown.ts` drops the schema.
+3. `global-teardown.ts` drops the schema and removes the datasource marker.
 
-Runs therefore do not contaminate each other or the development database, and a failed run leaves no
-residue beyond one droppable schema.
+Runs therefore do not contaminate each other or the development database. A
+failed run leaves only its named artifact directory and one droppable schema.
 
 Provisioning runs as a **plain Node script before `playwright test` starts** (see the `"e2e"`
 script in `package.json`), not as Playwright's `globalSetup` hook. Playwright starts `webServer`
@@ -60,13 +67,17 @@ The email, password, and role-name literals are mirrored from `test-users.ts` (s
 header comment - it cannot be imported from provisioning, so keep them in sync by hand).
 
 - `tests/auth.setup.ts` is the `setup` project: it signs in as each account through the real
-  `/login` UI and saves the resulting `storageState` to `e2e/.auth/<key>.json` (gitignored). The
+  `/login` UI and saves the resulting `storageState` to
+  `e2e/.runs/<run-id>/auth/<key>.json` (gitignored). The
   `chromium` project depends on it.
 - An authenticated suite reuses that state per file with
   `test.use({ storageState: authStatePath("<key>") })` (see `tests/auth-session.spec.ts`).
 
 ## Artifacts
 
-Traces (`on-first-retry`), screenshots (`only-on-failure`), and video (`retain-on-failure`) are
-written to `e2e/test-results/`. The HTML report is written to `e2e/playwright-report/`
-(`pnpm --filter @event-platform/e2e report` to open it). CI uploads both directories.
+Traces (`on-first-retry`), screenshots (`only-on-failure`), and video
+(`retain-on-failure`) are written to `e2e/.runs/<run-id>/test-results/`. The
+HTML report is written to `e2e/.runs/<run-id>/playwright-report/`; the launcher
+prints `<run-id>`. Set `E2E_RUN_ID` to that value before running
+`pnpm --filter @event-platform/e2e report`. CI uploads the run-scoped report
+and artifacts.

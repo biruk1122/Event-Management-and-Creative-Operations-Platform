@@ -25,7 +25,11 @@ export default defineConfig({
     hookTimeout: 120_000,
     testTimeout: 30_000,
     include: ["test/**/*.integration.spec.ts"],
-    fileParallelism: false,
+    // Each suite changes DATABASE_URL to its own schema, so use process
+    // isolation as well as the unique schema provided by
+    // `test/support/database.ts` before enabling concurrent files.
+    pool: "forks",
+    fileParallelism: true,
     restoreMocks: true,
   },
 });

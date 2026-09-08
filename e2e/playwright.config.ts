@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { defineConfig, devices } from "@playwright/test";
 
@@ -7,6 +8,7 @@ import {
   apiReadinessUrl,
   datasourceMarkerPath,
   loadRepositoryEnv,
+  runDirectory,
   serverEnv,
   webBaseUrl,
   webPort,
@@ -15,6 +17,7 @@ import {
 loadRepositoryEnv();
 
 const isCI = Boolean(process.env.CI);
+const isManagedRun = Boolean(process.env.E2E_RUN_ID);
 
 // `scripts/provision.mjs` (run by the "e2e" script before this config loads)
 // already created, migrated, and seeded the isolated schema; the servers
@@ -27,7 +30,7 @@ const sharedEnv = { ...serverEnv(), DATABASE_URL: databaseUrl };
 
 export default defineConfig({
   testDir: "./tests",
-  outputDir: "./test-results",
+  outputDir: resolve(runDirectory(), "test-results"),
   fullyParallel: false,
   workers: 1,
   forbidOnly: isCI,
@@ -38,7 +41,13 @@ export default defineConfig({
   globalTeardown: "./global-teardown.ts",
   reporter: [
     ["list"],
-    ["html", { open: "never", outputFolder: "playwright-report" }],
+    [
+      "html",
+      {
+        open: "never",
+        outputFolder: resolve(runDirectory(), "playwright-report"),
+      },
+    ],
   ],
   use: {
     baseURL: webBaseUrl,
@@ -63,7 +72,10 @@ export default defineConfig({
       url: apiReadinessUrl,
       cwd: "..",
       timeout: 180_000,
-      reuseExistingServer: !isCI,
+      // A launcher-managed run has a unique schema and ports. Never attach it
+      // to an already-running local server: a rare port race must fail rather
+      // than execute against another run's database.
+      reuseExistingServer: !isCI && !isManagedRun,
       stdout: "pipe",
       stderr: "pipe",
       env: sharedEnv,
@@ -73,7 +85,7 @@ export default defineConfig({
       url: webBaseUrl,
       cwd: "..",
       timeout: 180_000,
-      reuseExistingServer: !isCI,
+      reuseExistingServer: !isCI && !isManagedRun,
       stdout: "pipe",
       stderr: "pipe",
       env: sharedEnv,
