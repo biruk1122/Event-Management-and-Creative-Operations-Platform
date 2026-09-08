@@ -13,8 +13,8 @@ datasource db {
 /// non-destructive extension. All profile fields are nullable: existing rows
 /// predate them and USR-02's create-user API is where a name becomes
 /// mandatory. Role assignment is `UserRoleAssignment`, owned by RBAC-02 so
-/// policy evaluation works before this issue; team membership is added later
-/// by TEAM-01, which models that table. DEP-01 adds `department_id` (the
+/// policy evaluation works before this issue; team membership is the
+/// `TeamMembership` join table added by TEAM-01. DEP-01 adds `department_id` (the
 /// optional employee -> department assignment) and the inverse
 /// `managedDepartments` for the Department Manager slot. `email` uniqueness is
 /// case-sensitive at the database; IAM-02 normalises addresses to lower case
@@ -61,6 +61,8 @@ model User {
   roleAssignment     UserRoleAssignment?
   department         Department?         @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
   managedDepartments Department[]        @relation("DepartmentManager")
+  managedTeams       Team[]              @relation("TeamManager")
+  teamMemberships    TeamMembership[]
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -251,9 +253,73 @@ model Department {
 
   manager   User?  @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
   employees User[] @relation("DepartmentEmployees")
+  teams     Team[]
 
   // Look up the departments a user manages, and list active departments.
   @@index([managerId])
   @@index([deactivatedAt])
   @@map("departments")
+}
+
+/// A working group owned by exactly one department (SRS 5.4). TEAM-01 models
+/// the unit, its manager slot, and its membership join table; the derived
+/// "Active Projects/Events" summaries and the team-to-work assignments
+/// (events, projects, campaigns, tasks) belong to later slices and add no
+/// column here.
+///
+/// `department_id` is required: a team is always department-owned, which is
+/// what makes `team.read` at `department` scope resolvable. The FK is
+/// `ON DELETE RESTRICT` rather than cascading, so the archive / delete /
+/// reassignment policy for a department that still owns teams stays open in
+/// OD-02 instead of being silently decided here; a later slice widens
+/// DEP-02's "in use" check to cover owned teams.
+///
+/// `name` is unique per department (case-sensitively, matching
+/// `departments.name` and `users.email`); TEAM-02 trims and normalises on
+/// write. `deactivated_at` (NULL = active) is the safe-deactivation marker
+/// only, mirroring `departments`.
+model Team {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name          String
+  description   String?
+  departmentId  String    @map("department_id") @db.Uuid
+  managerId     String?   @map("manager_id") @db.Uuid
+  /// Set when the team is deactivated and cleared on reactivation;
+  /// NULL means active.
+  deactivatedAt DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  department Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  manager    User?            @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
+  members    TeamMembership[]
+
+  // A department cannot hold two teams of the same name; this index also
+  // serves the department-scoped team list.
+  @@unique([departmentId, name])
+  // Look up the teams a user manages, and list active teams.
+  @@index([managerId])
+  @@index([deactivatedAt])
+  @@map("teams")
+}
+
+/// The explicit user-to-team relationship (SRS 5.4 "Team Members"). The
+/// composite primary key is the pair itself, so a user cannot be recorded in
+/// the same team twice. Both sides cascade: membership is pure join data with
+/// no meaning once either the team or the user is gone. Approved
+/// responsibility / membership metadata, if a requirement lands, is added by
+/// TEAM-02; the lifecycle of a membership is OD-02.
+model TeamMembership {
+  teamId    String   @map("team_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  // List every team a given user belongs to.
+  @@index([userId])
+  @@map("team_memberships")
 }
