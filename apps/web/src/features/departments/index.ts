@@ -1,6 +1,5 @@
-export { listDepartments } from "./api/list-departments";
-export { listAssignableManagers } from "./api/list-assignable-managers";
-export { DepartmentsManager } from "./components/departments-manager";
+export { DepartmentsScreen } from "./components/departments-screen";
+export { DepartmentsNavigation } from "./components/departments-navigation";
 export type {
   AssignableUser,
   Department,

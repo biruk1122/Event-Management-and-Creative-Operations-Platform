@@ -12,6 +12,11 @@ import type {
 } from "../lib/departments-outcome";
 import type { AssignableUser, Department } from "../lib/departments-types";
 
+// The dialog default-imports the gateway for its `getDepartment` fallback;
+// every test supplies `getDepartment` explicitly, so a bare stub keeps the env
+// module out.
+vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
+
 const now = "2026-09-01T09:00:00.000Z";
 
 const MANAGERS: AssignableUser[] = [

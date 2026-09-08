@@ -23,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getDepartment as defaultGetDepartment } from "../api/get-department";
+import { getDepartment as defaultGetDepartment } from "../api/departments-gateway";
 import type {
   AssignManager,
   DeactivateDepartment,
@@ -59,6 +59,12 @@ interface DepartmentDetailDialogProps {
   departmentId: string | null;
   onOpenChange: (open: boolean) => void;
   managers: readonly AssignableUser[];
+  /** Gate name/description edits and the deactivate/reactivate controls. */
+  canEdit?: boolean;
+  /** Gate the manager control. */
+  canAssignManager?: boolean;
+  /** Gate the delete control. */
+  canDelete?: boolean;
   getDepartment?: GetDepartment;
   onUpdate: UpdateDepartment;
   onAssignManager: AssignManager;
@@ -99,6 +105,9 @@ export function DepartmentDetailDialog({
 interface DepartmentDetailBodyProps {
   departmentId: string;
   managers: readonly AssignableUser[];
+  canEdit?: boolean;
+  canAssignManager?: boolean;
+  canDelete?: boolean;
   getDepartment?: GetDepartment;
   onUpdate: UpdateDepartment;
   onAssignManager: AssignManager;
@@ -112,6 +121,9 @@ interface DepartmentDetailBodyProps {
 function DepartmentDetailBody({
   departmentId,
   managers,
+  canEdit = true,
+  canAssignManager = true,
+  canDelete = true,
   getDepartment = defaultGetDepartment,
   onUpdate,
   onAssignManager,
@@ -294,6 +306,14 @@ function DepartmentDetailBody({
   const activity = activityOf(department);
   const dirty = changedKeys(profileOf(department), form).length > 0;
 
+  // Keep the current manager selectable even when the picker list did not
+  // include them (a read-only caller has no `managers` list of its own).
+  const managerOptions =
+    department.manager &&
+    !managers.some((manager) => manager.id === department.manager!.id)
+      ? [department.manager, ...managers]
+      : managers;
+
   return (
     <>
       <DialogHeader>
@@ -325,6 +345,7 @@ function DepartmentDetailBody({
             id={ids.name}
             required
             maxLength={120}
+            readOnly={!canEdit}
             value={form.name}
             onChange={(event) => setForm({ ...form, name: event.target.value })}
           />
@@ -335,6 +356,7 @@ function DepartmentDetailBody({
           <Input
             id={ids.description}
             maxLength={1000}
+            readOnly={!canEdit}
             value={form.description}
             onChange={(event) =>
               setForm({ ...form, description: event.target.value })
@@ -342,14 +364,16 @@ function DepartmentDetailBody({
           />
         </div>
 
-        <Button
-          type="submit"
-          size="sm"
-          disabled={!dirty || saving}
-          aria-busy={saving}
-        >
-          {saving ? "Saving…" : "Save changes"}
-        </Button>
+        {canEdit ? (
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!dirty || saving}
+            aria-busy={saving}
+          >
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        ) : null}
       </form>
 
       <div className="border-border space-y-3 border-t pt-4">
@@ -358,14 +382,14 @@ function DepartmentDetailBody({
           <Select
             value={department.manager?.id ?? NO_MANAGER}
             onValueChange={(value) => void handleManagerChange(value)}
-            disabled={managerBusy}
+            disabled={managerBusy || !canAssignManager}
           >
             <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NO_MANAGER}>No manager</SelectItem>
-              {managers.map((manager) => (
+              {managerOptions.map((manager) => (
                 <SelectItem key={manager.id} value={manager.id}>
                   {personName(manager)}
                 </SelectItem>
@@ -379,39 +403,43 @@ function DepartmentDetailBody({
           ) : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {activity === "ACTIVE" ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirming("deactivate")}
-            >
-              Deactivate department
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              size="sm"
-              disabled={statusBusy}
-              aria-busy={statusBusy}
-              onClick={() => void runStatusChange("reactivate")}
-            >
-              {statusBusy ? "Reactivating…" : "Reactivate department"}
-            </Button>
-          )}
+        {canEdit || canDelete ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {canEdit ? (
+              activity === "ACTIVE" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirming("deactivate")}
+                >
+                  Deactivate department
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={statusBusy}
+                  aria-busy={statusBusy}
+                  onClick={() => void runStatusChange("reactivate")}
+                >
+                  {statusBusy ? "Reactivating…" : "Reactivate department"}
+                </Button>
+              )
+            ) : null}
 
-          {confirming === null ? (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => setConfirming("delete")}
-            >
-              Delete department
-            </Button>
-          ) : null}
-        </div>
+            {canDelete && confirming === null ? (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={() => setConfirming("delete")}
+              >
+                Delete department
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
         {confirming !== null ? (
           <div className="flex flex-wrap items-center gap-2">

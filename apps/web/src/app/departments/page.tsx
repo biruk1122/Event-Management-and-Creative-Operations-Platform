@@ -4,11 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
-import {
-  DepartmentsManager,
-  listAssignableManagers,
-  listDepartments,
-} from "@/features/departments";
+import { DepartmentsScreen } from "@/features/departments";
 
 export const metadata: Metadata = { title: "Departments" };
 
@@ -25,11 +21,6 @@ export default async function DepartmentsPage() {
       (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
   );
 
-  const [firstPage, managers] = await Promise.all([
-    listDepartments({ page: 1 }),
-    listAssignableManagers(),
-  ]);
-
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
       <Link href="/" className="text-sm underline underline-offset-4">
@@ -44,7 +35,7 @@ export default async function DepartmentsPage() {
             Create units, edit details, assign a manager, and manage status.
           </p>
           <div className="mt-6">
-            <DepartmentsManager initialPage={firstPage} managers={managers} />
+            <DepartmentsScreen />
           </div>
         </>
       ) : (

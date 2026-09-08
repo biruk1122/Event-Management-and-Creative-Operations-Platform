@@ -1,27 +1,27 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DepartmentsManager } from "./departments-manager";
+import type { CurrentAccess } from "@/features/auth/api/access-queries";
 import type {
-  DeleteDepartmentOutcome,
-  SaveDepartmentOutcome,
-} from "../lib/departments-outcome";
-import type {
-  AssignableUser,
   Department,
   PaginatedDepartments,
 } from "../lib/departments-types";
 
+const { get, post, put, del } = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  put: vi.fn(),
+  del: vi.fn(),
+}));
+
+vi.mock("@/lib/api/browser", () => ({
+  browserApi: { GET: get, POST: post, PATCH: vi.fn(), PUT: put, DELETE: del },
+}));
+
 const now = "2026-09-01T09:00:00.000Z";
-const MANAGERS: AssignableUser[] = [
-  {
-    id: "m1",
-    email: "morgan@example.com",
-    firstName: "Morgan",
-    lastName: "Lead",
-  },
-];
 
 function makeDepartment(
   overrides: Partial<Department> & Pick<Department, "id" | "name">,
@@ -37,134 +37,265 @@ function makeDepartment(
   };
 }
 
-function page(items: Department[]): PaginatedDepartments {
-  return { items, page: 1, pageSize: 25, total: items.length };
+function access(...permissions: string[]): CurrentAccess {
+  return {
+    userId: "operator-1",
+    grants: ["department.read", ...permissions].map((permissionKey) => ({
+      permissionKey,
+      scope: "ORGANIZATION",
+    })),
+  };
 }
 
-const THREE = [
-  makeDepartment({ id: "d1", name: "Event Management", employeeCount: 4 }),
-  makeDepartment({
-    id: "d2",
-    name: "Promotion",
-    deactivatedAt: "2026-08-20T12:00:00.000Z",
-  }),
-  makeDepartment({ id: "d3", name: "Marketing", employeeCount: 2 }),
-];
+const ok = (data: unknown, status = 200) => ({
+  data,
+  response: { ok: true, status },
+});
+const fail = (code: string, status: number) => ({
+  error: { code, status },
+  response: { ok: false, status },
+});
 
-describe("DepartmentsManager", () => {
-  it("shows the count and lists the initial page", () => {
-    render(
-      <DepartmentsManager initialPage={page(THREE)} managers={MANAGERS} />,
-    );
-    expect(screen.getByText("3 departments")).toBeVisible();
+let page1: Department[];
+let page2: Department[];
+let total: number;
+
+function listResponse(query: Record<string, unknown> | undefined) {
+  const requestedPage = Number(query?.page ?? 1);
+  const items = requestedPage === 2 ? page2 : page1;
+  return ok({
+    items,
+    page: requestedPage,
+    pageSize: 10,
+    total,
+  } as PaginatedDepartments);
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  page1 = [
+    makeDepartment({ id: "d1", name: "Event Management", employeeCount: 4 }),
+    makeDepartment({ id: "d2", name: "Production", employeeCount: 2 }),
+  ];
+  page2 = [];
+  total = 2;
+  get.mockImplementation(
+    async (
+      path: string,
+      opts?: {
+        params?: { query?: Record<string, unknown>; path?: { id?: string } };
+      },
+    ) => {
+      if (path === "/api/v1/departments")
+        return listResponse(opts?.params?.query);
+      if (path === "/api/v1/users")
+        return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+      if (path === "/api/v1/departments/{id}") {
+        const id = opts?.params?.path?.id;
+        return ok([...page1, ...page2].find((d) => d.id === id) ?? null);
+      }
+      return ok(null);
+    },
+  );
+});
+
+function setup(
+  currentAccess = access("department.create", "department.update"),
+) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>
+      <DepartmentsManager access={currentAccess} />
+    </QueryClientProvider>,
+  );
+}
+
+describe("DepartmentsManager API integration", () => {
+  it("renders the authoritative list and count from the API", async () => {
+    setup();
+    expect(await screen.findByText("2 departments")).toBeVisible();
     expect(screen.getAllByText("Event Management")[0]).toBeVisible();
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/departments",
+      expect.objectContaining({
+        params: { query: expect.objectContaining({ page: 1, pageSize: 10 }) },
+      }),
+    );
   });
 
-  it("filters the list by the search term", async () => {
+  it("requests the next page from the server", async () => {
+    total = 15;
+    page2 = [makeDepartment({ id: "d11", name: "Creative Department" })];
     const user = userEvent.setup();
-    render(
-      <DepartmentsManager initialPage={page(THREE)} managers={MANAGERS} />,
-    );
+    setup();
 
-    await user.type(screen.getByLabelText("Search"), "market");
-    expect(screen.getAllByText("Marketing")[0]).toBeVisible();
-    expect(screen.queryByText("Event Management")).not.toBeInTheDocument();
+    expect(await screen.findByText("Page 1 of 2")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/departments",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ page: 2 }) },
+        }),
+      ),
+    );
+    expect(
+      (await screen.findAllByText("Creative Department"))[0],
+    ).toBeVisible();
   });
 
-  it("filters by status", async () => {
+  it("passes the debounced search term to the API", async () => {
     const user = userEvent.setup();
-    render(
-      <DepartmentsManager initialPage={page(THREE)} managers={MANAGERS} />,
+    setup();
+    await screen.findByText("2 departments");
+
+    await user.type(screen.getByLabelText("Search"), "prod");
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/departments",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ search: "prod" }) },
+        }),
+      ),
     );
+  });
+
+  it("passes the status filter to the API", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("2 departments");
 
     await user.click(
       screen.getByRole("combobox", { name: "Filter by status" }),
     );
     await user.click(await screen.findByRole("option", { name: "Inactive" }));
 
-    expect(screen.getAllByText("Promotion")[0]).toBeVisible();
-    expect(screen.queryByText("Event Management")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/departments",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ status: "INACTIVE" }) },
+        }),
+      ),
+    );
   });
 
-  it("opens the create dialog and adds a department on success", async () => {
-    const user = userEvent.setup();
-    const created = makeDepartment({ id: "d4", name: "New Unit" });
-    const createDepartment = vi.fn((): Promise<SaveDepartmentOutcome> =>
-      Promise.resolve({ status: "success", department: created }),
-    );
+  it("hides the create action without department.create", async () => {
+    setup(access("department.update"));
+    await screen.findByText("2 departments");
+    expect(
+      screen.queryByRole("button", { name: "New department" }),
+    ).not.toBeInTheDocument();
+  });
 
-    render(
-      <DepartmentsManager
-        initialPage={page(THREE)}
-        managers={MANAGERS}
-        createDepartment={createDepartment}
-      />,
+  it("hides the detail-dialog write controls for a read-only caller", async () => {
+    const user = userEvent.setup();
+    setup(access());
+    await screen.findByText("2 departments");
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Event Management" })[0]!,
     );
+    await screen.findByRole("heading", { name: "Event Management" });
+
+    expect(
+      screen.queryByRole("button", { name: "Save changes" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Deactivate department" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete department" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("creates a department and refetches the list", async () => {
+    const created = makeDepartment({ id: "d3", name: "New Unit" });
+    post.mockResolvedValue(ok(created, 201));
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("2 departments");
+
+    page1 = [...page1, created];
+    total = 3;
 
     await user.click(screen.getByRole("button", { name: "New department" }));
-    await user.type(screen.getByLabelText("Name"), "New Unit");
-    await user.click(screen.getByRole("button", { name: "Create department" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Name"), "New Unit");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create department" }),
+    );
 
     await waitFor(() =>
-      expect(screen.getByText("4 departments")).toBeVisible(),
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/departments",
+        expect.objectContaining({
+          body: expect.objectContaining({ name: "New Unit" }),
+        }),
+      ),
     );
-    expect(screen.getAllByText("New Unit")[0]).toBeVisible();
+    expect(await screen.findByText("3 departments")).toBeVisible();
   });
 
-  it("opens the detail dialog for the selected department", async () => {
+  it("surfaces a name conflict and keeps the dialog open", async () => {
+    post.mockResolvedValue(fail("DEPARTMENT_NAME_CONFLICT", 409));
     const user = userEvent.setup();
-    const getDepartment = vi.fn((id: string) =>
-      Promise.resolve(THREE.find((d) => d.id === id) ?? null),
-    );
-    render(
-      <DepartmentsManager
-        initialPage={page(THREE)}
-        managers={MANAGERS}
-        getDepartment={getDepartment}
-      />,
+    setup();
+    await screen.findByText("2 departments");
+
+    await user.click(screen.getByRole("button", { name: "New department" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Name"), "Event Management");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Create department" }),
     );
 
-    const [name] = screen.getAllByRole("button", { name: "Event Management" });
-    await user.click(name!);
-
-    expect(getDepartment).toHaveBeenCalledWith("d1");
     expect(
-      await screen.findByRole("heading", { name: "Event Management" }),
+      await screen.findByText("A department with that name already exists."),
     ).toBeVisible();
+    expect(within(dialog).getByLabelText("Name")).toHaveValue(
+      "Event Management",
+    );
   });
 
-  it("removes a department from the list after a successful delete", async () => {
+  it("removes a department from the list after a delete", async () => {
+    del.mockResolvedValue({ response: { ok: true, status: 204 } });
     const user = userEvent.setup();
-    const getDepartment = vi.fn((id: string) =>
-      Promise.resolve(THREE.find((d) => d.id === id) ?? null),
-    );
-    const deleteDepartment = vi.fn((): Promise<DeleteDepartmentOutcome> =>
-      Promise.resolve({ status: "success" }),
-    );
-    render(
-      <DepartmentsManager
-        initialPage={page(THREE)}
-        managers={MANAGERS}
-        getDepartment={getDepartment}
-        deleteDepartment={deleteDepartment}
-      />,
-    );
+    setup(access("department.delete"));
+    await screen.findByText("2 departments");
 
-    await user.click(screen.getAllByRole("button", { name: "Marketing" })[0]!);
-    await screen.findByRole("heading", { name: "Marketing" });
+    await user.click(screen.getAllByRole("button", { name: "Production" })[0]!);
+    await screen.findByRole("heading", { name: "Production" });
+    page1 = page1.filter((d) => d.id !== "d2");
+    total = 1;
+
     await user.click(screen.getByRole("button", { name: "Delete department" }));
     await user.click(screen.getByRole("button", { name: "Confirm delete" }));
 
     await waitFor(() =>
-      expect(screen.getByText("2 departments")).toBeVisible(),
+      expect(del).toHaveBeenCalledWith(
+        "/api/v1/departments/{id}",
+        expect.objectContaining({ params: { path: { id: "d2" } } }),
+      ),
     );
+    expect(await screen.findByText("1 department")).toBeVisible();
   });
 
-  it("paginates when there are more than ten matches", () => {
-    const many = Array.from({ length: 12 }, (_, index) =>
-      makeDepartment({ id: `p${index}`, name: `Unit ${index}` }),
+  it("shows an actionable error when the list request is denied", async () => {
+    get.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/departments")
+        return { data: undefined, response: { ok: false, status: 403 } };
+      return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+    });
+    setup();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You do not have access to this area.",
     );
-    render(<DepartmentsManager initialPage={page(many)} managers={MANAGERS} />);
-    expect(screen.getByText("Page 1 of 2")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 });
