@@ -14,7 +14,11 @@ export interface TestUser {
   /** Plain-text password; the seed hashes it once credential storage exists. */
   readonly password: string;
   /** Canonical role name from the permission catalogue (EVE-32). */
-  readonly role: "Super Admin" | "Management/Administrator" | "Team Member";
+  readonly role:
+    | "Super Admin"
+    | "Management/Administrator"
+    | "Department Manager"
+    | "Team Member";
   readonly firstName: string;
   readonly lastName: string;
 }
@@ -45,6 +49,14 @@ export const TEST_USERS: readonly TestUser[] = [
     role: "Team Member",
     firstName: "Robin",
     lastName: "Doer",
+  },
+  {
+    key: "deptManager",
+    email: "dept-manager@e2e.test",
+    password: TEST_USER_PASSWORD,
+    role: "Department Manager",
+    firstName: "Dana",
+    lastName: "Okafor",
   },
 ] as const;
 

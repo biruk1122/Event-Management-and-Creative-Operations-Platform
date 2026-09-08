@@ -35,6 +35,7 @@ const TEST_USERS = [
   { email: "super-admin@e2e.test", role: "Super Admin" },
   { email: "manager@e2e.test", role: "Management/Administrator" },
   { email: "member@e2e.test", role: "Team Member" },
+  { email: "dept-manager@e2e.test", role: "Department Manager" },
 ];
 
 function baseDatabaseUrl() {
