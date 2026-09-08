@@ -2,8 +2,8 @@ name: Claude Code Review
 
 # Posts an automated review on every pull request as the "Claude" GitHub App,
 # so it appears in the Reviewers panel alongside CodeRabbit. Independent of the
-# blocking Foundation CI checks. Requires the "Claude" GitHub App on the
-# organization and an ANTHROPIC_API_KEY secret (or CLAUDE_CODE_OAUTH_TOKEN).
+# blocking Foundation CI checks. The Claude review step runs only when an
+# ANTHROPIC_API_KEY secret (or CLAUDE_CODE_OAUTH_TOKEN) is configured.
 
 on:
   pull_request:
@@ -25,11 +25,24 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Detect Claude credential
+        id: credential
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [[ -n "$ANTHROPIC_API_KEY" || -n "$CLAUDE_CODE_OAUTH_TOKEN" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run Claude Code Review
+        if: ${{ steps.credential.outputs.available == 'true' }}
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             Review this pull request as an independent reviewer. This repo is a
             pnpm + Turborepo monorepo (apps/web Next.js, apps/api NestJS + Prisma,
