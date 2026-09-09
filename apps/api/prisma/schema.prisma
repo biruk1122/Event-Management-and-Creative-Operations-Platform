@@ -56,16 +56,18 @@ model User {
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  credential              UserCredential?
-  sessions                AuthSession[]
-  roleAssignment          UserRoleAssignment?
-  department              Department?            @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
-  managedDepartments      Department[]           @relation("DepartmentManager")
-  managedTeams            Team[]                 @relation("TeamManager")
-  teamMemberships         TeamMembership[]
-  managedWorkspaces       Workspace[]            @relation("WorkspaceManager")
-  workspaceParticipations WorkspaceParticipant[]
-  createdEvents           Event[]                @relation("EventCreatedBy")
+  credential               UserCredential?
+  sessions                 AuthSession[]
+  roleAssignment           UserRoleAssignment?
+  department               Department?               @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
+  managedDepartments       Department[]              @relation("DepartmentManager")
+  managedTeams             Team[]                    @relation("TeamManager")
+  teamMemberships          TeamMembership[]
+  managedWorkspaces        Workspace[]               @relation("WorkspaceManager")
+  workspaceParticipations  WorkspaceParticipant[]
+  createdEvents            Event[]                   @relation("EventCreatedBy")
+  initiatedManagedFiles    ManagedFile[]             @relation("ManagedFileInitiator")
+  workspaceFileAttachments WorkspaceFileAttachment[] @relation("WorkspaceFileAttachedBy")
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -368,18 +370,100 @@ model Workspace {
   createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  manager      User?                  @relation("WorkspaceManager", fields: [managerId], references: [id], onDelete: SetNull)
-  teams        WorkspaceTeam[]
-  participants WorkspaceParticipant[]
+  manager         User?                     @relation("WorkspaceManager", fields: [managerId], references: [id], onDelete: SetNull)
+  teams           WorkspaceTeam[]
+  participants    WorkspaceParticipant[]
+  fileAttachments WorkspaceFileAttachment[]
   /// The one module record that owns this workspace, when its `kind` is
   /// `EVENT`. Later epics add the equivalent inverse for project and campaign.
-  event        Event?
+  event           Event?
 
   // "Workspaces of kind X" and "workspaces a user manages" are the two root
   // access patterns.
   @@index([kind])
   @@index([managerId])
   @@map("workspaces")
+}
+
+/// The backend-governed lifecycle of an opaque stored object. `PENDING` is an
+/// authorized but unfinalized upload intent, `AVAILABLE` is a verified object
+/// with an approved explicit attachment, and `UNAVAILABLE` is an expired,
+/// rejected, detached, or missing object awaiting the cleanup lifecycle. This
+/// is storage metadata, not a product-workflow status (see ADR 0002).
+enum ManagedFileState {
+  PENDING
+  AVAILABLE
+  UNAVAILABLE
+
+  @@map("managed_file_state")
+}
+
+/// Authoritative metadata for one private S3-compatible object (ADR 0002).
+/// The opaque `storageKey` is unique but never a browser/API contract, and
+/// bucket/provider configuration remains in the backend infrastructure
+/// adapter. The eventual FIL-02 upload/finalize flow owns state transitions;
+/// this data slice only persists the validated intent, verification, and
+/// retention information required to make those transitions safe.
+model ManagedFile {
+  id                String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// API-generated opaque object reference. It contains no filename, actor,
+  /// workspace, bucket, provider URL, or presigned URL.
+  storageKey        String           @unique @map("storage_key")
+  originalFilename  String           @map("original_filename")
+  declaredMediaType String           @map("declared_media_type")
+  declaredSizeBytes Int              @map("declared_size_bytes")
+  verifiedMediaType String?          @map("verified_media_type")
+  verifiedSizeBytes Int?             @map("verified_size_bytes")
+  state             ManagedFileState @default(PENDING)
+  /// PENDING intents expire after 24 hours. The timestamp is retained as
+  /// lifecycle evidence after finalization rather than being rewritten.
+  intentExpiresAt   DateTime         @map("intent_expires_at") @db.Timestamptz(6)
+  uploadedAt        DateTime?        @map("uploaded_at") @db.Timestamptz(6)
+  availableAt       DateTime?        @map("available_at") @db.Timestamptz(6)
+  unavailableAt     DateTime?        @map("unavailable_at") @db.Timestamptz(6)
+  /// The earliest retention-cleanup time. It is populated only when a file is
+  /// unavailable; a later lifecycle service applies the 7-day orphan or
+  /// 30-day detached-file policy from ADR 0002.
+  cleanupAfter      DateTime?        @map("cleanup_after") @db.Timestamptz(6)
+  initiatedById     String?          @map("initiated_by_id") @db.Uuid
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  initiatedBy          User?                     @relation("ManagedFileInitiator", fields: [initiatedById], references: [id], onDelete: SetNull)
+  workspaceAttachments WorkspaceFileAttachment[]
+
+  // Upload expiry, cleanup sweeps, actor investigation, and resolving a
+  // file's approved parent are the storage access patterns.
+  @@index([state, intentExpiresAt])
+  @@index([state, cleanupAfter])
+  @@index([initiatedById])
+  @@map("managed_files")
+}
+
+/// Explicit attachment of a managed file to the connected workspace that
+/// authorizes it. This intentionally does not use an unchecked generic
+/// `entityType`/`entityId` relation; later parent modules add their own
+/// concrete attachment tables rather than widening this association.
+model WorkspaceFileAttachment {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  managedFileId String   @map("managed_file_id") @db.Uuid
+  attachedById  String?  @map("attached_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Restrict deletion so a later lifecycle service must explicitly detach the
+  // association and transition the managed file before either parent is removed.
+  workspace   Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  managedFile ManagedFile @relation(fields: [managedFileId], references: [id], onDelete: Restrict)
+  attachedBy  User?       @relation("WorkspaceFileAttachedBy", fields: [attachedById], references: [id], onDelete: SetNull)
+
+  // The same file cannot be attached to the same workspace twice; the reverse
+  // lookup resolves explicit parent context before an authorized download.
+  @@unique([workspaceId, managedFileId])
+  @@index([managedFileId])
+  @@index([attachedById])
+  @@map("workspace_file_attachments")
 }
 
 /// A team explicitly assigned to a workspace (SRS 5.4 "Teams can be assigned to
