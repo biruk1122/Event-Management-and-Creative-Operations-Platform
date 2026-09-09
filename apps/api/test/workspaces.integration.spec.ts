@@ -90,6 +90,9 @@ describe("connected workspace ownership API", () => {
     process.env.AUTH_REFRESH_TOKEN_SECRET ??=
       "workspace-refresh-token-secret-at-least-32-chars";
     process.env.AUTH_LOGIN_RATE_LIMIT_MAX = "10000";
+    // This suite drives many requests from one IP; keep the general per-IP
+    // limiter out of the way so it does not 429 an unrelated assertion.
+    process.env.API_RATE_LIMIT_MAX = "100000";
 
     prisma = new PrismaClient({
       adapter: new PrismaPg(
@@ -570,6 +573,257 @@ describe("connected workspace ownership API", () => {
         "/api/v1/workspaces?kind=EVENT",
       ).set("x-request-id", "workspace-req-id-check");
       expect(response.headers["x-request-id"]).toBe("workspace-req-id-check");
+    });
+
+    it("echoes x-request-id on a mutation and on an error response", async () => {
+      const created = await createWorkspace();
+
+      const ok = await as(
+        superAdmin,
+        "put",
+        `/api/v1/workspaces/${created.id}/manager`,
+      )
+        .set("x-request-id", "ws-mutation-id")
+        .send({ managerId: null });
+      expect(ok.headers["x-request-id"]).toBe("ws-mutation-id");
+
+      const err = await as(superAdmin, "get", `/api/v1/workspaces/${UUID}`).set(
+        "x-request-id",
+        "ws-error-id",
+      );
+      expect(err.status).toBe(404);
+      expect(err.headers["x-request-id"]).toBe("ws-error-id");
+    });
+
+    it("returns a full Problem Details body on a not-found", async () => {
+      const response = await as(
+        superAdmin,
+        "get",
+        `/api/v1/workspaces/${UUID}`,
+      );
+      expect(response.status).toBe(404);
+      expect(response.headers["content-type"]).toContain(
+        "application/problem+json",
+      );
+      const problem = response.body as Record<string, unknown>;
+      expect(problem).toMatchObject({
+        code: "WORKSPACE_NOT_FOUND",
+        status: 404,
+        title: "Not Found",
+        instance: `/api/v1/workspaces/${UUID}`,
+      });
+      expect(typeof problem.type).toBe("string");
+      expect(typeof problem.detail).toBe("string");
+      expect(typeof problem.requestId).toBe("string");
+    });
+
+    it("treats a non-uuid :id as not-found, never a 500", async () => {
+      for (const [method, path] of [
+        ["get", "/api/v1/workspaces/not-a-uuid"],
+        ["put", "/api/v1/workspaces/not-a-uuid/manager"],
+        ["delete", "/api/v1/workspaces/not-a-uuid"],
+      ] as const) {
+        const req = as(superAdmin, method, path);
+        const response =
+          method === "put" ? await req.send({ managerId: null }) : await req;
+        expect(response.status).toBe(404);
+        expect(body<ProblemBody>(response).code).toBe("WORKSPACE_NOT_FOUND");
+      }
+    });
+
+    it("treats a non-uuid :teamId or :userId as not-found, never a 500", async () => {
+      const created = await createWorkspace();
+
+      const badTeam = await as(
+        superAdmin,
+        "put",
+        `/api/v1/workspaces/${created.id}/teams/not-a-uuid`,
+      );
+      expect(badTeam.status).toBe(404);
+      expect(body<ProblemBody>(badTeam).code).toBe("WORKSPACE_TEAM_NOT_FOUND");
+
+      const badUser = await as(
+        superAdmin,
+        "put",
+        `/api/v1/workspaces/${created.id}/participants/not-a-uuid`,
+      );
+      expect(badUser.status).toBe(404);
+      expect(body<ProblemBody>(badUser).code).toBe("USER_NOT_FOUND");
+
+      const badTeamRemove = await as(
+        superAdmin,
+        "delete",
+        `/api/v1/workspaces/${created.id}/teams/not-a-uuid`,
+      );
+      expect(badTeamRemove.status).toBe(409);
+      expect(body<ProblemBody>(badTeamRemove).code).toBe(
+        "WORKSPACE_TEAM_NOT_ASSIGNED",
+      );
+    });
+  });
+
+  describe("CSRF is required on every mutation route", () => {
+    let wsId: string;
+    let teamId: string;
+    let userId: string;
+
+    beforeAll(async () => {
+      wsId = (await createWorkspace()).id;
+      teamId = await createTeam();
+      userId = await createUser();
+    });
+
+    it.each([
+      ["post", "/api/v1/workspaces", { kind: "EVENT" }],
+      ["put", () => `/api/v1/workspaces/${wsId}/manager`, { managerId: null }],
+      ["put", () => `/api/v1/workspaces/${wsId}/teams/${teamId}`, undefined],
+      ["delete", () => `/api/v1/workspaces/${wsId}/teams/${teamId}`, undefined],
+      [
+        "put",
+        () => `/api/v1/workspaces/${wsId}/participants/${userId}`,
+        undefined,
+      ],
+      [
+        "delete",
+        () => `/api/v1/workspaces/${wsId}/participants/${userId}`,
+        undefined,
+      ],
+      ["delete", () => `/api/v1/workspaces/${wsId}`, undefined],
+    ] as const)(
+      "%s %s without the CSRF header is 403",
+      async (method, path, payload) => {
+        const url = typeof path === "function" ? path() : path;
+        let req = request(http)[method](url).set("Cookie", superAdmin.cookies);
+        if (payload) req = req.send(payload);
+        expect((await req).status).toBe(403);
+      },
+    );
+  });
+
+  describe("a caller with no owning-module grant is refused on every route", () => {
+    let realWsId: string;
+
+    beforeAll(async () => {
+      realWsId = (await createWorkspace()).id;
+    });
+
+    it("403s the list and a real workspace read", async () => {
+      const list = await as(plainUser, "get", "/api/v1/workspaces?kind=EVENT");
+      expect(list.status).toBe(403);
+      expect(body<ProblemBody>(list).code).toBe("PERMISSION_DENIED");
+
+      const read = await as(plainUser, "get", `/api/v1/workspaces/${realWsId}`);
+      expect(read.status).toBe(403);
+      expect(body<ProblemBody>(read).code).toBe("PERMISSION_DENIED");
+    });
+
+    it("404s an unknown id before it would 403 (existence is not disclosed by the grant check)", async () => {
+      const read = await as(plainUser, "get", `/api/v1/workspaces/${UUID}`);
+      expect(read.status).toBe(404);
+      expect(body<ProblemBody>(read).code).toBe("WORKSPACE_NOT_FOUND");
+    });
+
+    it.each([
+      [
+        "put",
+        () => `/api/v1/workspaces/${realWsId}/manager`,
+        { managerId: null },
+      ],
+      ["delete", () => `/api/v1/workspaces/${realWsId}`, undefined],
+    ] as const)(
+      "403s %s on a real workspace",
+      async (method, path, payload) => {
+        const req = as(plainUser, method, path());
+        const response = payload ? await req.send(payload) : await req;
+        expect(response.status).toBe(403);
+        expect(body<ProblemBody>(response).code).toBe("PERMISSION_DENIED");
+      },
+    );
+  });
+
+  describe("list bounds and casing", () => {
+    it.each([
+      ["kind in lower case", "/api/v1/workspaces?kind=event"],
+      [
+        "pageSize over the maximum",
+        "/api/v1/workspaces?kind=EVENT&pageSize=101",
+      ],
+      ["page below one", "/api/v1/workspaces?kind=EVENT&page=0"],
+      ["a non-integer page", "/api/v1/workspaces?kind=EVENT&page=abc"],
+    ])("400s %s", async (_label, path) => {
+      const response = await as(superAdmin, "get", path);
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
+    });
+
+    it("keeps total stable and items disjoint across pages", async () => {
+      for (let i = 0; i < 3; i += 1) {
+        await createWorkspace(superAdmin, { kind: "PRODUCTION" });
+      }
+      const p1 = body<PageBody>(
+        await as(
+          superAdmin,
+          "get",
+          "/api/v1/workspaces?kind=PRODUCTION&page=1&pageSize=2",
+        ),
+      );
+      const p2 = body<PageBody>(
+        await as(
+          superAdmin,
+          "get",
+          "/api/v1/workspaces?kind=PRODUCTION&page=2&pageSize=2",
+        ),
+      );
+      expect(p1.total).toBe(p2.total);
+      expect(p1.total).toBeGreaterThanOrEqual(3);
+      const ids = new Set([
+        ...p1.items.map((w) => w.id),
+        ...p2.items.map((w) => w.id),
+      ]);
+      expect(ids.size).toBe(p1.items.length + p2.items.length);
+    });
+  });
+
+  describe("a PRODUCTION workspace supports the full ownership lifecycle", () => {
+    it("create, assign a team, add a participant, set a manager, then read it back", async () => {
+      const created = await createWorkspace(superAdmin, { kind: "PRODUCTION" });
+      const teamId = await createTeam();
+      const participantId = await createUser();
+      const managerId = await createUser();
+
+      const withTeam = await as(
+        superAdmin,
+        "put",
+        `/api/v1/workspaces/${created.id}/teams/${teamId}`,
+      );
+      expect(withTeam.status).toBe(200);
+
+      const withParticipant = await as(
+        superAdmin,
+        "put",
+        `/api/v1/workspaces/${created.id}/participants/${participantId}`,
+      );
+      expect(withParticipant.status).toBe(200);
+
+      const withManager = await as(
+        superAdmin,
+        "put",
+        `/api/v1/workspaces/${created.id}/manager`,
+      ).send({ managerId });
+      expect(withManager.status).toBe(200);
+
+      const final = body<WorkspaceBody>(
+        await as(superAdmin, "get", `/api/v1/workspaces/${created.id}`),
+      );
+      expect(final.kind).toBe("PRODUCTION");
+      expect(final.manager?.id).toBe(managerId);
+      expect(final.teams.map((t) => t.id)).toEqual([teamId]);
+      expect(final.participants.map((p) => p.id)).toEqual([participantId]);
+      expect(Object.keys(final).sort()).toEqual(WORKSPACE_KEYS);
+      expect(Object.keys(final.teams[0]!).sort()).toEqual(["id", "name"]);
+      expect(Object.keys(final.participants[0]!).sort()).toEqual(
+        ["email", "firstName", "id", "lastName"].sort(),
+      );
     });
   });
 });

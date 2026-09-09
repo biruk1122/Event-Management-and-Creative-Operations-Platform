@@ -262,4 +262,182 @@ describe("WorkspacesService", () => {
       expect(response.updatedAt).toBe("2026-01-02T00:00:00.000Z");
     });
   });
+
+  describe("every kind maps to its owning module's key set", () => {
+    it.each([
+      ["EVENT", "event.create"],
+      ["PROJECT", "project.create"],
+      ["PRODUCTION", "project.create"],
+      ["CAMPAIGN", "campaign.create"],
+    ] as const)("create(%s) requires %s at ORGANIZATION", async (kind, key) => {
+      grantOnly();
+      await expectCode(service.create(ACTOR, { kind }), "PERMISSION_DENIED");
+
+      grantOnly([key, "ORGANIZATION"]);
+      repository.create.mockResolvedValue(makeWorkspace({ kind }));
+      await expect(service.create(ACTOR, { kind })).resolves.toMatchObject({
+        kind,
+      });
+      expect(permissions.hasGrant).toHaveBeenCalledWith(
+        ACTOR,
+        key,
+        "ORGANIZATION",
+      );
+    });
+
+    it.each([
+      ["EVENT", "event.read"],
+      ["PROJECT", "project.read"],
+      ["PRODUCTION", "project.read"],
+      ["CAMPAIGN", "campaign.read"],
+    ] as const)("list(%s) requires %s at ORGANIZATION", async (kind, key) => {
+      grantOnly();
+      await expectCode(
+        service.list(ACTOR, { kind, page: 1, pageSize: 25 }),
+        "PERMISSION_DENIED",
+      );
+
+      grantOnly([key, "ORGANIZATION"]);
+      repository.list.mockResolvedValue({ items: [], total: 0 });
+      await expect(
+        service.list(ACTOR, { kind, page: 1, pageSize: 25 }),
+      ).resolves.toMatchObject({ total: 0 });
+      expect(permissions.hasGrant).toHaveBeenCalledWith(
+        ACTOR,
+        key,
+        "ORGANIZATION",
+      );
+    });
+
+    it.each([
+      ["EVENT", "event.assign_teams"],
+      ["PROJECT", "project.assign"],
+      ["PRODUCTION", "project.assign"],
+      ["CAMPAIGN", "campaign.assign"],
+    ] as const)(
+      "team and participant writes on a %s workspace require %s",
+      async (kind, key) => {
+        repository.findById.mockResolvedValue(makeWorkspace({ kind }));
+        grantOnly();
+
+        await expectCode(
+          service.assignTeam(ACTOR, "ws-1", "team-1"),
+          "PERMISSION_DENIED",
+        );
+        await expectCode(
+          service.unassignTeam(ACTOR, "ws-1", "team-1"),
+          "PERMISSION_DENIED",
+        );
+        await expectCode(
+          service.addParticipant(ACTOR, "ws-1", "user-1"),
+          "PERMISSION_DENIED",
+        );
+        await expectCode(
+          service.removeParticipant(ACTOR, "ws-1", "user-1"),
+          "PERMISSION_DENIED",
+        );
+
+        grantOnly([key, "ORGANIZATION"]);
+        repository.assignTeam.mockResolvedValue(makeWorkspace({ kind }));
+        await expect(
+          service.assignTeam(ACTOR, "ws-1", "team-1"),
+        ).resolves.toBeDefined();
+      },
+    );
+
+    it("list is denied for a DEPARTMENT-scoped read grant", async () => {
+      grantOnly(["project.read", "DEPARTMENT"]);
+      await expectCode(
+        service.list(ACTOR, { kind: "PROJECT", page: 1, pageSize: 25 }),
+        "PERMISSION_DENIED",
+      );
+    });
+  });
+
+  describe("a missing row 404s before the grant check on every :id route", () => {
+    beforeEach(() => {
+      repository.findById.mockResolvedValue(null);
+      grantOnly();
+    });
+
+    it.each([
+      ["get", (s: WorkspacesService) => s.get(ACTOR, "missing")],
+      [
+        "setManager",
+        (s: WorkspacesService) => s.setManager(ACTOR, "missing", null),
+      ],
+      ["remove", (s: WorkspacesService) => s.remove(ACTOR, "missing")],
+      [
+        "assignTeam",
+        (s: WorkspacesService) => s.assignTeam(ACTOR, "missing", "t"),
+      ],
+      [
+        "unassignTeam",
+        (s: WorkspacesService) => s.unassignTeam(ACTOR, "missing", "t"),
+      ],
+      [
+        "addParticipant",
+        (s: WorkspacesService) => s.addParticipant(ACTOR, "missing", "u"),
+      ],
+      [
+        "removeParticipant",
+        (s: WorkspacesService) => s.removeParticipant(ACTOR, "missing", "u"),
+      ],
+    ] as const)("%s", async (_label, call) => {
+      await expectCode(call(service), "WORKSPACE_NOT_FOUND");
+      expect(permissions.hasGrant).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a row deleted after the pre-check maps to WORKSPACE_NOT_FOUND", () => {
+    beforeEach(() => {
+      grantOnly(
+        ["event.read", "ORGANIZATION"],
+        ["event.delete", "ORGANIZATION"],
+        ["event.assign_manager", "ORGANIZATION"],
+        ["event.assign_teams", "ORGANIZATION"],
+      );
+    });
+
+    it("remove sees repository 'not_found'", async () => {
+      repository.delete.mockResolvedValue("not_found");
+      await expectCode(service.remove(ACTOR, "ws-1"), "WORKSPACE_NOT_FOUND");
+    });
+
+    it.each([
+      [
+        "setManager",
+        "setManager",
+        (s: WorkspacesService) => s.setManager(ACTOR, "ws-1", null),
+      ],
+      [
+        "assignTeam",
+        "assignTeam",
+        (s: WorkspacesService) => s.assignTeam(ACTOR, "ws-1", "t"),
+      ],
+      [
+        "unassignTeam",
+        "unassignTeam",
+        (s: WorkspacesService) => s.unassignTeam(ACTOR, "ws-1", "t"),
+      ],
+      [
+        "addParticipant",
+        "addParticipant",
+        (s: WorkspacesService) => s.addParticipant(ACTOR, "ws-1", "u"),
+      ],
+      [
+        "removeParticipant",
+        "removeParticipant",
+        (s: WorkspacesService) => s.removeParticipant(ACTOR, "ws-1", "u"),
+      ],
+    ] as const)(
+      "%s sees the repository race sentinel",
+      async (_label, method, call) => {
+        repository[method].mockResolvedValue(
+          method === "setManager" ? "not_found" : "workspace_not_found",
+        );
+        await expectCode(call(service), "WORKSPACE_NOT_FOUND");
+      },
+    );
+  });
 });

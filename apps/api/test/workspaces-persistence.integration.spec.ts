@@ -250,5 +250,246 @@ describe("connected workspace ownership persistence", () => {
       expect(firstPage.items).toHaveLength(1);
       expect(firstPage.total).toBe(byKind.total);
     });
+
+    it("pages deterministically through equal-timestamp rows with no gaps or repeats", async () => {
+      const created = await Promise.all(
+        Array.from({ length: 7 }, () =>
+          repository.create({ kind: "PRODUCTION", managerId: null }),
+        ),
+      );
+      const ids = new Set(
+        created.map((w) => {
+          if (typeof w === "string") throw new Error(w);
+          return w.id;
+        }),
+      );
+
+      const seen: string[] = [];
+      for (let page = 1; page <= 7; page += 1) {
+        const result = await repository.list({
+          kind: "PRODUCTION",
+          page,
+          pageSize: 1,
+        });
+        expect(result.items).toHaveLength(1);
+        seen.push(result.items[0]!.id);
+      }
+
+      expect(new Set(seen).size).toBe(7);
+      for (const id of ids) expect(seen).toContain(id);
+
+      const beyond = await repository.list({
+        kind: "PRODUCTION",
+        page: 8,
+        pageSize: 1,
+      });
+      expect(beyond.items).toEqual([]);
+      expect(beyond.total).toBe(7);
+    });
+  });
+
+  describe("a malformed id never reaches the uuid column", () => {
+    it("returns not-found sentinels instead of a driver error", async () => {
+      expect(await repository.findById("not-a-uuid")).toBeNull();
+      expect(await repository.userExists("not-a-uuid")).toBe(false);
+
+      const created = await repository.create({
+        kind: "EVENT",
+        managerId: null,
+      });
+      if (typeof created === "string") throw new Error(created);
+
+      expect(await repository.assignTeam(created.id, "not-a-uuid")).toBe(
+        "team_not_found",
+      );
+      expect(await repository.unassignTeam(created.id, "not-a-uuid")).toBe(
+        "not_assigned",
+      );
+      expect(await repository.addParticipant(created.id, "not-a-uuid")).toBe(
+        "user_not_found",
+      );
+      expect(await repository.removeParticipant(created.id, "not-a-uuid")).toBe(
+        "not_a_participant",
+      );
+    });
+  });
+
+  describe("kind persists for every value", () => {
+    it.each(["EVENT", "PROJECT", "PRODUCTION", "CAMPAIGN"] as const)(
+      "round-trips %s through create and findById",
+      async (kind) => {
+        const created = await repository.create({ kind, managerId: null });
+        if (typeof created === "string") throw new Error(created);
+        expect(created.kind).toBe(kind);
+        const reloaded = await repository.findById(created.id);
+        expect(reloaded?.kind).toBe(kind);
+      },
+    );
+  });
+
+  describe("database constraints", () => {
+    let workspaceId: string;
+
+    beforeEach(async () => {
+      const created = await repository.create({
+        kind: "EVENT",
+        managerId: null,
+      });
+      if (typeof created === "string") throw new Error(created);
+      workspaceId = created.id;
+    });
+
+    it("rejects a duplicate (workspace, team) row at the database", async () => {
+      const teamId = await makeTeam();
+      await prisma.workspaceTeam.create({ data: { workspaceId, teamId } });
+      await expect(
+        prisma.workspaceTeam.create({ data: { workspaceId, teamId } }),
+      ).rejects.toMatchObject({ code: "P2002" });
+    });
+
+    it("rejects a duplicate (workspace, user) participant row at the database", async () => {
+      const userId = await makeUser();
+      await prisma.workspaceParticipant.create({
+        data: { workspaceId, userId },
+      });
+      await expect(
+        prisma.workspaceParticipant.create({
+          data: { workspaceId, userId },
+        }),
+      ).rejects.toMatchObject({ code: "P2002" });
+    });
+
+    it("cascades a team deletion, clearing its workspace assignments only", async () => {
+      const teamId = await makeTeam();
+      const otherTeamId = await makeTeam();
+      const second = await repository.create({
+        kind: "EVENT",
+        managerId: null,
+      });
+      if (typeof second === "string") throw new Error(second);
+      await repository.assignTeam(workspaceId, teamId);
+      await repository.assignTeam(second.id, teamId);
+      await repository.assignTeam(workspaceId, otherTeamId);
+
+      await prisma.team.delete({ where: { id: teamId } });
+
+      expect(await prisma.workspaceTeam.count({ where: { teamId } })).toBe(0);
+      const reloaded = await repository.findById(workspaceId);
+      expect(reloaded?.teams.map((t) => t.id)).toEqual([otherTeamId]);
+      expect(await repository.findById(second.id)).not.toBeNull();
+    });
+
+    it("cascades a user deletion, clearing their participant rows only", async () => {
+      const userId = await makeUser();
+      const second = await repository.create({
+        kind: "PROJECT",
+        managerId: null,
+      });
+      if (typeof second === "string") throw new Error(second);
+      await repository.addParticipant(workspaceId, userId);
+      await repository.addParticipant(second.id, userId);
+
+      await prisma.user.delete({ where: { id: userId } });
+
+      expect(
+        await prisma.workspaceParticipant.count({ where: { userId } }),
+      ).toBe(0);
+      expect((await repository.findById(workspaceId))?.participants).toEqual(
+        [],
+      );
+      expect(await repository.findById(second.id)).not.toBeNull();
+    });
+  });
+
+  describe("concurrent writes converge without error", () => {
+    let workspaceId: string;
+
+    beforeEach(async () => {
+      const created = await repository.create({
+        kind: "CAMPAIGN",
+        managerId: null,
+      });
+      if (typeof created === "string") throw new Error(created);
+      workspaceId = created.id;
+    });
+
+    it("two simultaneous assignments of the same team leave exactly one row", async () => {
+      const teamId = await makeTeam();
+      const results = await Promise.all([
+        repository.assignTeam(workspaceId, teamId),
+        repository.assignTeam(workspaceId, teamId),
+      ]);
+      for (const result of results) {
+        expect(typeof result).not.toBe("string");
+      }
+      expect(
+        await prisma.workspaceTeam.count({ where: { workspaceId, teamId } }),
+      ).toBe(1);
+    });
+
+    it("two simultaneous unassignments converge to zero rows, one reports not_assigned", async () => {
+      const teamId = await makeTeam();
+      await repository.assignTeam(workspaceId, teamId);
+
+      const results = await Promise.all([
+        repository.unassignTeam(workspaceId, teamId),
+        repository.unassignTeam(workspaceId, teamId),
+      ]);
+
+      const sentinels = results.filter((r) => typeof r === "string");
+      expect(sentinels.every((s) => s === "not_assigned")).toBe(true);
+      expect(sentinels.length).toBeLessThanOrEqual(1);
+      expect(
+        await prisma.workspaceTeam.count({ where: { workspaceId, teamId } }),
+      ).toBe(0);
+    });
+
+    it("two simultaneous participant adds leave exactly one row", async () => {
+      const userId = await makeUser();
+      const results = await Promise.all([
+        repository.addParticipant(workspaceId, userId),
+        repository.addParticipant(workspaceId, userId),
+      ]);
+      for (const result of results) {
+        expect(typeof result).not.toBe("string");
+      }
+      expect(
+        await prisma.workspaceParticipant.count({
+          where: { workspaceId, userId },
+        }),
+      ).toBe(1);
+    });
+  });
+
+  describe("setManager round trip", () => {
+    it("assigns then clears the manager and advances updated_at", async () => {
+      const created = await repository.create({
+        kind: "EVENT",
+        managerId: null,
+      });
+      if (typeof created === "string") throw new Error(created);
+      const before = await prisma.workspace.findUniqueOrThrow({
+        where: { id: created.id },
+        select: { updatedAt: true },
+      });
+
+      const managerId = await makeUser();
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const assigned = await repository.setManager(created.id, managerId);
+      if (typeof assigned === "string") throw new Error(assigned);
+      expect(assigned.manager?.id).toBe(managerId);
+
+      const after = await prisma.workspace.findUniqueOrThrow({
+        where: { id: created.id },
+        select: { updatedAt: true },
+      });
+      expect(after.updatedAt.getTime()).toBeGreaterThan(
+        before.updatedAt.getTime(),
+      );
+
+      const cleared = await repository.setManager(created.id, null);
+      if (typeof cleared === "string") throw new Error(cleared);
+      expect(cleared.manager).toBeNull();
+    });
   });
 });

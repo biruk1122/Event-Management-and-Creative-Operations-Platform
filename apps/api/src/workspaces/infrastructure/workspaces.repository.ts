@@ -44,6 +44,19 @@ function isPrismaError(error: unknown, code: string): boolean {
   );
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The `:id`, `:teamId`, and `:userId` path segments arrive as raw strings. A
+ * value that is not a UUID cannot match any row, and handing it to a `@db.Uuid`
+ * column makes the driver raise `22P02`, which would surface as a 500. Treating
+ * it as "no such row" keeps those routes returning a clean not-found.
+ */
+function isUuid(value: string): boolean {
+  return UUID_PATTERN.test(value);
+}
+
 const USER_SELECT = {
   id: true,
   email: true,
@@ -109,7 +122,9 @@ export class WorkspacesRepository {
       this.db.workspace.findMany({
         where,
         select: WORKSPACE_SELECT,
-        orderBy: [{ createdAt: "asc" }],
+        // `id` (uuidv7) is the tiebreaker so pagination stays deterministic
+        // when two workspaces share a `created_at` value.
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         skip: (input.page - 1) * input.pageSize,
         take: input.pageSize,
       }),
@@ -120,6 +135,9 @@ export class WorkspacesRepository {
   }
 
   async findById(id: string): Promise<WorkspaceRecord | null> {
+    if (!isUuid(id)) {
+      return null;
+    }
     const raw = await this.db.workspace.findUnique({
       where: { id },
       select: WORKSPACE_SELECT,
@@ -128,6 +146,9 @@ export class WorkspacesRepository {
   }
 
   async userExists(id: string): Promise<boolean> {
+    if (!isUuid(id)) {
+      return false;
+    }
     const user = await this.db.user.findUnique({
       where: { id },
       select: { id: true },
@@ -206,6 +227,9 @@ export class WorkspacesRepository {
     if (!workspace) {
       return "workspace_not_found";
     }
+    if (!isUuid(teamId)) {
+      return "team_not_found";
+    }
     try {
       await this.db.workspaceTeam.create({ data: { workspaceId, teamId } });
     } catch (error) {
@@ -232,6 +256,9 @@ export class WorkspacesRepository {
     if (!workspace) {
       return "workspace_not_found";
     }
+    if (!isUuid(teamId)) {
+      return "not_assigned";
+    }
     // `deleteMany` reports the row count and does not throw on zero rows, so a
     // concurrent removal is a no-op rather than a 500.
     const { count } = await this.db.workspaceTeam.deleteMany({
@@ -254,6 +281,9 @@ export class WorkspacesRepository {
     const workspace = await this.findById(workspaceId);
     if (!workspace) {
       return "workspace_not_found";
+    }
+    if (!isUuid(userId)) {
+      return "user_not_found";
     }
     try {
       await this.db.workspaceParticipant.create({
@@ -282,6 +312,9 @@ export class WorkspacesRepository {
     const workspace = await this.findById(workspaceId);
     if (!workspace) {
       return "workspace_not_found";
+    }
+    if (!isUuid(userId)) {
+      return "not_a_participant";
     }
     const { count } = await this.db.workspaceParticipant.deleteMany({
       where: { workspaceId, userId },
