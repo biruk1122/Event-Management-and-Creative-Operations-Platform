@@ -1,6 +1,6 @@
-import AxeBuilder from "@axe-core/playwright";
 import { expect, request, test, type Page } from "@playwright/test";
 
+import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
 import { authStatePath } from "../fixtures/auth.js";
 import { queryInSchema } from "../fixtures/database.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
@@ -27,25 +27,6 @@ async function csrfToken(page: Page): Promise<string> {
   const token = cookies.find((cookie) => cookie.name === "csrf_token")?.value;
   expect(token, "csrf_token cookie should be present").toBeTruthy();
   return token as string;
-}
-
-async function noSeriousAxeViolations(
-  page: Page,
-  context: string,
-): Promise<void> {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  const serious = violations.filter(
-    (violation) =>
-      violation.impact === "serious" || violation.impact === "critical",
-  );
-  expect(
-    serious,
-    `${context}: ${JSON.stringify(
-      serious.map((v) => ({ id: v.id, nodes: v.nodes.map((n) => n.target) })),
-      null,
-      2,
-    )}`,
-  ).toEqual([]);
 }
 
 interface ApiDepartment {
@@ -98,7 +79,7 @@ test.describe("Department administration — end to end", () => {
       await expect(
         page.getByText(departmentCount(baseline), { exact: true }),
       ).toBeVisible();
-      await noSeriousAxeViolations(page, "departments list");
+      await expectNoWcag22AaViolations(page, "departments list");
 
       // Create a department through the dialog.
       await page.getByRole("button", { name: "New department" }).click();
@@ -106,7 +87,7 @@ test.describe("Department administration — end to end", () => {
       await expect(
         createDialog.getByRole("heading", { name: "New department" }),
       ).toBeVisible();
-      await noSeriousAxeViolations(page, "create department dialog");
+      await expectNoWcag22AaViolations(page, "create department dialog");
       await createDialog.getByLabel("Name").fill(dept.name);
       await createDialog
         .getByLabel("Description (optional)")
