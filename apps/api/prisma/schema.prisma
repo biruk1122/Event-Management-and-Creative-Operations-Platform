@@ -65,6 +65,7 @@ model User {
   teamMemberships         TeamMembership[]
   managedWorkspaces       Workspace[]            @relation("WorkspaceManager")
   workspaceParticipations WorkspaceParticipant[]
+  createdEvents           Event[]                @relation("EventCreatedBy")
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -370,6 +371,9 @@ model Workspace {
   manager      User?                  @relation("WorkspaceManager", fields: [managerId], references: [id], onDelete: SetNull)
   teams        WorkspaceTeam[]
   participants WorkspaceParticipant[]
+  /// The one module record that owns this workspace, when its `kind` is
+  /// `EVENT`. Later epics add the equivalent inverse for project and campaign.
+  event        Event?
 
   // "Workspaces of kind X" and "workspaces a user manages" are the two root
   // access patterns.
@@ -418,4 +422,98 @@ model WorkspaceParticipant {
   // List every workspace a given user participates in.
   @@index([userId])
   @@map("workspace_participants")
+}
+
+/// The kind of event (SRS 5.5 "Event Types"). `OTHER` is the SRS fallback.
+/// Whether these baseline types are renameable / deactivatable, and who may
+/// supply the value behind an "Other" event, are open in OD-17; modelled as a
+/// fixed enum for now (matching `WorkspaceKind`), and a later approved
+/// decision that makes types configurable migrates this to a reference table.
+enum EventType {
+  FILM_PREMIERE
+  CONCERT
+  ALBUM_RELEASE
+  PRODUCT_LAUNCH
+  CORPORATE_EVENT
+  PROMOTIONAL_EVENT
+  OTHER
+
+  @@map("event_type")
+}
+
+/// The event lifecycle state (SRS 5.5). `PLANNING` is the initial state;
+/// `COMPLETED` and `CANCELLED` are terminal. The approved transition graph is
+/// `Planning -> Ready | In Progress | Cancelled`, `Ready -> In Progress |
+/// Cancelled`, `In Progress -> Completed | Cancelled`. The entry criteria for
+/// `READY`, whether it is mandatory, who may make each move, and whether a
+/// terminal event can be reopened are open in OD-05 and enforced by EVT-02 in
+/// the domain layer - a CHECK cannot express a state machine.
+enum EventStatus {
+  PLANNING
+  READY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@map("event_status")
+}
+
+/// One managed event (SRS 5.5). The shared operational context - the event
+/// manager, the assigned teams, and the assigned employees - lives on the
+/// event's connected `Workspace` (WSP-01), not here: `workspace.manager_id` is
+/// the Event Manager, `workspace_teams` the assigned teams, and
+/// `workspace_participants` the assigned employees. This model carries only the
+/// event-specific attributes plus the one-to-one link back to that workspace.
+///
+/// `workspace_id` is required and unique: every event owns exactly one
+/// workspace, created with it and always of `kind = EVENT` (EVT-02 sets that
+/// pairing; a plain foreign key cannot cross-check the discriminator). The FK
+/// is `ON DELETE RESTRICT` so a workspace an event still owns cannot be
+/// dropped out from under it; EVT-02's delete path removes the event and then
+/// its workspace in one transaction.
+///
+/// `organizer_name` and `location` are free text pending OD-16 (whether an
+/// organizer or location is a user, a contact, free text, or a structured
+/// record). `budget_amount` / `budget_currency` follow the architecture rule
+/// "money as numeric with an explicit currency code"; the supported currency
+/// set, rounding, and organization default are open in OD-14. The
+/// event-to-talent extension (SRS `EventTalent`: role and status per assigned
+/// talent) is added once Talent Management provides a `talents` table to
+/// reference.
+model Event {
+  id             String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  workspaceId    String      @unique @map("workspace_id") @db.Uuid
+  name           String
+  eventType      EventType   @map("event_type")
+  description    String?
+  /// UTC start / end of the event. Nullable: a `PLANNING` event may not be
+  /// scheduled yet. A CHECK keeps `end_at` at or after `start_at` when both
+  /// are set. Display time zones and all-day handling are open in OD-15;
+  /// storage stays UTC.
+  startAt        DateTime?   @map("start_at") @db.Timestamptz(6)
+  endAt          DateTime?   @map("end_at") @db.Timestamptz(6)
+  location       String?
+  organizerName  String?     @map("organizer_name")
+  status         EventStatus @default(PLANNING)
+  /// Optional budget. A CHECK requires the amount and the ISO-4217 currency
+  /// code to be set together, the amount to be non-negative, and the code to
+  /// be three upper-case letters.
+  budgetAmount   Decimal?    @map("budget_amount") @db.Decimal(14, 2)
+  budgetCurrency String?     @map("budget_currency") @db.Char(3)
+  /// The user who created the event; cleared, not cascaded, if that user row
+  /// is removed.
+  createdById    String?     @map("created_by_id") @db.Uuid
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  createdBy User?     @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  // Administration and the connected-workspace overview filter events by
+  // lifecycle state, type, schedule, and author.
+  @@index([status])
+  @@index([eventType])
+  @@index([startAt])
+  @@index([createdById])
+  @@map("events")
 }
