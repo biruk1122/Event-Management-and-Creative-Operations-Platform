@@ -61,15 +61,17 @@ function holds(
   );
 }
 
-/** Whether the caller can read workspaces of this kind (org or department). */
+/**
+ * Whether the caller can read workspaces of this kind. `WorkspacesService`
+ * checks the module read key at ORGANIZATION scope only - there is no
+ * department-scoped workspace read - so the surface follows the same rule and
+ * a department-scoped module reader does not get the workspace list.
+ */
 export function canReadKind(
   access: CurrentAccess,
   kind: WorkspaceKind,
 ): boolean {
-  return holds(access.grants, PERMISSIONS_BY_KIND[kind].read, [
-    "ORGANIZATION",
-    "DEPARTMENT",
-  ]);
+  return holds(access.grants, PERMISSIONS_BY_KIND[kind].read, ["ORGANIZATION"]);
 }
 
 /** The kinds the caller can read, in the canonical order. Empty means denied. */

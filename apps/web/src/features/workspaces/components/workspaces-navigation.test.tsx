@@ -39,15 +39,16 @@ describe("WorkspacesNavigation", () => {
     ).toHaveAttribute("href", "/workspaces");
   });
 
-  it("also links for a department-scoped project reader", async () => {
+  it("renders nothing for a department-scoped reader (workspace reads are organization-scoped)", async () => {
     access = {
       userId: "a1",
       grants: [{ permissionKey: "project.read", scope: "DEPARTMENT" }],
     } as CurrentAccess;
     setup();
+    await waitFor(() => expect(get).toHaveBeenCalled());
     expect(
-      await screen.findByRole("link", { name: "Workspaces" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("link", { name: "Workspaces" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders nothing without any workspace read grant", async () => {

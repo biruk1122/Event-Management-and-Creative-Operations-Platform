@@ -56,13 +56,15 @@ describe("WorkspacesScreen access boundary", () => {
     expect(await screen.findByText("0 workspaces")).toBeVisible();
   });
 
-  it("admits a department-scoped project reader", async () => {
+  it("denies a department-scoped reader (workspace reads are organization-scoped)", async () => {
     currentAccess = {
       userId: "account-1",
       grants: [{ permissionKey: "project.read", scope: "DEPARTMENT" }],
     } as CurrentAccess;
     setup();
-    expect(await screen.findByText("0 workspaces")).toBeVisible();
+    expect(
+      await screen.findByText("You do not have access to this area."),
+    ).toBeVisible();
   });
 
   it("denies a caller with no workspace read grant", async () => {

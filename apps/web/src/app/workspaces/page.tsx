@@ -10,7 +10,8 @@ export const metadata: Metadata = { title: "Workspaces" };
 
 /**
  * The connected workspace has no permission key of its own. Reading one is
- * gated by the owning module's read key (event / project / campaign), so this
+ * gated by the owning module's read key (event / project / campaign) at
+ * organization scope - the same rule `WorkspacesService` enforces - so this
  * management surface opens for anyone who can read at least one of them.
  */
 const READ_KEYS = ["event.read", "project.read", "campaign.read"];
@@ -24,8 +25,7 @@ export default async function WorkspacesPage() {
   if (!data) throw new Error("We could not check your permissions. Try again.");
   const allowed = data.grants.some(
     (grant) =>
-      READ_KEYS.includes(grant.permissionKey) &&
-      (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
+      READ_KEYS.includes(grant.permissionKey) && grant.scope === "ORGANIZATION",
   );
 
   return (
