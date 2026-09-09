@@ -2,6 +2,11 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+// The dialog default-imports read helpers from the gateway, which pulls in the
+// browser client and its validated env. Every read is injected in these tests,
+// so a stub client keeps that import chain from throwing.
+vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
+
 import { EventDetailDialog } from "./event-detail-dialog";
 import type {
   DeleteEventOutcome,
@@ -74,6 +79,13 @@ function renderDialog(
     onOpenChange: vi.fn(),
     users: USERS,
     teams: TEAMS,
+    canUpdate: true,
+    canTransition: true,
+    canAssignManager: true,
+    canAssignTeams: true,
+    canReadBudget: true,
+    canUpdateBudget: true,
+    canDelete: true,
     getEvent: vi.fn((): Promise<Event | null> => Promise.resolve(makeEvent())),
     getBudget: vi.fn((): Promise<EventBudget | null> =>
       Promise.resolve({ amount: null, currency: null }),
@@ -255,5 +267,49 @@ describe("EventDetailDialog", () => {
         "That move is not allowed from the current status.",
       ),
     ).toBeVisible();
+  });
+
+  it("is read-only for a caller with only the read grant", async () => {
+    renderDialog({
+      canUpdate: false,
+      canTransition: false,
+      canAssignManager: false,
+      canAssignTeams: false,
+      canReadBudget: false,
+      canUpdateBudget: false,
+      canDelete: false,
+    });
+    await waitForLoaded();
+
+    expect(
+      screen.queryByRole("button", { name: "Save details" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/read-only access to this event/)).toBeVisible();
+    expect(
+      screen.queryByRole("combobox", { name: "Move to" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Current status: Planning.")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Unassign Stage Crew" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete event" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("You do not have permission to view the budget."),
+    ).toBeVisible();
+  });
+
+  it("shows the budget read-only when the caller cannot update it", async () => {
+    renderDialog({
+      canUpdateBudget: false,
+      getBudget: vi.fn(() =>
+        Promise.resolve({ amount: "1200.00", currency: "GBP" }),
+      ),
+    });
+    await waitForLoaded();
+
+    expect(screen.getByText("Current: 1200.00 GBP")).toBeVisible();
+    expect(screen.queryByLabelText("Amount")).not.toBeInTheDocument();
   });
 });

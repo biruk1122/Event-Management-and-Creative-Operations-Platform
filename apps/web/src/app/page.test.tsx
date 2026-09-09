@@ -13,6 +13,7 @@ vi.mock("@/features/teams", () => ({ TeamsNavigation: () => null }));
 vi.mock("@/features/workspaces", () => ({
   WorkspacesNavigation: () => null,
 }));
+vi.mock("@/features/events", () => ({ EventsNavigation: () => null }));
 
 describe("frontend foundation", () => {
   it("identifies the foundation state without exposing business features", () => {

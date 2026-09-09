@@ -1,30 +1,25 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EventsManager } from "./events-manager";
-import type {
-  DeleteEventOutcome,
-  SaveEventOutcome,
-} from "../lib/events-outcome";
-import type {
-  AssignableTeam,
-  AssignableUser,
-  Event,
-  PaginatedEvents,
-} from "../lib/events-types";
+import type { CurrentAccess } from "@/features/auth/api/access-queries";
+import type { Event } from "../lib/events-types";
+
+const { get, post, patch, put, del } = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  put: vi.fn(),
+  del: vi.fn(),
+}));
+
+vi.mock("@/lib/api/browser", () => ({
+  browserApi: { GET: get, POST: post, PATCH: patch, PUT: put, DELETE: del },
+}));
 
 const now = "2026-09-01T09:00:00.000Z";
-
-const USERS: AssignableUser[] = [
-  {
-    id: "u1",
-    email: "morgan@example.com",
-    firstName: "Morgan",
-    lastName: "Lead",
-  },
-];
-const TEAMS: AssignableTeam[] = [{ id: "t1", name: "Stage Crew" }];
 
 function makeEvent(
   overrides: Partial<Event> & Pick<Event, "id" | "name">,
@@ -48,51 +43,110 @@ function makeEvent(
   };
 }
 
-const EVENTS: Event[] = [
-  makeEvent({ id: "e1", name: "Aurora Premiere", status: "READY" }),
-  makeEvent({
-    id: "e2",
-    name: "Midnight Concert",
-    eventType: "CONCERT",
-    status: "IN_PROGRESS",
-  }),
-  makeEvent({
-    id: "e3",
-    name: "Orbit Launch",
-    eventType: "PRODUCT_LAUNCH",
-    status: "PLANNING",
-  }),
-];
-
-function page(items: Event[]): PaginatedEvents {
-  return { items, page: 1, pageSize: 25, total: items.length };
+function access(...permissions: string[]): CurrentAccess {
+  return {
+    userId: "operator-1",
+    grants: ["event.read", ...permissions].map((permissionKey) => ({
+      permissionKey,
+      scope: "ORGANIZATION",
+    })),
+  } as CurrentAccess;
 }
 
-function renderManager(
-  overrides: Partial<Parameters<typeof EventsManager>[0]> = {},
-) {
+const ok = (data: unknown, status = 200) => ({
+  data,
+  response: { ok: true, status },
+});
+
+let page1: Event[];
+let page2: Event[];
+let total: number;
+
+function listResponse(query: Record<string, unknown> | undefined) {
+  const requestedPage = Number(query?.page ?? 1);
+  const items = requestedPage === 2 ? page2 : page1;
+  return ok({ items, page: requestedPage, pageSize: 10, total });
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  page1 = [
+    makeEvent({ id: "e1", name: "Aurora Premiere", status: "READY" }),
+    makeEvent({ id: "e2", name: "Midnight Concert" }),
+  ];
+  page2 = [];
+  total = 2;
+  get.mockImplementation(
+    async (
+      path: string,
+      opts?: {
+        params?: { query?: Record<string, unknown>; path?: { id?: string } };
+      },
+    ) => {
+      if (path === "/api/v1/events") return listResponse(opts?.params?.query);
+      if (path === "/api/v1/events/{id}") {
+        const id = opts?.params?.path?.id;
+        return ok([...page1, ...page2].find((e) => e.id === id) ?? null);
+      }
+      if (path === "/api/v1/events/{id}/budget")
+        return ok({ amount: null, currency: null });
+      if (path === "/api/v1/users")
+        return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+      if (path === "/api/v1/teams")
+        return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+      return ok(null);
+    },
+  );
+});
+
+function setup(currentAccess = access("event.create", "event.update")) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
-    <EventsManager
-      initialPage={page(EVENTS)}
-      assignableUsers={USERS}
-      assignableTeams={TEAMS}
-      {...overrides}
-    />,
+    <QueryClientProvider client={client}>
+      <EventsManager access={currentAccess} />
+    </QueryClientProvider>,
   );
 }
 
-describe("EventsManager", () => {
-  it("shows the count and lists the initial page", () => {
-    renderManager();
-    expect(screen.getByText("3 events")).toBeVisible();
-    expect(
-      screen.getAllByRole("button", { name: "Aurora Premiere" }).length,
-    ).toBeGreaterThan(0);
+describe("EventsManager API integration", () => {
+  it("fetches the first page from the server", async () => {
+    setup();
+    expect(await screen.findByText("2 events")).toBeVisible();
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/events",
+      expect.objectContaining({
+        params: {
+          query: expect.objectContaining({ page: 1, pageSize: 10 }),
+        },
+      }),
+    );
   });
 
-  it("filters by status", async () => {
+  it("requests the next page from the server", async () => {
+    total = 15;
+    page2 = [makeEvent({ id: "e11", name: "Later Show" })];
     const user = userEvent.setup();
-    renderManager();
+    setup();
+
+    expect(await screen.findByText("Page 1 of 2")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/events",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ page: 2 }) },
+        }),
+      ),
+    );
+  });
+
+  it("pushes the status filter to the server", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("2 events");
 
     await user.click(
       screen.getByRole("combobox", { name: "Filter by status" }),
@@ -101,32 +155,45 @@ describe("EventsManager", () => {
       await screen.findByRole("option", { name: "In progress" }),
     );
 
-    expect(screen.getByText("1 event match these filters")).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Aurora Premiere" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("filters by a name search term", async () => {
-    const user = userEvent.setup();
-    renderManager();
-
-    await user.type(screen.getByLabelText("Search"), "orbit");
-    expect(screen.getByText("1 event match these filters")).toBeVisible();
-    expect(
-      screen.getAllByRole("button", { name: "Orbit Launch" }).length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("adds an event to the list on a successful create", async () => {
-    const user = userEvent.setup();
-    const createEvent = vi.fn((): Promise<SaveEventOutcome> =>
-      Promise.resolve({
-        status: "success",
-        event: makeEvent({ id: "e4", name: "Harvest Gala" }),
-      }),
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/events",
+        expect.objectContaining({
+          params: {
+            query: expect.objectContaining({
+              status: "IN_PROGRESS",
+              page: 1,
+            }),
+          },
+        }),
+      ),
     );
-    renderManager({ createEvent });
+  });
+
+  it("pushes the debounced name search to the server", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("2 events");
+
+    await user.type(screen.getByLabelText("Search"), "aurora");
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/events",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ search: "aurora" }) },
+        }),
+      ),
+    );
+  });
+
+  it("creates an event and refetches", async () => {
+    post.mockResolvedValue(
+      ok(makeEvent({ id: "e-new", name: "Harvest Gala" }), 201),
+    );
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("2 events");
 
     await user.click(screen.getByRole("button", { name: "New event" }));
     await user.type(
@@ -135,28 +202,48 @@ describe("EventsManager", () => {
     );
     await user.click(screen.getByRole("button", { name: "Create event" }));
 
-    await waitFor(() => expect(screen.getByText("4 events")).toBeVisible());
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/events",
+        expect.objectContaining({
+          body: expect.objectContaining({ name: "Harvest Gala" }),
+        }),
+      ),
+    );
   });
 
-  it("opens the detail dialog for a row and removes it after a delete", async () => {
+  it("hides the create action without the create grant", async () => {
+    setup(access());
+    await screen.findByText("2 events");
+    expect(
+      screen.queryByRole("button", { name: "New event" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a recoverable error state when the list request fails", async () => {
+    get.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/events")
+        return { data: undefined, response: { status: 500 } };
+      return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+    });
+    setup();
+    expect(
+      await screen.findByText("We could not load the data. Try again."),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+  });
+
+  it("opens a row and deletes it via the API", async () => {
+    del.mockResolvedValue({ response: { ok: true, status: 204 } });
     const user = userEvent.setup();
-    const deleteEvent = vi.fn((): Promise<DeleteEventOutcome> =>
-      Promise.resolve({ status: "success" }),
-    );
-    const getEvent = vi.fn((id: string) =>
-      Promise.resolve(EVENTS.find((e) => e.id === id) ?? null),
-    );
-    const getBudget = vi.fn(() =>
-      Promise.resolve({ amount: null, currency: null }),
-    );
-    renderManager({ deleteEvent, getEvent, getBudget });
+    setup(access("event.delete"));
+    await screen.findByText("2 events");
 
     await user.click(
-      screen.getAllByRole("button", { name: "Orbit Launch" })[0]!,
+      screen.getAllByRole("button", { name: "Aurora Premiere" })[0]!,
     );
     const dialog = await screen.findByRole("dialog");
-    await within(dialog).findByRole("heading", { name: "Orbit Launch" });
-
+    await within(dialog).findByRole("heading", { name: "Aurora Premiere" });
     await user.click(
       within(dialog).getByRole("button", { name: "Delete event" }),
     );
@@ -164,7 +251,11 @@ describe("EventsManager", () => {
       within(dialog).getByRole("button", { name: "Confirm delete" }),
     );
 
-    await waitFor(() => expect(screen.getByText("2 events")).toBeVisible());
-    expect(deleteEvent).toHaveBeenCalledWith("e3");
+    await waitFor(() =>
+      expect(del).toHaveBeenCalledWith(
+        "/api/v1/events/{id}",
+        expect.objectContaining({ params: { path: { id: "e1" } } }),
+      ),
+    );
   });
 });

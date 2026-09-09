@@ -1,7 +1,5 @@
-export { listEvents } from "./api/list-events";
-export { listAssignableUsers } from "./api/list-assignable-users";
-export { listAssignableTeams } from "./api/list-assignable-teams";
-export { EventsManager } from "./components/events-manager";
+export { EventsScreen } from "./components/events-screen";
+export { EventsNavigation } from "./components/events-navigation";
 export type {
   AssignableTeam,
   AssignableUser,

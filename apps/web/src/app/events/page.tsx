@@ -4,20 +4,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
-import {
-  EventsManager,
-  listAssignableTeams,
-  listAssignableUsers,
-  listEvents,
-} from "@/features/events";
+import { EventsScreen } from "@/features/events";
 
 export const metadata: Metadata = { title: "Events" };
 
 /**
  * Reading events is gated by `event.read` at organization scope - the same
- * rule `EventsService` enforces. EVT-05 (EVE-85) moves the data fetching to
- * real API calls; this slice checks the grant and renders the fixture-backed
- * management surface.
+ * rule `EventsService` enforces. This server check is the first gate; the
+ * client `EventsScreen` re-checks and keeps the grant fresh.
  */
 const READ_KEY = "event.read";
 
@@ -32,12 +26,6 @@ export default async function EventsPage() {
     (grant) =>
       grant.permissionKey === READ_KEY && grant.scope === "ORGANIZATION",
   );
-
-  const [firstPage, users, teams] = await Promise.all([
-    listEvents({ page: 1 }),
-    listAssignableUsers(),
-    listAssignableTeams(),
-  ]);
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
@@ -54,11 +42,7 @@ export default async function EventsPage() {
             lifecycle, assign a manager and teams, and set an optional budget.
           </p>
           <div className="mt-6">
-            <EventsManager
-              initialPage={firstPage}
-              assignableUsers={users}
-              assignableTeams={teams}
-            />
+            <EventsScreen />
           </div>
         </>
       ) : (

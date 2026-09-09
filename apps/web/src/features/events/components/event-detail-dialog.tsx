@@ -23,8 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getEvent as defaultGetEvent } from "../api/get-event";
-import { getEventBudget as defaultGetEventBudget } from "../api/get-event-budget";
+import {
+  getEvent as defaultGetEvent,
+  getEventBudget as defaultGetEventBudget,
+} from "../api/events-gateway";
 import { EventFields, type EventFieldValues } from "./event-fields";
 import type {
   AssignEventManager,
@@ -80,6 +82,13 @@ interface EventDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   users: readonly AssignableUser[];
   teams: readonly AssignableTeam[];
+  canUpdate: boolean;
+  canTransition: boolean;
+  canAssignManager: boolean;
+  canAssignTeams: boolean;
+  canReadBudget: boolean;
+  canUpdateBudget: boolean;
+  canDelete: boolean;
   getEvent?: GetEvent;
   getBudget?: GetEventBudget;
   onUpdate: UpdateEvent;
@@ -122,6 +131,13 @@ function EventDetailBody({
   eventId,
   users,
   teams,
+  canUpdate,
+  canTransition,
+  canAssignManager,
+  canAssignTeams,
+  canReadBudget,
+  canUpdateBudget,
+  canDelete,
   getEvent = defaultGetEvent,
   getBudget = defaultGetEventBudget,
   onUpdate,
@@ -147,7 +163,7 @@ function EventDetailBody({
   );
   const [event, setEvent] = useState<Event | null>(null);
   const [budget, setBudget] = useState<EventBudget | null>(null);
-  const [budgetReadable, setBudgetReadable] = useState(true);
+  const [budgetReadable, setBudgetReadable] = useState(canReadBudget);
 
   const [fields, setFields] = useState<EventFieldValues | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
@@ -177,7 +193,10 @@ function EventDetailBody({
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([getEvent(eventId), getBudget(eventId)])
+    const budgetPromise = canReadBudget
+      ? getBudget(eventId)
+      : Promise.resolve(null);
+    void Promise.all([getEvent(eventId), budgetPromise])
       .then(([loaded, loadedBudget]) => {
         if (cancelled) return;
         if (!loaded) {
@@ -187,7 +206,7 @@ function EventDetailBody({
         setEvent(loaded);
         setFields(fieldsFromEvent(loaded));
         setBudget(loadedBudget);
-        setBudgetReadable(loadedBudget !== null);
+        setBudgetReadable(canReadBudget && loadedBudget !== null);
         setAmount(loadedBudget?.amount ?? "");
         setCurrency(loadedBudget?.currency ?? "");
         setStatus("loaded");
@@ -198,7 +217,7 @@ function EventDetailBody({
     return () => {
       cancelled = true;
     };
-  }, [eventId, getEvent, getBudget]);
+  }, [eventId, getEvent, getBudget, canReadBudget]);
 
   useEffect(() => {
     if (confirmingDelete) confirmRef.current?.focus();
@@ -218,7 +237,7 @@ function EventDetailBody({
   }
 
   async function saveDetails() {
-    if (!event || !fields) return;
+    if (!event || !fields || !canUpdate) return;
     const localErrors: Partial<Record<keyof EventFieldValues, string>> = {};
     if (fields.name.trim() === "") localErrors.name = "Enter a name.";
     if (
@@ -356,6 +375,14 @@ function EventDetailBody({
       setAnnouncement(clear ? "Budget cleared." : "Budget saved.");
       return;
     }
+    if (outcome.status === "field_errors") {
+      setBudgetError(
+        [outcome.fieldErrors.amount, outcome.fieldErrors.currency]
+          .filter(Boolean)
+          .join(" "),
+      );
+      return;
+    }
     setBudgetError(actionError(outcome.status));
   }
 
@@ -424,7 +451,7 @@ function EventDetailBody({
         <EventFields
           values={fields}
           errors={fieldErrors}
-          disabled={detailsBusy}
+          disabled={detailsBusy || !canUpdate}
           onChange={setField}
         />
         {detailsError ? (
@@ -432,14 +459,20 @@ function EventDetailBody({
             {detailsError}
           </p>
         ) : null}
-        <Button
-          type="submit"
-          size="sm"
-          disabled={detailsBusy}
-          aria-busy={detailsBusy}
-        >
-          {detailsBusy ? "Saving…" : "Save details"}
-        </Button>
+        {canUpdate ? (
+          <Button
+            type="submit"
+            size="sm"
+            disabled={detailsBusy}
+            aria-busy={detailsBusy}
+          >
+            {detailsBusy ? "Saving…" : "Save details"}
+          </Button>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            You have read-only access to this event&rsquo;s details.
+          </p>
+        )}
       </form>
 
       {/* Lifecycle */}
@@ -450,7 +483,11 @@ function EventDetailBody({
         <p id={`${ids.status}-heading`} className="text-sm font-medium">
           Lifecycle
         </p>
-        {moves.length === 0 ? (
+        {!canTransition ? (
+          <p className="text-muted-foreground text-sm">
+            Current status: {eventStatusLabel(event.status)}.
+          </p>
+        ) : moves.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             {eventStatusLabel(event.status)} is a final state.
           </p>
@@ -496,7 +533,7 @@ function EventDetailBody({
           <Label htmlFor={ids.manager}>Manager</Label>
           <Select
             value={event.manager?.id ?? NO_MANAGER}
-            disabled={managerBusy}
+            disabled={managerBusy || !canAssignManager}
             onValueChange={(value) => void changeManager(value)}
           >
             <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
@@ -530,21 +567,23 @@ function EventDetailBody({
                   className="flex items-center justify-between gap-2 text-sm"
                 >
                   <span>{team.name}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={teamBusy}
-                    aria-label={`Unassign ${team.name}`}
-                    onClick={() => void removeTeam(team.id)}
-                  >
-                    <X aria-hidden="true" className="size-4" />
-                  </Button>
+                  {canAssignTeams ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={teamBusy}
+                      aria-label={`Unassign ${team.name}`}
+                      onClick={() => void removeTeam(team.id)}
+                    >
+                      <X aria-hidden="true" className="size-4" />
+                    </Button>
+                  ) : null}
                 </li>
               ))}
             </ul>
           )}
-          {addableTeams.length > 0 ? (
+          {canAssignTeams && addableTeams.length > 0 ? (
             <div className="space-y-1">
               <Label htmlFor={ids.team}>Assign a team</Label>
               <Select
@@ -609,103 +648,109 @@ function EventDetailBody({
             <p className="text-muted-foreground text-sm">
               Current: {budgetSummary(budget)}
             </p>
-            <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
-              <div className="space-y-1">
-                <Label htmlFor={ids.amount}>Amount</Label>
-                <Input
-                  id={ids.amount}
-                  inputMode="decimal"
-                  value={amount}
-                  disabled={budgetBusy}
-                  onChange={(changeEvent) =>
-                    setAmount(changeEvent.target.value)
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor={ids.currency}>Currency</Label>
-                <Input
-                  id={ids.currency}
-                  value={currency}
-                  maxLength={3}
-                  placeholder="USD"
-                  disabled={budgetBusy}
-                  onChange={(changeEvent) =>
-                    setCurrency(changeEvent.target.value)
-                  }
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={budgetBusy}
-                  onClick={() => void saveBudget(false)}
-                >
-                  Save
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={budgetBusy}
-                  onClick={() => void saveBudget(true)}
-                >
-                  Clear
-                </Button>
-              </div>
-            </div>
-            {budgetError ? (
-              <p className="text-destructive text-sm" role="alert">
-                {budgetError}
-              </p>
+            {canUpdateBudget ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
+                  <div className="space-y-1">
+                    <Label htmlFor={ids.amount}>Amount</Label>
+                    <Input
+                      id={ids.amount}
+                      inputMode="decimal"
+                      value={amount}
+                      disabled={budgetBusy}
+                      onChange={(changeEvent) =>
+                        setAmount(changeEvent.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={ids.currency}>Currency</Label>
+                    <Input
+                      id={ids.currency}
+                      value={currency}
+                      maxLength={3}
+                      placeholder="USD"
+                      disabled={budgetBusy}
+                      onChange={(changeEvent) =>
+                        setCurrency(changeEvent.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={budgetBusy}
+                      onClick={() => void saveBudget(false)}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={budgetBusy}
+                      onClick={() => void saveBudget(true)}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+                {budgetError ? (
+                  <p className="text-destructive text-sm" role="alert">
+                    {budgetError}
+                  </p>
+                ) : null}
+              </>
             ) : null}
           </>
         )}
       </section>
 
       {/* Danger zone */}
-      <div className="border-border space-y-2 border-t pt-4">
-        {confirmingDelete ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm">Permanently delete this event?</span>
+      {canDelete ? (
+        <div className="border-border space-y-2 border-t pt-4">
+          {confirmingDelete ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm">Permanently delete this event?</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={deleteBusy}
+                onClick={() => setConfirmingDelete(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                ref={confirmRef}
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={deleteBusy}
+                aria-busy={deleteBusy}
+                onClick={() => void runDelete()}
+              >
+                {deleteBusy ? "Working…" : "Confirm delete"}
+              </Button>
+            </div>
+          ) : (
             <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={deleteBusy}
-              onClick={() => setConfirmingDelete(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              ref={confirmRef}
               type="button"
               variant="destructive"
               size="sm"
-              disabled={deleteBusy}
-              aria-busy={deleteBusy}
-              onClick={() => void runDelete()}
+              onClick={() => setConfirmingDelete(true)}
             >
-              {deleteBusy ? "Working…" : "Confirm delete"}
+              Delete event
             </Button>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => setConfirmingDelete(true)}
-          >
-            Delete event
-          </Button>
-        )}
-        {deleteError ? (
-          <Alert variant="destructive" aria-live="assertive">
-            <AlertTitle>{deleteError}</AlertTitle>
-          </Alert>
-        ) : null}
-      </div>
+          )}
+          {deleteError ? (
+            <Alert variant="destructive" aria-live="assertive">
+              <AlertTitle>{deleteError}</AlertTitle>
+            </Alert>
+          ) : null}
+        </div>
+      ) : null}
 
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}
