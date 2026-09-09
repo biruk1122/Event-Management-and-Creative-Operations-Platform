@@ -277,9 +277,13 @@ test.describe("Connected workspace ownership — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    test.use({ storageState: authStatePath("member") });
+    // The member storage state is intentionally revoked by auth-session.spec.
+    // A Department Manager has only department-scoped event/project/campaign
+    // access, so it remains authenticated while being denied this
+    // organization-scoped workspace surface.
+    test.use({ storageState: authStatePath("deptManager") });
 
-    test("a team member cannot see or create an event workspace", async ({
+    test("a department-scoped user cannot see or create an event workspace", async ({
       page,
     }) => {
       await page.goto("/");
