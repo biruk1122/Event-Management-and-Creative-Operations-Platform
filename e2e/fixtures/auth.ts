@@ -1,13 +1,16 @@
+import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { expect, type Page } from "@playwright/test";
 
-import { repositoryRoot } from "./environment.js";
+import { runDirectory } from "./environment.js";
 import type { TestUser } from "./test-users.js";
 
 /** Where `auth.setup.ts` writes each signed-in `storageState`. Gitignored. */
 export function authStatePath(key: string): string {
-  return resolve(repositoryRoot, "e2e", ".auth", `${key}.json`);
+  const directory = resolve(runDirectory(), "auth");
+  mkdirSync(directory, { recursive: true });
+  return resolve(directory, `${key}.json`);
 }
 
 /**

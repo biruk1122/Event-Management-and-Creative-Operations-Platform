@@ -8,7 +8,7 @@
 // importing sibling fixtures.
 import { randomBytes } from "node:crypto";
 import { execSync } from "node:child_process";
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -25,6 +25,7 @@ if (existsSync(envPath)) {
 }
 
 const SCHEMA_PREFIX = "e2e_";
+const RUN_ID_PATTERN = /^[a-z0-9_]+$/;
 
 // The canonical end-to-end accounts. Mirrors `fixtures/test-users.ts`, the
 // source of truth for their shape and intent; duplicated here as literals
@@ -65,8 +66,15 @@ async function withClient(connectionString, run) {
 }
 
 async function main() {
+  const runId = process.env.E2E_RUN_ID;
+  if (!runId || !RUN_ID_PATTERN.test(runId)) {
+    throw new Error(
+      "E2E_RUN_ID is required and may contain only lower-case letters, digits, and underscores. Run the e2e package script instead of this provisioner directly.",
+    );
+  }
+
   const base = baseDatabaseUrl();
-  const schema = `${SCHEMA_PREFIX}${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+  const schema = `${SCHEMA_PREFIX}${runId}_${randomBytes(4).toString("hex")}`;
   const adminUrl = withSchema(base, "public");
   const scopedUrl = withSchema(base, schema);
 
@@ -132,8 +140,10 @@ async function main() {
   // Deliberately outside test-results/: Playwright empties its outputDir at
   // startup, which would delete this marker before global-setup.ts (and
   // playwright.config.ts, which reads it even earlier) can read it.
+  const runDirectory = resolve(repositoryRoot, "e2e", ".runs", runId);
+  mkdirSync(runDirectory, { recursive: true });
   writeFileSync(
-    resolve(repositoryRoot, "e2e", ".e2e-datasource.json"),
+    resolve(runDirectory, "datasource.json"),
     `${JSON.stringify({ schema, databaseUrl: scopedUrl, adminUrl }, null, 2)}\n`,
     "utf8",
   );

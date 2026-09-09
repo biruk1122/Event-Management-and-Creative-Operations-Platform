@@ -4,10 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "e2e": "node scripts/provision.mjs && playwright test",
-    "e2e:ui": "node scripts/provision.mjs && playwright test --ui",
+    "e2e": "node scripts/run.mjs",
+    "e2e:ui": "node scripts/run.mjs --ui",
     "e2e:install": "playwright install --with-deps chromium",
-    "report": "playwright show-report",
+    "report": "node scripts/show-report.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

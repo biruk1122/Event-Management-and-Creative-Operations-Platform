@@ -12,6 +12,8 @@ import { Client } from "pg";
  */
 
 const apiRoot = resolve(import.meta.dirname, "..", "..");
+const SCHEMA_PREFIX = "it_";
+const SCHEMA_PATTERN = /^[a-z0-9_]+$/;
 
 export interface IsolatedDatabase {
   schema: string;
@@ -20,7 +22,15 @@ export interface IsolatedDatabase {
     text: string,
     values?: unknown[],
   ) => Promise<T[]>;
+  /** Remove application rows between tests while preserving migrations. */
+  reset: () => Promise<void>;
   drop: () => Promise<void>;
+}
+
+function assertSchemaName(schema: string): void {
+  if (!SCHEMA_PATTERN.test(schema) || !schema.startsWith(SCHEMA_PREFIX)) {
+    throw new Error(`Refusing to operate on unexpected schema name: ${schema}`);
+  }
 }
 
 function withSchema(baseUrl: string, schema: string): string {
@@ -30,13 +40,26 @@ function withSchema(baseUrl: string, schema: string): string {
 }
 
 async function runOnce(url: string, text: string): Promise<void> {
+  await withClient(url, async (client) => {
+    await client.query(text);
+  });
+}
+
+async function withClient<T>(
+  url: string,
+  run: (client: Client) => Promise<T>,
+): Promise<T> {
   const client = new Client({ connectionString: url });
   await client.connect();
   try {
-    await client.query(text);
+    return await run(client);
   } finally {
     await client.end();
   }
+}
+
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replaceAll('"', '""')}"`;
 }
 
 export async function createIsolatedDatabase(): Promise<IsolatedDatabase> {
@@ -45,7 +68,8 @@ export async function createIsolatedDatabase(): Promise<IsolatedDatabase> {
     throw new Error("DATABASE_URL is required for database integration tests.");
   }
 
-  const schema = `it_${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+  const schema = `${SCHEMA_PREFIX}${Date.now().toString(36)}_${randomBytes(4).toString("hex")}`;
+  assertSchemaName(schema);
   const adminUrl = withSchema(baseUrl, "public");
   const url = withSchema(baseUrl, schema);
 
@@ -70,6 +94,29 @@ export async function createIsolatedDatabase(): Promise<IsolatedDatabase> {
       } finally {
         await client.end();
       }
+    },
+    async reset() {
+      await withClient(url, async (client) => {
+        // node-postgres ignores the Prisma `schema` URL parameter, so scope
+        // the destructive cleanup statement explicitly.
+        await client.query(`SET search_path TO "${schema}"`);
+        const result = await client.query<{ table_name: string }>(
+          `SELECT table_name
+             FROM information_schema.tables
+            WHERE table_schema = $1
+              AND table_type = 'BASE TABLE'
+              AND table_name <> '_prisma_migrations'
+            ORDER BY table_name`,
+          [schema],
+        );
+        if (result.rows.length === 0) {
+          return;
+        }
+        const tables = result.rows
+          .map((row) => quoteIdentifier(row.table_name))
+          .join(", ");
+        await client.query(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`);
+      });
     },
     async drop() {
       await runOnce(adminUrl, `DROP SCHEMA IF EXISTS "${schema}" CASCADE`);

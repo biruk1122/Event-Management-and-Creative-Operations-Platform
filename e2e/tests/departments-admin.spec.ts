@@ -4,6 +4,7 @@ import { expect, request, test, type Page } from "@playwright/test";
 import { authStatePath } from "../fixtures/auth.js";
 import { queryInSchema } from "../fixtures/database.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
+import { fixtureName } from "../fixtures/test-data.js";
 import { testUser } from "../fixtures/test-users.js";
 
 function runDatabaseUrl(): string {
@@ -70,7 +71,7 @@ test.describe("Department administration — end to end", () => {
     }) => {
       // Retry-safe: a fresh name per attempt so a partial first run cannot
       // leave a `DEPARTMENT_NAME_CONFLICT` behind for the retry.
-      const suffix = Date.now().toString(36);
+      const suffix = fixtureName("delivery");
       const dept = {
         name: `E2E Delivery ${suffix}`,
         description: "Owns delivery.",
@@ -279,7 +280,7 @@ test.describe("Department administration — end to end", () => {
       page,
     }) => {
       const csrf = await csrfToken(page);
-      const name = `E2E Populated ${Date.now().toString(36)}`;
+      const name = fixtureName("E2E Populated");
 
       const memberLookup = await page.request.get(
         `${apiBaseUrl}/api/v1/users?search=${encodeURIComponent("member@e2e.test")}`,
@@ -364,7 +365,7 @@ test.describe("Department administration — end to end", () => {
 
       // Highest-risk path: a direct, correctly-formed privileged mutation is
       // refused with a stable code and writes nothing.
-      const forbiddenName = `manager-forbidden-department-${Date.now().toString(36)}`;
+      const forbiddenName = fixtureName("manager-forbidden-department");
       const attempt = await page.request.post(
         `${apiBaseUrl}/api/v1/departments`,
         {
@@ -400,7 +401,7 @@ test.describe("Department administration — end to end", () => {
     test("a Department Manager sees only their own department", async ({
       page,
     }) => {
-      const suffix = Date.now().toString(36);
+      const suffix = fixtureName("scoped");
       const homeName = `Scoped Home ${suffix}`;
       const otherName = `Scoped Other ${suffix}`;
 

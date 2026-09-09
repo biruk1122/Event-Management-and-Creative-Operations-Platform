@@ -11,7 +11,7 @@ coverage/
 playwright-report/
 test-results/
 **/.auth/
-e2e/.e2e-datasource.json
+e2e/.runs/
 
 # Local environment and secrets
 .codex

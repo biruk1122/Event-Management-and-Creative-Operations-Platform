@@ -4,6 +4,7 @@ import { expect, request, test, type Page } from "@playwright/test";
 import { authStatePath } from "../fixtures/auth.js";
 import { queryInSchema } from "../fixtures/database.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
+import { fixtureName } from "../fixtures/test-data.js";
 import { testUser } from "../fixtures/test-users.js";
 
 function runDatabaseUrl(): string {
@@ -78,7 +79,7 @@ test.describe("Team administration — end to end", () => {
     test("creates under a department, edits, assigns a manager, manages members, deactivates, reloads, reactivates, and deletes a team", async ({
       page,
     }) => {
-      const suffix = Date.now().toString(36);
+      const suffix = fixtureName("delivery");
       const csrf = await csrfToken(page);
       const departmentName = `E2E Team Home ${suffix}`;
       const team = {
@@ -320,7 +321,7 @@ test.describe("Team administration — end to end", () => {
     test("refuses to delete a team that still has a member", async ({
       page,
     }) => {
-      const suffix = Date.now().toString(36);
+      const suffix = fixtureName("populated");
       const csrf = await csrfToken(page);
 
       const department = await page.request.post(
@@ -409,7 +410,7 @@ test.describe("Team administration — end to end", () => {
 
       // Highest-risk path: a direct, correctly-formed privileged mutation is
       // refused with a stable code and writes nothing.
-      const forbiddenName = `manager-forbidden-team-${Date.now().toString(36)}`;
+      const forbiddenName = fixtureName("manager-forbidden-team");
       const attempt = await page.request.post(`${apiBaseUrl}/api/v1/teams`, {
         headers: { "x-csrf-token": await csrfToken(page) },
         data: {
@@ -444,7 +445,7 @@ test.describe("Team administration — end to end", () => {
     test("a Department Manager sees only their own department's teams", async ({
       page,
     }) => {
-      const suffix = Date.now().toString(36);
+      const suffix = fixtureName("scoped");
       const homeDeptName = `Scoped Team Home ${suffix}`;
       const otherDeptName = `Scoped Team Other ${suffix}`;
       const homeTeamName = `Scoped Home Team ${suffix}`;
