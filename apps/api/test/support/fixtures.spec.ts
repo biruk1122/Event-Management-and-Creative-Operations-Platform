@@ -12,7 +12,8 @@ describe("test boundary fixtures", () => {
     const first = userFixture();
     const second = userFixture();
 
-    expect(first).toEqual({ email: expect.stringMatching(/@test\.invalid$/) });
+    expect(first.email).toMatch(/@test\.invalid$/);
+    expect(Object.keys(first)).toEqual(["email"]);
     expect(second.email).not.toEqual(first.email);
     expect(fixtureName("department manager")).toMatch(/^department-manager-/);
   });

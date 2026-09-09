@@ -24,10 +24,16 @@ const [apiPort, webPort] = await Promise.all([
   findAvailablePort(),
   findAvailablePort(),
 ]);
+const apiBaseUrl = `http://127.0.0.1:${apiPort}`;
+const webBaseUrl = `http://127.0.0.1:${webPort}`;
 const environment = {
   ...process.env,
+  API_INTERNAL_URL: `${apiBaseUrl}/api/v1`,
   API_PORT: String(apiPort),
+  CORS_ORIGINS: webBaseUrl,
   E2E_RUN_ID: runId,
+  NEXT_PUBLIC_API_URL: `${apiBaseUrl}/api/v1`,
+  NEXT_PUBLIC_WS_URL: apiBaseUrl,
   WEB_PORT: String(webPort),
 };
 const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
