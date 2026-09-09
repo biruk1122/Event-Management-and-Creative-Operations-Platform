@@ -31,6 +31,7 @@
     "lint": "turbo lint",
     "openapi:check": "pnpm openapi:generate && node scripts/check-generated-openapi.mjs",
     "openapi:generate": "pnpm --filter @event-platform/api openapi:document && pnpm --filter @event-platform/api-client generate && prettier --write packages/api-client/openapi/openapi.json packages/api-client/src/generated/schema.ts",
+    "quality:budgets": "node scripts/check-web-performance-budgets.mjs",
     "test": "turbo test",
     "test:integration": "pnpm --filter @event-platform/api test:integration",
     "typecheck": "turbo typecheck"

@@ -75,6 +75,9 @@ jobs:
       - name: Build applications and packages
         run: pnpm build
 
+      - name: Enforce web performance budgets
+        run: pnpm quality:budgets
+
   postgres:
     name: PostgreSQL
     runs-on: ubuntu-latest
