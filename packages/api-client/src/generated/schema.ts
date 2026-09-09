@@ -195,6 +195,113 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List events the caller may see, with filters */
+    get: operations["Events_list_v1"];
+    put?: never;
+    /** Create an event and its connected workspace */
+    post: operations["Events_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one event with its connected workspace overview */
+    get: operations["Events_get_v1"];
+    put?: never;
+    post?: never;
+    /** Remove an event and its connected workspace */
+    delete: operations["Events_remove_v1"];
+    options?: never;
+    head?: never;
+    /** Update event details (not status, manager, teams, or budget) */
+    patch: operations["Events_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/events/{id}/budget": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read the event budget (sensitive) */
+    get: operations["Events_getBudget_v1"];
+    /** Set or clear the event budget (sensitive) */
+    put: operations["Events_setBudget_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{id}/manager": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Set, change, or clear the event manager */
+    put: operations["Events_setManager_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{id}/teams/{teamId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Assign a team to this event (idempotent) */
+    put: operations["Events_assignTeam_v1"];
+    post?: never;
+    /** Unassign a team from this event */
+    delete: operations["Events_unassignTeam_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{id}/transition": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Move an event to another lifecycle state */
+    post: operations["Events_transition_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/permissions": {
     parameters: {
       query?: never;
@@ -626,6 +733,14 @@ export interface components {
        */
       managerId: string | null;
     };
+    AssignEventManagerDto: {
+      /**
+       * Format: uuid
+       * @description The user to set as the event manager on the connected workspace, or null to clear it.
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      managerId: string | null;
+    };
     AssignTeamManagerDto: {
       /**
        * Format: uuid
@@ -678,6 +793,43 @@ export interface components {
       managerId?: string;
       /** @example Event Management */
       name: string;
+    };
+    CreateEventDto: {
+      /** @example Opening night gala for partners and press. */
+      description?: string;
+      /**
+       * Format: date-time
+       * @description UTC end.
+       */
+      endAt?: string;
+      /** @enum {string} */
+      eventType:
+        | "FILM_PREMIERE"
+        | "CONCERT"
+        | "ALBUM_RELEASE"
+        | "PRODUCT_LAUNCH"
+        | "CORPORATE_EVENT"
+        | "PROMOTIONAL_EVENT"
+        | "OTHER";
+      /** @example Grand Hall */
+      location?: string;
+      /**
+       * Format: uuid
+       * @description Assign this user as the event manager on the connected workspace at creation.
+       */
+      managerId?: string;
+      /** @example Autumn Product Launch */
+      name: string;
+      /**
+       * @description Free text for now. Whether an organizer is a user, contact, or record is open in OD-16.
+       * @example City Arts Council
+       */
+      organizerName?: string;
+      /**
+       * Format: date-time
+       * @description UTC start. If both ends are given, the end may not precede it.
+       */
+      startAt?: string;
     };
     CreateRoleDto: {
       /** @example Coordinates activity across one region. */
@@ -801,6 +953,99 @@ export interface components {
         | "SELF"
         | "MANAGEMENT";
     };
+    EventBudgetResponse: {
+      /**
+       * @description Decimal string with two fraction digits. Null when no budget is set.
+       * @example 15000.00
+       */
+      amount: string | null;
+      /**
+       * @description ISO-4217 alphabetic code. Null when no budget is set.
+       * @example USD
+       */
+      currency: string | null;
+    };
+    EventPersonSummary: {
+      /**
+       * Format: email
+       * @example dana.okafor@example.com
+       */
+      email: string;
+      /** @example Dana */
+      firstName: string | null;
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /** @example Okafor */
+      lastName: string | null;
+    };
+    EventResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      /** @description The user who created the event; null once that user is gone. */
+      createdBy: components["schemas"]["EventPersonSummary"] | null;
+      /** @example Opening night gala. */
+      description: string | null;
+      /**
+       * Format: date-time
+       * @description UTC end. Never before the start when both are set.
+       */
+      endAt: string | null;
+      /** @enum {string} */
+      eventType:
+        | "FILM_PREMIERE"
+        | "CONCERT"
+        | "ALBUM_RELEASE"
+        | "PRODUCT_LAUNCH"
+        | "CORPORATE_EVENT"
+        | "PROMOTIONAL_EVENT"
+        | "OTHER";
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /** @example Grand Hall */
+      location: string | null;
+      /** @description The event manager, from the connected workspace. */
+      manager: components["schemas"]["EventPersonSummary"] | null;
+      /** @example Autumn Product Launch */
+      name: string;
+      /** @example City Arts Council */
+      organizerName: string | null;
+      /** @description Employees assigned to this event individually, from the connected workspace. */
+      participants: components["schemas"]["EventPersonSummary"][];
+      /**
+       * Format: date-time
+       * @description UTC start. Null while the event is not yet scheduled.
+       */
+      startAt: string | null;
+      /**
+       * @description Current lifecycle state.
+       * @enum {string}
+       */
+      status: "PLANNING" | "READY" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+      /** @description Teams assigned to this event, from the connected workspace. */
+      teams: components["schemas"]["EventTeamSummary"][];
+      /** Format: date-time */
+      updatedAt: string;
+      /**
+       * Format: uuid
+       * @description The connected workspace that anchors this event's manager, teams, and participants.
+       */
+      workspaceId: string;
+    };
+    EventTeamSummary: {
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /** @example Production Team */
+      name: string;
+    };
     LivenessResponse: {
       /**
        * @example ok
@@ -834,6 +1079,21 @@ export interface components {
       pageSize: number;
       /**
        * @description Total departments matching the filter.
+       * @example 7
+       */
+      total: number;
+    };
+    PaginatedEventsResponse: {
+      items: components["schemas"]["EventResponse"][];
+      /**
+       * @description 1-based page number.
+       * @example 1
+       */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /**
+       * @description Total events matching the filter.
        * @example 7
        */
       total: number;
@@ -986,6 +1246,18 @@ export interface components {
     SessionResponse: {
       user: components["schemas"]["AuthenticatedUserResponse"];
     };
+    SetEventBudgetDto: {
+      /**
+       * @description Non-negative, at most two fraction digits. Null to clear.
+       * @example 15000
+       */
+      amount: number | null;
+      /**
+       * @description ISO-4217 alphabetic code (three upper-case letters). Null to clear.
+       * @example USD
+       */
+      currency: string | null;
+    };
     TeamDepartmentSummary: {
       /**
        * Format: uuid
@@ -1036,11 +1308,37 @@ export interface components {
       /** @example Okafor */
       lastName: string | null;
     };
+    TransitionEventDto: {
+      /**
+       * @description The lifecycle state to move to. Must be reachable from the current state under the approved graph.
+       * @enum {string}
+       */
+      status: "PLANNING" | "READY" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+    };
     UpdateDepartmentDto: {
       /** @example Owns planning and delivery for all events. */
       description?: string;
       /** @example Event Management */
       name?: string;
+    };
+    UpdateEventDto: {
+      description?: string | null;
+      /** Format: date-time */
+      endAt?: string | null;
+      /** @enum {string} */
+      eventType?:
+        | "FILM_PREMIERE"
+        | "CONCERT"
+        | "ALBUM_RELEASE"
+        | "PRODUCT_LAUNCH"
+        | "CORPORATE_EVENT"
+        | "PROMOTIONAL_EVENT"
+        | "OTHER";
+      location?: string | null;
+      name?: string;
+      organizerName?: string | null;
+      /** Format: date-time */
+      startAt?: string | null;
     };
     UpdateRoleDto: {
       /** @example Coordinates activity across one region. */
@@ -1901,6 +2199,581 @@ export interface operations {
         };
       };
       /** @description The department is already active */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_list_v1: {
+    parameters: {
+      query?: {
+        status?:
+          "PLANNING" | "READY" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+        eventType?:
+          | "FILM_PREMIERE"
+          | "CONCERT"
+          | "ALBUM_RELEASE"
+          | "PRODUCT_LAUNCH"
+          | "CORPORATE_EVENT"
+          | "PROMOTIONAL_EVENT"
+          | "OTHER";
+        /** @description Restrict to events whose connected workspace this user manages. */
+        managerId?: string;
+        /** @description Case-insensitive match against the event name. */
+        search?: string;
+        /** @description Only events that start at or after this UTC instant. */
+        startingAfter?: string;
+        /** @description Only events that start at or before this UTC instant. */
+        startingBefore?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedEventsResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateEventDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The requested manager user does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The event was removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateEventDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_getBudget_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventBudgetResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_setBudget_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetEventBudgetDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventBudgetResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_setManager_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignEventManagerDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The event or the requested manager user does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_assignTeam_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        teamId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The event or the team does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_unassignTeam_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        teamId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description That team is not assigned to this event */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_transition_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TransitionEventDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description That transition is not allowed from the current state */
       409: {
         headers: {
           [name: string]: unknown;
