@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getWorkspace as defaultGetWorkspace } from "../api/get-workspace";
+import { getWorkspace as defaultGetWorkspace } from "../api/workspaces-gateway";
 import type {
   AddWorkspaceParticipant,
   AssignWorkspaceManager,
@@ -61,6 +61,9 @@ interface WorkspaceDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   users: readonly AssignableUser[];
   teams: readonly AssignableTeam[];
+  canAssignManager: boolean;
+  canAssignMembers: boolean;
+  canDelete: boolean;
   getWorkspace?: GetWorkspace;
   onAssignManager: AssignWorkspaceManager;
   onAssignTeam: AssignWorkspaceTeam;
@@ -108,6 +111,9 @@ function WorkspaceDetailBody({
   workspaceId,
   users,
   teams,
+  canAssignManager,
+  canAssignMembers,
+  canDelete,
   getWorkspace = defaultGetWorkspace,
   onAssignManager,
   onAssignTeam,
@@ -312,23 +318,29 @@ function WorkspaceDetailBody({
 
       <div className="space-y-2">
         <Label htmlFor={ids.manager}>Manager</Label>
-        <Select
-          value={workspace.manager?.id ?? NO_MANAGER}
-          onValueChange={(value) => void handleManagerChange(value)}
-          disabled={managerBusy}
-        >
-          <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NO_MANAGER}>No manager</SelectItem>
-            {users.map((user) => (
-              <SelectItem key={user.id} value={user.id}>
-                {personName(user)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {canAssignManager ? (
+          <Select
+            value={workspace.manager?.id ?? NO_MANAGER}
+            onValueChange={(value) => void handleManagerChange(value)}
+            disabled={managerBusy}
+          >
+            <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_MANAGER}>No manager</SelectItem>
+              {users.map((user) => (
+                <SelectItem key={user.id} value={user.id}>
+                  {personName(user)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <p id={ids.manager} className="text-sm">
+            {workspace.manager ? personName(workspace.manager) : "No manager"}
+          </p>
+        )}
         {managerError ? (
           <p className="text-destructive text-sm" role="alert">
             {managerError}
@@ -353,21 +365,23 @@ function WorkspaceDetailBody({
                 className="flex items-center justify-between gap-2 text-sm"
               >
                 <span>{team.name}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={teamBusy}
-                  aria-label={`Unassign ${team.name}`}
-                  onClick={() => void handleRemoveTeam(team.id)}
-                >
-                  <X aria-hidden="true" className="size-4" />
-                </Button>
+                {canAssignMembers ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={teamBusy}
+                    aria-label={`Unassign ${team.name}`}
+                    onClick={() => void handleRemoveTeam(team.id)}
+                  >
+                    <X aria-hidden="true" className="size-4" />
+                  </Button>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
-        {addableTeams.length > 0 ? (
+        {canAssignMembers && addableTeams.length > 0 ? (
           <div className="space-y-1">
             <Label htmlFor={ids.team}>Assign a team</Label>
             <Select
@@ -415,21 +429,23 @@ function WorkspaceDetailBody({
                 className="flex items-center justify-between gap-2 text-sm"
               >
                 <span>{personName(person)}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={participantBusy}
-                  aria-label={`Remove ${personName(person)}`}
-                  onClick={() => void handleRemoveParticipant(person.id)}
-                >
-                  <X aria-hidden="true" className="size-4" />
-                </Button>
+                {canAssignMembers ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={participantBusy}
+                    aria-label={`Remove ${personName(person)}`}
+                    onClick={() => void handleRemoveParticipant(person.id)}
+                  >
+                    <X aria-hidden="true" className="size-4" />
+                  </Button>
+                ) : null}
               </li>
             ))}
           </ul>
         )}
-        {addablePeople.length > 0 ? (
+        {canAssignMembers && addablePeople.length > 0 ? (
           <div className="space-y-1">
             <Label htmlFor={ids.participant}>Add a participant</Label>
             <Select
@@ -458,47 +474,51 @@ function WorkspaceDetailBody({
         ) : null}
       </section>
 
-      <div className="border-border space-y-2 border-t pt-4">
-        {confirmingDelete ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm">Permanently delete this workspace?</span>
+      {canDelete ? (
+        <div className="border-border space-y-2 border-t pt-4">
+          {confirmingDelete ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm">
+                Permanently delete this workspace?
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={deleteBusy}
+                onClick={() => setConfirmingDelete(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                ref={confirmRef}
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={deleteBusy}
+                aria-busy={deleteBusy}
+                onClick={() => void runDelete()}
+              >
+                {deleteBusy ? "Working…" : "Confirm delete"}
+              </Button>
+            </div>
+          ) : (
             <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={deleteBusy}
-              onClick={() => setConfirmingDelete(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              ref={confirmRef}
               type="button"
               variant="destructive"
               size="sm"
-              disabled={deleteBusy}
-              aria-busy={deleteBusy}
-              onClick={() => void runDelete()}
+              onClick={() => setConfirmingDelete(true)}
             >
-              {deleteBusy ? "Working…" : "Confirm delete"}
+              Delete workspace
             </Button>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => setConfirmingDelete(true)}
-          >
-            Delete workspace
-          </Button>
-        )}
-        {deleteError ? (
-          <Alert variant="destructive" aria-live="assertive">
-            <AlertTitle>{deleteError}</AlertTitle>
-          </Alert>
-        ) : null}
-      </div>
+          )}
+          {deleteError ? (
+            <Alert variant="destructive" aria-live="assertive">
+              <AlertTitle>{deleteError}</AlertTitle>
+            </Alert>
+          ) : null}
+        </div>
+      ) : null}
 
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}

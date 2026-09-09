@@ -4,12 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
-import {
-  listAssignableTeams,
-  listAssignableUsers,
-  listWorkspaces,
-  WorkspacesManager,
-} from "@/features/workspaces";
+import { WorkspacesScreen } from "@/features/workspaces";
 
 export const metadata: Metadata = { title: "Workspaces" };
 
@@ -33,12 +28,6 @@ export default async function WorkspacesPage() {
       (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
   );
 
-  const [firstPage, users, teams] = await Promise.all([
-    listWorkspaces({ page: 1 }),
-    listAssignableUsers(),
-    listAssignableTeams(),
-  ]);
-
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
       <Link href="/" className="text-sm underline underline-offset-4">
@@ -54,11 +43,7 @@ export default async function WorkspacesPage() {
             manager, and manage its teams and participants.
           </p>
           <div className="mt-6">
-            <WorkspacesManager
-              initialPage={firstPage}
-              assignableUsers={users}
-              assignableTeams={teams}
-            />
+            <WorkspacesScreen />
           </div>
         </>
       ) : (

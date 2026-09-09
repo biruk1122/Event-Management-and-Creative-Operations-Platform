@@ -14,22 +14,22 @@ import {
 } from "@/components/ui/select";
 
 import {
-  WORKSPACE_KINDS,
   WORKSPACE_KIND_LABELS,
   type WorkspaceKind,
 } from "../lib/workspaces-types";
 
-const ALL = "ALL";
-
 interface WorkspaceFiltersProps {
-  kind: WorkspaceKind | null;
+  kind: WorkspaceKind;
+  /** The kinds the caller may read; the list is fetched one kind at a time. */
+  kinds: readonly WorkspaceKind[];
   search: string;
-  onKindChange: (kind: WorkspaceKind | null) => void;
+  onKindChange: (kind: WorkspaceKind) => void;
   onSearchChange: (search: string) => void;
 }
 
 export function WorkspaceFilters({
   kind,
+  kinds,
   search,
   onKindChange,
   onSearchChange,
@@ -42,17 +42,15 @@ export function WorkspaceFilters({
       <div className="space-y-2 sm:w-48">
         <Label htmlFor={kindId}>Kind</Label>
         <Select
-          value={kind ?? ALL}
-          onValueChange={(value) =>
-            onKindChange(value === ALL ? null : (value as WorkspaceKind))
-          }
+          value={kind}
+          onValueChange={(value) => onKindChange(value as WorkspaceKind)}
+          disabled={kinds.length <= 1}
         >
-          <SelectTrigger id={kindId} aria-label="Filter by kind">
+          <SelectTrigger id={kindId} aria-label="Workspace kind">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>All kinds</SelectItem>
-            {WORKSPACE_KINDS.map((value) => (
+            {kinds.map((value) => (
               <SelectItem key={value} value={value}>
                 {WORKSPACE_KIND_LABELS[value]}
               </SelectItem>
@@ -71,7 +69,7 @@ export function WorkspaceFilters({
           <Input
             id={searchId}
             type="search"
-            placeholder="Manager name or email"
+            placeholder="Manager name or email on this page"
             className="pl-9"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}

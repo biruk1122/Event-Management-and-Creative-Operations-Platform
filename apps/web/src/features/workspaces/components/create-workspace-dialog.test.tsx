@@ -38,6 +38,7 @@ function setup(
     <CreateWorkspaceDialog
       open
       onOpenChange={onOpenChange}
+      kind="PROJECT"
       managers={MANAGERS}
       onCreate={onCreate}
       onCreated={onCreated}
@@ -47,22 +48,30 @@ function setup(
 }
 
 describe("CreateWorkspaceDialog", () => {
-  it("submits the chosen kind and manager, then closes on success", async () => {
+  it("names the kind it will create and submits it with the chosen manager", async () => {
     const user = userEvent.setup();
     const onCreate = vi.fn((): Promise<SaveWorkspaceOutcome> =>
       Promise.resolve({ status: "success", workspace: created() }),
     );
     const { onOpenChange, onCreated } = setup(onCreate);
 
-    await user.click(screen.getByRole("combobox", { name: "Kind" }));
-    await user.click(await screen.findByRole("option", { name: "Project" }));
+    expect(
+      screen.getByRole("heading", { name: "New Project workspace" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Manager (optional)" }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: "Morgan Lead" }),
+    );
 
     await user.click(screen.getByRole("button", { name: "Create workspace" }));
 
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith({
         kind: "PROJECT",
-        managerId: null,
+        managerId: "m1",
       }),
     );
     expect(onCreated).toHaveBeenCalledWith(created());

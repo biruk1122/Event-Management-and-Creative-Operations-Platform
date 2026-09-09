@@ -30,8 +30,8 @@ export const WORKSPACE_KIND_LABELS: Record<WorkspaceKind, string> = {
 
 /**
  * A user the manager and participant controls can offer. The workspace API has
- * no "assignable users" route, so WSP-05 sources this from `GET /users`; the
- * seam returns a small fixture set.
+ * no "assignable users" route, so the gateway reads the first page of
+ * `GET /users`.
  */
 export interface AssignableUser {
   id: string;
@@ -41,8 +41,8 @@ export interface AssignableUser {
 }
 
 /**
- * A team the "assign team" control can offer. WSP-05 sources this from
- * `GET /teams`; the seam returns a small fixture set.
+ * A team the "assign team" control can offer. The gateway reads the first page
+ * of `GET /teams`.
  */
 export interface AssignableTeam {
   id: string;

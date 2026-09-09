@@ -27,10 +27,10 @@ import type {
 } from "../lib/workspaces-outcome";
 import {
   personName,
-  WORKSPACE_KINDS,
   WORKSPACE_KIND_LABELS,
   type AssignableUser,
   type Workspace,
+  type WorkspaceKind,
 } from "../lib/workspaces-types";
 
 const NO_MANAGER = "NONE";
@@ -44,44 +44,34 @@ const FORM_ERRORS: Record<string, string> = {
 interface CreateWorkspaceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The workspace kind to create; set by the list the caller is viewing. */
+  kind: WorkspaceKind;
   managers: readonly AssignableUser[];
   onCreate: CreateWorkspace;
   onCreated: (workspace: Workspace) => void;
 }
 
-const EMPTY: CreateWorkspaceValues = {
-  kind: "EVENT",
-  managerId: null,
-};
-
 export function CreateWorkspaceDialog({
   open,
   onOpenChange,
+  kind,
   managers,
   onCreate,
   onCreated,
 }: CreateWorkspaceDialogProps) {
   const ids = {
-    kind: useId(),
     manager: useId(),
   };
 
-  const [values, setValues] = useState<CreateWorkspaceValues>(EMPTY);
+  const [managerId, setManagerId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof CreateWorkspaceValues, string>>
   >({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function set<K extends keyof CreateWorkspaceValues>(
-    key: K,
-    value: CreateWorkspaceValues[K],
-  ) {
-    setValues((current) => ({ ...current, [key]: value }));
-  }
-
   function reset() {
-    setValues(EMPTY);
+    setManagerId(null);
     setFieldErrors({});
     setFormError(null);
   }
@@ -92,7 +82,7 @@ export function CreateWorkspaceDialog({
     setFieldErrors({});
     setFormError(null);
 
-    const outcome = await onCreate(values);
+    const outcome = await onCreate({ kind, managerId });
 
     setSubmitting(false);
 
@@ -122,11 +112,10 @@ export function CreateWorkspaceDialog({
     >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>New workspace</DialogTitle>
+          <DialogTitle>New {WORKSPACE_KIND_LABELS[kind]} workspace</DialogTitle>
           <DialogDescription>
-            Choose which kind of work this workspace owns and, optionally,
-            assign a manager now. You can add teams and participants after it
-            exists.
+            Optionally assign a manager now. You can add teams and participants
+            after the workspace exists.
           </DialogDescription>
         </DialogHeader>
 
@@ -142,41 +131,17 @@ export function CreateWorkspaceDialog({
           ) : null}
 
           <div className="space-y-2">
-            <Label htmlFor={ids.kind}>Kind</Label>
+            <Label htmlFor={ids.manager}>Manager (optional)</Label>
             <Select
-              value={values.kind}
+              value={managerId ?? NO_MANAGER}
               onValueChange={(value) =>
-                set("kind", value as CreateWorkspaceValues["kind"])
+                setManagerId(value === NO_MANAGER ? null : value)
               }
             >
               <SelectTrigger
-                id={ids.kind}
-                aria-invalid={fieldErrors.kind ? true : undefined}
+                id={ids.manager}
+                aria-invalid={fieldErrors.managerId ? true : undefined}
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {WORKSPACE_KINDS.map((kind) => (
-                  <SelectItem key={kind} value={kind}>
-                    {WORKSPACE_KIND_LABELS[kind]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {fieldErrors.kind ? (
-              <p className="text-destructive text-sm">{fieldErrors.kind}</p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={ids.manager}>Manager (optional)</Label>
-            <Select
-              value={values.managerId ?? NO_MANAGER}
-              onValueChange={(value) =>
-                set("managerId", value === NO_MANAGER ? null : value)
-              }
-            >
-              <SelectTrigger id={ids.manager}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -188,6 +153,11 @@ export function CreateWorkspaceDialog({
                 ))}
               </SelectContent>
             </Select>
+            {fieldErrors.managerId ? (
+              <p className="text-destructive text-sm">
+                {fieldErrors.managerId}
+              </p>
+            ) : null}
           </div>
 
           <DialogFooter>

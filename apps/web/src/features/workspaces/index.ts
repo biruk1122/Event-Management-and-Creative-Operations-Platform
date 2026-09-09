@@ -1,7 +1,5 @@
-export { listWorkspaces } from "./api/list-workspaces";
-export { listAssignableUsers } from "./api/list-assignable-users";
-export { listAssignableTeams } from "./api/list-assignable-teams";
-export { WorkspacesManager } from "./components/workspaces-manager";
+export { WorkspacesScreen } from "./components/workspaces-screen";
+export { WorkspacesNavigation } from "./components/workspaces-navigation";
 export type {
   AssignableTeam,
   AssignableUser,

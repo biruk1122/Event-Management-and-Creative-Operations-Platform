@@ -2,6 +2,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+// The dialog default-imports the gateway (for `getWorkspace`); every test here
+// injects its own, so the real `browserApi` env validation is not needed.
+vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
+
 import { WorkspaceDetailDialog } from "./workspace-detail-dialog";
 import type {
   AssignManagerOutcome,
@@ -67,6 +71,9 @@ function baseProps(workspace: Workspace) {
     onOpenChange: vi.fn(),
     users: USERS,
     teams: TEAMS,
+    canAssignManager: true,
+    canAssignMembers: true,
+    canDelete: true,
     getWorkspace: vi.fn((): Promise<Workspace | null> =>
       Promise.resolve(workspace),
     ),
@@ -180,5 +187,31 @@ describe("WorkspaceDetailDialog", () => {
     expect(
       await screen.findByText("That user no longer exists."),
     ).toBeVisible();
+  });
+
+  it("hides every write control for a read-only caller", async () => {
+    const props = {
+      ...baseProps(makeWorkspace()),
+      canAssignManager: false,
+      canAssignMembers: false,
+      canDelete: false,
+    };
+    render(<WorkspaceDetailDialog {...props} />);
+    await screen.findByRole("heading", { name: "Event workspace" });
+
+    // Manager shows as read-only text, not a combobox.
+    expect(
+      screen.queryByRole("combobox", { name: "Manager" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Morgan Lead")).toBeVisible();
+    expect(
+      screen.queryByRole("combobox", { name: "Assign a team" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Unassign Production Team" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete workspace" }),
+    ).not.toBeInTheDocument();
   });
 });

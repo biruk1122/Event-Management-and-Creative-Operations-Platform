@@ -2,6 +2,7 @@ import { FoundationOverview } from "@/features/foundation";
 import { DepartmentsNavigation } from "@/features/departments";
 import { TeamsNavigation } from "@/features/teams";
 import { UsersNavigation } from "@/features/users";
+import { WorkspacesNavigation } from "@/features/workspaces";
 
 import { RolesNavigation } from "@/features/rbac/components/roles-navigation";
 
@@ -12,6 +13,7 @@ export default function Home() {
       <UsersNavigation />
       <DepartmentsNavigation />
       <TeamsNavigation />
+      <WorkspacesNavigation />
       <FoundationOverview />
     </>
   );

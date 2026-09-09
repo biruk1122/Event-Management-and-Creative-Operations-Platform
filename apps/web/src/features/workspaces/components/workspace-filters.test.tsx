@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { WorkspaceFilters } from "./workspace-filters";
+import { WORKSPACE_KINDS } from "../lib/workspaces-types";
 
 function setup(
   overrides: Partial<Parameters<typeof WorkspaceFilters>[0]> = {},
@@ -11,7 +12,8 @@ function setup(
   const onSearchChange = vi.fn();
   render(
     <WorkspaceFilters
-      kind={null}
+      kind="EVENT"
+      kinds={WORKSPACE_KINDS}
       search=""
       onKindChange={onKindChange}
       onSearchChange={onSearchChange}
@@ -26,26 +28,29 @@ describe("WorkspaceFilters", () => {
     const user = userEvent.setup();
     const { onKindChange } = setup();
 
-    await user.click(screen.getByRole("combobox", { name: "Filter by kind" }));
+    await user.click(screen.getByRole("combobox", { name: "Workspace kind" }));
     await user.click(await screen.findByRole("option", { name: "Campaign" }));
     expect(onKindChange).toHaveBeenCalledWith("CAMPAIGN");
   });
 
-  it("reports the cleared state from a chosen kind", async () => {
-    const user = userEvent.setup();
-    const { onKindChange } = setup({ kind: "CAMPAIGN" });
+  it("keeps the kind control usable when several kinds are readable", () => {
+    setup({ kind: "PROJECT", kinds: ["PROJECT", "PRODUCTION"] });
+    expect(
+      screen.getByRole("combobox", { name: "Workspace kind" }),
+    ).toBeEnabled();
+  });
 
-    await user.click(screen.getByRole("combobox", { name: "Filter by kind" }));
-    await user.click(await screen.findByRole("option", { name: "All kinds" }));
-    expect(onKindChange).toHaveBeenCalledWith(null);
+  it("disables the kind control when only one kind is readable", () => {
+    setup({ kind: "CAMPAIGN", kinds: ["CAMPAIGN"] });
+    expect(
+      screen.getByRole("combobox", { name: "Workspace kind" }),
+    ).toBeDisabled();
   });
 
   it("reports a search keystroke", async () => {
     const user = userEvent.setup();
     const { onSearchChange } = setup();
 
-    // The input is controlled by the parent, so each keystroke reports the
-    // single new character against the fixed empty value.
     await user.type(screen.getByLabelText("Search"), "d");
     expect(onSearchChange).toHaveBeenCalledWith("d");
   });
