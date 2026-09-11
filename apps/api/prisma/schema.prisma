@@ -375,6 +375,10 @@ model Workspace {
   teams           WorkspaceTeam[]
   participants    WorkspaceParticipant[]
   fileAttachments WorkspaceFileAttachment[]
+  /// The parent authorized when an upload intent is issued. This remains
+  /// explicit until finalization creates the attachment, preventing an intent
+  /// from being replayed against another workspace.
+  fileUploadIntents ManagedFile[] @relation("ManagedFileIntentWorkspace")
   /// The one module record that owns this workspace, when its `kind` is
   /// `EVENT` or `PROJECT`. Later epics add the equivalent inverse for
   /// production and campaign.
@@ -429,10 +433,14 @@ model ManagedFile {
   /// 30-day detached-file policy from ADR 0002.
   cleanupAfter      DateTime?        @map("cleanup_after") @db.Timestamptz(6)
   initiatedById     String?          @map("initiated_by_id") @db.Uuid
+  /// Nullable only to preserve any pre-FIL-02 pending records during the
+  /// migration. FIL-02 creates every new intent with this explicit parent.
+  intentWorkspaceId String?          @map("intent_workspace_id") @db.Uuid
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   initiatedBy          User?                     @relation("ManagedFileInitiator", fields: [initiatedById], references: [id], onDelete: SetNull)
+  intentWorkspace      Workspace?                @relation("ManagedFileIntentWorkspace", fields: [intentWorkspaceId], references: [id], onDelete: Restrict)
   workspaceAttachments WorkspaceFileAttachment[]
 
   // Upload expiry, cleanup sweeps, actor investigation, and resolving a
@@ -440,6 +448,7 @@ model ManagedFile {
   @@index([state, intentExpiresAt])
   @@index([state, cleanupAfter])
   @@index([initiatedById])
+  @@index([intentWorkspaceId])
   @@map("managed_files")
 }
 

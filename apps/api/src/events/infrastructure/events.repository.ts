@@ -369,22 +369,38 @@ export class EventsRepository {
    * Removes the event and then its connected workspace in one transaction. The
    * workspace FK is `ON DELETE RESTRICT`, so the event must go first.
    */
-  async delete(id: string): Promise<"deleted" | "not_found"> {
+  async delete(
+    id: string,
+  ): Promise<"deleted" | "not_found" | "has_managed_files"> {
     if (!isUuid(id)) {
       return "not_found";
     }
     try {
-      await this.db.$transaction(async (tx) => {
-        const event = await tx.event.delete({
+      return await this.db.$transaction(async (tx) => {
+        const event = await tx.event.findUnique({
           where: { id },
           select: { workspaceId: true },
         });
+        if (!event) return "not_found";
+        // A detached/rejected file remains for retention cleanup, but no
+        // longer needs to retain an event workspace that is being removed.
+        await tx.managedFile.updateMany({
+          where: {
+            intentWorkspaceId: event.workspaceId,
+            state: "UNAVAILABLE",
+          },
+          data: { intentWorkspaceId: null },
+        });
+        await tx.event.delete({ where: { id } });
         await tx.workspace.delete({ where: { id: event.workspaceId } });
+        return "deleted";
       });
-      return "deleted";
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
         return "not_found";
+      }
+      if (isPrismaError(error, PRISMA_ERROR.foreignKeyViolation)) {
+        return "has_managed_files";
       }
       throw error;
     }

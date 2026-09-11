@@ -36,6 +36,10 @@ function assertSchemaName(schema: string): void {
 function withSchema(baseUrl: string, schema: string): string {
   const url = new URL(baseUrl);
   url.searchParams.set("schema", schema);
+  // node-postgres does not interpret Prisma's `schema` URL parameter. Keep
+  // it for Prisma's adapter and also set PostgreSQL's connection-level search
+  // path so every client (including raw SQL) stays inside this test schema.
+  url.searchParams.set("options", `-c search_path=${schema}`);
   return url.toString();
 }
 

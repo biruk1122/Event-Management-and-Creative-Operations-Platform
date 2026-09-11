@@ -13,6 +13,7 @@ export const EVENT_ERROR = {
   eventInvalidTransition: "EVENT_INVALID_TRANSITION",
   eventScheduleInvalid: "EVENT_SCHEDULE_INVALID",
   eventBudgetIncomplete: "EVENT_BUDGET_INCOMPLETE",
+  eventHasManagedFiles: "EVENT_HAS_MANAGED_FILES",
   /** The same code the user, department, team, and workspace surfaces use. */
   userNotFound: "USER_NOT_FOUND",
 } as const;
@@ -74,5 +75,14 @@ export function eventBudgetIncomplete(): HttpException {
     error: "Bad Request",
     detail:
       "A budget needs both an amount and a currency; clear it by sending both as null.",
+  });
+}
+
+export function eventHasManagedFiles(): HttpException {
+  return new ConflictException({
+    code: EVENT_ERROR.eventHasManagedFiles,
+    error: "Conflict",
+    detail:
+      "This event has pending or attached managed files. Remove them or let them expire before deleting the event.",
   });
 }

@@ -213,6 +213,91 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/events/{eventId}/files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List available files attached to an event */
+    get: operations["FileManagement_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/files/upload-intents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a 10-minute direct-upload grant for an event file */
+    post: operations["FileManagement_createUploadIntent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/files/{fileId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Detach an event file and begin its 30-day retention window */
+    delete: operations["FileManagement_remove_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/files/{fileId}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a five-minute private download grant for an event file */
+    get: operations["FileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/files/{fileId}/finalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify, scan, and attach a completed direct upload */
+    post: operations["FileManagement_finalize_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/events/{id}": {
     parameters: {
       query?: never;
@@ -855,6 +940,26 @@ export interface components {
       /** @example Production Team */
       name: string;
     };
+    CreateUploadIntentDto: {
+      /** @example call-sheet.pdf */
+      filename: string;
+      /**
+       * @example application/pdf
+       * @enum {string}
+       */
+      mediaType:
+        | "application/pdf"
+        | "image/jpeg"
+        | "image/png"
+        | "image/webp"
+        | "text/plain"
+        | "text/csv"
+        | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        | "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+      /** @example 1048576 */
+      sizeBytes: number;
+    };
     CreateUserDto: {
       /**
        * Format: email
@@ -941,6 +1046,16 @@ export interface components {
       name: string;
       /** Format: date-time */
       updatedAt: string;
+    };
+    DownloadGrantResponse: {
+      /** Format: date-time */
+      expiresAt: string;
+      /** @example call-sheet.pdf */
+      filename: string;
+      /** @example application/pdf */
+      mediaType: string;
+      /** Format: uri */
+      url: string;
     };
     EffectivePermissionResponse: {
       permissionKey: string;
@@ -1067,6 +1182,22 @@ export interface components {
       /** @example correct horse battery staple */
       password: string;
     };
+    ManagedFileResponse: {
+      /** Format: date-time */
+      availableAt?: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** @example call-sheet.pdf */
+      filename: string;
+      /** Format: uuid */
+      id: string;
+      /** @example application/pdf */
+      mediaType: string;
+      /** @example 1048576 */
+      sizeBytes: number;
+      /** @example available */
+      state: string;
+    };
     Object: Record<string, never>;
     PaginatedDepartmentsResponse: {
       items: components["schemas"]["DepartmentResponse"][];
@@ -1096,6 +1227,15 @@ export interface components {
        * @description Total events matching the filter.
        * @example 7
        */
+      total: number;
+    };
+    PaginatedManagedFilesResponse: {
+      items: components["schemas"]["ManagedFileResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 20 */
+      pageSize: number;
+      /** @example 1 */
       total: number;
     };
     PaginatedTeamsResponse: {
@@ -1366,6 +1506,33 @@ export interface components {
       phone?: string;
       /** @example avatars/ada.png */
       profileImage?: string;
+    };
+    UploadFormResponse: {
+      /** @description One-use, short-lived form fields for direct object storage upload. Do not persist them. */
+      fields: {
+        [key: string]: string;
+      };
+      /** @example http://localhost:9000/event-platform-files */
+      url: string;
+    };
+    UploadIntentResponse: {
+      /** Format: date-time */
+      availableAt?: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** @example call-sheet.pdf */
+      filename: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      intentExpiresAt: string;
+      /** @example application/pdf */
+      mediaType: string;
+      /** @example 1048576 */
+      sizeBytes: number;
+      /** @example available */
+      state: string;
+      upload: components["schemas"]["UploadFormResponse"];
     };
     UserResponse: {
       /** Format: date-time */
@@ -2317,6 +2484,282 @@ export interface operations {
       };
     };
   };
+  FileManagement_list_v1: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path: {
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedManagedFilesResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  FileManagement_createUploadIntent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUploadIntentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UploadIntentResponse"];
+        };
+      };
+      /** @description Invalid filename or upload declaration */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  FileManagement_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description File detached */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description No available file exists for this event */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  FileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description No available file exists for this event */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  FileManagement_finalize_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManagedFileResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event or upload intent not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Intent expired, upload missing, unsafe, or already finalized */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description File scanner unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Events_get_v1: {
     parameters: {
       query?: never;
@@ -2403,6 +2846,15 @@ export interface operations {
       };
       /** @description Event not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The event has pending or attached managed files */
+      409: {
         headers: {
           [name: string]: unknown;
         };

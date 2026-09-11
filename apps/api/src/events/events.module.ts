@@ -10,6 +10,7 @@ import { EventsRepository } from "./infrastructure/events.repository.js";
 @Module({
   imports: [AuthModule, PermissionsModule, WorkspacesModule],
   controllers: [EventsController],
+  exports: [EventsRepository],
   providers: [EventsService, EventsRepository],
 })
 export class EventsModule {}

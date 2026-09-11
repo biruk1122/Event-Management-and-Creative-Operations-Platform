@@ -14,6 +14,7 @@ import type {
 } from "./events.contracts.js";
 import {
   eventBudgetIncomplete,
+  eventHasManagedFiles,
   eventInvalidTransition,
   eventNotFound,
   eventScheduleInvalid,
@@ -311,6 +312,9 @@ export class EventsService {
     const result = await this.repository.delete(id);
     if (result === "not_found") {
       throw eventNotFound();
+    }
+    if (result === "has_managed_files") {
+      throw eventHasManagedFiles();
     }
   }
 }

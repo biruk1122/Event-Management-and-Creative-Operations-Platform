@@ -237,6 +237,38 @@
         "required": ["name", "departmentId"],
         "type": "object"
       },
+      "CreateUploadIntentDto": {
+        "properties": {
+          "filename": {
+            "example": "call-sheet.pdf",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "mediaType": {
+            "enum": [
+              "application/pdf",
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "text/plain",
+              "text/csv",
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            ],
+            "example": "application/pdf",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "example": 1048576,
+            "maximum": 10485760,
+            "minimum": 1,
+            "type": "number"
+          }
+        },
+        "required": ["filename", "mediaType", "sizeBytes"],
+        "type": "object"
+      },
       "CreateUserDto": {
         "properties": {
           "email": {
@@ -399,6 +431,28 @@
           "createdAt",
           "updatedAt"
         ],
+        "type": "object"
+      },
+      "DownloadGrantResponse": {
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "filename": {
+            "example": "call-sheet.pdf",
+            "type": "string"
+          },
+          "mediaType": {
+            "example": "application/pdf",
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["url", "expiresAt", "mediaType", "filename"],
         "type": "object"
       },
       "EffectivePermissionResponse": {
@@ -641,6 +695,47 @@
         "required": ["email", "password"],
         "type": "object"
       },
+      "ManagedFileResponse": {
+        "properties": {
+          "availableAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "filename": {
+            "example": "call-sheet.pdf",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mediaType": {
+            "example": "application/pdf",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "example": 1048576,
+            "type": "number"
+          },
+          "state": {
+            "example": "available",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "mediaType",
+          "sizeBytes",
+          "state",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "Object": {
         "properties": {},
         "type": "object"
@@ -691,6 +786,30 @@
           "total": {
             "description": "Total events matching the filter.",
             "example": 7,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
+      "PaginatedManagedFilesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ManagedFileResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 20,
+            "type": "number"
+          },
+          "total": {
+            "example": 1,
             "type": "number"
           }
         },
@@ -1254,6 +1373,73 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UploadFormResponse": {
+        "properties": {
+          "fields": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "One-use, short-lived form fields for direct object storage upload. Do not persist them.",
+            "type": "object"
+          },
+          "url": {
+            "example": "http://localhost:9000/event-platform-files",
+            "type": "string"
+          }
+        },
+        "required": ["url", "fields"],
+        "type": "object"
+      },
+      "UploadIntentResponse": {
+        "properties": {
+          "availableAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "filename": {
+            "example": "call-sheet.pdf",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "intentExpiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "mediaType": {
+            "example": "application/pdf",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "example": 1048576,
+            "type": "number"
+          },
+          "state": {
+            "example": "available",
+            "type": "string"
+          },
+          "upload": {
+            "$ref": "#/components/schemas/UploadFormResponse"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "mediaType",
+          "sizeBytes",
+          "state",
+          "createdAt",
+          "intentExpiresAt",
+          "upload"
+        ],
         "type": "object"
       },
       "UserResponse": {
@@ -2703,6 +2889,413 @@
         "tags": ["Event management"]
       }
     },
+    "/api/v1/events/{eventId}/files": {
+      "get": {
+        "operationId": "FileManagement_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "eventId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedManagedFilesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List available files attached to an event",
+        "tags": ["Managed files"]
+      }
+    },
+    "/api/v1/events/{eventId}/files/upload-intents": {
+      "post": {
+        "operationId": "FileManagement_createUploadIntent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "eventId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadIntentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadIntentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid filename or upload declaration"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a 10-minute direct-upload grant for an event file",
+        "tags": ["Managed files"]
+      }
+    },
+    "/api/v1/events/{eventId}/files/{fileId}": {
+      "delete": {
+        "operationId": "FileManagement_remove_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "eventId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "File detached"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No available file exists for this event"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Detach an event file and begin its 30-day retention window",
+        "tags": ["Managed files"]
+      }
+    },
+    "/api/v1/events/{eventId}/files/{fileId}/download": {
+      "get": {
+        "operationId": "FileManagement_download_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "eventId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadGrantResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No available file exists for this event"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Issue a five-minute private download grant for an event file",
+        "tags": ["Managed files"]
+      }
+    },
+    "/api/v1/events/{eventId}/files/{fileId}/finalize": {
+      "post": {
+        "operationId": "FileManagement_finalize_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "eventId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedFileResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event or upload intent not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Intent expired, upload missing, unsafe, or already finalized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "File scanner unavailable"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Verify, scan, and attach a completed direct upload",
+        "tags": ["Managed files"]
+      }
+    },
     "/api/v1/events/{id}": {
       "delete": {
         "operationId": "Events_remove_v1",
@@ -2749,6 +3342,16 @@
               }
             },
             "description": "Event not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The event has pending or attached managed files"
           }
         },
         "security": [
