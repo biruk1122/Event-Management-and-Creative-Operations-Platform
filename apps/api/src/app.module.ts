@@ -11,6 +11,7 @@ import { DepartmentsModule } from "./departments/departments.module.js";
 import { EventsModule } from "./events/events.module.js";
 import { FileManagementModule } from "./file-management/file-management.module.js";
 import { HealthModule } from "./health/health.module.js";
+import { ProjectsModule } from "./projects/projects.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
 import { TeamsModule } from "./teams/teams.module.js";
 import { UsersModule } from "./users/users.module.js";
@@ -52,6 +53,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     TeamsModule,
     WorkspacesModule,
     EventsModule,
+    ProjectsModule,
     FileManagementModule,
   ],
 })

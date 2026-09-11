@@ -49,6 +49,19 @@
         "required": ["managerId"],
         "type": "object"
       },
+      "AssignProjectManagerDto": {
+        "properties": {
+          "managerId": {
+            "description": "The user to set as the project manager on the connected workspace, or null to clear it.",
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["managerId"],
+        "type": "object"
+      },
       "AssignTeamManagerDto": {
         "properties": {
           "managerId": {
@@ -189,6 +202,44 @@
           }
         },
         "required": ["name", "eventType"],
+        "type": "object"
+      },
+      "CreateProjectDto": {
+        "properties": {
+          "description": {
+            "example": "Redesign the visual identity.",
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "endAt": {
+            "description": "UTC end.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "eventId": {
+            "description": "The event this project optionally relates to. A soft cross-reference, not ownership.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "managerId": {
+            "description": "Assign this user as the project manager on the connected workspace at creation.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "example": "Brand Refresh",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "startAt": {
+            "description": "UTC start. If both ends are given, the end may not precede it.",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": ["name"],
         "type": "object"
       },
       "CreateRoleDto": {
@@ -816,6 +867,32 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedProjectsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "description": "1-based page number.",
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "description": "Total projects matching the filter.",
+            "example": 7,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
       "PaginatedTeamsResponse": {
         "properties": {
           "items": {
@@ -952,6 +1029,152 @@
           "code",
           "requestId"
         ],
+        "type": "object"
+      },
+      "ProjectPersonSummary": {
+        "properties": {
+          "email": {
+            "example": "dana.okafor@example.com",
+            "format": "email",
+            "type": "string"
+          },
+          "firstName": {
+            "example": "Dana",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "example": "Okafor",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["id", "email", "firstName", "lastName"],
+        "type": "object"
+      },
+      "ProjectResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProjectPersonSummary"
+              }
+            ],
+            "description": "The user who created the project; null once that user is gone.",
+            "nullable": true,
+            "type": "object"
+          },
+          "description": {
+            "example": "Redesign the visual identity.",
+            "nullable": true,
+            "type": "string"
+          },
+          "endAt": {
+            "description": "UTC end. Never before the start when both are set.",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "eventId": {
+            "description": "The event this project optionally relates to. A soft cross-reference, not ownership.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "type": "string"
+          },
+          "manager": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProjectPersonSummary"
+              }
+            ],
+            "description": "The project manager, from the connected workspace.",
+            "nullable": true,
+            "type": "object"
+          },
+          "name": {
+            "example": "Brand Refresh",
+            "type": "string"
+          },
+          "participants": {
+            "description": "Employees assigned to this project individually, from the connected workspace.",
+            "items": {
+              "$ref": "#/components/schemas/ProjectPersonSummary"
+            },
+            "type": "array"
+          },
+          "startAt": {
+            "description": "UTC start. Null while the project is not yet scheduled.",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "description": "Current lifecycle state.",
+            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "type": "string"
+          },
+          "teams": {
+            "description": "Teams assigned to this project, from the connected workspace.",
+            "items": {
+              "$ref": "#/components/schemas/ProjectTeamSummary"
+            },
+            "type": "array"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "workspaceId": {
+            "description": "The connected workspace that anchors this project's manager, teams, and participants.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspaceId",
+          "name",
+          "description",
+          "status",
+          "startAt",
+          "endAt",
+          "eventId",
+          "manager",
+          "teams",
+          "participants",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ProjectTeamSummary": {
+        "properties": {
+          "id": {
+            "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "example": "Production Team",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
         "type": "object"
       },
       "ReadinessChecks": {
@@ -1243,6 +1466,17 @@
         "required": ["status"],
         "type": "object"
       },
+      "TransitionProjectDto": {
+        "properties": {
+          "status": {
+            "description": "The lifecycle state to move to. Must be reachable from the current state under the approved graph.",
+            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "type": "string"
+          }
+        },
+        "required": ["status"],
+        "type": "object"
+      },
       "UpdateDepartmentDto": {
         "properties": {
           "description": {
@@ -1300,6 +1534,38 @@
             "maxLength": 200,
             "minLength": 1,
             "nullable": true,
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateProjectDto": {
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "nullable": true,
+            "type": "string"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "eventId": {
+            "description": "The event this project optionally relates to, or null to clear it.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
             "type": "string"
           },
           "startAt": {
@@ -4010,6 +4276,735 @@
         ],
         "summary": "List the fixed permission catalog",
         "tags": ["Roles and permissions"]
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "operationId": "Projects_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Restrict to projects that relate to this event.",
+            "in": "query",
+            "name": "eventId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Restrict to projects whose connected workspace this user manages.",
+            "in": "query",
+            "name": "managerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Case-insensitive match against the project name.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only projects that start at or after this UTC instant.",
+            "in": "query",
+            "name": "startingAfter",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only projects that start at or before this UTC instant.",
+            "in": "query",
+            "name": "startingBefore",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedProjectsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List projects the caller may see, with filters",
+        "tags": ["General project management"]
+      },
+      "post": {
+        "operationId": "Projects_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProjectDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The requested manager user, or the related event, does not exist"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a project and its connected workspace",
+        "tags": ["General project management"]
+      }
+    },
+    "/api/v1/projects/{id}": {
+      "delete": {
+        "operationId": "Projects_remove_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The project was removed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The project has pending or attached managed files"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Remove a project and its connected workspace",
+        "tags": ["General project management"]
+      },
+      "get": {
+        "operationId": "Projects_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Project not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get one project with its connected workspace overview",
+        "tags": ["General project management"]
+      },
+      "patch": {
+        "operationId": "Projects_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProjectDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Project not found, or the related event does not exist"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Update project details (not status, manager, or teams)",
+        "tags": ["General project management"]
+      }
+    },
+    "/api/v1/projects/{id}/manager": {
+      "put": {
+        "operationId": "Projects_setManager_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignProjectManagerDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The project or the requested manager user does not exist"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Set, change, or clear the project manager",
+        "tags": ["General project management"]
+      }
+    },
+    "/api/v1/projects/{id}/teams/{teamId}": {
+      "delete": {
+        "operationId": "Projects_unassignTeam_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "teamId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "That team is not assigned to this project"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Unassign a team from this project",
+        "tags": ["General project management"]
+      },
+      "put": {
+        "operationId": "Projects_assignTeam_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "teamId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The project or the team does not exist"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Assign a team to this project (idempotent)",
+        "tags": ["General project management"]
+      }
+    },
+    "/api/v1/projects/{id}/transition": {
+      "post": {
+        "operationId": "Projects_transition_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionProjectDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "That transition is not allowed from the current state"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Move a project to another lifecycle state",
+        "tags": ["General project management"]
       }
     },
     "/api/v1/roles": {
