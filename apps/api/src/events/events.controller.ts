@@ -255,6 +255,10 @@ export class EventsController {
   @RequirePermissions("event.delete")
   @ApiOperation({ summary: "Remove an event and its connected workspace" })
   @ApiNoContentResponse({ description: "The event was removed" })
+  @ApiConflictResponse({
+    type: ProblemDetails,
+    description: "The event has pending or attached managed files",
+  })
   @ApiNotFoundResponse({ type: ProblemDetails, description: "Event not found" })
   async remove(
     @Req() request: RequestWithContext,

@@ -9,6 +9,7 @@ import { EnvironmentModule } from "./config/environment.module.js";
 import { DatabaseModule } from "./database/database.module.js";
 import { DepartmentsModule } from "./departments/departments.module.js";
 import { EventsModule } from "./events/events.module.js";
+import { FileManagementModule } from "./file-management/file-management.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
 import { TeamsModule } from "./teams/teams.module.js";
@@ -51,6 +52,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     TeamsModule,
     WorkspacesModule,
     EventsModule,
+    FileManagementModule,
   ],
 })
 export class AppModule {}

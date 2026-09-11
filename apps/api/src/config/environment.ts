@@ -46,6 +46,21 @@ const environmentSchema = z.object({
     .default(300_000),
   AUTH_COOKIE_SECURE: booleanFromString.default(false),
   AUTH_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+  // Storage credentials are server-only. The defaults are deliberately the
+  // local MinIO development service; production must supply real values.
+  FILE_STORAGE_ENDPOINT: z.url().default("http://localhost:9000"),
+  FILE_STORAGE_REGION: z.string().min(1).default("us-east-1"),
+  FILE_STORAGE_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+    .default("event-platform-files"),
+  FILE_STORAGE_ACCESS_KEY: z.string().min(3).default("minioadmin"),
+  FILE_STORAGE_SECRET_KEY: z.string().min(8).default("minioadmin"),
+  FILE_STORAGE_FORCE_PATH_STYLE: booleanFromString.default(true),
+  // The development scanner is explicitly not a production fallback. An
+  // unavailable scanner rejects finalization safely until an approved
+  // production scanner adapter is configured.
+  FILE_SCANNER_MODE: z.enum(["test", "unavailable"]).default("test"),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
