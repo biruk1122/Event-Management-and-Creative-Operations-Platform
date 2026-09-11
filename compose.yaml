@@ -43,14 +43,13 @@ services:
   minio-init:
     image: minio/mc:RELEASE.2025-08-13T08-35-41Z
     restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
     environment:
       FILE_STORAGE_ACCESS_KEY: ${FILE_STORAGE_ACCESS_KEY:-minioadmin}
       FILE_STORAGE_BUCKET: ${FILE_STORAGE_BUCKET:-event-platform-files}
       FILE_STORAGE_SECRET_KEY: ${FILE_STORAGE_SECRET_KEY:-minioadmin}
     command:
       [
-        "sh",
-        "-c",
         'mc alias set local http://minio:9000 "$$FILE_STORAGE_ACCESS_KEY" "$$FILE_STORAGE_SECRET_KEY" && mc mb --ignore-existing local/"$$FILE_STORAGE_BUCKET"',
       ]
     depends_on:
