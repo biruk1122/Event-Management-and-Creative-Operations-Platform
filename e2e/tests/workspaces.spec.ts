@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
-import { authStatePath } from "../fixtures/auth.js";
+import { authStatePath, signInThroughUi } from "../fixtures/auth.js";
 import { queryInSchema } from "../fixtures/database.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
 import { fixtureName } from "../fixtures/test-data.js";
+import { testUser } from "../fixtures/test-users.js";
 
 function runDatabaseUrl(): string {
   const url = process.env.DATABASE_URL;
@@ -277,11 +278,15 @@ test.describe("Connected workspace ownership — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    test.use({ storageState: authStatePath("member") });
+    const member = testUser("member");
 
     test("a team member cannot see or create an event workspace", async ({
       page,
     }) => {
+      // auth-session.spec intentionally signs this account out. Sign in again
+      // here so this journey continues to prove the Team Member boundary.
+      await signInThroughUi(page, member);
+
       await page.goto("/");
       await expect(page.getByRole("link", { name: "Workspaces" })).toHaveCount(
         0,
