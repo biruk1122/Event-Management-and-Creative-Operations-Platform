@@ -404,6 +404,95 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/projects": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List projects the caller may see, with filters */
+    get: operations["Projects_list_v1"];
+    put?: never;
+    /** Create a project and its connected workspace */
+    post: operations["Projects_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one project with its connected workspace overview */
+    get: operations["Projects_get_v1"];
+    put?: never;
+    post?: never;
+    /** Remove a project and its connected workspace */
+    delete: operations["Projects_remove_v1"];
+    options?: never;
+    head?: never;
+    /** Update project details (not status, manager, or teams) */
+    patch: operations["Projects_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/projects/{id}/manager": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Set, change, or clear the project manager */
+    put: operations["Projects_setManager_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{id}/teams/{teamId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Assign a team to this project (idempotent) */
+    put: operations["Projects_assignTeam_v1"];
+    post?: never;
+    /** Unassign a team from this project */
+    delete: operations["Projects_unassignTeam_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/projects/{id}/transition": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Move a project to another lifecycle state */
+    post: operations["Projects_transition_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/roles": {
     parameters: {
       query?: never;
@@ -826,6 +915,14 @@ export interface components {
        */
       managerId: string | null;
     };
+    AssignProjectManagerDto: {
+      /**
+       * Format: uuid
+       * @description The user to set as the project manager on the connected workspace, or null to clear it.
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      managerId: string | null;
+    };
     AssignTeamManagerDto: {
       /**
        * Format: uuid
@@ -910,6 +1007,32 @@ export interface components {
        * @example City Arts Council
        */
       organizerName?: string;
+      /**
+       * Format: date-time
+       * @description UTC start. If both ends are given, the end may not precede it.
+       */
+      startAt?: string;
+    };
+    CreateProjectDto: {
+      /** @example Redesign the visual identity. */
+      description?: string;
+      /**
+       * Format: date-time
+       * @description UTC end.
+       */
+      endAt?: string;
+      /**
+       * Format: uuid
+       * @description The event this project optionally relates to. A soft cross-reference, not ownership.
+       */
+      eventId?: string;
+      /**
+       * Format: uuid
+       * @description Assign this user as the project manager on the connected workspace at creation.
+       */
+      managerId?: string;
+      /** @example Brand Refresh */
+      name: string;
       /**
        * Format: date-time
        * @description UTC start. If both ends are given, the end may not precede it.
@@ -1238,6 +1361,21 @@ export interface components {
       /** @example 1 */
       total: number;
     };
+    PaginatedProjectsResponse: {
+      items: components["schemas"]["ProjectResponse"][];
+      /**
+       * @description 1-based page number.
+       * @example 1
+       */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /**
+       * @description Total projects matching the filter.
+       * @example 7
+       */
+      total: number;
+    };
     PaginatedTeamsResponse: {
       items: components["schemas"]["TeamResponse"][];
       /**
@@ -1306,6 +1444,79 @@ export interface components {
       title: string;
       /** @example https://api.event-platform.local/problems/validation_error */
       type: string;
+    };
+    ProjectPersonSummary: {
+      /**
+       * Format: email
+       * @example dana.okafor@example.com
+       */
+      email: string;
+      /** @example Dana */
+      firstName: string | null;
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /** @example Okafor */
+      lastName: string | null;
+    };
+    ProjectResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      /** @description The user who created the project; null once that user is gone. */
+      createdBy: components["schemas"]["ProjectPersonSummary"] | null;
+      /** @example Redesign the visual identity. */
+      description: string | null;
+      /**
+       * Format: date-time
+       * @description UTC end. Never before the start when both are set.
+       */
+      endAt: string | null;
+      /**
+       * Format: uuid
+       * @description The event this project optionally relates to. A soft cross-reference, not ownership.
+       */
+      eventId: string | null;
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /** @description The project manager, from the connected workspace. */
+      manager: components["schemas"]["ProjectPersonSummary"] | null;
+      /** @example Brand Refresh */
+      name: string;
+      /** @description Employees assigned to this project individually, from the connected workspace. */
+      participants: components["schemas"]["ProjectPersonSummary"][];
+      /**
+       * Format: date-time
+       * @description UTC start. Null while the project is not yet scheduled.
+       */
+      startAt: string | null;
+      /**
+       * @description Current lifecycle state.
+       * @enum {string}
+       */
+      status: "PLANNED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+      /** @description Teams assigned to this project, from the connected workspace. */
+      teams: components["schemas"]["ProjectTeamSummary"][];
+      /** Format: date-time */
+      updatedAt: string;
+      /**
+       * Format: uuid
+       * @description The connected workspace that anchors this project's manager, teams, and participants.
+       */
+      workspaceId: string;
+    };
+    ProjectTeamSummary: {
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /** @example Production Team */
+      name: string;
     };
     ReadinessChecks: {
       /**
@@ -1455,6 +1666,13 @@ export interface components {
        */
       status: "PLANNING" | "READY" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
     };
+    TransitionProjectDto: {
+      /**
+       * @description The lifecycle state to move to. Must be reachable from the current state under the approved graph.
+       * @enum {string}
+       */
+      status: "PLANNED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+    };
     UpdateDepartmentDto: {
       /** @example Owns planning and delivery for all events. */
       description?: string;
@@ -1477,6 +1695,19 @@ export interface components {
       location?: string | null;
       name?: string;
       organizerName?: string | null;
+      /** Format: date-time */
+      startAt?: string | null;
+    };
+    UpdateProjectDto: {
+      description?: string | null;
+      /** Format: date-time */
+      endAt?: string | null;
+      /**
+       * Format: uuid
+       * @description The event this project optionally relates to, or null to clear it.
+       */
+      eventId?: string | null;
+      name?: string;
       /** Format: date-time */
       startAt?: string | null;
     };
@@ -3264,6 +3495,483 @@ export interface operations {
       };
       /** @description Missing permission */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Projects_list_v1: {
+    parameters: {
+      query?: {
+        status?: "PLANNED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+        /** @description Restrict to projects that relate to this event. */
+        eventId?: string;
+        /** @description Restrict to projects whose connected workspace this user manages. */
+        managerId?: string;
+        /** @description Case-insensitive match against the project name. */
+        search?: string;
+        /** @description Only projects that start at or after this UTC instant. */
+        startingAfter?: string;
+        /** @description Only projects that start at or before this UTC instant. */
+        startingBefore?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedProjectsResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Projects_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateProjectDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The requested manager user, or the related event, does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Projects_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Project not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Projects_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The project was removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Project not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The project has pending or attached managed files */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Projects_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateProjectDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Project not found, or the related event does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Projects_setManager_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignProjectManagerDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The project or the requested manager user does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Projects_assignTeam_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        teamId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The project or the team does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Projects_unassignTeam_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        teamId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Project not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description That team is not assigned to this project */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Projects_transition_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TransitionProjectDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProjectResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Project not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description That transition is not allowed from the current state */
+      409: {
         headers: {
           [name: string]: unknown;
         };
