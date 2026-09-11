@@ -66,6 +66,7 @@ model User {
   managedWorkspaces        Workspace[]               @relation("WorkspaceManager")
   workspaceParticipations  WorkspaceParticipant[]
   createdEvents            Event[]                   @relation("EventCreatedBy")
+  createdProjects          Project[]                 @relation("ProjectCreatedBy")
   initiatedManagedFiles    ManagedFile[]             @relation("ManagedFileInitiator")
   workspaceFileAttachments WorkspaceFileAttachment[] @relation("WorkspaceFileAttachedBy")
 
@@ -375,8 +376,10 @@ model Workspace {
   participants    WorkspaceParticipant[]
   fileAttachments WorkspaceFileAttachment[]
   /// The one module record that owns this workspace, when its `kind` is
-  /// `EVENT`. Later epics add the equivalent inverse for project and campaign.
+  /// `EVENT` or `PROJECT`. Later epics add the equivalent inverse for
+  /// production and campaign.
   event           Event?
+  project         Project?
 
   // "Workspaces of kind X" and "workspaces a user manages" are the two root
   // access patterns.
@@ -592,6 +595,10 @@ model Event {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   createdBy User?     @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  /// General projects that optionally relate to this event (PRJ-01). A soft,
+  /// unbounded cross-reference between peers, not ownership - deleting the
+  /// event clears it on each project rather than being blocked.
+  projects  Project[]
 
   // Administration and the connected-workspace overview filter events by
   // lifecycle state, type, schedule, and author.
@@ -600,4 +607,84 @@ model Event {
   @@index([startAt])
   @@index([createdById])
   @@map("events")
+}
+
+/// The general-project lifecycle state (SRS 9; product vocabulary "General
+/// project"). `PLANNED` is the initial state; `COMPLETED` and `CANCELLED` are
+/// terminal. The approved transition graph is `Planned -> Active | Cancelled`,
+/// `Active -> Completed | Cancelled` - the same shape as `EventStatus`. Entry
+/// criteria for `ACTIVE`/`COMPLETED`, who may make each move, and whether a
+/// terminal project can be reopened are open in OD-03 and enforced by PRJ-02
+/// in the domain layer - a CHECK cannot express a state machine.
+enum ProjectStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+
+  @@map("project_status")
+}
+
+/// One general project (SRS 9; product vocabulary "Project" / "General
+/// project"). Production Management's specialized projects are a distinct
+/// model owned by the PRD epic (workspace `kind = PRODUCTION`); this table
+/// never carries a type discriminator because its workspace is always
+/// `kind = PROJECT`, the same reasoning that keeps `Event` discriminator-free.
+///
+/// The shared operational context - the project manager, the assigned teams,
+/// and the assigned employees - lives on the project's connected `Workspace`
+/// (WSP-01), not here: `workspace.manager_id` is the project manager,
+/// `workspace_teams` the assigned teams, and `workspace_participants` the
+/// assigned employees. This model carries only the project-specific
+/// attributes plus the one-to-one link back to that workspace.
+///
+/// `workspace_id` is required and unique: every project owns exactly one
+/// workspace, created with it and always of `kind = PROJECT` (PRJ-02 sets
+/// that pairing; a plain foreign key cannot cross-check the discriminator).
+/// The FK is `ON DELETE RESTRICT` so a workspace a project still owns cannot
+/// be dropped out from under it; PRJ-02's delete path removes the project and
+/// then its workspace in one transaction.
+///
+/// `event_id` is the optional relationship to an event the product vocabulary
+/// describes ("Project"): a soft, unbounded cross-reference between peers,
+/// `ON DELETE SET NULL` because it is not an ownership relationship. The
+/// equally-described optional relationship to a campaign is deferred until
+/// Campaign Management (CAM-01) provides a `campaigns` table to reference.
+///
+/// Progress is deliberately **not** a stored column: OD-03 leaves how it is
+/// calculated open, and the issue requires it to be computed from
+/// authoritative work (tasks) rather than held as redundant, staleness-prone
+/// data. It is added once Task Management provides the source to compute it
+/// from. Budget is out of scope for general projects per the PRJ epic's
+/// stated scope (unlike events, which do carry one).
+model Project {
+  id          String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  workspaceId String        @unique @map("workspace_id") @db.Uuid
+  name        String
+  description String?
+  /// UTC start / end of the project. Nullable: a `PLANNED` project may not be
+  /// scheduled yet. A CHECK keeps `end_at` at or after `start_at` when both
+  /// are set. Display time zones and all-day handling are open in OD-15;
+  /// storage stays UTC.
+  startAt     DateTime?     @map("start_at") @db.Timestamptz(6)
+  endAt       DateTime?     @map("end_at") @db.Timestamptz(6)
+  status      ProjectStatus @default(PLANNED)
+  eventId     String?       @map("event_id") @db.Uuid
+  /// The user who created the project; cleared, not cascaded, if that user
+  /// row is removed.
+  createdById String?       @map("created_by_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy User?     @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  // Administration and the connected-workspace overview filter projects by
+  // lifecycle state, related event, schedule, and author.
+  @@index([status])
+  @@index([eventId])
+  @@index([startAt])
+  @@index([createdById])
+  @@map("projects")
 }
