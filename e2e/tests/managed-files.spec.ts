@@ -74,13 +74,14 @@ test.describe("Secure event-file management — end to end", () => {
         mimeType: "text/plain",
         buffer: bytes,
       });
-      await expect(detail.getByText(filename, { exact: true })).toBeVisible();
+      const attachButton = detail.getByRole("button", { name: "Attach file" });
+      await expect(attachButton).toBeEnabled();
       const uploadResponse = page.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
           new URL(response.url()).port === "9000",
       );
-      await detail.getByRole("button", { name: "Attach file" }).click();
+      await attachButton.click();
       expect((await uploadResponse).ok()).toBe(true);
       await expect(detail.getByText(filename, { exact: true })).toBeVisible();
       await expect(
