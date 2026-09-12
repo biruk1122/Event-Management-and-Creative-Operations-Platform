@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EventFilesPanel } from "@/features/files";
 import {
   Select,
   SelectContent,
@@ -706,6 +707,8 @@ function EventDetailBody({
           </>
         )}
       </section>
+
+      <EventFilesPanel eventId={event.id} canRead canUpdate={canUpdate} />
 
       {/* Danger zone */}
       {canDelete ? (
