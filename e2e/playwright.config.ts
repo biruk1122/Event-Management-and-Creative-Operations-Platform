@@ -27,6 +27,11 @@ const { databaseUrl } = JSON.parse(
   readFileSync(datasourceMarkerPath(), "utf8"),
 ) as { databaseUrl: string };
 const sharedEnv = { ...serverEnv(), DATABASE_URL: databaseUrl };
+// The web server is a production build, while the API needs the explicitly
+// test-only scanner to exercise a real direct-upload/finalize workflow. The
+// production API never falls back to this scanner (see FileManagementModule).
+const apiEnv = { ...sharedEnv, FILE_SCANNER_MODE: "test", NODE_ENV: "test" };
+const webEnv = { ...sharedEnv, NODE_ENV: "production" };
 
 export default defineConfig({
   testDir: "./tests",
@@ -78,7 +83,7 @@ export default defineConfig({
       reuseExistingServer: !isCI && !isManagedRun,
       stdout: "pipe",
       stderr: "pipe",
-      env: sharedEnv,
+      env: apiEnv,
     },
     {
       command: `pnpm --filter @event-platform/web build && pnpm --filter @event-platform/web exec next start --hostname 127.0.0.1 --port ${webPort}`,
@@ -88,7 +93,7 @@ export default defineConfig({
       reuseExistingServer: !isCI && !isManagedRun,
       stdout: "pipe",
       stderr: "pipe",
-      env: sharedEnv,
+      env: webEnv,
     },
   ],
   metadata: { apiBaseUrl },
