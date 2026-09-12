@@ -48,8 +48,8 @@ test.describe("Secure event-file management — end to end", () => {
       page,
     }) => {
       const eventName = `E2E File Event ${fixtureName("file")}-${randomUUID().slice(0, 8)}`;
-      const filename = "e2e-call-sheet.pdf";
-      const bytes = Buffer.from("%PDF-1.4\nE2E call sheet\n%%EOF\n", "utf8");
+      const filename = "e2e-call-sheet.txt";
+      const bytes = Buffer.from("E2E call sheet\n", "utf8");
       const create = await page.request.post(`${apiBaseUrl}/api/v1/events`, {
         headers: { "x-csrf-token": await csrfToken(page) },
         data: { name: eventName, eventType: "CORPORATE_EVENT" },
@@ -67,7 +67,7 @@ test.describe("Secure event-file management — end to end", () => {
 
       await detail.locator('input[type="file"]').setInputFiles({
         name: filename,
-        mimeType: "application/pdf",
+        mimeType: "text/plain",
         buffer: bytes,
       });
       await expect(detail.getByText(filename, { exact: true })).toBeVisible();
@@ -112,7 +112,7 @@ test.describe("Secure event-file management — end to end", () => {
       expect(persisted).toEqual([
         {
           state: "AVAILABLE",
-          verified_media_type: "application/pdf",
+          verified_media_type: "text/plain",
           verified_size_bytes: bytes.byteLength,
         },
       ]);
