@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import {
   Download,
   LoaderCircle,
@@ -47,7 +47,7 @@ export function EventFilesPanel({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const load = async () => {
+  const load = useCallback(async () => {
     setError(null);
     setFiles(null);
     try {
@@ -55,10 +55,10 @@ export function EventFilesPanel({
     } catch {
       setError("We could not load files. Try again.");
     }
-  };
+  }, [eventId, listFiles]);
   useEffect(() => {
-    void load();
-  }, [eventId]);
+    void Promise.resolve().then(load);
+  }, [load]);
   if (!canRead)
     return (
       <section className="border-border space-y-2 border-t pt-4">
