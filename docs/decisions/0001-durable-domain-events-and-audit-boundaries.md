@@ -257,16 +257,16 @@ canonical export audit action. This decision does not authorize those features.
 
 ## Open decisions
 
-| ID    | Decision required                                                                                      | Owner           |
-| ----- | ------------------------------------------------------------------------------------------------------ | --------------- |
-| AD-01 | Audit retention period, archival, and deletion policy.                                                 | EVE-184         |
-| AD-02 | Audit tamper evidence: restricted privileges, append-only triggers, or a hash chain.                   | EVE-184         |
-| AD-03 | Outbox cadence, batch size, claim strategy, backoff intervals, and failed-event alerting.              | EVE-99 / ops    |
-| AD-04 | Multi-replica trigger: the replica count and delivery need that justifies the Socket.IO Redis adapter. | EVE-99          |
-| AD-05 | Which managed-file accesses are sensitive enough to audit `managed_file.downloaded`.                   | EVE-36 (EN-08)  |
-| AD-06 | Audit read access for roles beyond Super Admin.                                                        | EVE-32 `PC-05`  |
-| AD-07 | Whether the audit table is owned by a dedicated module or a shared infrastructure schema.              | EVE-184         |
-| AD-08 | Activity-history projection ownership, retention, and approved backfill behavior.                      | EVE-69 / EVE-99 |
+| ID    | Decision required                                                                                      | Owner                                                                                                              |
+| ----- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| AD-01 | Audit retention period, archival, and deletion policy.                                                 | EVE-184                                                                                                            |
+| AD-02 | Audit tamper evidence: restricted privileges, append-only triggers, or a hash chain.                   | EVE-184                                                                                                            |
+| AD-03 | Outbox cadence, batch size, claim strategy, backoff intervals, and failed-event alerting.              | Resolved by [ADR 0004](0004-real-time-contracts-and-persistence-boundaries.md)                                     |
+| AD-04 | Multi-replica trigger: the replica count and delivery need that justifies the Socket.IO Redis adapter. | Resolved by [ADR 0004](0004-real-time-contracts-and-persistence-boundaries.md)                                     |
+| AD-05 | Which managed-file accesses are sensitive enough to audit `managed_file.downloaded`.                   | EVE-36 (EN-08)                                                                                                     |
+| AD-06 | Audit read access for roles beyond Super Admin.                                                        | EVE-32 `PC-05`                                                                                                     |
+| AD-07 | Whether the audit table is owned by a dedicated module or a shared infrastructure schema.              | EVE-184                                                                                                            |
+| AD-08 | Activity-history projection ownership, retention, and approved backfill behavior.                      | Reassigned by [ADR 0004](0004-real-time-contracts-and-persistence-boundaries.md): the activity-history-owning epic |
 
 ## References
 
