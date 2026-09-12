@@ -65,11 +65,15 @@ test.describe("Secure event-file management — end to end", () => {
       ).toBeVisible();
       await expectNoWcag22AaViolations(page, "event file dialog");
 
-      await detail.locator('input[type="file"]').setInputFiles({
+      const fileInput = detail.locator('input[type="file"]');
+      await fileInput.setInputFiles({
         name: filename,
         mimeType: "text/plain",
         buffer: bytes,
       });
+      // Chromium's synthetic file setter does not consistently notify this
+      // controlled React input in CI; dispatch the native change explicitly.
+      await fileInput.dispatchEvent("change");
       await expect(detail.getByText(filename, { exact: true })).toBeVisible();
       const uploadResponse = page.waitForResponse(
         (response) =>
