@@ -65,7 +65,7 @@ test.describe("Secure event-file management — end to end", () => {
       ).toBeVisible();
       await expectNoWcag22AaViolations(page, "event file dialog");
 
-      await detail.getByLabel("Add a file").setInputFiles({
+      await detail.locator('input[type="file"]').setInputFiles({
         name: filename,
         mimeType: "application/pdf",
         buffer: bytes,
@@ -143,9 +143,11 @@ test.describe("Secure event-file management — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    test.use({ storageState: authStatePath("member") });
+    // Existing event E2E coverage proves this role is authenticated while its
+    // department-scoped grant cannot read organization-scoped events.
+    test.use({ storageState: authStatePath("deptManager") });
 
-    test("a team member cannot discover or create attachments for an event", async ({
+    test("a department-scoped user cannot discover or create attachments for an event", async ({
       page,
     }) => {
       const owner = await request.newContext({
@@ -166,7 +168,9 @@ test.describe("Secure event-file management — end to end", () => {
         eventId = ((await create.json()) as ApiEvent).id;
 
         await page.goto("/events");
-        await expect(page).toHaveURL(/\/login\?next=%2Fevents$/);
+        await expect(
+          page.getByText("You do not have access to this area."),
+        ).toBeVisible();
 
         const list = await page.request.get(
           `${apiBaseUrl}/api/v1/events/${eventId}/files`,
