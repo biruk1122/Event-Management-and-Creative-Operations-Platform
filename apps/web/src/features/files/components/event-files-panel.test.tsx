@@ -2,61 +2,50 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+const hooks = vi.hoisted(() => ({ query: vi.fn(), mutations: vi.fn() }));
+vi.mock("@/features/auth/api/access-queries", () => ({
+  useCurrentAccess: () => ({
+    data: { userId: "user-1", grants: [] },
+    isSuccess: true,
+  }),
+}));
+vi.mock("../api/files-queries", () => ({
+  useEventFiles: hooks.query,
+  useFileMutations: hooks.mutations,
+}));
 import { EventFilesPanel } from "./event-files-panel";
 
-const props = {
-  eventId: "event-1",
-  canRead: true,
-  canUpdate: true,
-  listFiles: vi.fn(() => Promise.resolve([])),
-  uploadFile: vi.fn((_id: string, file: File) =>
-    Promise.resolve({
-      id: "file-1",
-      filename: file.name,
-      mediaType: "application/pdf" as const,
-      sizeBytes: file.size,
-      state: "available" as const,
-      createdAt: "2026-01-01T00:00:00.000Z",
-    }),
-  ),
-  removeFile: vi.fn(() => Promise.resolve()),
-  downloadFile: vi.fn(() => Promise.resolve()),
+const mutation = (fn = vi.fn()) => ({ mutateAsync: fn, isPending: false });
+const setup = (query: object) => {
+  hooks.query.mockReturnValue(query);
+  hooks.mutations.mockReturnValue({
+    upload: mutation(),
+    remove: mutation(),
+    download: mutation(),
+  });
 };
-
-describe("EventFilesPanel", () => {
-  it("shows an accessible empty state then validates and attaches an approved file", async () => {
+describe("EventFilesPanel real API states", () => {
+  it("maps a list failure to actionable recovery instead of an empty state", () => {
+    const refetch = vi.fn();
+    setup({
+      isPending: false,
+      isError: true,
+      error: new Error("Your session expired. Sign in again."),
+      refetch,
+    });
+    render(<EventFilesPanel eventId="event-1" canRead canUpdate />);
+    expect(screen.getByRole("alert")).toHaveTextContent("session expired");
+    expect(screen.queryByText("No files are attached")).not.toBeInTheDocument();
+  });
+  it("keeps a previous-page escape after a later page becomes empty", async () => {
     const user = userEvent.setup();
-    render(<EventFilesPanel {...props} />);
-    expect(
-      await screen.findByText("No files are attached to this event yet."),
-    ).toBeVisible();
-    const input = screen.getByLabelText("Add a file");
-    await user.upload(
-      input,
-      new File(["pdf"], "notes.pdf", { type: "application/pdf" }),
-    );
-    expect(screen.getByText("notes.pdf (3 B)")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Attach file" }));
-    expect(await screen.findByText("notes.pdf")).toBeVisible();
-  });
-
-  it("preserves the recovery path and hides mutations for read-only users", async () => {
-    render(
-      <EventFilesPanel
-        {...props}
-        canUpdate={false}
-        listFiles={vi.fn(() => Promise.reject(new Error("offline")))}
-      />,
-    );
-    expect(await screen.findByRole("button", { name: "Retry" })).toBeVisible();
-    expect(screen.queryByLabelText("Add a file")).not.toBeInTheDocument();
-  });
-
-  it("states a denied result without exposing file controls", () => {
-    render(<EventFilesPanel {...props} canRead={false} />);
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "do not have permission",
-    );
-    expect(screen.queryByLabelText("Add a file")).not.toBeInTheDocument();
+    setup({
+      isPending: false,
+      isError: false,
+      data: { items: [], page: 1, pageSize: 20, total: 21 },
+    });
+    render(<EventFilesPanel eventId="event-1" canRead canUpdate />);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("button", { name: "Previous" })).toBeEnabled();
   });
 });

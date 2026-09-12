@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
 // The dialog default-imports read helpers from the gateway, which pulls in the
@@ -127,7 +128,15 @@ function renderDialog(
     onDeleted: vi.fn(),
     ...overrides,
   };
-  render(<EventDetailDialog {...props} />);
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <EventDetailDialog {...props} />
+    </QueryClientProvider>,
+  );
   return props;
 }
 
