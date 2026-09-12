@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import {
   Download,
   LoaderCircle,
@@ -11,12 +11,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  downloadFixtureFile,
-  listFixtureFiles,
-  removeFixtureFile,
-  uploadFixtureFile,
-} from "../api/file-fixtures";
+import { useCurrentAccess } from "@/features/auth/api/access-queries";
+import { useEventFiles, useFileMutations } from "../api/files-queries";
 import {
   ACCEPTED_FILE_TYPES,
   fileSelectionError,
@@ -27,38 +23,33 @@ export type EventFilesPanelProps = {
   eventId: string;
   canRead: boolean;
   canUpdate: boolean;
-  listFiles?: (id: string) => Promise<EventFile[]>;
-  uploadFile?: (id: string, file: File) => Promise<EventFile>;
-  removeFile?: (id: string, fileId: string) => Promise<void>;
-  downloadFile?: (id: string, fileId: string) => Promise<void>;
 };
 export function EventFilesPanel({
   eventId,
   canRead,
   canUpdate,
-  listFiles = listFixtureFiles,
-  uploadFile = uploadFixtureFile,
-  removeFile = removeFixtureFile,
-  downloadFile = downloadFixtureFile,
 }: EventFilesPanelProps) {
   const id = useId();
-  const [files, setFiles] = useState<EventFile[] | null>(null);
+  const access = useCurrentAccess();
+  const queryAccess = access.data ?? { userId: "anonymous", grants: [] };
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const load = useCallback(async () => {
-    setError(null);
-    setFiles(null);
-    try {
-      setFiles(await listFiles(eventId));
-    } catch {
-      setError("We could not load files. Try again.");
-    }
-  }, [eventId, listFiles]);
-  useEffect(() => {
-    void Promise.resolve().then(load);
-  }, [load]);
+  const query = useEventFiles(
+    queryAccess,
+    eventId,
+    page,
+    canRead && access.isSuccess,
+  );
+  const mutations = useFileMutations(queryAccess, eventId);
+  const files = (query.data?.items ?? []) as EventFile[];
+  const queryError = query.error instanceof Error ? query.error.message : null;
+  const displayedError = error ?? (query.isError ? queryError : null);
+  const busy =
+    mutations.upload.isPending ||
+    mutations.remove.isPending ||
+    mutations.download.isPending;
   if (!canRead)
     return (
       <section className="border-border space-y-2 border-t pt-4">
@@ -81,33 +72,30 @@ export function EventFilesPanel({
   };
   const upload = async () => {
     if (!selected) return;
-    setBusy(true);
     setError(null);
     try {
-      const next = await uploadFile(eventId, selected);
-      setFiles((current) => [...(current ?? []), next]);
+      const next = await mutations.upload.mutateAsync(selected);
       setSelected(null);
       setNotice(`${next.filename} is ready to download.`);
-    } catch {
+    } catch (uploadError) {
       setError(
-        "We could not attach that file. Your selection is still available to retry.",
+        uploadError instanceof Error
+          ? uploadError.message
+          : "We could not attach that file. Your selection is still available to retry.",
       );
-    } finally {
-      setBusy(false);
     }
   };
   const remove = async (file: EventFile) => {
-    setBusy(true);
     try {
-      await removeFile(eventId, file.id);
-      setFiles((current) =>
-        (current ?? []).filter((item) => item.id !== file.id),
-      );
+      await mutations.remove.mutateAsync(file.id);
+      if (files.length === 1 && page > 1) setPage((value) => value - 1);
       setNotice(`${file.filename} was removed.`);
-    } catch {
-      setError("We could not remove that file. Try again.");
-    } finally {
-      setBusy(false);
+    } catch (removeError) {
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : "We could not remove that file. Try again.",
+      );
     }
   };
   return (
@@ -123,25 +111,29 @@ export function EventFilesPanel({
           Private attachments are checked before they become available.
         </p>
       </div>
-      {error ? (
+      {displayedError ? (
         <Alert variant="destructive">
           <AlertTitle>File action needs attention</AlertTitle>
           <AlertDescription>
-            {error}{" "}
-            {files === null ? (
-              <Button type="button" variant="link" onClick={() => void load()}>
+            {displayedError}{" "}
+            {query.isError ? (
+              <Button
+                type="button"
+                variant="link"
+                onClick={() => void query.refetch()}
+              >
                 Retry
               </Button>
             ) : null}
           </AlertDescription>
         </Alert>
       ) : null}
-      {files === null ? (
+      {query.isPending ? (
         <p role="status" className="flex gap-2 text-sm">
           <LoaderCircle className="size-4 animate-spin" />
           Loading files...
         </p>
-      ) : files.length === 0 ? (
+      ) : query.isError ? null : files.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           No files are attached to this event yet.
         </p>
@@ -165,15 +157,18 @@ export function EventFilesPanel({
                   variant="outline"
                   disabled={busy}
                   onClick={() =>
-                    void downloadFile(eventId, file.id)
+                    void mutations.download
+                      .mutateAsync(file.id)
                       .then(() =>
                         setNotice(
                           `Your download for ${file.filename} is ready.`,
                         ),
                       )
-                      .catch(() =>
+                      .catch((downloadError) =>
                         setError(
-                          "We could not prepare that download. Try again.",
+                          downloadError instanceof Error
+                            ? downloadError.message
+                            : "We could not prepare that download. Try again.",
                         ),
                       )
                   }
@@ -234,6 +229,28 @@ export function EventFilesPanel({
           You have read-only access to event files.
         </p>
       )}
+      {query.data && (page > 1 || query.data.total > query.data.pageSize) ? (
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={page === 1}
+            onClick={() => setPage((value) => value - 1)}
+          >
+            Previous
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={page * query.data.pageSize >= query.data.total}
+            onClick={() => setPage((value) => value + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      ) : null}
       <p role="status" aria-live="polite" className="sr-only">
         {notice}
       </p>
