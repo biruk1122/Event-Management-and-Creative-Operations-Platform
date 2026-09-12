@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getProject as defaultGetProject } from "../api/get-project";
+import { getProject as defaultGetProject } from "../api/projects-gateway";
 import { ProjectFields, type ProjectFieldValues } from "./project-fields";
 import type {
   AssignProjectManager,
@@ -75,6 +75,11 @@ interface ProjectDetailDialogProps {
   users: readonly AssignableUser[];
   teams: readonly AssignableTeam[];
   events: readonly AssignableEvent[];
+  canUpdate: boolean;
+  canTransition: boolean;
+  /** Manager and team assignment share a single `project.assign` key. */
+  canAssign: boolean;
+  canDelete: boolean;
   getProject?: GetProject;
   onUpdate: UpdateProject;
   onTransition: TransitionProject;
@@ -123,6 +128,10 @@ function ProjectDetailBody({
   users,
   teams,
   events,
+  canUpdate,
+  canTransition,
+  canAssign,
+  canDelete,
   getProject = defaultGetProject,
   onUpdate,
   onTransition,
@@ -204,7 +213,7 @@ function ProjectDetailBody({
   }
 
   async function saveDetails() {
-    if (!project || !fields) return;
+    if (!project || !fields || !canUpdate) return;
     const localErrors: Partial<Record<keyof ProjectFieldValues, string>> = {};
     if (fields.name.trim() === "") localErrors.name = "Enter a name.";
     if (
@@ -366,7 +375,7 @@ function ProjectDetailBody({
         <ProjectFields
           values={fields}
           errors={fieldErrors}
-          disabled={detailsBusy}
+          disabled={detailsBusy || !canUpdate}
           events={events}
           onChange={setField}
         />
@@ -375,14 +384,20 @@ function ProjectDetailBody({
             {detailsError}
           </p>
         ) : null}
-        <Button
-          type="submit"
-          size="sm"
-          disabled={detailsBusy}
-          aria-busy={detailsBusy}
-        >
-          {detailsBusy ? "Saving…" : "Save details"}
-        </Button>
+        {canUpdate ? (
+          <Button
+            type="submit"
+            size="sm"
+            disabled={detailsBusy}
+            aria-busy={detailsBusy}
+          >
+            {detailsBusy ? "Saving…" : "Save details"}
+          </Button>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            You have read-only access to this project&rsquo;s details.
+          </p>
+        )}
       </form>
 
       {/* Lifecycle */}
@@ -393,7 +408,11 @@ function ProjectDetailBody({
         <p id={`${ids.status}-heading`} className="text-sm font-medium">
           Lifecycle
         </p>
-        {moves.length === 0 ? (
+        {!canTransition ? (
+          <p className="text-muted-foreground text-sm">
+            Current status: {projectStatusLabel(project.status)}.
+          </p>
+        ) : moves.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             {projectStatusLabel(project.status)} is a final state.
           </p>
@@ -439,7 +458,7 @@ function ProjectDetailBody({
           <Label htmlFor={ids.manager}>Manager</Label>
           <Select
             value={project.manager?.id ?? NO_MANAGER}
-            disabled={managerBusy}
+            disabled={managerBusy || !canAssign}
             onValueChange={(value) => void changeManager(value)}
           >
             <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
@@ -473,21 +492,23 @@ function ProjectDetailBody({
                   className="flex items-center justify-between gap-2 text-sm"
                 >
                   <span>{team.name}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={teamBusy}
-                    aria-label={`Unassign ${team.name}`}
-                    onClick={() => void removeTeam(team.id)}
-                  >
-                    <X aria-hidden="true" className="size-4" />
-                  </Button>
+                  {canAssign ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={teamBusy}
+                      aria-label={`Unassign ${team.name}`}
+                      onClick={() => void removeTeam(team.id)}
+                    >
+                      <X aria-hidden="true" className="size-4" />
+                    </Button>
+                  ) : null}
                 </li>
               ))}
             </ul>
           )}
-          {addableTeams.length > 0 ? (
+          {canAssign && addableTeams.length > 0 ? (
             <div className="space-y-1">
               <Label htmlFor={ids.team}>Assign a team</Label>
               <Select
@@ -536,47 +557,49 @@ function ProjectDetailBody({
       </section>
 
       {/* Danger zone */}
-      <div className="border-border space-y-2 border-t pt-4">
-        {confirmingDelete ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm">Permanently delete this project?</span>
+      {canDelete ? (
+        <div className="border-border space-y-2 border-t pt-4">
+          {confirmingDelete ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm">Permanently delete this project?</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={deleteBusy}
+                onClick={() => setConfirmingDelete(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                ref={confirmRef}
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={deleteBusy}
+                aria-busy={deleteBusy}
+                onClick={() => void runDelete()}
+              >
+                {deleteBusy ? "Working…" : "Confirm delete"}
+              </Button>
+            </div>
+          ) : (
             <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={deleteBusy}
-              onClick={() => setConfirmingDelete(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              ref={confirmRef}
               type="button"
               variant="destructive"
               size="sm"
-              disabled={deleteBusy}
-              aria-busy={deleteBusy}
-              onClick={() => void runDelete()}
+              onClick={() => setConfirmingDelete(true)}
             >
-              {deleteBusy ? "Working…" : "Confirm delete"}
+              Delete project
             </Button>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => setConfirmingDelete(true)}
-          >
-            Delete project
-          </Button>
-        )}
-        {deleteError ? (
-          <Alert variant="destructive" aria-live="assertive">
-            <AlertTitle>{deleteError}</AlertTitle>
-          </Alert>
-        ) : null}
-      </div>
+          )}
+          {deleteError ? (
+            <Alert variant="destructive" aria-live="assertive">
+              <AlertTitle>{deleteError}</AlertTitle>
+            </Alert>
+          ) : null}
+        </div>
+      ) : null}
 
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}

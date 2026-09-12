@@ -1,32 +1,25 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectsManager } from "./projects-manager";
-import type {
-  DeleteProjectOutcome,
-  SaveProjectOutcome,
-} from "../lib/projects-outcome";
-import type {
-  AssignableEvent,
-  AssignableTeam,
-  AssignableUser,
-  PaginatedProjects,
-  Project,
-} from "../lib/projects-types";
+import type { CurrentAccess } from "@/features/auth/api/access-queries";
+import type { Project } from "../lib/projects-types";
+
+const { get, post, patch, put, del } = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  put: vi.fn(),
+  del: vi.fn(),
+}));
+
+vi.mock("@/lib/api/browser", () => ({
+  browserApi: { GET: get, POST: post, PATCH: patch, PUT: put, DELETE: del },
+}));
 
 const now = "2026-09-01T09:00:00.000Z";
-
-const USERS: AssignableUser[] = [
-  {
-    id: "u1",
-    email: "morgan@example.com",
-    firstName: "Morgan",
-    lastName: "Lead",
-  },
-];
-const TEAMS: AssignableTeam[] = [{ id: "t1", name: "Design Studio" }];
-const EVENTS: AssignableEvent[] = [{ id: "evt-1", name: "Orbit Launch" }];
 
 function makeProject(
   overrides: Partial<Project> & Pick<Project, "id" | "name">,
@@ -48,101 +41,202 @@ function makeProject(
   };
 }
 
-const PROJECTS: Project[] = [
-  makeProject({ id: "p1", name: "Brand Refresh", status: "ACTIVE" }),
-  makeProject({ id: "p2", name: "Venue Partnership", status: "PLANNED" }),
-  makeProject({ id: "p3", name: "Launch Microsite", status: "ACTIVE" }),
-];
-
-function page(items: Project[]): PaginatedProjects {
-  return { items, page: 1, pageSize: 25, total: items.length };
+function access(...permissions: string[]): CurrentAccess {
+  return {
+    userId: "operator-1",
+    grants: ["project.read", ...permissions].map((permissionKey) => ({
+      permissionKey,
+      scope: "ORGANIZATION",
+    })),
+  } as CurrentAccess;
 }
 
-function renderManager(
-  overrides: Partial<Parameters<typeof ProjectsManager>[0]> = {},
-) {
+const ok = (data: unknown, status = 200) => ({
+  data,
+  response: { ok: true, status },
+});
+
+let page1: Project[];
+let page2: Project[];
+let total: number;
+
+function listResponse(query: Record<string, unknown> | undefined) {
+  const requestedPage = Number(query?.page ?? 1);
+  const items = requestedPage === 2 ? page2 : page1;
+  return ok({ items, page: requestedPage, pageSize: 10, total });
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  page1 = [
+    makeProject({ id: "p1", name: "Brand Refresh", status: "ACTIVE" }),
+    makeProject({ id: "p2", name: "Venue Partnership" }),
+  ];
+  page2 = [];
+  total = 2;
+  get.mockImplementation(
+    async (
+      path: string,
+      opts?: {
+        params?: { query?: Record<string, unknown>; path?: { id?: string } };
+      },
+    ) => {
+      if (path === "/api/v1/projects") return listResponse(opts?.params?.query);
+      if (path === "/api/v1/projects/{id}") {
+        const id = opts?.params?.path?.id;
+        return ok([...page1, ...page2].find((p) => p.id === id) ?? null);
+      }
+      if (path === "/api/v1/users")
+        return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+      if (path === "/api/v1/teams")
+        return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+      if (path === "/api/v1/events")
+        return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+      return ok(null);
+    },
+  );
+});
+
+function setup(currentAccess = access("project.create", "project.update")) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   return render(
-    <ProjectsManager
-      initialPage={page(PROJECTS)}
-      assignableUsers={USERS}
-      assignableTeams={TEAMS}
-      assignableEvents={EVENTS}
-      {...overrides}
-    />,
+    <QueryClientProvider client={client}>
+      <ProjectsManager access={currentAccess} />
+    </QueryClientProvider>,
   );
 }
 
-describe("ProjectsManager", () => {
-  it("shows the count and lists the initial page", () => {
-    renderManager();
-    expect(screen.getByText("3 projects")).toBeVisible();
-    expect(
-      screen.getAllByRole("button", { name: "Brand Refresh" }).length,
-    ).toBeGreaterThan(0);
+describe("ProjectsManager API integration", () => {
+  it("fetches the first page from the server", async () => {
+    setup();
+    expect(await screen.findByText("2 projects")).toBeVisible();
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/projects",
+      expect.objectContaining({
+        params: {
+          query: expect.objectContaining({ page: 1, pageSize: 10 }),
+        },
+      }),
+    );
   });
 
-  it("filters by status", async () => {
+  it("requests the next page from the server", async () => {
+    total = 15;
+    page2 = [makeProject({ id: "p11", name: "Later Initiative" })];
     const user = userEvent.setup();
-    renderManager();
+    setup();
+
+    expect(await screen.findByText("Page 1 of 2")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/projects",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ page: 2 }) },
+        }),
+      ),
+    );
+  });
+
+  it("pushes the status filter to the server", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("2 projects");
 
     await user.click(
       screen.getByRole("combobox", { name: "Filter by status" }),
     );
     await user.click(await screen.findByRole("option", { name: "Planned" }));
 
-    expect(screen.getByText("1 project match these filters")).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Brand Refresh" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("filters by a name search term", async () => {
-    const user = userEvent.setup();
-    renderManager();
-
-    await user.type(screen.getByLabelText("Search"), "microsite");
-    expect(screen.getByText("1 project match these filters")).toBeVisible();
-    expect(
-      screen.getAllByRole("button", { name: "Launch Microsite" }).length,
-    ).toBeGreaterThan(0);
-  });
-
-  it("adds a project to the list on a successful create", async () => {
-    const user = userEvent.setup();
-    const createProject = vi.fn((): Promise<SaveProjectOutcome> =>
-      Promise.resolve({
-        status: "success",
-        project: makeProject({ id: "p4", name: "New Initiative" }),
-      }),
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/projects",
+        expect.objectContaining({
+          params: {
+            query: expect.objectContaining({ status: "PLANNED", page: 1 }),
+          },
+        }),
+      ),
     );
-    renderManager({ createProject });
+  });
+
+  it("pushes the debounced name search to the server", async () => {
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("2 projects");
+
+    await user.type(screen.getByLabelText("Search"), "brand");
+
+    await waitFor(() =>
+      expect(get).toHaveBeenCalledWith(
+        "/api/v1/projects",
+        expect.objectContaining({
+          params: { query: expect.objectContaining({ search: "brand" }) },
+        }),
+      ),
+    );
+  });
+
+  it("creates a project and refetches", async () => {
+    post.mockResolvedValue(
+      ok(makeProject({ id: "p-new", name: "Harvest Retro" }), 201),
+    );
+    const user = userEvent.setup();
+    setup();
+    await screen.findByText("2 projects");
 
     await user.click(screen.getByRole("button", { name: "New project" }));
     await user.type(
       within(await screen.findByRole("dialog")).getByLabelText("Name"),
-      "New Initiative",
+      "Harvest Retro",
     );
     await user.click(screen.getByRole("button", { name: "Create project" }));
 
-    await waitFor(() => expect(screen.getByText("4 projects")).toBeVisible());
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        "/api/v1/projects",
+        expect.objectContaining({
+          body: expect.objectContaining({ name: "Harvest Retro" }),
+        }),
+      ),
+    );
   });
 
-  it("opens the detail dialog for a row and removes it after a delete", async () => {
+  it("hides the create action without the create grant", async () => {
+    setup(access());
+    await screen.findByText("2 projects");
+    expect(
+      screen.queryByRole("button", { name: "New project" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a recoverable error state when the list request fails", async () => {
+    get.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/projects")
+        return { data: undefined, response: { status: 500 } };
+      return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+    });
+    setup();
+    expect(
+      await screen.findByText("We could not load the data. Try again."),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
+  });
+
+  it("opens a row and deletes it via the API", async () => {
+    del.mockResolvedValue({ response: { ok: true, status: 204 } });
     const user = userEvent.setup();
-    const deleteProject = vi.fn((): Promise<DeleteProjectOutcome> =>
-      Promise.resolve({ status: "success" }),
-    );
-    const getProject = vi.fn((id: string) =>
-      Promise.resolve(PROJECTS.find((p) => p.id === id) ?? null),
-    );
-    renderManager({ deleteProject, getProject });
+    setup(access("project.delete"));
+    await screen.findByText("2 projects");
 
     await user.click(
-      screen.getAllByRole("button", { name: "Launch Microsite" })[0]!,
+      screen.getAllByRole("button", { name: "Brand Refresh" })[0]!,
     );
     const dialog = await screen.findByRole("dialog");
-    await within(dialog).findByRole("heading", { name: "Launch Microsite" });
-
+    await within(dialog).findByRole("heading", { name: "Brand Refresh" });
     await user.click(
       within(dialog).getByRole("button", { name: "Delete project" }),
     );
@@ -150,7 +244,11 @@ describe("ProjectsManager", () => {
       within(dialog).getByRole("button", { name: "Confirm delete" }),
     );
 
-    await waitFor(() => expect(screen.getByText("2 projects")).toBeVisible());
-    expect(deleteProject).toHaveBeenCalledWith("p3");
+    await waitFor(() =>
+      expect(del).toHaveBeenCalledWith(
+        "/api/v1/projects/{id}",
+        expect.objectContaining({ params: { path: { id: "p1" } } }),
+      ),
+    );
   });
 });

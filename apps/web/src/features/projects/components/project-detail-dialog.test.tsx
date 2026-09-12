@@ -2,6 +2,11 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+// The dialog default-imports read helpers from the gateway, which pulls in
+// the browser client and its validated env. Every read is injected in these
+// tests, so a stub client keeps that import chain from throwing.
+vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
+
 import { ProjectDetailDialog } from "./project-detail-dialog";
 import type {
   DeleteProjectOutcome,
@@ -73,6 +78,10 @@ function renderDialog(
     users: USERS,
     teams: TEAMS,
     events: EVENTS,
+    canUpdate: true,
+    canTransition: true,
+    canAssign: true,
+    canDelete: true,
     getProject: vi.fn((): Promise<Project | null> =>
       Promise.resolve(makeProject()),
     ),
@@ -225,5 +234,30 @@ describe("ProjectDetailDialog", () => {
         "That move is not allowed from the current status.",
       ),
     ).toBeVisible();
+  });
+
+  it("is read-only for a caller with only the read grant", async () => {
+    renderDialog({
+      canUpdate: false,
+      canTransition: false,
+      canAssign: false,
+      canDelete: false,
+    });
+    await waitForLoaded();
+
+    expect(
+      screen.queryByRole("button", { name: "Save details" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/read-only access to this project/)).toBeVisible();
+    expect(
+      screen.queryByRole("combobox", { name: "Move to" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Current status: Planned.")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Unassign Design Studio" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete project" }),
+    ).not.toBeInTheDocument();
   });
 });

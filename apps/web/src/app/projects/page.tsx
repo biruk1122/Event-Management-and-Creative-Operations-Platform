@@ -4,21 +4,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
-import {
-  ProjectsManager,
-  listAssignableEvents,
-  listAssignableTeams,
-  listAssignableUsers,
-  listProjects,
-} from "@/features/projects";
+import { ProjectsScreen } from "@/features/projects";
 
 export const metadata: Metadata = { title: "Projects" };
 
 /**
  * Reading projects is gated by `project.read` at organization scope - the
- * same rule `ProjectsService` enforces. PRJ-05 moves the data fetching to
- * real API calls; this slice checks the grant and renders the
- * fixture-backed management surface.
+ * same rule `ProjectsService` enforces. This server check is the first
+ * gate; the client `ProjectsScreen` re-checks and keeps the grant fresh.
  */
 const READ_KEY = "project.read";
 
@@ -33,13 +26,6 @@ export default async function ProjectsPage() {
     (grant) =>
       grant.permissionKey === READ_KEY && grant.scope === "ORGANIZATION",
   );
-
-  const [firstPage, users, teams, events] = await Promise.all([
-    listProjects({ page: 1 }),
-    listAssignableUsers(),
-    listAssignableTeams(),
-    listAssignableEvents(),
-  ]);
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
@@ -56,12 +42,7 @@ export default async function ProjectsPage() {
             lifecycle, assign a manager and teams, and relate it to an event.
           </p>
           <div className="mt-6">
-            <ProjectsManager
-              initialPage={firstPage}
-              assignableUsers={users}
-              assignableTeams={teams}
-              assignableEvents={events}
-            />
+            <ProjectsScreen />
           </div>
         </>
       ) : (
