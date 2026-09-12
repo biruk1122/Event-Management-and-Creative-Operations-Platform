@@ -1,0 +1,596 @@
+"use client";
+
+import { useEffect, useId, useRef, useState } from "react";
+import { LoaderCircle, TriangleAlert, X } from "lucide-react";
+
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import { getProject as defaultGetProject } from "../api/get-project";
+import { ProjectFields, type ProjectFieldValues } from "./project-fields";
+import type {
+  AssignProjectManager,
+  AssignProjectTeam,
+  DeleteProject,
+  GetProject,
+  RemoveProjectTeam,
+  TransitionProject,
+  UpdateProject,
+} from "../lib/projects-outcome";
+import {
+  NEXT_STATUSES,
+  personName,
+  projectStatusLabel,
+  scheduleSummary,
+  type AssignableEvent,
+  type AssignableTeam,
+  type AssignableUser,
+  type Project,
+} from "../lib/projects-types";
+
+const NO_MANAGER = "NONE";
+const PICK_TEAM = "PICK_TEAM";
+const PICK_STATUS = "PICK_STATUS";
+
+const ACTION_ERRORS: Record<string, string> = {
+  manager_not_found: "That user no longer exists.",
+  event_not_found: "That event no longer exists.",
+  team_not_found: "That team no longer exists.",
+  not_assigned: "That team is not assigned to this project.",
+  invalid_transition: "That move is not allowed from the current status.",
+  schedule_invalid: "The end must be on or after the start.",
+  not_found: "This project no longer exists. Close this and refresh the list.",
+  permission_denied: "You do not have permission to do that.",
+  unexpected: "We could not save that change. Try again.",
+};
+
+function actionError(key: string): string {
+  return ACTION_ERRORS[key] ?? ACTION_ERRORS.unexpected!;
+}
+
+/** An ISO instant as the value a `datetime-local` input expects (no seconds, no zone). */
+function toLocalInput(iso: string | null): string {
+  return iso ? iso.slice(0, 16) : "";
+}
+
+interface ProjectDetailDialogProps {
+  projectId: string | null;
+  onOpenChange: (open: boolean) => void;
+  users: readonly AssignableUser[];
+  teams: readonly AssignableTeam[];
+  events: readonly AssignableEvent[];
+  getProject?: GetProject;
+  onUpdate: UpdateProject;
+  onTransition: TransitionProject;
+  onAssignManager: AssignProjectManager;
+  onAssignTeam: AssignProjectTeam;
+  onRemoveTeam: RemoveProjectTeam;
+  onDelete: DeleteProject;
+  onChanged: (project: Project) => void;
+  onDeleted: (id: string) => void;
+}
+
+export function ProjectDetailDialog({
+  projectId,
+  onOpenChange,
+  ...bodyProps
+}: ProjectDetailDialogProps) {
+  return (
+    <Dialog
+      open={projectId !== null}
+      onOpenChange={(open) => {
+        if (!open) onOpenChange(false);
+      }}
+    >
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        {projectId !== null ? (
+          <ProjectDetailBody
+            key={projectId}
+            projectId={projectId}
+            {...bodyProps}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+type BodyProps = Omit<
+  ProjectDetailDialogProps,
+  "projectId" | "onOpenChange"
+> & {
+  projectId: string;
+};
+
+function ProjectDetailBody({
+  projectId,
+  users,
+  teams,
+  events,
+  getProject = defaultGetProject,
+  onUpdate,
+  onTransition,
+  onAssignManager,
+  onAssignTeam,
+  onRemoveTeam,
+  onDelete,
+  onChanged,
+  onDeleted,
+}: BodyProps) {
+  const ids = {
+    manager: useId(),
+    team: useId(),
+    status: useId(),
+  };
+
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">(
+    "loading",
+  );
+  const [project, setProject] = useState<Project | null>(null);
+
+  const [fields, setFields] = useState<ProjectFieldValues | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<keyof ProjectFieldValues, string>>
+  >({});
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsBusy, setDetailsBusy] = useState(false);
+
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [managerError, setManagerError] = useState<string | null>(null);
+  const [managerBusy, setManagerBusy] = useState(false);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [teamBusy, setTeamBusy] = useState(false);
+
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+
+  const confirmRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getProject(projectId)
+      .then((loaded) => {
+        if (cancelled) return;
+        if (!loaded) {
+          setStatus("error");
+          return;
+        }
+        setProject(loaded);
+        setFields(fieldsFromProject(loaded));
+        setStatus("loaded");
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, getProject]);
+
+  useEffect(() => {
+    if (confirmingDelete) confirmRef.current?.focus();
+  }, [confirmingDelete]);
+
+  function apply(next: Project) {
+    setProject(next);
+    setFields(fieldsFromProject(next));
+    onChanged(next);
+  }
+
+  function setField<K extends keyof ProjectFieldValues>(
+    key: K,
+    value: ProjectFieldValues[K],
+  ) {
+    setFields((current) => (current ? { ...current, [key]: value } : current));
+  }
+
+  async function saveDetails() {
+    if (!project || !fields) return;
+    const localErrors: Partial<Record<keyof ProjectFieldValues, string>> = {};
+    if (fields.name.trim() === "") localErrors.name = "Enter a name.";
+    if (
+      fields.startAt !== "" &&
+      fields.endAt !== "" &&
+      fields.endAt < fields.startAt
+    ) {
+      localErrors.endAt = "The end must be on or after the start.";
+    }
+    if (Object.keys(localErrors).length > 0) {
+      setFieldErrors(localErrors);
+      return;
+    }
+
+    setDetailsBusy(true);
+    setDetailsError(null);
+    setFieldErrors({});
+    const outcome = await onUpdate(project.id, {
+      name: fields.name,
+      description: fields.description,
+      startAt: fields.startAt,
+      endAt: fields.endAt,
+      eventId: fields.eventId,
+    });
+    setDetailsBusy(false);
+
+    if (outcome.status === "success") {
+      apply(outcome.project);
+      setAnnouncement("Project details saved.");
+      return;
+    }
+    if (outcome.status === "field_errors") {
+      setFieldErrors(outcome.fieldErrors);
+      return;
+    }
+    setDetailsError(actionError(outcome.status));
+  }
+
+  async function moveTo(next: string) {
+    if (!project || next === PICK_STATUS) return;
+    setStatusBusy(true);
+    setStatusError(null);
+    const outcome = await onTransition(project.id, next as Project["status"]);
+    setStatusBusy(false);
+    if (outcome.status === "success") {
+      apply(outcome.project);
+      setAnnouncement(
+        `Status changed to ${projectStatusLabel(outcome.project.status)}.`,
+      );
+      return;
+    }
+    setStatusError(actionError(outcome.status));
+  }
+
+  async function changeManager(value: string) {
+    if (!project) return;
+    const managerId = value === NO_MANAGER ? null : value;
+    setManagerBusy(true);
+    setManagerError(null);
+    const outcome = await onAssignManager(project.id, managerId);
+    setManagerBusy(false);
+    if (outcome.status === "success") {
+      apply(outcome.project);
+      setAnnouncement(managerId ? "Manager assigned." : "Manager removed.");
+      return;
+    }
+    setManagerError(actionError(outcome.status));
+  }
+
+  async function addTeam(value: string) {
+    if (!project || value === PICK_TEAM) return;
+    setTeamBusy(true);
+    setTeamError(null);
+    const outcome = await onAssignTeam(project.id, value);
+    setTeamBusy(false);
+    if (outcome.status === "success") {
+      apply(outcome.project);
+      setAnnouncement("Team assigned.");
+      return;
+    }
+    setTeamError(actionError(outcome.status));
+  }
+
+  async function removeTeam(teamId: string) {
+    if (!project) return;
+    setTeamBusy(true);
+    setTeamError(null);
+    const outcome = await onRemoveTeam(project.id, teamId);
+    setTeamBusy(false);
+    if (outcome.status === "success") {
+      apply(outcome.project);
+      setAnnouncement("Team unassigned.");
+      return;
+    }
+    setTeamError(actionError(outcome.status));
+  }
+
+  async function runDelete() {
+    if (!project) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    const outcome = await onDelete(project.id);
+    setDeleteBusy(false);
+    if (outcome.status === "success") {
+      onDeleted(project.id);
+      return;
+    }
+    setConfirmingDelete(false);
+    setDeleteError(actionError(outcome.status));
+  }
+
+  if (status === "loading") {
+    return (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center gap-2 py-10 text-sm"
+      >
+        <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
+        Loading project…
+      </div>
+    );
+  }
+
+  if (status === "error" || !project || !fields) {
+    return (
+      <Alert variant="destructive">
+        <TriangleAlert aria-hidden="true" />
+        <AlertTitle>We could not load this project</AlertTitle>
+        <AlertDescription>Try again in a moment.</AlertDescription>
+      </Alert>
+    );
+  }
+
+  const assignedTeamIds = new Set(project.teams.map((team) => team.id));
+  const addableTeams = teams.filter((team) => !assignedTeamIds.has(team.id));
+  const moves = NEXT_STATUSES[project.status];
+
+  return (
+    <>
+      <DialogHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <DialogTitle>{project.name}</DialogTitle>
+          <Badge>{projectStatusLabel(project.status)}</Badge>
+        </div>
+        <DialogDescription>{scheduleSummary(project)}</DialogDescription>
+      </DialogHeader>
+
+      {/* Details */}
+      <form
+        aria-label="Edit project details"
+        className="space-y-4"
+        noValidate
+        onSubmit={(submitEvent) => {
+          submitEvent.preventDefault();
+          void saveDetails();
+        }}
+      >
+        <ProjectFields
+          values={fields}
+          errors={fieldErrors}
+          disabled={detailsBusy}
+          events={events}
+          onChange={setField}
+        />
+        {detailsError ? (
+          <p className="text-destructive text-sm" role="alert">
+            {detailsError}
+          </p>
+        ) : null}
+        <Button
+          type="submit"
+          size="sm"
+          disabled={detailsBusy}
+          aria-busy={detailsBusy}
+        >
+          {detailsBusy ? "Saving…" : "Save details"}
+        </Button>
+      </form>
+
+      {/* Lifecycle */}
+      <section
+        aria-labelledby={`${ids.status}-heading`}
+        className="border-border space-y-2 border-t pt-4"
+      >
+        <p id={`${ids.status}-heading`} className="text-sm font-medium">
+          Lifecycle
+        </p>
+        {moves.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            {projectStatusLabel(project.status)} is a final state.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            <Label htmlFor={ids.status}>Move to</Label>
+            <Select
+              value={PICK_STATUS}
+              disabled={statusBusy}
+              onValueChange={(value) => void moveTo(value)}
+            >
+              <SelectTrigger id={ids.status} aria-busy={statusBusy}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={PICK_STATUS}>Choose a status…</SelectItem>
+                {moves.map((next) => (
+                  <SelectItem key={next} value={next}>
+                    {projectStatusLabel(next)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {statusError ? (
+          <p className="text-destructive text-sm" role="alert">
+            {statusError}
+          </p>
+        ) : null}
+      </section>
+
+      {/* Connected workspace: manager, teams, participants */}
+      <section
+        aria-labelledby={`${ids.manager}-heading`}
+        className="border-border space-y-3 border-t pt-4"
+      >
+        <p id={`${ids.manager}-heading`} className="text-sm font-medium">
+          Connected workspace
+        </p>
+
+        <div className="space-y-1">
+          <Label htmlFor={ids.manager}>Manager</Label>
+          <Select
+            value={project.manager?.id ?? NO_MANAGER}
+            disabled={managerBusy}
+            onValueChange={(value) => void changeManager(value)}
+          >
+            <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_MANAGER}>No manager</SelectItem>
+              {users.map((user) => (
+                <SelectItem key={user.id} value={user.id}>
+                  {personName(user)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {managerError ? (
+            <p className="text-destructive text-sm" role="alert">
+              {managerError}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Teams</p>
+          {project.teams.length === 0 ? (
+            <p className="text-muted-foreground text-sm">No teams assigned.</p>
+          ) : (
+            <ul className="space-y-1">
+              {project.teams.map((team) => (
+                <li
+                  key={team.id}
+                  className="flex items-center justify-between gap-2 text-sm"
+                >
+                  <span>{team.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={teamBusy}
+                    aria-label={`Unassign ${team.name}`}
+                    onClick={() => void removeTeam(team.id)}
+                  >
+                    <X aria-hidden="true" className="size-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {addableTeams.length > 0 ? (
+            <div className="space-y-1">
+              <Label htmlFor={ids.team}>Assign a team</Label>
+              <Select
+                value={PICK_TEAM}
+                disabled={teamBusy}
+                onValueChange={(value) => void addTeam(value)}
+              >
+                <SelectTrigger id={ids.team} aria-busy={teamBusy}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={PICK_TEAM}>Choose a team…</SelectItem>
+                  {addableTeams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          {teamError ? (
+            <p className="text-destructive text-sm" role="alert">
+              {teamError}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Employees</p>
+          {project.participants.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No employees assigned.
+            </p>
+          ) : (
+            <ul className="text-muted-foreground space-y-1 text-sm">
+              {project.participants.map((person) => (
+                <li key={person.id}>{personName(person)}</li>
+              ))}
+            </ul>
+          )}
+          <p className="text-muted-foreground text-xs">
+            Employee assignment is managed from the connected workspace.
+          </p>
+        </div>
+      </section>
+
+      {/* Danger zone */}
+      <div className="border-border space-y-2 border-t pt-4">
+        {confirmingDelete ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm">Permanently delete this project?</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={deleteBusy}
+              onClick={() => setConfirmingDelete(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              ref={confirmRef}
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={deleteBusy}
+              aria-busy={deleteBusy}
+              onClick={() => void runDelete()}
+            >
+              {deleteBusy ? "Working…" : "Confirm delete"}
+            </Button>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => setConfirmingDelete(true)}
+          >
+            Delete project
+          </Button>
+        )}
+        {deleteError ? (
+          <Alert variant="destructive" aria-live="assertive">
+            <AlertTitle>{deleteError}</AlertTitle>
+          </Alert>
+        ) : null}
+      </div>
+
+      <p role="status" aria-live="polite" className="sr-only">
+        {announcement}
+      </p>
+    </>
+  );
+}
+
+function fieldsFromProject(project: Project): ProjectFieldValues {
+  return {
+    name: project.name,
+    description: project.description ?? "",
+    startAt: toLocalInput(project.startAt),
+    endAt: toLocalInput(project.endAt),
+    eventId: project.eventId,
+  };
+}
