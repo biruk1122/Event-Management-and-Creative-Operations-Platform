@@ -21,10 +21,11 @@ export function assertSchemaName(schema: string): void {
   }
 }
 
-/** Return `baseUrl` with its `schema` search parameter replaced. */
+/** Return `baseUrl` scoped for both Prisma and node-postgres connections. */
 export function withSchema(baseUrl: string, schema: string): string {
   const url = new URL(baseUrl);
   url.searchParams.set("schema", schema);
+  url.searchParams.set("options", `-c search_path=${schema}`);
   return url.toString();
 }
 

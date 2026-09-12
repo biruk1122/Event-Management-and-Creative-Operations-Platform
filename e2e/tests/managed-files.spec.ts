@@ -85,7 +85,7 @@ test.describe("Secure event-file management — end to end", () => {
       expect((await uploadResponse).ok()).toBe(true);
       await expect(detail.getByText(filename, { exact: true })).toBeVisible();
       await expect(
-        detail.getByText("e2e-call-sheet.pdf is ready to download."),
+        detail.getByText("e2e-call-sheet.txt is ready to download."),
       ).toBeVisible();
 
       const listed = await page.request.get(
