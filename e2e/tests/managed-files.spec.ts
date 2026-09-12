@@ -71,7 +71,13 @@ test.describe("Secure event-file management — end to end", () => {
         buffer: bytes,
       });
       await expect(detail.getByText(filename, { exact: true })).toBeVisible();
+      const uploadResponse = page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).port === "9000",
+      );
       await detail.getByRole("button", { name: "Attach file" }).click();
+      expect((await uploadResponse).ok()).toBe(true);
       await expect(detail.getByText(filename, { exact: true })).toBeVisible();
       await expect(
         detail.getByText("e2e-call-sheet.pdf is ready to download."),
@@ -160,9 +166,7 @@ test.describe("Secure event-file management — end to end", () => {
         eventId = ((await create.json()) as ApiEvent).id;
 
         await page.goto("/events");
-        await expect(
-          page.getByText("You do not have access to this area."),
-        ).toBeVisible();
+        await expect(page).toHaveURL(/\/login\?next=%2Fevents$/);
 
         const list = await page.request.get(
           `${apiBaseUrl}/api/v1/events/${eventId}/files`,
