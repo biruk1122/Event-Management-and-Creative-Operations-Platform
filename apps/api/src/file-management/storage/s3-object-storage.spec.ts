@@ -87,7 +87,13 @@ describe("S3ObjectStorage signing policies", () => {
   it("creates a five-minute private download grant with verified response type and attachment disposition", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2030-01-01T00:00:00.000Z"));
-    signing.getSignedUrl.mockResolvedValue("https://storage.test/download");
+    let signedCommand: unknown;
+    signing.getSignedUrl.mockImplementation(
+      (_client: unknown, command: unknown) => {
+        signedCommand = command;
+        return Promise.resolve("https://storage.test/download");
+      },
+    );
     const storage = new S3ObjectStorage(environment);
 
     await expect(
@@ -100,16 +106,21 @@ describe("S3ObjectStorage signing policies", () => {
       expiresAt: new Date("2030-01-01T00:05:00.000Z"),
       url: "https://storage.test/download",
     });
-    const [_client, command, options] =
-      signing.getSignedUrl.mock.calls[0] ?? [];
-    expect(command).toBeInstanceOf(GetObjectCommand);
-    expect((command as GetObjectCommand).input).toEqual({
+    expect(signedCommand).toBeInstanceOf(GetObjectCommand);
+    if (!(signedCommand instanceof GetObjectCommand)) {
+      throw new Error("test signing call omitted its GetObjectCommand");
+    }
+    expect(signedCommand.input).toEqual({
       Bucket: "event-platform-files",
       Key: "files/opaque-key",
       ResponseContentDisposition:
         "attachment; filename=\"call_sheet.pdf\"; filename*=UTF-8''call%20sheet.pdf",
       ResponseContentType: "application/pdf",
     });
-    expect(options).toEqual({ expiresIn: 5 * 60 });
+    expect(signing.getSignedUrl).toHaveBeenCalledWith(
+      expect.anything(),
+      signedCommand,
+      { expiresIn: 5 * 60 },
+    );
   });
 });
