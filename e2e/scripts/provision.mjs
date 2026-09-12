@@ -52,6 +52,11 @@ function baseDatabaseUrl() {
 function withSchema(baseUrl, schema) {
   const url = new URL(baseUrl);
   url.searchParams.set("schema", schema);
+  // Prisma uses `schema`, while node-postgres (and therefore PrismaPg's
+  // pooled connections) needs a PostgreSQL startup option. Without this,
+  // deferred trigger functions execute with the default search_path and try
+  // to resolve application tables from `public` instead of this run's schema.
+  url.searchParams.set("options", `-c search_path=${schema}`);
   return url.toString();
 }
 

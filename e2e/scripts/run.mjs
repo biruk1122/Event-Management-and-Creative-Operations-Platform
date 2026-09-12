@@ -1,6 +1,9 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { createRequire } from "node:module";
 import { createServer } from "node:net";
+
+const require = createRequire(import.meta.url);
 
 function findAvailablePort() {
   return new Promise((resolve, reject) => {
@@ -36,7 +39,7 @@ const environment = {
   NEXT_PUBLIC_WS_URL: apiBaseUrl,
   WEB_PORT: String(webPort),
 };
-const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const playwrightCli = require.resolve("@playwright/test/cli");
 
 process.stdout.write(
   `[e2e] run ${runId} using API port ${apiPort} and web port ${webPort}\n`,
@@ -46,7 +49,11 @@ execFileSync(process.execPath, ["scripts/provision.mjs"], {
   env: environment,
   stdio: "inherit",
 });
-execFileSync(pnpm, ["exec", "playwright", "test", ...process.argv.slice(2)], {
-  env: environment,
-  stdio: "inherit",
-});
+execFileSync(
+  process.execPath,
+  [playwrightCli, "test", ...process.argv.slice(2)],
+  {
+    env: environment,
+    stdio: "inherit",
+  },
+);

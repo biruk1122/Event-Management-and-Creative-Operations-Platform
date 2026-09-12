@@ -18,8 +18,8 @@ pnpm --filter @event-platform/e2e exec playwright install chromium
 
 Requirements:
 
-- A reachable PostgreSQL instance and a `DATABASE_URL` (from the repository `.env`, or the
-  environment). `pnpm docker:up` provides one during development.
+- Reachable PostgreSQL and MinIO services, plus `DATABASE_URL` and the `FILE_STORAGE_*` values
+  from the repository `.env` (or environment). `pnpm docker:up` provides both during development.
 - Nothing else running on the API or web port; in local runs Playwright reuses an already-running
   server if one is present (`reuseExistingServer`).
 
