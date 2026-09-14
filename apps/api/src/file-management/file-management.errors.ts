@@ -30,7 +30,7 @@ export function fileNotFound(): HttpException {
   return new NotFoundException({
     code: FILE_ERROR.notFound,
     error: "Not Found",
-    detail: "No available file exists with that id for this event.",
+    detail: "No available file exists with that id for this parent.",
   });
 }
 

@@ -4,9 +4,16 @@ import { Inject, Injectable } from "@nestjs/common";
 
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
+import { AuditWriterService } from "../audit/audit-writer.service.js";
+import { DatabaseService } from "../database/database.service.js";
 import type { EventRecord } from "../events/infrastructure/events.repository.js";
 import { EventsRepository } from "../events/infrastructure/events.repository.js";
-import type { PermissionScope } from "../generated/prisma/client.js";
+import {
+  AuditActorKind,
+  AuditOutcome,
+  type PermissionScope,
+} from "../generated/prisma/client.js";
+import { TasksService } from "../tasks/tasks.service.js";
 import type {
   DownloadGrantResponse,
   ManagedFileResponse,
@@ -75,16 +82,18 @@ function validateFilename(value: string): string {
 }
 
 /**
- * Owns the current Event implementation of FIL-02. Future parent modules add
- * their own explicit attachment surface; this service deliberately does not
- * accept an entity type/id pair or expose storage keys.
+ * Owns the secure managed-file lifecycle for explicit parent surfaces. It
+ * deliberately does not accept an entity type/id pair or expose storage keys.
  */
 @Injectable()
 export class FileManagementService {
   constructor(
+    private readonly audit: AuditWriterService,
+    private readonly db: DatabaseService,
     private readonly events: EventsRepository,
     private readonly files: ManagedFilesRepository,
     private readonly permissions: PermissionsService,
+    private readonly tasks: TasksService,
     private readonly verification: FileVerificationService,
     @Inject(FILE_OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(FILE_SCANNER) private readonly scanner: FileScanner,
@@ -272,6 +281,186 @@ export class FileManagementService {
       new Date(Date.now() + DETACHED_FILE_RETENTION_MS),
     );
     if (!detached) throw fileNotFound();
+  }
+
+  async createTaskUploadIntent(
+    actingUserId: string,
+    taskId: string,
+    dto: CreateUploadIntentDto,
+  ): Promise<UploadIntentResponse> {
+    await this.tasks.authorize(actingUserId, taskId, "task.attachment.create");
+    const filename = validateFilename(dto.filename);
+    const intentExpiresAt = new Date(Date.now() + INTENT_TTL_MS);
+    const file = await this.files.createPending({
+      initiatedById: actingUserId,
+      intentExpiresAt,
+      intentTaskId: taskId,
+      mediaType: dto.mediaType,
+      originalFilename: filename,
+      sizeBytes: dto.sizeBytes,
+      storageKey: `files/${randomUUID()}`,
+    });
+    try {
+      const upload = await this.storage.createUploadGrant({
+        key: file.storageKey,
+        mediaType: file.declaredMediaType,
+        sizeBytes: file.declaredSizeBytes,
+      });
+      return {
+        ...toResponse(file),
+        intentExpiresAt: file.intentExpiresAt.toISOString(),
+        upload,
+      };
+    } catch (error) {
+      await this.files.deletePending(file.id);
+      throw error;
+    }
+  }
+
+  async finalizeTaskUpload(
+    actingUserId: string,
+    taskId: string,
+    fileId: string,
+  ): Promise<ManagedFileResponse> {
+    await this.tasks.authorize(actingUserId, taskId, "task.attachment.create");
+    const file = await this.files.findPendingForTask(fileId, taskId);
+    if (!file) throw fileNotFound();
+    const now = new Date();
+    if (file.intentExpiresAt <= now) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileIntentExpired();
+    }
+    const object = await this.storage.readObject(file.storageKey);
+    if (!object) throw fileUploadNotFound();
+    const verified = await this.verification.verify(
+      file.declaredMediaType,
+      object.bytes,
+    );
+    if (!verified || object.sizeBytes !== file.declaredSizeBytes) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    const scan = await this.scanner.scan({
+      bytes: object.bytes,
+      mediaType: verified.mediaType,
+    });
+    if (scan === "infected") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    if (scan === "unavailable") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileScannerUnavailable();
+    }
+    const finalized = await this.db.$transaction(async (tx) => {
+      await this.tasks.lockAttachmentFinalization(tx, {
+        actingUserId,
+        taskId,
+      });
+      const finalizedAt = new Date();
+      const available = await this.files.makeAvailableForTask(tx, {
+        cleanupAfter: new Date(
+          finalizedAt.getTime() + REJECTED_OBJECT_RETENTION_MS,
+        ),
+        fileId: file.id,
+        finalizedAt,
+        taskId,
+        verifiedMediaType: verified.mediaType,
+        verifiedSizeBytes: verified.sizeBytes,
+      });
+      if (available !== "available") return available;
+      await this.tasks.recordAttachment(tx, {
+        actingUserId,
+        fileId: file.id,
+        taskId,
+      });
+      return "available" as const;
+    });
+    if (finalized === "expired") throw fileIntentExpired();
+    if (finalized === "conflict") throw fileStateConflict();
+    const available = await this.files.findAvailableById(file.id);
+    if (!available) throw fileStateConflict();
+    return toResponse(available);
+  }
+
+  async listTaskFiles(
+    actingUserId: string,
+    taskId: string,
+    query: ListManagedFilesQueryDto,
+  ): Promise<PaginatedManagedFilesResponse> {
+    const { fileIds, total } = await this.tasks.listAttachmentFileIds(
+      actingUserId,
+      taskId,
+      query.page,
+      query.pageSize,
+    );
+    const byId = new Map(
+      (await this.files.findAvailableByIds(fileIds)).map((file) => [
+        file.id,
+        file,
+      ]),
+    );
+    const items = fileIds.flatMap((id) => {
+      const file = byId.get(id);
+      return file ? [file] : [];
+    });
+    return {
+      items: items.map(toResponse),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+    };
+  }
+
+  async downloadTaskFile(
+    actingUserId: string,
+    taskId: string,
+    fileId: string,
+    requestId: string,
+  ): Promise<DownloadGrantResponse> {
+    const parent = await this.tasks.readAttachmentContext(
+      actingUserId,
+      taskId,
+      fileId,
+    );
+    if (!parent) throw fileNotFound();
+    const file = await this.files.findAvailableById(fileId);
+    if (!file || file.state !== "AVAILABLE" || !file.verifiedMediaType)
+      throw fileNotFound();
+    const grant = await this.storage.createDownloadGrant({
+      filename: file.originalFilename,
+      key: file.storageKey,
+      mediaType: file.verifiedMediaType,
+    });
+    await this.audit.record({
+      action: "managed_file.downloaded",
+      actorKind: AuditActorKind.USER,
+      actorUserId: actingUserId,
+      metadata: { parentId: taskId, parentType: "task" },
+      outcome: AuditOutcome.SUCCEEDED,
+      requestId,
+      resourceId: file.id,
+      resourceType: "managed_file",
+      ...(parent.workspaceId ? { workspaceContext: parent.workspaceId } : {}),
+    });
+    return {
+      expiresAt: grant.expiresAt.toISOString(),
+      filename: file.originalFilename,
+      mediaType: file.verifiedMediaType,
+      url: grant.url,
+    };
   }
 
   /** Idempotent batch for the scheduled worker that a deployment wires later. */

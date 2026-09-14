@@ -38,6 +38,50 @@ enum SessionRevocationReason {
   @@map("session_revocation_reason")
 }
 
+/// Minimal durable audit vocabulary required at security- and
+/// approval-sensitive action boundaries. The authorized query/export surface,
+/// retention, and storage-level tamper controls remain owned by REL-02.
+enum AuditActorKind {
+  USER
+  SYSTEM
+  ANONYMOUS
+
+  @@map("audit_actor_kind")
+}
+
+enum AuditOutcome {
+  SUCCEEDED
+  DENIED
+  FAILED
+
+  @@map("audit_outcome")
+}
+
+/// Append-only evidence. No application update/delete interface is exposed.
+/// Actor identifiers intentionally have no foreign key so account lifecycle
+/// cannot erase historical attribution.
+model AuditRecord {
+  id               String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  occurredAt       DateTime       @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actorKind        AuditActorKind @map("actor_kind")
+  actorUserId      String?        @map("actor_user_id") @db.Uuid
+  requestId        String?        @map("request_id")
+  correlationId    String?        @map("correlation_id")
+  action           String
+  resourceType     String         @map("resource_type")
+  resourceId       String?        @map("resource_id") @db.Uuid
+  workspaceContext String?        @map("workspace_context") @db.Uuid
+  outcome          AuditOutcome
+  metadata         Json           @default("{}") @db.JsonB
+
+  @@index([occurredAt, id])
+  @@index([action, occurredAt])
+  @@index([actorUserId, occurredAt])
+  @@index([resourceType, resourceId, occurredAt])
+  @@index([workspaceContext, occurredAt])
+  @@map("audit_records")
+}
+
 model User {
   id            String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
   email         String            @unique
@@ -446,11 +490,15 @@ model ManagedFile {
   /// Nullable only to preserve any pre-FIL-02 pending records during the
   /// migration. FIL-02 creates every new intent with this explicit parent.
   intentWorkspaceId String?          @map("intent_workspace_id") @db.Uuid
+  /// Explicit task authorized for a task-scoped upload intent. At most one
+  /// intent parent is set; nullable for historical pre-FIL-02 rows.
+  intentTaskId      String?          @map("intent_task_id") @db.Uuid
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   initiatedBy          User?                     @relation("ManagedFileInitiator", fields: [initiatedById], references: [id], onDelete: SetNull)
   intentWorkspace      Workspace?                @relation("ManagedFileIntentWorkspace", fields: [intentWorkspaceId], references: [id], onDelete: Restrict)
+  intentTask           Task?                     @relation("ManagedFileIntentTask", fields: [intentTaskId], references: [id], onDelete: Restrict)
   workspaceAttachments WorkspaceFileAttachment[]
   taskAttachments      TaskAttachment[]
 
@@ -460,6 +508,7 @@ model ManagedFile {
   @@index([state, cleanupAfter])
   @@index([initiatedById])
   @@index([intentWorkspaceId])
+  @@index([intentTaskId])
   @@map("managed_files")
 }
 
@@ -605,6 +654,7 @@ model Task {
   assignments TaskAssignment[]
   comments    TaskComment[]
   attachments TaskAttachment[]
+  fileIntents ManagedFile[]       @relation("ManagedFileIntentTask")
   reviews     TaskReview[]
   activities  TaskActivity[]
 

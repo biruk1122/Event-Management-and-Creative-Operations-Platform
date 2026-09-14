@@ -342,6 +342,51 @@ describe("task assignment and collaboration schema", () => {
   });
 
   describe("managed task attachments", () => {
+    it("binds an upload intent to exactly one task or workspace parent", async () => {
+      const task = await insertTask();
+      const workspaceId = await insertWorkspace();
+      const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const [intent] = await db.query<{
+        intent_task_id: string | null;
+        intent_workspace_id: string | null;
+      }>(
+        `INSERT INTO managed_files (
+           storage_key,
+           original_filename,
+           declared_media_type,
+           declared_size_bytes,
+           intent_expires_at,
+           intent_task_id
+         ) VALUES ($1, 'task-draft.pdf', 'application/pdf', 512, $2, $3)
+         RETURNING intent_task_id, intent_workspace_id`,
+        [`managed/${unique("task-intent")}`, tomorrow, task.id],
+      );
+      expect(intent).toMatchObject({
+        intent_task_id: task.id,
+        intent_workspace_id: null,
+      });
+
+      await expect(
+        db.query(
+          `INSERT INTO managed_files (
+             storage_key,
+             original_filename,
+             declared_media_type,
+             declared_size_bytes,
+             intent_expires_at,
+             intent_workspace_id,
+             intent_task_id
+           ) VALUES ($1, 'ambiguous.pdf', 'application/pdf', 512, $2, $3, $4)`,
+          [
+            `managed/${unique("ambiguous-intent")}`,
+            tomorrow,
+            workspaceId,
+            task.id,
+          ],
+        ),
+      ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+    });
+
     it("rejects pending files and allows atomic task-owned finalization", async () => {
       const task = await insertTask();
       const pendingFileId = await insertPendingManagedFile();
@@ -491,6 +536,39 @@ describe("task assignment and collaboration schema", () => {
     }
   });
 
+  it("enforces safe audit actor, context, and metadata shapes", async () => {
+    const userId = await insertUser();
+    const task = await insertTask();
+    await db.query(
+      `INSERT INTO audit_records (
+         actor_kind, actor_user_id, request_id, action, resource_type,
+         resource_id, outcome, metadata
+       ) VALUES ('USER', $1, 'request-1', 'task.assignee_added', 'task', $2,
+                 'SUCCEEDED', '{"assigneeUserId":"safe-id"}')`,
+      [userId, task.id],
+    );
+
+    await expect(
+      db.query(
+        `INSERT INTO audit_records (
+           actor_kind, request_id, action, resource_type, resource_id, outcome
+         ) VALUES ('USER', 'request-2', 'task.assignee_added', 'task', $1,
+                   'SUCCEEDED')`,
+        [task.id],
+      ),
+    ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+    await expect(
+      db.query(
+        `INSERT INTO audit_records (
+           actor_kind, actor_user_id, action, resource_type, resource_id,
+           outcome, metadata
+         ) VALUES ('USER', $1, 'task.assignee_added', 'task', $2,
+                   'SUCCEEDED', '[]')`,
+        [userId, task.id],
+      ),
+    ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+  });
+
   it("creates task access indexes and applies every committed migration", async () => {
     const indexes = await db.query<{ indexname: string }>(
       `SELECT indexname
@@ -508,6 +586,19 @@ describe("task assignment and collaboration schema", () => {
         "task_assignments_user_id_assigned_at_idx",
         "task_comments_task_id_created_at_idx",
         "task_activities_task_id_occurred_at_idx",
+      ]),
+    );
+
+    const auditIndexes = await db.query<{ indexname: string }>(
+      `SELECT indexname
+       FROM pg_indexes
+       WHERE schemaname = current_schema() AND tablename = 'audit_records'`,
+    );
+    expect(auditIndexes.map(({ indexname }) => indexname)).toEqual(
+      expect.arrayContaining([
+        "audit_records_occurred_at_id_idx",
+        "audit_records_action_occurred_at_idx",
+        "audit_records_resource_lookup_idx",
       ]),
     );
 

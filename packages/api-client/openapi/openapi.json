@@ -258,6 +258,59 @@
         "required": ["name"],
         "type": "object"
       },
+      "CreateTaskCommentDto": {
+        "properties": {
+          "content": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "mentionedUserIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["content"],
+        "type": "object"
+      },
+      "CreateTaskDto": {
+        "properties": {
+          "departmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "priority": {
+            "default": "MEDIUM",
+            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "example": "Confirm venue permits",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "workspaceId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["title"],
+        "type": "object"
+      },
       "CreateTeamDto": {
         "properties": {
           "departmentId": {
@@ -893,6 +946,93 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedTaskActivitiesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskActivityResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
+      "PaginatedTaskCommentsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskCommentResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
+      "PaginatedTaskReviewsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskReviewResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
+      "PaginatedTasksResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "minimum": 1,
+            "type": "number"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
       "PaginatedTeamsResponse": {
         "properties": {
           "items": {
@@ -1207,6 +1347,20 @@
         "required": ["checks", "status", "timestamp"],
         "type": "object"
       },
+      "ReviewTaskDto": {
+        "properties": {
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": ["APPROVED", "CHANGES_REQUESTED"],
+            "type": "string"
+          }
+        },
+        "required": ["outcome"],
+        "type": "object"
+      },
       "RoleGrantResponse": {
         "properties": {
           "permissionKey": {
@@ -1344,6 +1498,267 @@
         "required": ["amount", "currency"],
         "type": "object"
       },
+      "TaskActivityResponse": {
+        "properties": {
+          "actor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaskPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "details": {
+            "additionalProperties": true,
+            "description": "Structured before/after values for this activity type.",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "CREATED",
+              "UPDATED",
+              "ASSIGNEE_ADDED",
+              "ASSIGNEE_REMOVED",
+              "STATUS_CHANGED",
+              "PROGRESS_UPDATED",
+              "COMMENT_ADDED",
+              "ATTACHMENT_ADDED",
+              "REVIEW_RECORDED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": ["id", "type", "actor", "details", "occurredAt"],
+        "type": "object"
+      },
+      "TaskAssigneeResponse": {
+        "properties": {
+          "assignedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "firstName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["id", "email", "firstName", "lastName", "assignedAt"],
+        "type": "object"
+      },
+      "TaskCommentResponse": {
+        "properties": {
+          "author": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaskPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "content": {
+            "example": "The permit was submitted.",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "mentionedUsers": {
+            "items": {
+              "$ref": "#/components/schemas/TaskPersonSummary"
+            },
+            "type": "array"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "author",
+          "mentionedUsers",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "TaskPersonSummary": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "firstName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["id", "email", "firstName", "lastName"],
+        "type": "object"
+      },
+      "TaskResponse": {
+        "properties": {
+          "assignees": {
+            "items": {
+              "$ref": "#/components/schemas/TaskAssigneeResponse"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaskPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "departmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "priority": {
+            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "type": "string"
+          },
+          "progress": {
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "TODO",
+              "IN_PROGRESS",
+              "UNDER_REVIEW",
+              "BLOCKED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "example": "Confirm venue permits",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "workspaceId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspaceId",
+          "departmentId",
+          "title",
+          "description",
+          "priority",
+          "status",
+          "progress",
+          "startAt",
+          "dueAt",
+          "assignees",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "TaskReviewResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": ["APPROVED", "CHANGES_REQUESTED"],
+            "type": "string"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reviewer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaskPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": ["id", "outcome", "note", "reviewer", "reviewedAt"],
+        "type": "object"
+      },
       "TeamDepartmentSummary": {
         "properties": {
           "id": {
@@ -1477,6 +1892,16 @@
         "required": ["status"],
         "type": "object"
       },
+      "TransitionTaskDto": {
+        "properties": {
+          "status": {
+            "enum": ["TODO", "IN_PROGRESS", "BLOCKED", "CANCELLED"],
+            "type": "string"
+          }
+        },
+        "required": ["status"],
+        "type": "object"
+      },
       "UpdateDepartmentDto": {
         "properties": {
           "description": {
@@ -1589,6 +2014,46 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UpdateTaskDto": {
+        "properties": {
+          "description": {
+            "maxLength": 4000,
+            "nullable": true,
+            "type": "string"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "priority": {
+            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateTaskProgressDto": {
+        "properties": {
+          "progress": {
+            "example": 60,
+            "maximum": 100,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["progress"],
         "type": "object"
       },
       "UpdateTeamDto": {
@@ -5486,6 +5951,1711 @@
         ],
         "summary": "Remove a permission grant from a role",
         "tags": ["Roles and permissions"]
+      }
+    },
+    "/api/v1/tasks": {
+      "get": {
+        "operationId": "Tasks_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "TODO",
+                "IN_PROGRESS",
+                "UNDER_REVIEW",
+                "BLOCKED",
+                "COMPLETED",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workspaceId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "departmentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assigneeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scheduledFrom",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scheduledTo",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only overdue open tasks.",
+            "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "UPDATED",
+              "enum": ["UPDATED", "DUE_AT", "START_AT"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedTasksResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List visible tasks for list, Kanban, and calendar projections",
+        "tags": ["Task management"]
+      },
+      "post": {
+        "operationId": "Tasks_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Workspace or department not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a workspace or department task",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}": {
+      "get": {
+        "operationId": "Tasks_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get task details and assignees",
+        "tags": ["Task management"]
+      },
+      "patch": {
+        "operationId": "Tasks_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaskDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Update task fields other than owners, status, progress, and assignees",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}/activity": {
+      "get": {
+        "operationId": "Tasks_listActivity_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedTaskActivitiesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the append-only task activity feed",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}/assignees/{userId}": {
+      "delete": {
+        "operationId": "Tasks_removeAssignee_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The user is not assigned to the task"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Remove a task assignee",
+        "tags": ["Task management"]
+      },
+      "put": {
+        "operationId": "Tasks_addAssignee_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task or user not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Assign a user to a task (idempotent)",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}/comments": {
+      "get": {
+        "operationId": "Tasks_listComments_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedTaskCommentsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List task comments and normalized mentions",
+        "tags": ["Task management"]
+      },
+      "post": {
+        "operationId": "Tasks_createComment_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaskCommentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskCommentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task or mentioned user not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Add a task comment with explicit user mentions",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}/progress": {
+      "patch": {
+        "operationId": "Tasks_updateProgress_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaskProgressDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Set an assigned task's progress from 0 to 100",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}/reviews": {
+      "get": {
+        "operationId": "Tasks_listReviews_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedTaskReviewsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List immutable task review outcomes",
+        "tags": ["Task management"]
+      },
+      "post": {
+        "operationId": "Tasks_review_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewTaskDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The task is not under review"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Approve a task under review or request changes",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}/submit": {
+      "post": {
+        "operationId": "Tasks_submit_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid transition"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Submit an in-progress assigned task for review",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}/transition": {
+      "post": {
+        "operationId": "Tasks_transition_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionTaskDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid transition"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Apply an allowed assignee lifecycle transition",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{taskId}/files": {
+      "get": {
+        "operationId": "TaskFileManagement_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedManagedFilesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid pagination query"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside task scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List available files attached to a task",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{taskId}/files/upload-intents": {
+      "post": {
+        "operationId": "TaskFileManagement_createUploadIntent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadIntentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadIntentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid upload declaration"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside task scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a direct-upload grant for a task attachment",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{taskId}/files/{fileId}/download": {
+      "get": {
+        "operationId": "TaskFileManagement_download_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadGrantResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside task scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task file not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Issue a private download grant for a task file",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{taskId}/files/{fileId}/finalize": {
+      "post": {
+        "operationId": "TaskFileManagement_finalize_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "taskId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedFileResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside task scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task or intent not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Intent expired, upload missing, unsafe, or already finalized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "File scanner unavailable"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Verify, scan, and attach a completed task upload",
+        "tags": ["Task management"]
       }
     },
     "/api/v1/teams": {
