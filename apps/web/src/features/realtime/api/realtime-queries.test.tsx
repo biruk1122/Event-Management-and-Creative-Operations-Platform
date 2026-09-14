@@ -108,6 +108,33 @@ describe("useRealtimeConnection", () => {
     );
   });
 
+  it("reconciles when a retry restores a connection that was previously established", async () => {
+    const client = makeClient();
+    const spy = vi.spyOn(client, "invalidateQueries");
+    const fake = fakeConnect();
+
+    const { result } = renderHook(() => useRealtimeConnection(fake.connect), {
+      wrapper: wrapper(client),
+    });
+
+    act(() => fake.emit({ status: "connected", detail: null, rooms: [] }));
+    await waitFor(() => expect(result.current.state.status).toBe("connected"));
+
+    // A hard denial with no "reconnecting" lead-up (e.g. the session was
+    // revoked), not the gradual drop the earlier test covers.
+    act(() =>
+      fake.emit({ status: "denied", detail: "Sign in again.", rooms: [] }),
+    );
+    await waitFor(() => expect(result.current.state.status).toBe("denied"));
+
+    act(() => result.current.retry());
+    act(() => fake.emit({ status: "connected", detail: null, rooms: [] }));
+
+    await waitFor(() =>
+      expect(spy).toHaveBeenCalledWith({ queryKey: accessKey }),
+    );
+  });
+
   it("tears down the old connection and opens a fresh one on retry", async () => {
     const client = makeClient();
     const fake = fakeConnect();

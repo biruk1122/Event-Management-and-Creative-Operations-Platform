@@ -44,7 +44,13 @@ export function useRealtimeConnection(
   const everConnectedRef = useRef(false);
 
   useEffect(() => {
-    everConnectedRef.current = false;
+    // Deliberately not reset per attempt: a manual retry commonly follows
+    // exactly the kind of "something uncertain happened" event (a session
+    // that needed re-authenticating, a network drop) the reconciliation
+    // policy exists for, so a connect that succeeds after a retry reconciles
+    // the same as a connect that succeeds after an automatic reconnect.
+    // Only the very first connect of this hook's lifetime is exempt, since
+    // nothing has been cached yet that could have gone stale.
     const close = connect((next) => {
       if (next.status === "connected") {
         if (everConnectedRef.current) {
