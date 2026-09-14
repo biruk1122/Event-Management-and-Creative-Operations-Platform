@@ -46,6 +46,18 @@ const environmentSchema = z.object({
     .default(300_000),
   AUTH_COOKIE_SECURE: booleanFromString.default(false),
   AUTH_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
+  // Starting values from ADR 0004 RT-04; retune with real connection traffic
+  // evidence rather than changing the enforcement mechanism.
+  REALTIME_COMMAND_RATE_LIMIT_MAX: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30),
+  REALTIME_COMMAND_RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10_000),
   // Storage credentials are server-only. The defaults are deliberately the
   // local MinIO development service; production must supply real values.
   FILE_STORAGE_ENDPOINT: z.url().default("http://localhost:9000"),
