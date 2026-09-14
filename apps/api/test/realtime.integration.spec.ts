@@ -4,7 +4,11 @@ import request from "supertest";
 import { io, type Socket } from "socket.io-client";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { PrismaClient, WorkspaceKind } from "../src/generated/prisma/client.js";
+import {
+  PrismaClient,
+  SessionRevocationReason,
+  WorkspaceKind,
+} from "../src/generated/prisma/client.js";
 import { seedRbac } from "../src/rbac/seed-rbac.js";
 // `RealtimeService` transitively imports `DatabaseService`, which reads the
 // `environment` singleton at first module load. A static top-level import
@@ -323,5 +327,156 @@ describe("realtime gateway", () => {
     expect(limited.ok).toBe(false);
     expect(limited.error?.code).toBe("RATE_LIMITED");
     expect(typeof limited.error?.message).toBe("string");
+  });
+
+  it("refuses to reconnect once the backing session has been revoked", async () => {
+    const userId = await seedUser("realtime-revoked@events.test");
+    await assignRole(userId, "Super Admin");
+    const principal = await loginAs("realtime-revoked@events.test");
+
+    const first = await connect(principal);
+    expect(first.connected).toBe(true);
+
+    await prisma.authSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: {
+        revokedAt: new Date(),
+        revokedReason: SessionRevocationReason.ADMIN_REVOKED,
+      },
+    });
+
+    await expect(connect(principal)).rejects.toThrow();
+  });
+
+  it("isolates delivery between two workspace rooms", async () => {
+    const otherWorkspace = await prisma.workspace.create({
+      data: { kind: WorkspaceKind.EVENT },
+    });
+
+    const subscriber = await connect(superAdmin);
+    const bystander = await connect(superAdmin);
+
+    await ack(subscriber, "room:subscribe", {
+      version: 1,
+      room: roomName("workspace", workspaceId),
+    });
+    await ack(bystander, "room:subscribe", {
+      version: 1,
+      room: roomName("workspace", otherWorkspace.id),
+    });
+
+    const received: Promise<unknown> = new Promise((resolve) =>
+      subscriber.once("test.isolation", resolve),
+    );
+    const bystanderReceived: unknown[] = [];
+    bystander.on("test.isolation", (envelope: unknown) =>
+      bystanderReceived.push(envelope),
+    );
+
+    const realtime = app.get(RealtimeService);
+    realtime.publish(roomName("workspace", workspaceId), "test.isolation", 1, {
+      hello: "workspace-a-only",
+    });
+
+    await received;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(bystanderReceived).toEqual([]);
+  });
+
+  it("treats a repeated subscribe to the same room as idempotent", async () => {
+    const admin = await connect(superAdmin);
+    const room = roomName("workspace", workspaceId);
+
+    const first = await ack<{ ok: boolean; data?: { room: string } }>(
+      admin,
+      "room:subscribe",
+      { version: 1, room },
+    );
+    const second = await ack<{ ok: boolean; data?: { room: string } }>(
+      admin,
+      "room:subscribe",
+      { version: 1, room },
+    );
+
+    expect(first).toEqual({ ok: true, data: { room } });
+    expect(second).toEqual({ ok: true, data: { room } });
+  });
+
+  it("does not carry a prior connection's room membership across a reconnect", async () => {
+    const room = roomName("workspace", workspaceId);
+    const first = await connect(superAdmin);
+    await ack(first, "room:subscribe", { version: 1, room });
+    first.close();
+
+    const second = await connect(superAdmin);
+    const secondReceived: unknown[] = [];
+    second.on("test.reconnect", (envelope: unknown) =>
+      secondReceived.push(envelope),
+    );
+
+    const realtime = app.get(RealtimeService);
+    realtime.publish(room, "test.reconnect", 1, { hello: "world" });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(secondReceived).toEqual([]);
+  });
+
+  it("authorizes a workspace room using the read key for the workspace's own kind", async () => {
+    const kinds = [
+      WorkspaceKind.PROJECT,
+      WorkspaceKind.PRODUCTION,
+      WorkspaceKind.CAMPAIGN,
+    ];
+    const admin = await connect(superAdmin);
+
+    for (const kind of kinds) {
+      const workspace = await prisma.workspace.create({ data: { kind } });
+      const response = await ack<{ ok: boolean; data?: { room: string } }>(
+        admin,
+        "room:subscribe",
+        { version: 1, room: roomName("workspace", workspace.id) },
+      );
+      expect(response).toEqual({
+        ok: true,
+        data: { room: `workspace:${workspace.id}` },
+      });
+    }
+  });
+
+  it("denies the next subscribe once the caller's role is revoked mid-connection", async () => {
+    const role = await prisma.role.create({
+      data: { name: "Realtime Verification Reader" },
+    });
+    await prisma.rolePermission.create({
+      data: {
+        roleId: role.id,
+        permissionKey: "event.read",
+        scope: "ORGANIZATION",
+      },
+    });
+
+    const userId = await seedUser("realtime-revoked-grant@events.test");
+    await prisma.userRoleAssignment.create({
+      data: { userId, roleId: role.id },
+    });
+    const principal = await loginAs("realtime-revoked-grant@events.test");
+    const socket = await connect(principal);
+    const room = roomName("workspace", workspaceId);
+
+    const before = await ack<{ ok: boolean }>(socket, "room:subscribe", {
+      version: 1,
+      room,
+    });
+    expect(before.ok).toBe(true);
+
+    await prisma.userRoleAssignment.delete({ where: { userId } });
+
+    const after = await ack<{ ok: boolean; error?: { code: string } }>(
+      socket,
+      "room:subscribe",
+      { version: 1, room },
+    );
+    expect(after.ok).toBe(false);
+    expect(after.error?.code).toBe("PERMISSION_DENIED");
   });
 });
