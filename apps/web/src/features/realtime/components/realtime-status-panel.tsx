@@ -1,22 +1,18 @@
 "use client";
 
 import { useId } from "react";
-import { useQuery } from "@tanstack/react-query";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
-import { connectRealtime as defaultConnectRealtime } from "../api/connect-realtime";
+import { useRealtimeConnection } from "../api/realtime-queries";
 import {
   isRecoverable,
   statusLabel,
   type ConnectRealtime,
-  type RealtimeConnectionState,
   type RealtimeConnectionStatus,
 } from "../lib/realtime-types";
 import { RealtimeStatusBadge } from "./realtime-status-badge";
-
-export const realtimeConnectionKey = ["realtime", "connection"] as const;
 
 const STATUS_ANNOUNCEMENTS: Record<RealtimeConnectionStatus, string> = {
   disabled: "Live updates are turned off.",
@@ -27,42 +23,15 @@ const STATUS_ANNOUNCEMENTS: Record<RealtimeConnectionStatus, string> = {
   error: "Live updates connection failed.",
 };
 
-const CONNECTING_STATE: RealtimeConnectionState = {
-  status: "connecting",
-  detail: null,
-  rooms: [],
-};
-
-const ERROR_STATE: RealtimeConnectionState = {
-  status: "error",
-  detail: "We could not reach the live updates service.",
-  rooms: [],
-};
-
 interface RealtimeStatusPanelProps {
-  /** Fixture-backed by default; RTC-05 (EVE-103) supplies the real seam. */
+  /** The real `/realtime` seam by default; tests supply a fake. */
   connect?: ConnectRealtime;
 }
 
-export function RealtimeStatusPanel({
-  connect = defaultConnectRealtime,
-}: RealtimeStatusPanelProps) {
+export function RealtimeStatusPanel({ connect }: RealtimeStatusPanelProps) {
   const headingId = useId();
-  const query = useQuery({
-    queryKey: realtimeConnectionKey,
-    queryFn: connect,
-    staleTime: 0,
-    retry: false,
-  });
-
-  const state: RealtimeConnectionState = query.isSuccess
-    ? query.data
-    : query.isError
-      ? ERROR_STATE
-      : CONNECTING_STATE;
-
+  const { state, retrying, retry } = useRealtimeConnection(connect);
   const announcement = STATUS_ANNOUNCEMENTS[state.status];
-  const retrying = query.isRefetching;
 
   return (
     <section
@@ -150,7 +119,7 @@ export function RealtimeStatusPanel({
           size="sm"
           disabled={retrying}
           aria-busy={retrying}
-          onClick={() => void query.refetch()}
+          onClick={retry}
         >
           {retrying ? "Retrying…" : "Retry"}
         </Button>
