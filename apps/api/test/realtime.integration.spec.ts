@@ -230,6 +230,17 @@ describe("realtime gateway", () => {
     expect(admin.connected).toBe(true);
   });
 
+  it("rejects a mixed-case room instead of silently joining a room nothing publishes to", async () => {
+    const admin = await connect(superAdmin);
+    const response = await ack<{ ok: boolean; error?: { code: string } }>(
+      admin,
+      "room:subscribe",
+      { version: 1, room: `WORKSPACE:${workspaceId.toUpperCase()}` },
+    );
+    expect(response.ok).toBe(false);
+    expect(response.error?.code).toBe("VALIDATION_ERROR");
+  });
+
   it("unsubscribes from a room", async () => {
     const admin = await connect(superAdmin);
     await ack(admin, "room:subscribe", {
