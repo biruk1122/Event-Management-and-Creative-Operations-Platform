@@ -4,6 +4,7 @@ import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 
+import { AuditRequestFailureService } from "./audit/audit-request-failure.service.js";
 import { ProblemDetailsFilter } from "./common/http/problem-details.filter.js";
 import { createValidationException } from "./common/http/validation-exception.js";
 import {
@@ -73,7 +74,9 @@ export function configureApplication(app: NestExpressApplication): void {
       whitelist: true,
     }),
   );
-  app.useGlobalFilters(new ProblemDetailsFilter());
+  app.useGlobalFilters(
+    new ProblemDetailsFilter(app.get(AuditRequestFailureService)),
+  );
   app.enableShutdownHooks();
 
   registerOpenApiDocumentation(app);

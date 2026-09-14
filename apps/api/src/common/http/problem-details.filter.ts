@@ -11,6 +11,14 @@ import type { Response } from "express";
 import type { ProblemDetails } from "./problem-details.js";
 import type { RequestWithContext } from "./request-with-context.js";
 
+interface RequestFailureAuditor {
+  recordFailure(
+    request: RequestWithContext,
+    status: number,
+    errorCode: string,
+  ): Promise<void>;
+}
+
 interface StructuredExceptionBody {
   code?: string;
   detail?: string;
@@ -23,7 +31,9 @@ interface StructuredExceptionBody {
 export class ProblemDetailsFilter implements ExceptionFilter {
   private readonly logger = new Logger(ProblemDetailsFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost): void {
+  constructor(private readonly failureAuditor?: RequestFailureAuditor) {}
+
+  async catch(exception: unknown, host: ArgumentsHost): Promise<void> {
     const context = host.switchToHttp();
     const request = context.getRequest<RequestWithContext>();
     const response = context.getResponse<Response>();
@@ -33,6 +43,8 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         : HttpStatus.INTERNAL_SERVER_ERROR;
     const body = this.getExceptionBody(exception);
     const requestId = request.id ?? "unavailable";
+
+    await this.failureAuditor?.recordFailure(request, status, body.code);
 
     if (!(exception instanceof HttpException)) {
       this.logger.error(

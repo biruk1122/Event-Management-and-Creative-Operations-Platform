@@ -17,6 +17,7 @@ export interface ManagedFileRecord {
   state: ManagedFileState;
   intentExpiresAt: Date;
   intentWorkspaceId: string | null;
+  intentTaskId: string | null;
   availableAt: Date | null;
   createdAt: Date;
 }
@@ -32,6 +33,7 @@ const FILE_SELECT = {
   state: true,
   intentExpiresAt: true,
   intentWorkspaceId: true,
+  intentTaskId: true,
   availableAt: true,
   createdAt: true,
 } as const;
@@ -44,22 +46,29 @@ function isUuid(value: string): boolean {
 export class ManagedFilesRepository {
   constructor(private readonly db: DatabaseService) {}
 
-  async createPending(input: {
-    storageKey: string;
-    originalFilename: string;
-    mediaType: string;
-    sizeBytes: number;
-    initiatedById: string;
-    intentExpiresAt: Date;
-    intentWorkspaceId: string;
-  }): Promise<ManagedFileRecord> {
+  async createPending(
+    input: {
+      storageKey: string;
+      originalFilename: string;
+      mediaType: string;
+      sizeBytes: number;
+      initiatedById: string;
+      intentExpiresAt: Date;
+    } & (
+      | { intentWorkspaceId: string; intentTaskId?: never }
+      | { intentTaskId: string; intentWorkspaceId?: never }
+    ),
+  ): Promise<ManagedFileRecord> {
     return this.db.managedFile.create({
       data: {
         declaredMediaType: input.mediaType,
         declaredSizeBytes: input.sizeBytes,
         initiatedById: input.initiatedById,
         intentExpiresAt: input.intentExpiresAt,
-        intentWorkspaceId: input.intentWorkspaceId,
+        ...(input.intentWorkspaceId
+          ? { intentWorkspaceId: input.intentWorkspaceId }
+          : {}),
+        ...(input.intentTaskId ? { intentTaskId: input.intentTaskId } : {}),
         originalFilename: input.originalFilename,
         storageKey: input.storageKey,
       },
@@ -83,6 +92,21 @@ export class ManagedFilesRepository {
       where: {
         id,
         intentWorkspaceId: workspaceId,
+        state: ManagedFileState.PENDING,
+      },
+      select: FILE_SELECT,
+    });
+  }
+
+  async findPendingForTask(
+    id: string,
+    taskId: string,
+  ): Promise<ManagedFileRecord | null> {
+    if (!isUuid(id) || !isUuid(taskId)) return null;
+    return this.db.managedFile.findFirst({
+      where: {
+        id,
+        intentTaskId: taskId,
         state: ManagedFileState.PENDING,
       },
       select: FILE_SELECT,
@@ -129,6 +153,23 @@ export class ManagedFilesRepository {
     };
   }
 
+  async findAvailableById(id: string): Promise<ManagedFileRecord | null> {
+    if (!isUuid(id)) return null;
+    return this.db.managedFile.findFirst({
+      where: { id, state: ManagedFileState.AVAILABLE },
+      select: FILE_SELECT,
+    });
+  }
+
+  async findAvailableByIds(ids: string[]): Promise<ManagedFileRecord[]> {
+    const validIds = ids.filter(isUuid);
+    if (!validIds.length) return [];
+    return this.db.managedFile.findMany({
+      where: { id: { in: validIds }, state: ManagedFileState.AVAILABLE },
+      select: FILE_SELECT,
+    });
+  }
+
   async makeAvailable(input: {
     fileId: string;
     workspaceId: string;
@@ -163,6 +204,51 @@ export class ManagedFilesRepository {
       });
       return true;
     });
+  }
+
+  async makeAvailableForTask(
+    tx: Prisma.TransactionClient,
+    input: {
+      cleanupAfter: Date;
+      fileId: string;
+      finalizedAt: Date;
+      taskId: string;
+      verifiedMediaType: string;
+      verifiedSizeBytes: number;
+    },
+  ): Promise<"available" | "conflict" | "expired"> {
+    if (!isUuid(input.fileId) || !isUuid(input.taskId)) return "conflict";
+    const updated = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { gt: input.finalizedAt },
+        intentTaskId: input.taskId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        availableAt: input.finalizedAt,
+        state: ManagedFileState.AVAILABLE,
+        uploadedAt: input.finalizedAt,
+        verifiedMediaType: input.verifiedMediaType,
+        verifiedSizeBytes: input.verifiedSizeBytes,
+      },
+    });
+    if (updated.count === 1) return "available";
+
+    const expired = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { lte: input.finalizedAt },
+        intentTaskId: input.taskId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        cleanupAfter: input.cleanupAfter,
+        state: ManagedFileState.UNAVAILABLE,
+        unavailableAt: input.finalizedAt,
+      },
+    });
+    return expired.count === 1 ? "expired" : "conflict";
   }
 
   async makeUnavailable(fileId: string, cleanupAfter: Date): Promise<void> {
