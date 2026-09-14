@@ -44,6 +44,8 @@ const environment: Environment = {
   FILE_STORAGE_SECRET_KEY: "test-secret-key",
   LOG_LEVEL: "silent",
   NODE_ENV: "test",
+  REALTIME_COMMAND_RATE_LIMIT_MAX: 30,
+  REALTIME_COMMAND_RATE_LIMIT_WINDOW_MS: 10_000,
 };
 
 describe("S3ObjectStorage signing policies", () => {
