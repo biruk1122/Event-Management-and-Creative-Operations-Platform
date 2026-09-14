@@ -69,6 +69,14 @@ model User {
   createdProjects          Project[]                 @relation("ProjectCreatedBy")
   initiatedManagedFiles    ManagedFile[]             @relation("ManagedFileInitiator")
   workspaceFileAttachments WorkspaceFileAttachment[] @relation("WorkspaceFileAttachedBy")
+  createdTasks             Task[]                    @relation("TaskCreatedBy")
+  taskAssignments          TaskAssignment[]          @relation("TaskAssignee")
+  assignedTasks            TaskAssignment[]          @relation("TaskAssignedBy")
+  taskComments             TaskComment[]             @relation("TaskCommentAuthor")
+  taskCommentMentions      TaskCommentMention[]
+  taskAttachments          TaskAttachment[]          @relation("TaskAttachmentActor")
+  taskReviews              TaskReview[]              @relation("TaskReviewer")
+  taskActivities           TaskActivity[]            @relation("TaskActivityActor")
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -260,6 +268,7 @@ model Department {
   manager   User?  @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
   employees User[] @relation("DepartmentEmployees")
   teams     Team[]
+  tasks     Task[]
 
   // Look up the departments a user manages, and list active departments.
   @@index([managerId])
@@ -371,19 +380,20 @@ model Workspace {
   createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  manager         User?                     @relation("WorkspaceManager", fields: [managerId], references: [id], onDelete: SetNull)
-  teams           WorkspaceTeam[]
-  participants    WorkspaceParticipant[]
-  fileAttachments WorkspaceFileAttachment[]
+  manager           User?                     @relation("WorkspaceManager", fields: [managerId], references: [id], onDelete: SetNull)
+  teams             WorkspaceTeam[]
+  participants      WorkspaceParticipant[]
+  fileAttachments   WorkspaceFileAttachment[]
   /// The parent authorized when an upload intent is issued. This remains
   /// explicit until finalization creates the attachment, preventing an intent
   /// from being replayed against another workspace.
-  fileUploadIntents ManagedFile[] @relation("ManagedFileIntentWorkspace")
+  fileUploadIntents ManagedFile[]             @relation("ManagedFileIntentWorkspace")
   /// The one module record that owns this workspace, when its `kind` is
   /// `EVENT` or `PROJECT`. Later epics add the equivalent inverse for
   /// production and campaign.
-  event           Event?
-  project         Project?
+  event             Event?
+  project           Project?
+  tasks             Task[]
 
   // "Workspaces of kind X" and "workspaces a user manages" are the two root
   // access patterns.
@@ -442,6 +452,7 @@ model ManagedFile {
   initiatedBy          User?                     @relation("ManagedFileInitiator", fields: [initiatedById], references: [id], onDelete: SetNull)
   intentWorkspace      Workspace?                @relation("ManagedFileIntentWorkspace", fields: [intentWorkspaceId], references: [id], onDelete: Restrict)
   workspaceAttachments WorkspaceFileAttachment[]
+  taskAttachments      TaskAttachment[]
 
   // Upload expiry, cleanup sweeps, actor investigation, and resolving a
   // file's approved parent are the storage access patterns.
@@ -518,6 +529,200 @@ model WorkspaceParticipant {
   // List every workspace a given user participates in.
   @@index([userId])
   @@map("workspace_participants")
+}
+
+/// User-facing urgency for task planning and filtering (SRS 6.1).
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("task_priority")
+}
+
+/// Persistent task lifecycle state. Approval and change-request decisions are
+/// review outcomes below rather than duplicate task states: an approval moves
+/// an under-review task to COMPLETED, while a change request returns it to
+/// IN_PROGRESS in the domain workflow delivered by TSK-02.
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  UNDER_REVIEW
+  BLOCKED
+  COMPLETED
+  CANCELLED
+
+  @@map("task_status")
+}
+
+enum TaskReviewOutcome {
+  APPROVED
+  CHANGES_REQUESTED
+
+  @@map("task_review_outcome")
+}
+
+/// Stable activity vocabulary for the task audit/history feed. The service
+/// layer owns when entries are written; this data slice only persists the
+/// append-only facts and their structured before/after details.
+enum TaskActivityType {
+  CREATED
+  UPDATED
+  ASSIGNEE_ADDED
+  ASSIGNEE_REMOVED
+  STATUS_CHANGED
+  PROGRESS_UPDATED
+  COMMENT_ADDED
+  ATTACHMENT_ADDED
+  REVIEW_RECORDED
+
+  @@map("task_activity_type")
+}
+
+/// Actionable work owned by a connected workspace, a department, or both.
+/// Workspace ownership connects event/project/campaign/production work without
+/// a polymorphic entity-type/id pair; department ownership supports general
+/// departmental work. A database CHECK requires at least one explicit owner.
+model Task {
+  id           String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  workspaceId  String?      @map("workspace_id") @db.Uuid
+  departmentId String?      @map("department_id") @db.Uuid
+  title        String
+  description  String?
+  priority     TaskPriority @default(MEDIUM)
+  status       TaskStatus   @default(TODO)
+  progress     Int          @default(0)
+  startAt      DateTime?    @map("start_at") @db.Timestamptz(6)
+  dueAt        DateTime?    @map("due_at") @db.Timestamptz(6)
+  createdById  String?      @map("created_by_id") @db.Uuid
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace   Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  department  Department?      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  createdBy   User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignments TaskAssignment[]
+  comments    TaskComment[]
+  attachments TaskAttachment[]
+  reviews     TaskReview[]
+  activities  TaskActivity[]
+
+  // List/Kanban views are owner + status scoped; calendar projections sort
+  // independently by start and due time. Overdue remains a derived query.
+  @@index([workspaceId, status, updatedAt])
+  @@index([departmentId, status, updatedAt])
+  @@index([status, dueAt])
+  @@index([startAt])
+  @@index([dueAt])
+  @@index([priority, dueAt])
+  @@index([createdById])
+  @@map("tasks")
+}
+
+/// Explicit many-to-many task assignment with attribution and assignment time.
+model TaskAssignment {
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  taskId       String   @map("task_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  assignedById String?  @map("assigned_by_id") @db.Uuid
+  assignedAt   DateTime @default(now()) @map("assigned_at") @db.Timestamptz(6)
+
+  task       Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user       User  @relation("TaskAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy User? @relation("TaskAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, userId])
+  @@index([userId, assignedAt])
+  @@index([assignedById])
+  @@map("task_assignments")
+}
+
+/// A task discussion entry. Mentions are normalized in TaskCommentMention so
+/// notification work can resolve recipients without parsing comment text.
+model TaskComment {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  authorId  String?  @map("author_id") @db.Uuid
+  content   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  task     Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author   User?                @relation("TaskCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  mentions TaskCommentMention[]
+
+  @@index([taskId, createdAt])
+  @@index([authorId])
+  @@map("task_comments")
+}
+
+model TaskCommentMention {
+  commentId String   @map("comment_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  comment TaskComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@index([userId])
+  @@map("task_comment_mentions")
+}
+
+/// A concrete task parent for an existing managed object. File names, media
+/// types, storage keys, and lifecycle stay authoritative on ManagedFile.
+model TaskAttachment {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  taskId        String   @map("task_id") @db.Uuid
+  managedFileId String   @map("managed_file_id") @db.Uuid
+  attachedById  String?  @map("attached_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  task        Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  managedFile ManagedFile @relation(fields: [managedFileId], references: [id], onDelete: Restrict)
+  attachedBy  User?       @relation("TaskAttachmentActor", fields: [attachedById], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, managedFileId])
+  @@index([managedFileId])
+  @@index([attachedById])
+  @@map("task_attachments")
+}
+
+/// An immutable manager decision for one review cycle. Several rows are valid
+/// because a task may be changed and submitted for review more than once.
+model TaskReview {
+  id         String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  taskId     String            @map("task_id") @db.Uuid
+  reviewerId String?           @map("reviewer_id") @db.Uuid
+  outcome    TaskReviewOutcome
+  note       String?
+  reviewedAt DateTime          @default(now()) @map("reviewed_at") @db.Timestamptz(6)
+
+  task     Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("TaskReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, reviewedAt])
+  @@index([reviewerId])
+  @@map("task_reviews")
+}
+
+/// Append-only history used by task detail and activity views. `details` is a
+/// JSON object for event-specific before/after values, never authorization.
+model TaskActivity {
+  id         String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  taskId     String           @map("task_id") @db.Uuid
+  actorId    String?          @map("actor_id") @db.Uuid
+  type       TaskActivityType
+  details    Json             @default("{}") @db.JsonB
+  occurredAt DateTime         @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor User? @relation("TaskActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, occurredAt])
+  @@index([actorId])
+  @@map("task_activities")
 }
 
 /// The kind of event (SRS 5.5 "Event Types"). `OTHER` is the SRS fallback.
