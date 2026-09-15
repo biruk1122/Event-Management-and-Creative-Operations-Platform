@@ -220,9 +220,14 @@ jobs:
     timeout-minutes: 20
     env:
       # Full browser journeys make many more requests than the unit/integration
-      # rate-limit checks the workflow-wide value is tuned for; use the e2e
-      # harness's own default so a long suite is not throttled mid-run.
-      API_RATE_LIMIT_MAX: 1000
+      # rate-limit checks the workflow-wide value is tuned for. 1000 was
+      # enough when this job was introduced, but the suite has since grown
+      # across many merged epics and now trips it mid-run with unrelated
+      # 429s in specs that never touch the feature actually under test.
+      # Confirmed sufficient (with headroom to spare) against the full suite
+      # as of RTC-06; not tuned to the exact current count, so it has room
+      # for the epics still to come.
+      API_RATE_LIMIT_MAX: 10000
     services:
       minio:
         image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
