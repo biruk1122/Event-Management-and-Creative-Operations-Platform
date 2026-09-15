@@ -14,26 +14,37 @@ vi.mock("@/lib/api/browser", () => ({ browserApi: { GET: get } }));
 
 const fullAccess: CurrentAccess = {
   userId: "account-1",
-  grants: [{ permissionKey: "conversation.read", scope: "SELF" }],
+  grants: [
+    { permissionKey: "conversation.read", scope: "SELF" },
+    { permissionKey: "channel.participate", scope: "SELF" },
+  ],
 };
 
 let currentAccess: CurrentAccess | null;
 
 beforeEach(() => {
   currentAccess = fullAccess;
-  get.mockImplementation(async () => ({
-    data: currentAccess,
-    response: { status: currentAccess ? 200 : 401 },
-  }));
+  get.mockImplementation(async (path: string) => {
+    if (path === "/api/v1/auth/me/permissions") {
+      return {
+        data: currentAccess,
+        response: { status: currentAccess ? 200 : 401 },
+      };
+    }
+    return {
+      data: { items: [], page: 1, pageSize: 25, total: 0 },
+      response: { ok: true, status: 200 },
+    };
+  });
 });
 
-function setup() {
+function setup(kind: "dm" | "channel" = "dm") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   render(
     <QueryClientProvider client={client}>
-      <DiscussScreen kind="dm" initialConversationId={null} />
+      <DiscussScreen kind={kind} initialConversationId={null} />
     </QueryClientProvider>,
   );
   return client;
@@ -71,6 +82,23 @@ describe("DiscussScreen access boundary", () => {
     ).toBeVisible();
     expect(
       client.getQueryCache().findAll({ queryKey: ["discuss", "dm"] }),
+    ).toHaveLength(0);
+  });
+
+  it("clears the channels cache under its own kind-scoped query key", async () => {
+    const client = setup("channel");
+    await screen.findByRole("button", { name: "New channel" });
+
+    currentAccess = null;
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: accessKey });
+    });
+
+    await screen.findByText(
+      "Your session expired. Your unsaved input is kept in this tab.",
+    );
+    expect(
+      client.getQueryCache().findAll({ queryKey: ["discuss", "channel"] }),
     ).toHaveLength(0);
   });
 

@@ -25,7 +25,7 @@ import {
 import type {
   ChannelOwnerOptions,
   ListChannelOwners,
-} from "../api/list-channel-owners";
+} from "../api/discuss-gateway";
 import type {
   CreateChannel,
   CreateChannelValues,

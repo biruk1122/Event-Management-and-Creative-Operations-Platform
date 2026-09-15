@@ -1,24 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  accessKey,
+  type CurrentAccess,
+} from "@/features/auth/api/access-queries";
 
-import { addMember as defaultAddMember } from "../api/add-member";
-import { createChannel as defaultCreateChannel } from "../api/create-channel";
-import { deleteMessage as defaultDeleteMessage } from "../api/delete-message";
-import { editMessage as defaultEditMessage } from "../api/edit-message";
-import { listAssignablePeople as defaultListAssignablePeople } from "../api/list-assignable-people";
-import { listChannelOwners as defaultListChannelOwners } from "../api/list-channel-owners";
-import { listConversations as defaultListConversations } from "../api/list-conversations";
-import { listMessages as defaultListMessages } from "../api/list-messages";
-import { removeMember as defaultRemoveMember } from "../api/remove-member";
-import { sendMessage as defaultSendMessage } from "../api/send-message";
-import { setPin as defaultSetPin } from "../api/set-pin";
-import { startConversation as defaultStartConversation } from "../api/start-conversation";
-import { updateChannel as defaultUpdateChannel } from "../api/update-channel";
-import { updateReadCursor as defaultUpdateReadCursor } from "../api/update-read-cursor";
+import * as gateway from "../api/discuss-gateway";
+import { DiscussRequestError } from "../api/discuss-gateway";
+import { discussKeys, useDiscussMutations } from "../api/discuss-queries";
 import { ConversationFilters } from "./conversation-filters";
 import { ConversationList } from "./conversation-list";
 import { ConversationMembersDialog } from "./conversation-members-dialog";
@@ -26,157 +20,86 @@ import { CreateChannelDialog } from "./create-channel-dialog";
 import { MessageComposer } from "./message-composer";
 import { MessageThread } from "./message-thread";
 import { NewConversationDialog } from "./new-conversation-dialog";
-import type {
-  AddMember,
-  CreateChannel,
-  DeleteMessage,
-  EditMessage,
-  RemoveMember,
-  SendMessage,
-  SetPin,
-  StartConversation,
-  UpdateChannel,
-  UpdateReadCursor,
-} from "../lib/discuss-outcome";
-import type {
-  Conversation,
-  ConversationType,
-  Message,
-} from "../lib/discuss-types";
-import type { ListAssignablePeople } from "../api/list-assignable-people";
-import type { ListChannelOwners } from "../api/list-channel-owners";
-import type { ListConversations } from "../api/list-conversations";
-import type { ListMessages } from "../api/list-messages";
+import type { ConversationType, Message } from "../lib/discuss-types";
 
 export interface DiscussManagerProps {
   kind: "dm" | "channel";
-  viewerId: string;
+  access: CurrentAccess;
   initialConversationId: string | null;
-  listConversations?: ListConversations;
-  listMessages?: ListMessages;
-  listAssignablePeople?: ListAssignablePeople;
-  listChannelOwners?: ListChannelOwners;
-  startConversation?: StartConversation;
-  createChannel?: CreateChannel;
-  updateChannel?: UpdateChannel;
-  addMember?: AddMember;
-  removeMember?: RemoveMember;
-  sendMessage?: SendMessage;
-  editMessage?: EditMessage;
-  deleteMessage?: DeleteMessage;
-  setPin?: SetPin;
-  updateReadCursor?: UpdateReadCursor;
 }
 
 const KIND_LABEL = { dm: "conversation", channel: "channel" } as const;
+const SEARCH_DEBOUNCE_MS = 300;
+
+function useDebounced<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 export function DiscussManager({
   kind,
-  viewerId,
+  access,
   initialConversationId,
-  listConversations = defaultListConversations,
-  listMessages = defaultListMessages,
-  listAssignablePeople = defaultListAssignablePeople,
-  listChannelOwners = defaultListChannelOwners,
-  startConversation = defaultStartConversation,
-  createChannel = defaultCreateChannel,
-  updateChannel = defaultUpdateChannel,
-  addMember = defaultAddMember,
-  removeMember = defaultRemoveMember,
-  sendMessage = defaultSendMessage,
-  editMessage = defaultEditMessage,
-  deleteMessage = defaultDeleteMessage,
-  setPin = defaultSetPin,
-  updateReadCursor = defaultUpdateReadCursor,
 }: DiscussManagerProps) {
-  const [conversations, setConversations] = useState<Conversation[] | null>(
-    null,
-  );
-  const [listError, setListError] = useState<string | null>(null);
+  const client = useQueryClient();
+  const keys = discussKeys(access, kind);
+  const mutations = useDiscussMutations(access, kind);
+
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(
     initialConversationId,
   );
-  const [messages, setMessages] = useState<Message[] | null>(null);
-  const [threadError, setThreadError] = useState<string | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [createChannelOpen, setCreateChannelOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [replyTarget, setReplyTarget] = useState<Message | null>(null);
   const [announcement, setAnnouncement] = useState("");
-  const [conversationsReloadToken, setConversationsReloadToken] = useState(0);
-  const [messagesReloadToken, setMessagesReloadToken] = useState(0);
 
+  const debouncedSearch = useDebounced(search, SEARCH_DEBOUNCE_MS);
+  const type: readonly ConversationType[] =
+    kind === "dm" ? ["DIRECT", "GROUP"] : ["CHANNEL"];
+  const listParams = { type, search: debouncedSearch.trim() };
+
+  const listQuery = useQuery({
+    queryKey: keys.list(listParams),
+    queryFn: ({ signal }) => gateway.listConversations(listParams, signal),
+    retry: false,
+    placeholderData: (previous) => previous,
+    refetchOnWindowFocus: true,
+  });
+
+  const messagesQuery = useQuery({
+    queryKey: keys.messages(selectedId ?? "", {}),
+    queryFn: ({ signal }) => gateway.listMessages(selectedId!, {}, signal),
+    enabled: selectedId !== null,
+    retry: false,
+    refetchOnWindowFocus: true,
+  });
+
+  // A 401/403 on the list means the caller's authority changed under them;
+  // re-check access so the screen can drop to its denied/expired state.
   useEffect(() => {
-    let cancelled = false;
-    const type: readonly ConversationType[] =
-      kind === "dm" ? ["DIRECT", "GROUP"] : ["CHANNEL"];
-    const trimmedSearch = search.trim();
-    listConversations({
-      type,
-      ...(trimmedSearch ? { search: trimmedSearch } : {}),
-    })
-      .then((page) => {
-        if (cancelled) return;
-        setConversations(page.items);
-        setListError(null);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setListError("We could not load the list. Try again.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [listConversations, search, kind, conversationsReloadToken]);
+    const error = listQuery.error;
+    if (
+      error instanceof DiscussRequestError &&
+      (error.status === 401 || error.status === 403)
+    ) {
+      void client.invalidateQueries({ queryKey: accessKey });
+    }
+  }, [listQuery.error, client]);
 
   function selectConversation(id: string | null) {
     setSelectedId(id);
     setReplyTarget(null);
   }
 
-  useEffect(() => {
-    if (!selectedId) return;
-    let cancelled = false;
-    listMessages(selectedId, {})
-      .then((page) => {
-        if (cancelled) return;
-        setMessages(page.items);
-        setThreadError(null);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setMessages(null);
-        setThreadError("We could not load the messages. Try again.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedId, listMessages, messagesReloadToken]);
-
+  const conversations = listQuery.data?.items ?? null;
   const selected = conversations?.find((c) => c.id === selectedId) ?? null;
-
-  function upsertConversation(next: Conversation) {
-    setConversations((current) => {
-      const list = current ?? [];
-      const index = list.findIndex((item) => item.id === next.id);
-      if (index === -1) return [next, ...list];
-      const copy = [...list];
-      copy[index] = next;
-      return copy;
-    });
-  }
-
-  function upsertMessage(next: Message) {
-    setMessages((current) => {
-      const list = current ?? [];
-      const index = list.findIndex((item) => item.id === next.id);
-      if (index === -1) return [next, ...list];
-      const copy = [...list];
-      copy[index] = next;
-      return copy;
-    });
-  }
+  const messages = messagesQuery.data?.items ?? null;
 
   return (
     <div className="space-y-4">
@@ -199,22 +122,20 @@ export function DiscussManager({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[18rem_1fr]">
         <div className={selectedId ? "hidden sm:block" : ""}>
-          {listError ? (
+          {listQuery.isError ? (
             <div role="alert" className="space-y-2">
-              <p>{listError}</p>
+              <p>{(listQuery.error as Error).message}</p>
               <Button
                 variant="outline"
-                onClick={() =>
-                  setConversationsReloadToken((token) => token + 1)
-                }
+                onClick={() => void listQuery.refetch()}
               >
                 Try again
               </Button>
             </div>
           ) : (
             <ConversationList
-              conversations={conversations}
-              viewerId={viewerId}
+              conversations={listQuery.isPending ? null : conversations}
+              viewerId={access.userId}
               selectedId={selectedId}
               kind={kind}
               onSelect={selectConversation}
@@ -248,40 +169,34 @@ export function DiscussManager({
 
               <MessageThread
                 conversation={selected}
-                messages={messages}
-                error={threadError}
-                viewerId={viewerId}
-                onRetry={() => setMessagesReloadToken((token) => token + 1)}
-                onEdit={async (messageId, content) => {
-                  const outcome = await editMessage(
-                    selected.id,
+                messages={messagesQuery.isPending ? null : messages}
+                error={
+                  messagesQuery.isError
+                    ? "We could not load the messages. Try again."
+                    : null
+                }
+                viewerId={access.userId}
+                onRetry={() => void messagesQuery.refetch()}
+                onEdit={(messageId, content) =>
+                  mutations.editMessage.mutateAsync({
+                    conversationId: selected.id,
                     messageId,
                     content,
-                  );
-                  if (outcome.status === "success") {
-                    upsertMessage(outcome.message);
-                    setAnnouncement("Message updated.");
-                  }
-                  return outcome;
-                }}
-                onDelete={async (messageId) => {
-                  const outcome = await deleteMessage(selected.id, messageId);
-                  if (outcome.status === "success") {
-                    upsertMessage(outcome.message);
-                    setAnnouncement("Message deleted.");
-                  }
-                  return outcome;
-                }}
-                onTogglePin={async (messageId, pinned) => {
-                  const outcome = await setPin(selected.id, messageId, pinned);
-                  if (outcome.status === "success") {
-                    upsertMessage(outcome.message);
-                    setAnnouncement(
-                      pinned ? "Message pinned." : "Message unpinned.",
-                    );
-                  }
-                  return outcome;
-                }}
+                  })
+                }
+                onDelete={(messageId) =>
+                  mutations.deleteMessage.mutateAsync({
+                    conversationId: selected.id,
+                    messageId,
+                  })
+                }
+                onTogglePin={(messageId, pinned) =>
+                  mutations.setPin.mutateAsync({
+                    conversationId: selected.id,
+                    messageId,
+                    pinned,
+                  })
+                }
                 onReply={setReplyTarget}
               />
 
@@ -290,11 +205,17 @@ export function DiscussManager({
                 replyTarget={replyTarget}
                 onCancelReply={() => setReplyTarget(null)}
                 onSend={async (values) => {
-                  const outcome = await sendMessage(selected.id, values);
+                  const outcome = await mutations.sendMessage.mutateAsync({
+                    conversationId: selected.id,
+                    values,
+                  });
                   if (outcome.status === "success") {
-                    upsertMessage(outcome.message);
-                    void updateReadCursor(selected.id, outcome.message.id);
+                    void mutations.updateReadCursor.mutateAsync({
+                      conversationId: selected.id,
+                      messageId: outcome.message.id,
+                    });
                     setAnnouncement("Message sent.");
+                    setReplyTarget(null);
                   }
                   return outcome;
                 }}
@@ -311,10 +232,9 @@ export function DiscussManager({
       <NewConversationDialog
         open={startOpen}
         onOpenChange={setStartOpen}
-        listAssignablePeople={listAssignablePeople}
-        onStart={startConversation}
+        listAssignablePeople={gateway.listAssignablePeople}
+        onStart={mutations.startConversation.mutateAsync}
         onStarted={(conversation) => {
-          upsertConversation(conversation);
           selectConversation(conversation.id);
           setAnnouncement("Conversation started.");
         }}
@@ -323,10 +243,9 @@ export function DiscussManager({
       <CreateChannelDialog
         open={createChannelOpen}
         onOpenChange={setCreateChannelOpen}
-        listChannelOwners={listChannelOwners}
-        onCreate={createChannel}
+        listChannelOwners={gateway.listChannelOwners}
+        onCreate={mutations.createChannel.mutateAsync}
         onCreated={(conversation) => {
-          upsertConversation(conversation);
           selectConversation(conversation.id);
           setAnnouncement("Channel created.");
         }}
@@ -338,11 +257,20 @@ export function DiscussManager({
           open={membersOpen}
           onOpenChange={setMembersOpen}
           conversation={selected}
-          listAssignablePeople={listAssignablePeople}
-          onAddMember={addMember}
-          onRemoveMember={removeMember}
-          onUpdateChannel={(values) => updateChannel(selected.id, values)}
-          onChanged={upsertConversation}
+          listAssignablePeople={gateway.listAssignablePeople}
+          onAddMember={(conversationId, userId) =>
+            mutations.addMember.mutateAsync({ conversationId, userId })
+          }
+          onRemoveMember={(conversationId, userId) =>
+            mutations.removeMember.mutateAsync({ conversationId, userId })
+          }
+          onUpdateChannel={(values) =>
+            mutations.updateChannel.mutateAsync({
+              conversationId: selected.id,
+              values,
+            })
+          }
+          onChanged={() => void listQuery.refetch()}
         />
       ) : null}
     </div>

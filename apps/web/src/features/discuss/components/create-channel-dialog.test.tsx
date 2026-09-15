@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { CreateChannelDialog } from "./create-channel-dialog";
-import type { ChannelOwnerOptions } from "../api/list-channel-owners";
+import type { ChannelOwnerOptions } from "../api/discuss-gateway";
 import type {
   CreateChannel,
   CreateChannelOutcome,

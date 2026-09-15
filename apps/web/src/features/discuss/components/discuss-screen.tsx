@@ -18,12 +18,14 @@ const KIND_META = {
   dm: {
     permissionKey: "conversation.read",
     loginHref: "/login?next=%2Fdiscuss%2Fdm",
+    // Matches `discussKeys`'s own `kind` segment exactly, so a dropped
+    // session actually clears the cache the manager reads from.
     queryKey: ["discuss", "dm"],
   },
   channel: {
     permissionKey: "channel.participate",
     loginHref: "/login?next=%2Fdiscuss%2Fchannels",
-    queryKey: ["discuss", "channels"],
+    queryKey: ["discuss", "channel"],
   },
 } as const;
 
@@ -90,7 +92,7 @@ export function DiscussScreen({
     <DiscussManager
       key={access.data.userId}
       kind={kind}
-      viewerId={access.data.userId}
+      access={access.data}
       initialConversationId={initialConversationId}
     />
   );
