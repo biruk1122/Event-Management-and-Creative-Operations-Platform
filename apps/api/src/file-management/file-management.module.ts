@@ -4,10 +4,12 @@ import { AuthModule } from "../auth/auth.module.js";
 import { AuditModule } from "../audit/audit.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
 import { ENVIRONMENT, type Environment } from "../config/environment.js";
+import { DiscussModule } from "../discuss/discuss.module.js";
 import { EventsModule } from "../events/events.module.js";
 import { TasksModule } from "../tasks/tasks.module.js";
 import { FileManagementController } from "./file-management.controller.js";
 import { FileManagementService } from "./file-management.service.js";
+import { MessageFileManagementController } from "./message-file-management.controller.js";
 import { TaskFileManagementController } from "./task-file-management.controller.js";
 import {
   DevelopmentTestFileScanner,
@@ -23,11 +25,16 @@ import { S3ObjectStorage } from "./storage/s3-object-storage.js";
   imports: [
     AuditModule,
     AuthModule,
+    DiscussModule,
     EventsModule,
     PermissionsModule,
     TasksModule,
   ],
-  controllers: [FileManagementController, TaskFileManagementController],
+  controllers: [
+    FileManagementController,
+    MessageFileManagementController,
+    TaskFileManagementController,
+  ],
   providers: [
     DevelopmentTestFileScanner,
     FileManagementService,
