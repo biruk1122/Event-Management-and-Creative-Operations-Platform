@@ -137,6 +137,9 @@ export function useDiscussMutations(
         conversationId: string;
         messageId: string;
       }) => gateway.updateReadCursor(conversationId, messageId),
+      // Without this, the list's unread badge never clears - not even for a
+      // conversation where the viewer just sent the last message themselves.
+      onSettled: reconcile,
     }),
   };
 }
