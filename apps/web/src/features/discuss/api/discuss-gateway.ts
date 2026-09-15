@@ -71,17 +71,16 @@ type ListQuery = NonNullable<
   operations["Discuss_list_v1"]["parameters"]["query"]
 >;
 
-export async function listConversations(
-  params: ListConversationsParams,
+async function listConversationsOfType(
+  type: ConversationType | undefined,
+  params: Pick<ListConversationsParams, "search" | "page" | "pageSize">,
   signal?: AbortSignal,
 ): Promise<PaginatedConversations> {
   const query: Record<string, string | number> = {
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 25,
   };
-  if (params.type) {
-    query.type = Array.isArray(params.type) ? params.type[0]! : params.type;
-  }
+  if (type) query.type = type;
   if (params.search?.trim()) query.search = params.search.trim();
 
   const { data, response } = await browserApi.GET("/api/v1/conversations", {
@@ -94,6 +93,37 @@ export async function listConversations(
   });
   if (!data) throw new DiscussRequestError(response.status);
   return data;
+}
+
+/** The API's `type` filter takes a single value (see
+ * `ListConversationsQueryDto`), so a multi-type request - the "dm" screen
+ * asks for `DIRECT` and `GROUP` together - fetches each type in parallel and
+ * merges the pages, newest-first, matching the API's own ordering. */
+export async function listConversations(
+  params: ListConversationsParams,
+  signal?: AbortSignal,
+): Promise<PaginatedConversations> {
+  const types = params.type
+    ? Array.isArray(params.type)
+      ? params.type
+      : [params.type]
+    : [];
+
+  if (types.length <= 1) {
+    return listConversationsOfType(types[0], params, signal);
+  }
+
+  const pages = await Promise.all(
+    types.map((type) => listConversationsOfType(type, params, signal)),
+  );
+  return {
+    items: pages
+      .flatMap((page) => page.items)
+      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)),
+    page: params.page ?? 1,
+    pageSize: params.pageSize ?? 25,
+    total: pages.reduce((sum, page) => sum + page.total, 0),
+  };
 }
 
 type MessagesQuery = NonNullable<

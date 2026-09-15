@@ -73,15 +73,75 @@ describe("discuss gateway reads", () => {
     );
   });
 
-  it("uses only the first type when an array is given, and defaults the page window", async () => {
+  it("defaults the page window when no type is given", async () => {
     get.mockResolvedValue(ok({ items: [], page: 1, pageSize: 25, total: 0 }));
-    await listConversations({ type: ["DIRECT", "GROUP"] });
+    await listConversations({});
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/conversations",
+      expect.objectContaining({
+        params: { query: { page: 1, pageSize: 25 } },
+      }),
+    );
+  });
+
+  it("fetches each type in parallel and merges the pages when given an array", async () => {
+    get.mockImplementation(async (path: string, options: unknown) => {
+      const type = (options as { params: { query: { type?: string } } }).params
+        .query.type;
+      if (type === "DIRECT") {
+        return ok({
+          items: [{ id: "c1", updatedAt: "2026-09-15T09:00:00.000Z" }],
+          page: 1,
+          pageSize: 25,
+          total: 1,
+        });
+      }
+      if (type === "GROUP") {
+        return ok({
+          items: [{ id: "c2", updatedAt: "2026-09-15T10:00:00.000Z" }],
+          page: 1,
+          pageSize: 25,
+          total: 1,
+        });
+      }
+      throw new Error(`unexpected type: ${String(type)}`);
+    });
+
+    const result = await listConversations({ type: ["DIRECT", "GROUP"] });
+
+    expect(get).toHaveBeenCalledTimes(2);
     expect(get).toHaveBeenCalledWith(
       "/api/v1/conversations",
       expect.objectContaining({
         params: { query: { page: 1, pageSize: 25, type: "DIRECT" } },
       }),
     );
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/conversations",
+      expect.objectContaining({
+        params: { query: { page: 1, pageSize: 25, type: "GROUP" } },
+      }),
+    );
+    // Newest-first across both types, matching the API's own ordering.
+    expect(result).toEqual({
+      items: [
+        { id: "c2", updatedAt: "2026-09-15T10:00:00.000Z" },
+        { id: "c1", updatedAt: "2026-09-15T09:00:00.000Z" },
+      ],
+      page: 1,
+      pageSize: 25,
+      total: 2,
+    });
+  });
+
+  it("throws when any type in the array fails to load", async () => {
+    get.mockResolvedValue({
+      data: undefined,
+      response: { ok: false, status: 500 },
+    });
+    await expect(
+      listConversations({ type: ["DIRECT", "GROUP"] }),
+    ).rejects.toBeInstanceOf(DiscussRequestError);
   });
 
   it("throws a DiscussRequestError when the list body is missing", async () => {

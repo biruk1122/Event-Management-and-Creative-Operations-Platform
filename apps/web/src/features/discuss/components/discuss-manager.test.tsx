@@ -105,7 +105,20 @@ function setup(initialConversationId: string | null = null) {
 }
 
 function mockGet(routes: Record<string, unknown>) {
-  get.mockImplementation(async (path: string) => {
+  get.mockImplementation(async (path: string, options?: unknown) => {
+    // The "dm" screen fetches DIRECT and GROUP in two parallel calls; only
+    // answer the DIRECT leg so list fixtures aren't duplicated.
+    if (path === "/api/v1/conversations") {
+      const type = (
+        options as { params?: { query?: { type?: string } } } | undefined
+      )?.params?.query?.type;
+      if (type === "GROUP") {
+        return {
+          data: { items: [], page: 1, pageSize: 25, total: 0 },
+          response: { ok: true, status: 200 },
+        };
+      }
+    }
     if (!(path in routes)) {
       return {
         data: { items: [], page: 1, pageSize: 100, total: 0 },
@@ -251,13 +264,31 @@ describe("DiscussManager", () => {
   });
 
   it("shows a list error with a retry action", async () => {
-    get.mockResolvedValueOnce({
-      data: undefined,
-      response: { ok: false, status: 500 },
-    });
-    get.mockResolvedValue({
-      data: { items: [conversation()], page: 1, pageSize: 25, total: 1 },
-      response: { ok: true, status: 200 },
+    let failed = false;
+    get.mockImplementation(async (path: string, options?: unknown) => {
+      if (path !== "/api/v1/conversations") {
+        return {
+          data: { items: [], page: 1, pageSize: 100, total: 0 },
+          response: { ok: true, status: 200 },
+        };
+      }
+      if (!failed) {
+        failed = true;
+        return { data: undefined, response: { ok: false, status: 500 } };
+      }
+      const type = (
+        options as { params?: { query?: { type?: string } } } | undefined
+      )?.params?.query?.type;
+      if (type === "GROUP") {
+        return {
+          data: { items: [], page: 1, pageSize: 25, total: 0 },
+          response: { ok: true, status: 200 },
+        };
+      }
+      return {
+        data: { items: [conversation()], page: 1, pageSize: 25, total: 1 },
+        response: { ok: true, status: 200 },
+      };
     });
     const { user } = setup();
 

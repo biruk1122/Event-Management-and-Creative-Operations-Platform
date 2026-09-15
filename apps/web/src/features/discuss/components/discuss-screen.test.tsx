@@ -24,10 +24,18 @@ let currentAccess: CurrentAccess | null;
 
 beforeEach(() => {
   currentAccess = fullAccess;
-  get.mockImplementation(async () => ({
-    data: currentAccess,
-    response: { status: currentAccess ? 200 : 401 },
-  }));
+  get.mockImplementation(async (path: string) => {
+    if (path === "/api/v1/auth/me/permissions") {
+      return {
+        data: currentAccess,
+        response: { status: currentAccess ? 200 : 401 },
+      };
+    }
+    return {
+      data: { items: [], page: 1, pageSize: 25, total: 0 },
+      response: { ok: true, status: 200 },
+    };
+  });
 });
 
 function setup(kind: "dm" | "channel" = "dm") {
