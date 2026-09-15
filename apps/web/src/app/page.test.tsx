@@ -15,6 +15,7 @@ vi.mock("@/features/workspaces", () => ({
 }));
 vi.mock("@/features/events", () => ({ EventsNavigation: () => null }));
 vi.mock("@/features/projects", () => ({ ProjectsNavigation: () => null }));
+vi.mock("@/features/tasks", () => ({ TasksNavigation: () => null }));
 vi.mock("@/features/discuss", () => ({ DiscussNavigation: () => null }));
 
 describe("frontend foundation", () => {

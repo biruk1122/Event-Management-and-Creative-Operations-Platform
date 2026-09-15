@@ -3,6 +3,7 @@ import { DepartmentsNavigation } from "@/features/departments";
 import { DiscussNavigation } from "@/features/discuss";
 import { EventsNavigation } from "@/features/events";
 import { ProjectsNavigation } from "@/features/projects";
+import { TasksNavigation } from "@/features/tasks";
 import { TeamsNavigation } from "@/features/teams";
 import { UsersNavigation } from "@/features/users";
 import { WorkspacesNavigation } from "@/features/workspaces";
@@ -19,6 +20,7 @@ export default function Home() {
       <WorkspacesNavigation />
       <EventsNavigation />
       <ProjectsNavigation />
+      <TasksNavigation />
       <DiscussNavigation />
       <FoundationOverview />
     </>
