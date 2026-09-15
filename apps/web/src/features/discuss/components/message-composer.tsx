@@ -170,7 +170,9 @@ export function MessageComposer({
           <Label htmlFor={mentionId} className="sr-only">
             Mention someone
           </Label>
-          <Select onValueChange={addMention}>
+          {/* Remounted per pick: an uncontrolled trigger would otherwise keep
+              showing the last person's name instead of the "Mention" placeholder. */}
+          <Select key={mentionedUserIds.length} onValueChange={addMention}>
             <SelectTrigger
               id={mentionId}
               aria-label="Mention someone"

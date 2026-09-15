@@ -13,6 +13,12 @@ const now = "2026-09-15T09:00:00.000Z";
 
 const PEOPLE: DiscussPerson[] = [
   {
+    id: "user-2",
+    email: "dana@example.com",
+    firstName: "Dana",
+    lastName: "Okafor",
+  },
+  {
     id: "user-1",
     email: "morgan@example.com",
     firstName: "Morgan",
@@ -140,6 +146,39 @@ describe("MessageComposer", () => {
     await waitFor(() =>
       expect(onSend).toHaveBeenCalledWith(
         expect.objectContaining({ mentionedUserIds: ["user-1"] }),
+      ),
+    );
+  });
+
+  it("resets to the placeholder after each pick, so a second mention can be added", async () => {
+    const onSend: ScopedSendMessage = vi.fn(() =>
+      Promise.resolve<SendMessageOutcome>({ status: "success", message: SENT }),
+    );
+    const { user } = setup({ onSend });
+
+    const picker = () =>
+      screen.getByRole("combobox", { name: "Mention someone" });
+
+    await user.click(
+      await screen.findByRole("combobox", { name: "Mention someone" }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: "Morgan Lead" }),
+    );
+    expect(picker()).toHaveTextContent("Mention");
+
+    await user.click(picker());
+    await user.click(
+      await screen.findByRole("option", { name: "Dana Okafor" }),
+    );
+    expect(screen.getByLabelText("Message")).toHaveValue(
+      "@Morgan Lead @Dana Okafor ",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() =>
+      expect(onSend).toHaveBeenCalledWith(
+        expect.objectContaining({ mentionedUserIds: ["user-1", "user-2"] }),
       ),
     );
   });
