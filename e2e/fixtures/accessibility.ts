@@ -15,14 +15,22 @@ const WCAG_22_AA_TAGS = [
   "wcag22aa",
 ] as const;
 
-/** Fails a critical-flow test when axe finds a WCAG A or AA violation. */
+/** Fails a critical-flow test when axe finds a WCAG A or AA violation.
+ * `ignoreRuleIds` excludes specific axe rule ids from failing this call -
+ * for a known, already-tracked defect (see e.g. the `dialog-description-
+ * contrast` project note) that this test should not re-litigate, without
+ * silencing every other check on the same page. */
 export async function expectNoWcag22AaViolations(
   page: Page,
   context: string,
+  ignoreRuleIds: readonly string[] = [],
 ): Promise<void> {
-  const { violations } = await new AxeBuilder({ page })
+  const { violations: allViolations } = await new AxeBuilder({ page })
     .withTags([...WCAG_22_AA_TAGS])
     .analyze();
+  const violations = allViolations.filter(
+    (violation) => !ignoreRuleIds.includes(violation.id),
+  );
 
   expect(
     violations,
