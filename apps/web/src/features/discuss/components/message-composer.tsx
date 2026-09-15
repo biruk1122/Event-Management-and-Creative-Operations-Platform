@@ -14,14 +14,16 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-import { listAssignablePeople as defaultListAssignablePeople } from "../api/list-assignable-people";
+import {
+  listAssignablePeople as defaultListAssignablePeople,
+  type ListAssignablePeople,
+} from "../api/discuss-gateway";
 import type { ScopedSendMessage as SendMessage } from "../lib/discuss-outcome";
 import {
   personName,
   type DiscussPerson,
   type Message,
 } from "../lib/discuss-types";
-import type { ListAssignablePeople } from "../api/list-assignable-people";
 
 const FORM_ERRORS: Record<string, string> = {
   not_member: "You are no longer a member of this conversation.",

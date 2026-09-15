@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { ListAssignablePeople } from "../api/list-assignable-people";
+import type { ListAssignablePeople } from "../api/discuss-gateway";
 import type {
   AddMember,
   RemoveMember,

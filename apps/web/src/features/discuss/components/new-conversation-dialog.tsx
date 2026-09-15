@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 
-import type { ListAssignablePeople } from "../api/list-assignable-people";
+import type { ListAssignablePeople } from "../api/discuss-gateway";
 import type { StartConversation } from "../lib/discuss-outcome";
 import {
   personName,
