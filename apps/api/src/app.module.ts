@@ -8,6 +8,7 @@ import { environment } from "./config/environment.js";
 import { EnvironmentModule } from "./config/environment.module.js";
 import { DatabaseModule } from "./database/database.module.js";
 import { DepartmentsModule } from "./departments/departments.module.js";
+import { DiscussModule } from "./discuss/discuss.module.js";
 import { EventsModule } from "./events/events.module.js";
 import { FileManagementModule } from "./file-management/file-management.module.js";
 import { HealthModule } from "./health/health.module.js";
@@ -57,6 +58,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     WorkspacesModule,
     EventsModule,
     ProjectsModule,
+    DiscussModule,
     FileManagementModule,
     RealtimeModule,
   ],
