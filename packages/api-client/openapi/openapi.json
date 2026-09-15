@@ -4177,6 +4177,14 @@
         "parameters": [
           {
             "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
             "name": "messageId",
             "required": true,
             "schema": {
@@ -4250,6 +4258,14 @@
       "patch": {
         "operationId": "Discuss_updateMessage_v1",
         "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "in": "path",
             "name": "messageId",

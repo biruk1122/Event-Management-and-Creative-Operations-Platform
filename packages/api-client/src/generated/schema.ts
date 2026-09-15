@@ -3573,6 +3573,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        id: string;
         messageId: string;
       };
       cookie?: never;
@@ -3630,6 +3631,7 @@ export interface operations {
       query?: never;
       header?: never;
       path: {
+        id: string;
         messageId: string;
       };
       cookie?: never;

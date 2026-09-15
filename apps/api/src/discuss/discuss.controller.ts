@@ -276,10 +276,16 @@ export class DiscussController {
   })
   async updateMessage(
     @Req() request: RequestWithContext,
+    @Param("id") id: string,
     @Param("messageId") messageId: string,
     @Body() body: UpdateMessageDto,
   ): Promise<MessageResponse> {
-    return this.discuss.updateMessage(actingUserId(request), messageId, body);
+    return this.discuss.updateMessage(
+      actingUserId(request),
+      id,
+      messageId,
+      body,
+    );
   }
 
   @Delete(":id/messages/:messageId")
@@ -297,9 +303,10 @@ export class DiscussController {
   })
   async deleteMessage(
     @Req() request: RequestWithContext,
+    @Param("id") id: string,
     @Param("messageId") messageId: string,
   ): Promise<MessageResponse> {
-    return this.discuss.deleteMessage(actingUserId(request), messageId);
+    return this.discuss.deleteMessage(actingUserId(request), id, messageId);
   }
 
   @Put(":id/messages/:messageId/pin")

@@ -301,7 +301,14 @@ export class DiscussService {
     const publicChannel =
       conversation.type === ConversationType.CHANNEL &&
       conversation.visibility === "PUBLIC";
+    // A GROUP has no manager and is never public, so reaching this point
+    // already proves membership (or the organization override) via
+    // `mutationContext`'s visibility check above - any existing participant
+    // may invite another, mirroring how a group chat is grown elsewhere in
+    // the product vocabulary.
+    const growableGroup = conversation.type === ConversationType.GROUP;
     const allowed =
+      growableGroup ||
       (selfJoin && publicChannel) ||
       (await this.canManageChannel(actingUserId, conversation));
     if (!allowed) throw permissionDenied();
@@ -398,10 +405,12 @@ export class DiscussService {
 
   async updateMessage(
     actingUserId: string,
+    conversationId: string,
     messageId: string,
     dto: UpdateMessageDto,
   ): Promise<MessageResponse> {
     const result = await this.repository.updateMessageContent({
+      conversationId,
       messageId,
       authorId: actingUserId,
       content: dto.content.trim(),
@@ -413,9 +422,11 @@ export class DiscussService {
 
   async deleteMessage(
     actingUserId: string,
+    conversationId: string,
     messageId: string,
   ): Promise<MessageResponse> {
     const result = await this.repository.deleteMessage({
+      conversationId,
       messageId,
       authorId: actingUserId,
     });

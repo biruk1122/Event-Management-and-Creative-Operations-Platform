@@ -531,26 +531,31 @@ export class DiscussRepository {
     return { items: items.map(toMessageRecord), total };
   }
 
+  /** Locks the message row and confirms it both belongs to the given
+   * conversation and is authored by the caller, so a URL naming the wrong
+   * conversation for a real message id cannot be used to mutate it. */
   private async lockMessageMutationAccess(
     tx: Prisma.TransactionClient,
+    conversationId: string,
     messageId: string,
     authorId: string,
   ): Promise<
     { id: string; conversationId: string } | "forbidden" | "not_found"
   > {
-    if (!isUuid(messageId)) return "not_found";
+    if (!isUuid(conversationId) || !isUuid(messageId)) return "not_found";
     const locked = await tx.$queryRaw<
       Array<{ id: string; conversation_id: string; author_id: string | null }>
     >(
       Prisma.sql`SELECT id, conversation_id, author_id FROM messages WHERE id = ${messageId}::uuid FOR UPDATE`,
     );
     const row = locked[0];
-    if (!row) return "not_found";
+    if (!row || row.conversation_id !== conversationId) return "not_found";
     if (row.author_id !== authorId) return "forbidden";
     return { id: row.id, conversationId: row.conversation_id };
   }
 
   async updateMessageContent(input: {
+    conversationId: string;
     messageId: string;
     authorId: string;
     content: string;
@@ -558,6 +563,7 @@ export class DiscussRepository {
     return this.db.$transaction(async (tx) => {
       const access = await this.lockMessageMutationAccess(
         tx,
+        input.conversationId,
         input.messageId,
         input.authorId,
       );
@@ -572,12 +578,14 @@ export class DiscussRepository {
   }
 
   async deleteMessage(input: {
+    conversationId: string;
     messageId: string;
     authorId: string;
   }): Promise<MessageRecord | "forbidden" | "not_found"> {
     return this.db.$transaction(async (tx) => {
       const access = await this.lockMessageMutationAccess(
         tx,
+        input.conversationId,
         input.messageId,
         input.authorId,
       );

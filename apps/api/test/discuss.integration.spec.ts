@@ -381,6 +381,67 @@ describe("discuss (conversations, channels, and messages) API", () => {
     expect(body<{ code: string }>(reply).code).toBe("MESSAGE_PARENT_NOT_FOUND");
   });
 
+  it("lets an existing group member grow the group, but not edit or delete another member's message across conversations", async () => {
+    const group = body<ConversationBody>(
+      await as(member, "post", "/api/v1/conversations").send({
+        type: "GROUP",
+        memberIds: [secondMember.id],
+      }),
+    );
+
+    const grown = await as(
+      secondMember,
+      "put",
+      `/api/v1/conversations/${group.id}/members/${thirdMember.id}`,
+    );
+    expect(grown.status).toBe(200);
+    expect(body<ConversationBody>(grown).members.map((m) => m.id)).toContain(
+      thirdMember.id,
+    );
+
+    const outsiderGrow = await as(
+      departmentManager,
+      "put",
+      `/api/v1/conversations/${group.id}/members/${departmentManager.id}`,
+    );
+    expect(outsiderGrow.status).toBe(403);
+
+    const otherConversation = body<ConversationBody>(
+      await as(member, "post", "/api/v1/conversations").send({
+        type: "DIRECT",
+        memberIds: [secondMember.id],
+      }),
+    );
+    const groupMessage = body<MessageBody>(
+      await as(
+        member,
+        "post",
+        `/api/v1/conversations/${group.id}/messages`,
+      ).send({ content: "Original group message." }),
+    );
+
+    const crossConversationEdit = await as(
+      member,
+      "patch",
+      `/api/v1/conversations/${otherConversation.id}/messages/${groupMessage.id}`,
+    ).send({ content: "Should not apply through the wrong conversation." });
+    expect(crossConversationEdit.status).toBe(404);
+    expect(body<{ code: string }>(crossConversationEdit).code).toBe(
+      "MESSAGE_NOT_FOUND",
+    );
+
+    const stillOriginal = await as(
+      member,
+      "get",
+      `/api/v1/conversations/${group.id}/messages`,
+    );
+    expect(
+      body<{ items: MessageBody[] }>(stillOriginal).items.find(
+        (m) => m.id === groupMessage.id,
+      )?.content,
+    ).toBe("Original group message.");
+  });
+
   it("rejects a mention of a user that does not exist", async () => {
     const conversation = body<ConversationBody>(
       await as(member, "post", "/api/v1/conversations").send({
