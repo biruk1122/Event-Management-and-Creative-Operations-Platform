@@ -282,4 +282,158 @@ describe("TasksService", () => {
       "TASK_USER_NOT_FOUND",
     );
   });
+
+  it("persists every allowed assignee lifecycle transition", async () => {
+    grantOnly(["task.update_status", "SELF"]);
+    const transitions: Array<[TaskStatus, TaskStatus]> = [
+      [TaskStatus.TODO, TaskStatus.IN_PROGRESS],
+      [TaskStatus.TODO, TaskStatus.BLOCKED],
+      [TaskStatus.TODO, TaskStatus.CANCELLED],
+      [TaskStatus.IN_PROGRESS, TaskStatus.BLOCKED],
+      [TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
+      [TaskStatus.BLOCKED, TaskStatus.TODO],
+      [TaskStatus.BLOCKED, TaskStatus.IN_PROGRESS],
+      [TaskStatus.BLOCKED, TaskStatus.CANCELLED],
+    ];
+
+    for (const [from, to] of transitions) {
+      repository.findVisibleById!.mockResolvedValue(
+        makeTask({
+          status: from,
+          createdBy: {
+            id: ACTOR,
+            email: "actor@example.com",
+            firstName: null,
+            lastName: null,
+          },
+        }),
+      );
+      repository.setStatus!.mockResolvedValue(makeTask({ status: to }));
+
+      await expect(
+        service.transition(ACTOR, "task-1", to),
+      ).resolves.toMatchObject({
+        status: to,
+      });
+      expect(repository.setStatus).toHaveBeenLastCalledWith(
+        "task-1",
+        from,
+        to,
+        ACTOR,
+        expect.any(Object),
+        undefined,
+      );
+    }
+  });
+
+  it("enforces each assignee lifecycle boundary before attempting persistence", async () => {
+    grantOnly(["task.update_status", "SELF"]);
+    repository.findVisibleById!.mockResolvedValue(
+      makeTask({
+        status: TaskStatus.TODO,
+        createdBy: {
+          id: ACTOR,
+          email: "actor@example.com",
+          firstName: null,
+          lastName: null,
+        },
+      }),
+    );
+
+    await service.transition(ACTOR, "task-1", TaskStatus.BLOCKED);
+    expect(repository.setStatus).toHaveBeenCalledWith(
+      "task-1",
+      TaskStatus.TODO,
+      TaskStatus.BLOCKED,
+      ACTOR,
+      expect.any(Object),
+      undefined,
+    );
+
+    repository.setStatus!.mockClear();
+    await expectCode(
+      service.transition(ACTOR, "task-1", TaskStatus.COMPLETED),
+      "TASK_INVALID_TRANSITION",
+    );
+    expect(repository.setStatus).not.toHaveBeenCalled();
+
+    repository.findVisibleById!.mockResolvedValue(
+      makeTask({
+        status: TaskStatus.COMPLETED,
+        createdBy: {
+          id: ACTOR,
+          email: "actor@example.com",
+          firstName: null,
+          lastName: null,
+        },
+      }),
+    );
+    await expectCode(
+      service.transition(ACTOR, "task-1", TaskStatus.IN_PROGRESS),
+      "TASK_INVALID_TRANSITION",
+    );
+  });
+
+  it("maps concurrent progress and status writes to stable conflicts", async () => {
+    grantOnly(["task.update_status", "SELF"], ["task.update_progress", "SELF"]);
+    repository.findVisibleById!.mockResolvedValue(
+      makeTask({
+        createdBy: {
+          id: ACTOR,
+          email: "actor@example.com",
+          firstName: null,
+          lastName: null,
+        },
+      }),
+    );
+    repository.setStatus!.mockResolvedValue("concurrent");
+    await expectCode(
+      service.transition(ACTOR, "task-1", TaskStatus.IN_PROGRESS),
+      "TASK_CONCURRENT_CHANGE",
+    );
+
+    repository.setProgress!.mockResolvedValue("concurrent");
+    await expectCode(
+      service.updateProgress(ACTOR, "task-1", 50),
+      "TASK_CONCURRENT_CHANGE",
+    );
+  });
+
+  it("maps assignment removal and missing users without exposing persistence details", async () => {
+    grantOnly(["task.assign", "ORGANIZATION"]);
+    repository.removeAssignee!.mockResolvedValue("not_assigned");
+    await expectCode(
+      service.removeAssignee(ACTOR, "task-1", "user-1", "request-1"),
+      "TASK_ASSIGNEE_NOT_ASSIGNED",
+    );
+
+    repository.addAssignee!.mockResolvedValue("user_not_found");
+    await expectCode(
+      service.addAssignee(ACTOR, "task-1", "user-1", "request-2"),
+      "TASK_USER_NOT_FOUND",
+    );
+  });
+
+  it("rejects inaccessible owners and missing owner records before creating a task", async () => {
+    grantOnly(["task.create", "DEPARTMENT"]);
+    repository.findUserDepartmentId!.mockResolvedValue("department-1");
+    await expectCode(
+      service.create(ACTOR, {
+        title: "Other department task",
+        departmentId: "department-2",
+      }),
+      "PERMISSION_DENIED",
+    );
+    expect(repository.create).not.toHaveBeenCalled();
+
+    grantOnly(["task.create", "ORGANIZATION"]);
+    repository.workspaceExists!.mockResolvedValue(false);
+    await expectCode(
+      service.create(ACTOR, {
+        title: "Missing workspace task",
+        workspaceId: "workspace-1",
+      }),
+      "TASK_WORKSPACE_NOT_FOUND",
+    );
+  });
 });
