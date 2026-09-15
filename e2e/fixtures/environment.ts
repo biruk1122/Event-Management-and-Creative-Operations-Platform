@@ -87,7 +87,16 @@ export function serverEnv(): Record<string, string> {
     WEB_PORT,
     LOG_LEVEL: "silent",
     CORS_ORIGINS: webBaseUrl,
-    API_RATE_LIMIT_MAX: "1000",
+    // The suite has grown across many merged epics (EVT, WSP, PRJ, RBAC,
+    // TASK, RTC, ...); a full run's request volume within any 60s window now
+    // exceeds 1000, tripping the limiter mid-suite with unrelated 429s in
+    // specs that never touch the feature actually under test. Raised with
+    // headroom for the epics still to come, not tuned to today's exact
+    // count. Keep this in sync with the `end-to-end` job's own
+    // `API_RATE_LIMIT_MAX` in `.github/workflows/foundation-ci.yml`, which
+    // is what actually governs CI - see the note on `resolved` below for why
+    // this default alone does not.
+    API_RATE_LIMIT_MAX: "10000",
     API_RATE_LIMIT_TTL_MS: "60000",
     AUTH_ACCESS_TOKEN_SECRET: "e2e-access-token-secret-at-least-32-characters",
     AUTH_ACCESS_TOKEN_TTL: "15m",
@@ -107,6 +116,13 @@ export function serverEnv(): Record<string, string> {
     NEXT_PUBLIC_WS_URL: apiBaseUrl,
   };
 
+  // An already-set ambient value always wins over the default above -
+  // including the repository `.env` (loaded by `loadRepositoryEnv()` before
+  // this runs) if that file happens to set the same key. A locally copied
+  // `.env` with its own `API_RATE_LIMIT_MAX` therefore silently overrides
+  // this function's own curated default; only CI, which sets no such file,
+  // is actually governed by the value above. Confirming a change to a key
+  // also set in `.env` needs a real run, not just reading this function.
   const resolved: Record<string, string> = { ...defaults };
   for (const key of Object.keys(defaults)) {
     const fromEnv = process.env[key];
