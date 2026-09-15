@@ -5,8 +5,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useCurrentAccess } from "@/features/auth/api/access-queries";
 
-import { TASK_WORKSPACE_FIXTURE } from "../lib/task-fixtures";
-import { TaskWorkspace } from "./tasks-workspace";
+import { TasksManager } from "./tasks-manager";
 
 const LOGIN_HREF = "/login?next=%2Ftasks";
 
@@ -18,10 +17,6 @@ function canReadTasks(
   );
 }
 
-/**
- * EVE-96 establishes the permission-aware visual shell. EVE-97 replaces the
- * presentation fixture with scoped, generated-client task queries and actions.
- */
 export function TasksScreen() {
   const access = useCurrentAccess();
 
@@ -63,5 +58,5 @@ export function TasksScreen() {
     return <p role="alert">You do not have access to tasks.</p>;
   }
 
-  return <TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />;
+  return <TasksManager access={access.data} />;
 }
