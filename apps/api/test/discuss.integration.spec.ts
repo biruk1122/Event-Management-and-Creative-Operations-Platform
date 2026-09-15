@@ -109,6 +109,7 @@ describe("discuss (conversations, channels, and messages) API", () => {
   let app: NestExpressApplication;
   let http: ReturnType<NestExpressApplication["getHttpServer"]>;
   let credentialHash: string;
+  let superAdmin: Principal;
   let management: Principal;
   let departmentManager: Principal;
   let otherDepartmentManager: Principal;
@@ -171,6 +172,10 @@ describe("discuss (conversations, channels, and messages) API", () => {
     departmentId = department.id;
     otherDepartmentId = otherDepartment.id;
 
+    superAdmin = await createPrincipal(
+      "super-admin@discuss.test",
+      "Super Admin",
+    );
     management = await createPrincipal(
       "management@discuss.test",
       "Management/Administrator",
@@ -661,5 +666,162 @@ describe("discuss (conversations, channels, and messages) API", () => {
     expect(body<{ code: string }>(missingFileDownload).code).toBe(
       "FILE_NOT_FOUND",
     );
+  });
+
+  it("rejects unauthenticated requests and out-of-range pagination", async () => {
+    const unauthenticated = await request(http).get("/api/v1/conversations");
+    expect(unauthenticated.status).toBe(401);
+
+    const invalidPage = await as(member, "get", "/api/v1/conversations?page=0");
+    expect(invalidPage.status).toBe(400);
+
+    const conversation = body<ConversationBody>(
+      await as(member, "post", "/api/v1/conversations").send({
+        type: "DIRECT",
+        memberIds: [secondMember.id],
+      }),
+    );
+    const invalidMessagePage = await as(
+      member,
+      "get",
+      `/api/v1/conversations/${conversation.id}/messages?pageSize=0`,
+    );
+    expect(invalidMessagePage.status).toBe(400);
+  });
+
+  it("returns stable not-found codes for a missing conversation or message", async () => {
+    const missingId = randomUUID();
+
+    // A caller with no organization-wide grant cannot distinguish "does not
+    // exist" from "exists but I cannot see it" - both read as forbidden.
+    const missingConversationForMember = await as(
+      member,
+      "get",
+      `/api/v1/conversations/${missingId}`,
+    );
+    expect(missingConversationForMember.status).toBe(403);
+    expect(body<{ code: string }>(missingConversationForMember).code).toBe(
+      "PERMISSION_DENIED",
+    );
+
+    const missingConversation = await as(
+      superAdmin,
+      "get",
+      `/api/v1/conversations/${missingId}`,
+    );
+    expect(missingConversation.status).toBe(404);
+    expect(body<{ code: string }>(missingConversation).code).toBe(
+      "CONVERSATION_NOT_FOUND",
+    );
+
+    const conversation = body<ConversationBody>(
+      await as(member, "post", "/api/v1/conversations").send({
+        type: "DIRECT",
+        memberIds: [secondMember.id],
+      }),
+    );
+    const missingMessageEdit = await as(
+      member,
+      "patch",
+      `/api/v1/conversations/${conversation.id}/messages/${randomUUID()}`,
+    ).send({ content: "no such message" });
+    expect(missingMessageEdit.status).toBe(404);
+    expect(body<{ code: string }>(missingMessageEdit).code).toBe(
+      "MESSAGE_NOT_FOUND",
+    );
+
+    const missingReadCursorTarget = await as(
+      member,
+      "put",
+      `/api/v1/conversations/${conversation.id}/read-cursor`,
+    ).send({ messageId: randomUUID() });
+    expect(missingReadCursorTarget.status).toBe(404);
+    expect(body<{ code: string }>(missingReadCursorTarget).code).toBe(
+      "MESSAGE_NOT_FOUND",
+    );
+  });
+
+  it("rolls back the attachment finalize transaction cleanly on a mid-transaction failure", async () => {
+    const conversation = body<ConversationBody>(
+      await as(member, "post", "/api/v1/conversations").send({
+        type: "DIRECT",
+        memberIds: [secondMember.id],
+      }),
+    );
+    const message = body<MessageBody>(
+      await as(
+        member,
+        "post",
+        `/api/v1/conversations/${conversation.id}/messages`,
+      ).send({ content: "Rollback target." }),
+    );
+    const bytes = Buffer.from("\xff\xd8\xffrollback-body", "binary");
+    const intentResponse = await as(
+      member,
+      "post",
+      `/api/v1/conversations/${conversation.id}/files/upload-intents`,
+    ).send({
+      filename: "rollback.jpg",
+      mediaType: "image/jpeg",
+      sizeBytes: bytes.byteLength,
+    });
+    expect(intentResponse.status).toBe(201);
+    const intent = body<{
+      id: string;
+      upload: { fields: Record<string, string> };
+    }>(intentResponse);
+    const storageKey = intent.upload.fields.key;
+    if (!storageKey) throw new Error("rollback upload intent omitted its key");
+    storage.objects.set(storageKey, {
+      bytes,
+      mediaType: "image/jpeg",
+      sizeBytes: bytes.byteLength,
+    });
+
+    await database.query(`
+      CREATE FUNCTION force_message_attachment_failure() RETURNS trigger AS $$
+      BEGIN
+        RAISE EXCEPTION 'forced message attachment failure';
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    await database.query(`
+      CREATE TRIGGER force_message_attachment_failure
+      BEFORE INSERT ON message_attachments
+      FOR EACH ROW EXECUTE FUNCTION force_message_attachment_failure();
+    `);
+    try {
+      await as(
+        member,
+        "post",
+        `/api/v1/conversations/${conversation.id}/messages/${message.id}/files/${intent.id}/finalize`,
+      ).expect(500);
+      expect(
+        await prisma.managedFile.findUniqueOrThrow({
+          where: { id: intent.id },
+          select: { state: true },
+        }),
+      ).toEqual({ state: "PENDING" });
+      expect(
+        await prisma.messageAttachment.count({
+          where: { managedFileId: intent.id },
+        }),
+      ).toBe(0);
+    } finally {
+      await database.query(
+        "DROP TRIGGER force_message_attachment_failure ON message_attachments",
+      );
+      await database.query("DROP FUNCTION force_message_attachment_failure()");
+    }
+
+    const stillPending = await as(
+      member,
+      "get",
+      `/api/v1/conversations/${conversation.id}/messages/${message.id}/files`,
+    );
+    expect(stillPending.status).toBe(200);
+    expect(
+      body<{ items: Array<{ id: string }>; total: number }>(stillPending).total,
+    ).toBe(0);
   });
 });
