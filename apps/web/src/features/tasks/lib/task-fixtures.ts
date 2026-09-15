@@ -1,9 +1,8 @@
 import type { TaskWorkspaceData } from "./tasks-types";
 
 /**
- * Presentation data for EVE-96 only. EVE-97 replaces this boundary with the
- * generated task client; keeping it here makes every visual state testable
- * without pretending that a local mutation has been persisted.
+ * Test-only presentation data. Production task screens use the generated
+ * client; this fixture makes visual states testable without fake persistence.
  */
 export const TASK_WORKSPACE_FIXTURE: TaskWorkspaceData = {
   tasks: [

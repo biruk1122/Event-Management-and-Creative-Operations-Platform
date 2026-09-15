@@ -1,3 +1,5 @@
+import { type ReactNode } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -5,10 +7,19 @@ import { describe, expect, it, vi } from "vitest";
 import { TASK_WORKSPACE_FIXTURE } from "../lib/task-fixtures";
 import { TaskWorkspace } from "./tasks-workspace";
 
+function renderWorkspace(node: ReactNode) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>{node}</QueryClientProvider>,
+  );
+}
+
 describe("TaskWorkspace", () => {
   it("switches between the accessible list, board, and calendar projections", async () => {
     const user = userEvent.setup();
-    render(<TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />);
+    renderWorkspace(<TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />);
 
     expect(screen.getByRole("table")).toBeVisible();
 
@@ -28,7 +39,7 @@ describe("TaskWorkspace", () => {
 
   it("filters tasks and gives a clear empty-state recovery message", async () => {
     const user = userEvent.setup();
-    render(<TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />);
+    renderWorkspace(<TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />);
 
     await user.type(screen.getByLabelText("Search tasks"), "not-a-task");
 
@@ -38,9 +49,9 @@ describe("TaskWorkspace", () => {
     ).toBeVisible();
   });
 
-  it("opens task detail with collaborators, attachments, comments, activity, and disabled future actions", async () => {
+  it("opens task detail with collaborators, attachments, comments, and activity", async () => {
     const user = userEvent.setup();
-    render(<TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />);
+    renderWorkspace(<TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />);
 
     await user.click(
       screen.getAllByRole("button", {
@@ -58,19 +69,13 @@ describe("TaskWorkspace", () => {
     expect(
       screen.getByText("The venue has sent the revised accessible-route map."),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Add comment" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Manage assignees" }),
-    ).toBeDisabled();
-    expect(dialog).toHaveTextContent(
-      "Assignment changes will be available when this UI is connected to the task API.",
-    );
+    expect(dialog).toHaveTextContent("No review has been recorded.");
   });
 
   it("shows an actionable recoverable loading error", async () => {
     const user = userEvent.setup();
     const retry = vi.fn();
-    render(
+    renderWorkspace(
       <TaskWorkspace
         data={TASK_WORKSPACE_FIXTURE}
         error="The task service did not respond."
@@ -86,7 +91,7 @@ describe("TaskWorkspace", () => {
   });
 
   it("uses mobile-first and larger-screen layout classes for the primary views", () => {
-    const { container } = render(
+    const { container } = renderWorkspace(
       <TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />,
     );
     expect(
@@ -100,7 +105,7 @@ describe("TaskWorkspace", () => {
 
   it("uses ordinary keyboard-operable view buttons instead of incomplete tab semantics", async () => {
     const user = userEvent.setup();
-    render(<TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />);
+    renderWorkspace(<TaskWorkspace data={TASK_WORKSPACE_FIXTURE} />);
 
     const board = screen.getByRole("button", { name: "Board" });
     board.focus();
