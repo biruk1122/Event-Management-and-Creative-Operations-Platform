@@ -110,6 +110,7 @@ describe("task assignment and collaboration API", () => {
   let departmentManager: Principal;
   let otherDepartmentManager: Principal;
   let member: Principal;
+  let secondMember: Principal;
   let departmentId: string;
   let workspaceId: string;
   let scanner: CleanTaskFileScanner;
@@ -185,6 +186,11 @@ describe("task assignment and collaboration API", () => {
     );
     member = await createPrincipal(
       "member@tasks.test",
+      "Team Member",
+      department.id,
+    );
+    secondMember = await createPrincipal(
+      "second-member@tasks.test",
       "Team Member",
       department.id,
     );
@@ -590,5 +596,228 @@ describe("task assignment and collaboration API", () => {
       workspaceContext: workspaceId,
     });
     expect(typeof authorizationAudit?.requestId).toBe("string");
+  });
+
+  it("enforces validation, access, lifecycle, feed, and rollback boundaries", async () => {
+    await request(http)
+      .post("/api/v1/tasks")
+      .send({ title: "Unauthenticated" })
+      .expect(401);
+
+    const reversedSchedule = await as(management, "post", "/api/v1/tasks").send(
+      {
+        title: "Reversed schedule",
+        departmentId,
+        startAt: "2026-11-02T09:00:00.000Z",
+        dueAt: "2026-11-01T09:00:00.000Z",
+      },
+    );
+    expect(reversedSchedule.status).toBe(400);
+    expect(body<{ code: string }>(reversedSchedule).code).toBe(
+      "TASK_SCHEDULE_INVALID",
+    );
+
+    const createdResponse = await as(management, "post", "/api/v1/tasks").send({
+      title: "Boundary checks",
+      departmentId,
+      startAt: "2026-11-01T09:00:00.000Z",
+      dueAt: "2026-11-02T09:00:00.000Z",
+    });
+    expect(createdResponse.status).toBe(201);
+    const created = body<TaskBody>(createdResponse);
+
+    const missingTask = await as(
+      management,
+      "get",
+      `/api/v1/tasks/${randomUUID()}`,
+    );
+    expect(missingTask.status).toBe(404);
+    expect(body<{ code: string }>(missingTask).code).toBe("TASK_NOT_FOUND");
+
+    const missingAssignee = await as(
+      departmentManager,
+      "put",
+      `/api/v1/tasks/${created.id}/assignees/${randomUUID()}`,
+    );
+    expect(missingAssignee.status).toBe(404);
+    expect(body<{ code: string }>(missingAssignee).code).toBe(
+      "TASK_USER_NOT_FOUND",
+    );
+
+    await as(
+      departmentManager,
+      "put",
+      `/api/v1/tasks/${created.id}/assignees/${member.id}`,
+    ).expect(200);
+    const secondAssignment = await as(
+      departmentManager,
+      "put",
+      `/api/v1/tasks/${created.id}/assignees/${secondMember.id}`,
+    );
+    expect(secondAssignment.status).toBe(200);
+    expect(body<TaskBody>(secondAssignment).assignees).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: member.id }),
+        expect.objectContaining({ id: secondMember.id }),
+      ]),
+    );
+    await as(secondMember, "get", `/api/v1/tasks/${created.id}`).expect(200);
+    await as(member, "post", `/api/v1/tasks/${created.id}/comments`)
+      .send({ content: "First update." })
+      .expect(201);
+
+    const invalidFeedPage = await as(
+      member,
+      "get",
+      `/api/v1/tasks/${created.id}/comments?page=0`,
+    );
+    expect(invalidFeedPage.status).toBe(400);
+
+    const comments = await as(
+      member,
+      "get",
+      `/api/v1/tasks/${created.id}/comments?page=1&pageSize=1`,
+    );
+    expect(comments.status).toBe(200);
+    expect(
+      body<{ items: Array<{ content: string }>; total: number }>(comments),
+    ).toMatchObject({
+      items: [expect.objectContaining({ content: "First update." })],
+      total: 1,
+    });
+
+    const invalidTransition = await as(
+      member,
+      "post",
+      `/api/v1/tasks/${created.id}/transition`,
+    ).send({ status: "COMPLETED" });
+    expect(invalidTransition.status).toBe(409);
+    expect(body<{ code: string }>(invalidTransition).code).toBe(
+      "TASK_INVALID_TRANSITION",
+    );
+
+    await as(member, "post", `/api/v1/tasks/${created.id}/transition`)
+      .send({ status: "IN_PROGRESS" })
+      .expect(200);
+    await as(member, "post", `/api/v1/tasks/${created.id}/transition`)
+      .send({ status: "BLOCKED" })
+      .expect(200);
+    await as(member, "post", `/api/v1/tasks/${created.id}/transition`)
+      .send({ status: "TODO" })
+      .expect(200);
+    await as(member, "post", `/api/v1/tasks/${created.id}/transition`)
+      .send({ status: "IN_PROGRESS" })
+      .expect(200);
+    await as(member, "post", `/api/v1/tasks/${created.id}/submit`).expect(200);
+    const reviewRequired = await as(
+      member,
+      "post",
+      `/api/v1/tasks/${created.id}/transition`,
+    ).send({ status: "TODO" });
+    expect(reviewRequired.status).toBe(409);
+    expect(body<{ code: string }>(reviewRequired).code).toBe(
+      "TASK_INVALID_TRANSITION",
+    );
+    await as(departmentManager, "post", `/api/v1/tasks/${created.id}/reviews`)
+      .send({ outcome: "APPROVED" })
+      .expect(201);
+    await as(member, "post", `/api/v1/tasks/${created.id}/transition`)
+      .send({ status: "IN_PROGRESS" })
+      .expect(409);
+
+    await as(
+      departmentManager,
+      "delete",
+      `/api/v1/tasks/${created.id}/assignees/${member.id}`,
+    ).expect(200);
+    const removedAgain = await as(
+      departmentManager,
+      "delete",
+      `/api/v1/tasks/${created.id}/assignees/${member.id}`,
+    );
+    expect(removedAgain.status).toBe(409);
+    expect(body<{ code: string }>(removedAgain).code).toBe(
+      "TASK_ASSIGNEE_NOT_ASSIGNED",
+    );
+    await as(member, "get", `/api/v1/tasks/${created.id}`).expect(403);
+
+    const attachmentTaskResponse = await as(
+      management,
+      "post",
+      "/api/v1/tasks",
+    ).send({
+      title: "Attachment rollback",
+      departmentId,
+    });
+    expect(attachmentTaskResponse.status).toBe(201);
+    const attachmentTask = body<TaskBody>(attachmentTaskResponse);
+    await as(
+      departmentManager,
+      "put",
+      `/api/v1/tasks/${attachmentTask.id}/assignees/${member.id}`,
+    ).expect(200);
+    const intentResponse = await as(
+      member,
+      "post",
+      `/api/v1/tasks/${attachmentTask.id}/files/upload-intents`,
+    ).send({
+      filename: "rollback.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 29,
+    });
+    expect(intentResponse.status).toBe(201);
+    const intent = body<{
+      id: string;
+      upload: { fields: Record<string, string> };
+    }>(intentResponse);
+    const storageKey = intent.upload.fields.key;
+    if (!storageKey) throw new Error("task upload intent omitted its key");
+    const bytes = Buffer.from("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n");
+    storage.objects.set(storageKey, {
+      bytes,
+      mediaType: "application/pdf",
+      sizeBytes: bytes.byteLength,
+    });
+
+    await database.query(`
+      CREATE FUNCTION force_task_attachment_failure() RETURNS trigger AS $$
+      BEGIN
+        RAISE EXCEPTION 'forced task attachment failure';
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    await database.query(`
+      CREATE TRIGGER force_task_attachment_failure
+      BEFORE INSERT ON task_attachments
+      FOR EACH ROW EXECUTE FUNCTION force_task_attachment_failure();
+    `);
+    try {
+      await as(
+        member,
+        "post",
+        `/api/v1/tasks/${attachmentTask.id}/files/${intent.id}/finalize`,
+      ).expect(500);
+      expect(
+        await prisma.managedFile.findUniqueOrThrow({
+          where: { id: intent.id },
+          select: { state: true },
+        }),
+      ).toEqual({ state: "PENDING" });
+      expect(
+        await prisma.taskAttachment.count({
+          where: { managedFileId: intent.id },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.taskActivity.count({
+          where: { taskId: attachmentTask.id, type: "ATTACHMENT_ADDED" },
+        }),
+      ).toBe(0);
+    } finally {
+      await database.query(
+        "DROP TRIGGER force_task_attachment_failure ON task_attachments",
+      );
+      await database.query("DROP FUNCTION force_task_attachment_failure()");
+    }
   });
 });
