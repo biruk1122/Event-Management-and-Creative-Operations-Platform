@@ -121,6 +121,12 @@ model User {
   taskAttachments          TaskAttachment[]          @relation("TaskAttachmentActor")
   taskReviews              TaskReview[]              @relation("TaskReviewer")
   taskActivities           TaskActivity[]            @relation("TaskActivityActor")
+  createdConversations     Conversation[]            @relation("ConversationCreatedBy")
+  conversationMemberships  ConversationMember[]
+  messages                 Message[]                 @relation("MessageAuthor")
+  pinnedMessages           Message[]                 @relation("MessagePinnedBy")
+  messageMentions          MessageMention[]
+  messageAttachments       MessageAttachment[]       @relation("MessageAttachmentActor")
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -309,10 +315,11 @@ model Department {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  manager   User?  @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
-  employees User[] @relation("DepartmentEmployees")
-  teams     Team[]
-  tasks     Task[]
+  manager       User?          @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  employees     User[]         @relation("DepartmentEmployees")
+  teams         Team[]
+  tasks         Task[]
+  conversations Conversation[]
 
   // Look up the departments a user manages, and list active departments.
   @@index([managerId])
@@ -349,10 +356,11 @@ model Team {
   createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  department Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  manager    User?            @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
-  members    TeamMembership[]
-  workspaces WorkspaceTeam[]
+  department    Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  manager       User?            @relation("TeamManager", fields: [managerId], references: [id], onDelete: SetNull)
+  members       TeamMembership[]
+  workspaces    WorkspaceTeam[]
+  conversations Conversation[]
 
   // A department cannot hold two teams of the same name; this index also
   // serves the department-scoped team list.
@@ -438,6 +446,7 @@ model Workspace {
   event             Event?
   project           Project?
   tasks             Task[]
+  conversations     Conversation[]
 
   // "Workspaces of kind X" and "workspaces a user manages" are the two root
   // access patterns.
@@ -466,41 +475,48 @@ enum ManagedFileState {
 /// this data slice only persists the validated intent, verification, and
 /// retention information required to make those transitions safe.
 model ManagedFile {
-  id                String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  id                   String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   /// API-generated opaque object reference. It contains no filename, actor,
   /// workspace, bucket, provider URL, or presigned URL.
-  storageKey        String           @unique @map("storage_key")
-  originalFilename  String           @map("original_filename")
-  declaredMediaType String           @map("declared_media_type")
-  declaredSizeBytes Int              @map("declared_size_bytes")
-  verifiedMediaType String?          @map("verified_media_type")
-  verifiedSizeBytes Int?             @map("verified_size_bytes")
-  state             ManagedFileState @default(PENDING)
+  storageKey           String           @unique @map("storage_key")
+  originalFilename     String           @map("original_filename")
+  declaredMediaType    String           @map("declared_media_type")
+  declaredSizeBytes    Int              @map("declared_size_bytes")
+  verifiedMediaType    String?          @map("verified_media_type")
+  verifiedSizeBytes    Int?             @map("verified_size_bytes")
+  state                ManagedFileState @default(PENDING)
   /// PENDING intents expire after 24 hours. The timestamp is retained as
   /// lifecycle evidence after finalization rather than being rewritten.
-  intentExpiresAt   DateTime         @map("intent_expires_at") @db.Timestamptz(6)
-  uploadedAt        DateTime?        @map("uploaded_at") @db.Timestamptz(6)
-  availableAt       DateTime?        @map("available_at") @db.Timestamptz(6)
-  unavailableAt     DateTime?        @map("unavailable_at") @db.Timestamptz(6)
+  intentExpiresAt      DateTime         @map("intent_expires_at") @db.Timestamptz(6)
+  uploadedAt           DateTime?        @map("uploaded_at") @db.Timestamptz(6)
+  availableAt          DateTime?        @map("available_at") @db.Timestamptz(6)
+  unavailableAt        DateTime?        @map("unavailable_at") @db.Timestamptz(6)
   /// The earliest retention-cleanup time. It is populated only when a file is
   /// unavailable; a later lifecycle service applies the 7-day orphan or
   /// 30-day detached-file policy from ADR 0002.
-  cleanupAfter      DateTime?        @map("cleanup_after") @db.Timestamptz(6)
-  initiatedById     String?          @map("initiated_by_id") @db.Uuid
+  cleanupAfter         DateTime?        @map("cleanup_after") @db.Timestamptz(6)
+  initiatedById        String?          @map("initiated_by_id") @db.Uuid
   /// Nullable only to preserve any pre-FIL-02 pending records during the
   /// migration. FIL-02 creates every new intent with this explicit parent.
-  intentWorkspaceId String?          @map("intent_workspace_id") @db.Uuid
+  intentWorkspaceId    String?          @map("intent_workspace_id") @db.Uuid
   /// Explicit task authorized for a task-scoped upload intent. At most one
   /// intent parent is set; nullable for historical pre-FIL-02 rows.
-  intentTaskId      String?          @map("intent_task_id") @db.Uuid
-  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  intentTaskId         String?          @map("intent_task_id") @db.Uuid
+  /// Explicit conversation authorized for a message-scoped upload intent
+  /// (DSC-01), the same "authorize against an existing parent, attach once
+  /// the child record exists" shape `intentTaskId` already established. At
+  /// most one intent parent is set.
+  intentConversationId String?          @map("intent_conversation_id") @db.Uuid
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   initiatedBy          User?                     @relation("ManagedFileInitiator", fields: [initiatedById], references: [id], onDelete: SetNull)
   intentWorkspace      Workspace?                @relation("ManagedFileIntentWorkspace", fields: [intentWorkspaceId], references: [id], onDelete: Restrict)
   intentTask           Task?                     @relation("ManagedFileIntentTask", fields: [intentTaskId], references: [id], onDelete: Restrict)
+  intentConversation   Conversation?             @relation("ManagedFileIntentConversation", fields: [intentConversationId], references: [id], onDelete: Restrict)
   workspaceAttachments WorkspaceFileAttachment[]
   taskAttachments      TaskAttachment[]
+  messageAttachments   MessageAttachment[]
 
   // Upload expiry, cleanup sweeps, actor investigation, and resolving a
   // file's approved parent are the storage access patterns.
@@ -509,6 +525,7 @@ model ManagedFile {
   @@index([initiatedById])
   @@index([intentWorkspaceId])
   @@index([intentTaskId])
+  @@index([intentConversationId])
   @@map("managed_files")
 }
 
@@ -654,7 +671,7 @@ model Task {
   assignments TaskAssignment[]
   comments    TaskComment[]
   attachments TaskAttachment[]
-  fileIntents ManagedFile[]       @relation("ManagedFileIntentTask")
+  fileIntents ManagedFile[]    @relation("ManagedFileIntentTask")
   reviews     TaskReview[]
   activities  TaskActivity[]
 
@@ -951,4 +968,162 @@ model Project {
   @@index([startAt])
   @@index([createdById])
   @@map("projects")
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  CHANNEL
+
+  @@map("conversation_type")
+}
+
+enum ChannelVisibility {
+  PUBLIC
+  PRIVATE
+
+  @@map("channel_visibility")
+}
+
+/// A message container of type Direct, Group, or Channel (product vocabulary
+/// "Conversation"), the same one-table-per-discriminator shape `Workspace`
+/// already uses for its own four kinds. Channel-only fields - `name`,
+/// `visibility`, and its optional workspace/department/team owner - are NULL
+/// for DIRECT and GROUP; a CHECK keeps them in lockstep with `type` rather
+/// than trusting the application layer alone. A channel's owner is at most
+/// one of workspace/department/team; "approved general purpose" channels
+/// (product vocabulary) have none. `workspaceId` covers an event, project,
+/// production, or campaign channel uniformly, the same discriminator-free
+/// link `Task.workspaceId` already uses, rather than one FK per workspace
+/// kind.
+model Conversation {
+  id           String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  type         ConversationType
+  name         String?
+  visibility   ChannelVisibility?
+  workspaceId  String?            @map("workspace_id") @db.Uuid
+  departmentId String?            @map("department_id") @db.Uuid
+  teamId       String?            @map("team_id") @db.Uuid
+  createdById  String?            @map("created_by_id") @db.Uuid
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace   Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  department  Department?          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  team        Team?                @relation(fields: [teamId], references: [id], onDelete: Restrict)
+  createdBy   User?                @relation("ConversationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  members     ConversationMember[]
+  messages    Message[]
+  fileIntents ManagedFile[]        @relation("ManagedFileIntentConversation")
+
+  // Channel discovery/listing by type, and lookups by owning
+  // workspace/department/team.
+  @@index([type])
+  @@index([workspaceId])
+  @@index([departmentId])
+  @@index([teamId])
+  @@map("conversations")
+}
+
+/// Explicit conversation membership plus per-user read-state evidence
+/// (product vocabulary "Conversation member" / "Read state"). Both sides
+/// cascade: membership and its read cursor are pure join data with no
+/// meaning once either the conversation or the user is gone.
+model ConversationMember {
+  conversationId    String    @map("conversation_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  joinedAt          DateTime  @default(now()) @map("joined_at") @db.Timestamptz(6)
+  /// The last message this member has read, and when that cursor was set.
+  /// NULL means nothing in the conversation has been read yet.
+  lastReadMessageId String?   @map("last_read_message_id") @db.Uuid
+  lastReadAt        DateTime? @map("last_read_at") @db.Timestamptz(6)
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadMessage Message?     @relation("ConversationMemberLastRead", fields: [lastReadMessageId], references: [id], onDelete: SetNull)
+
+  @@id([conversationId, userId])
+  // List every conversation a given user belongs to.
+  @@index([userId])
+  @@index([lastReadMessageId])
+  @@map("conversation_members")
+}
+
+/// User-authored content within a conversation (product vocabulary
+/// "Message"). `parentMessageId` makes a reply explicit without a separate
+/// table, mirroring how `TaskComment`/`TaskCommentMention` normalize mentions
+/// rather than parsing content; a trigger keeps a reply in the same
+/// conversation as its parent, since a plain FK cannot cross-check that.
+///
+/// `editedAt`/`deletedAt` are the Created -> Edited -> Deleted
+/// resource-lifecycle evidence from the product vocabulary catalogue, not a
+/// stored status enum. Deletion stays a visible tombstone (content retained,
+/// not erased) until OD-08 defines deletion visibility and retention, so
+/// this slice destroys no data. `pinnedAt`/`pinnedById` mark prominence
+/// without changing ownership (product vocabulary "Pinned message"); a CHECK
+/// keeps the pair set or clear together.
+model Message {
+  id              String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  conversationId  String    @map("conversation_id") @db.Uuid
+  authorId        String?   @map("author_id") @db.Uuid
+  parentMessageId String?   @map("parent_message_id") @db.Uuid
+  content         String
+  editedAt        DateTime? @map("edited_at") @db.Timestamptz(6)
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
+  pinnedAt        DateTime? @map("pinned_at") @db.Timestamptz(6)
+  pinnedById      String?   @map("pinned_by_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  conversation  Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author        User?                @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  parentMessage Message?             @relation("MessageReplies", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies       Message[]            @relation("MessageReplies")
+  pinnedBy      User?                @relation("MessagePinnedBy", fields: [pinnedById], references: [id], onDelete: SetNull)
+  readCursors   ConversationMember[] @relation("ConversationMemberLastRead")
+  mentions      MessageMention[]
+  attachments   MessageAttachment[]
+
+  // List/search a conversation's messages in order; find a message's
+  // replies; list a conversation's pinned messages.
+  @@index([conversationId, createdAt])
+  @@index([parentMessageId])
+  @@index([conversationId, pinnedAt])
+  @@index([authorId])
+  @@map("messages")
+}
+
+/// Mirrors `TaskCommentMention`: normalized so notification work can resolve
+/// recipients without parsing message content.
+model MessageMention {
+  messageId String   @map("message_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([userId])
+  @@map("message_mentions")
+}
+
+/// A concrete message parent for an existing managed object, mirroring
+/// `TaskAttachment`. File names, media types, storage keys, and lifecycle
+/// stay authoritative on `ManagedFile`.
+model MessageAttachment {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  messageId     String   @map("message_id") @db.Uuid
+  managedFileId String   @map("managed_file_id") @db.Uuid
+  attachedById  String?  @map("attached_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  message     Message     @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  managedFile ManagedFile @relation(fields: [managedFileId], references: [id], onDelete: Restrict)
+  attachedBy  User?       @relation("MessageAttachmentActor", fields: [attachedById], references: [id], onDelete: SetNull)
+
+  @@unique([messageId, managedFileId])
+  @@index([managedFileId])
+  @@index([attachedById])
+  @@map("message_attachments")
 }
