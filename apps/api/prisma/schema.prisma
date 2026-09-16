@@ -1241,6 +1241,28 @@ model OutboxDelivery {
   @@map("outbox_deliveries")
 }
 
+/// A database-backed claim marking one scheduled-occurrence rule as already
+/// fired for one source record at one exact UTC instant (ADR 0003 section 3:
+/// "database-backed claims... rather than process-local timers or arbitrary
+/// sleeps"). The unique constraint is the concurrency and idempotency
+/// boundary: a claim-insert conflict means another scanner tick (or a
+/// concurrent scanner instance) already recorded this exact occurrence, so
+/// firing again would duplicate it. A source record whose scheduled instant
+/// changes (e.g. a task's due date moves) gets a new, distinct claim once
+/// its new instant is reached, since `scheduledFor` is part of the
+/// uniqueness key - matching the ADR's reschedule-safety requirement.
+model ScheduledOccurrenceClaim {
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  ruleName     String   @map("rule_name")
+  ruleVersion  Int      @map("rule_version")
+  resourceId   String   @map("resource_id") @db.Uuid
+  scheduledFor DateTime @map("scheduled_for") @db.Timestamptz(6)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([ruleName, ruleVersion, resourceId, scheduledFor])
+  @@map("scheduled_occurrence_claims")
+}
+
 /// The durable, per-recipient notification record (ADR 0003 section 1) - the
 /// system of record a client's REST feed reads and reconciles against; a
 /// real-time frame is only ever an advisory nudge to refetch it. `taskId`,

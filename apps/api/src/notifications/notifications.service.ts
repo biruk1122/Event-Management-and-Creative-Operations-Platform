@@ -27,7 +27,10 @@ import {
   previewText,
   taskApprovedContent,
   taskAssignedContent,
+  taskDueContent,
+  taskOverdueContent,
   taskRejectedContent,
+  type NotificationContent,
 } from "./notifications.policy.js";
 import {
   NotificationsRepository,
@@ -124,6 +127,20 @@ export class NotificationsService {
       case "discuss.message.created":
         await this.processMessageCreated(event);
         return;
+      case "task.due":
+        await this.processScheduledTaskReminder(
+          event,
+          NotificationType.TASK_DUE,
+          taskDueContent,
+        );
+        return;
+      case "task.overdue":
+        await this.processScheduledTaskReminder(
+          event,
+          NotificationType.TASK_OVERDUE,
+          taskOverdueContent,
+        );
+        return;
       default:
         // An event name this consumer version does not understand: succeed
         // without creating a notification rather than retrying forever.
@@ -151,6 +168,44 @@ export class NotificationsService {
       body: content.body,
       taskId: event.resourceId,
     });
+  }
+
+  /**
+   * TASK_DUE/TASK_OVERDUE (ADR 0003 §2): scheduled, no actor to exclude.
+   * Unlike the immediate producers, `occurrenceKey` comes from the payload -
+   * the scheduler already computed the deterministic
+   * `resourceId + exact UTC instant + rule/version` key ADR 0003 §3
+   * requires for a scheduled producer, distinct from an immediate
+   * producer's `occurrenceKey = eventId`. Both types are mutable (ADR 0003
+   * §4), so a recipient's mute preference is checked before creating.
+   */
+  private async processScheduledTaskReminder(
+    event: OutboxEventEnvelope,
+    type: NotificationType,
+    contentFor: (taskTitle: string) => NotificationContent,
+  ): Promise<void> {
+    const payload = event.payload as { occurrenceKey?: string } | null;
+    const occurrenceKey = payload?.occurrenceKey;
+    if (!occurrenceKey || !event.resourceId) return;
+    const task = await this.repository.getTask(event.resourceId);
+    if (!task) return;
+    const recipientIds = await this.repository.getTaskAssigneeIds(
+      event.resourceId,
+    );
+    const content = contentFor(task.title);
+    for (const recipientUserId of recipientIds) {
+      const muted = await this.repository.isMuted(recipientUserId, type);
+      if (muted) continue;
+      await this.createAndPublish({
+        recipientUserId,
+        type,
+        sourceEventId: event.id,
+        occurrenceKey,
+        title: content.title,
+        body: content.body,
+        taskId: event.resourceId,
+      });
+    }
   }
 
   private async processTaskReviewed(event: OutboxEventEnvelope): Promise<void> {

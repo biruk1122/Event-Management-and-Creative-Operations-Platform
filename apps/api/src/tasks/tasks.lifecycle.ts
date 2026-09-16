@@ -29,3 +29,12 @@ export function reviewTarget(outcome: TaskReviewOutcome): TaskStatus {
     ? TaskStatus.COMPLETED
     : TaskStatus.IN_PROGRESS;
 }
+
+const TERMINAL_TASK_STATUSES: readonly TaskStatus[] = [
+  TaskStatus.COMPLETED,
+  TaskStatus.CANCELLED,
+];
+
+export function isTerminalTaskStatus(status: TaskStatus): boolean {
+  return TERMINAL_TASK_STATUSES.includes(status);
+}

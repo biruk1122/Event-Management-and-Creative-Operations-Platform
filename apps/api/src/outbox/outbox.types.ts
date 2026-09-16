@@ -6,7 +6,11 @@ import type { OutboxActorKind, Prisma } from "../generated/prisma/client.js";
  * payload shape changes rather than renaming the event.
  */
 export type SupportedOutboxEventName =
-  "task.assigned" | "task.reviewed" | "discuss.message.created";
+  | "task.assigned"
+  | "task.reviewed"
+  | "discuss.message.created"
+  | "task.due"
+  | "task.overdue";
 
 export interface OutboxConsumerTarget {
   consumerName: string;
