@@ -6,7 +6,7 @@ import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
 import { authStatePath, signInThroughUi } from "../fixtures/auth.js";
 import { queryInSchema } from "../fixtures/database.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
-import { fixtureEmail, fixtureName } from "../fixtures/test-data.js";
+import { fixtureName } from "../fixtures/test-data.js";
 import { TEST_USER_PASSWORD } from "../fixtures/test-users.js";
 
 function runDatabaseUrl(): string {
@@ -21,6 +21,21 @@ async function csrfToken(page: Page): Promise<string> {
   )?.value;
   expect(token, "csrf token should be present").toBeTruthy();
   return token as string;
+}
+
+/** `POST /api/v1/users` grants baseline-only access (no `task.*` permission
+ * at all) unless a `roleId` is given explicitly - so a disposable "Team
+ * Member" account needs this looked up and passed at creation time. */
+async function roleIdByName(
+  requester: Pick<Page, "request">,
+  name: string,
+): Promise<string> {
+  const response = await requester.request.get(`${apiBaseUrl}/api/v1/roles`);
+  expect(response.ok()).toBe(true);
+  const roles = (await response.json()) as { id: string; name: string }[];
+  const role = roles.find((candidate) => candidate.name === name);
+  expect(role, `role "${name}" should exist`).toBeTruthy();
+  return role!.id;
 }
 
 test.describe("Task assignment and collaboration — end to end", () => {
@@ -41,9 +56,15 @@ test.describe("Task assignment and collaboration — end to end", () => {
       // fixture: its storageState is already revoked elsewhere in the suite
       // by auth-session.spec.ts (see that project note), which would make
       // this journey's own assertions fail for a reason unrelated to task
-      // collaboration entirely.
-      const assigneeEmail = fixtureEmail("tasks-collaborator");
-      const assigneeName = "Task Collaborator";
+      // collaboration entirely. The identifying suffix comes straight from
+      // `randomUUID()`, not `fixtureName`'s own counter: that counter is
+      // per-worker-process state, and a retried test can start in a fresh
+      // worker where it resets to the same values as the first attempt,
+      // colliding with that attempt's still-lingering (never deleted) user.
+      const collaboratorSuffix = randomUUID().slice(0, 8);
+      const assigneeEmail = `tasks-collaborator-${collaboratorSuffix}@e2e.test`;
+      const assigneeName = `Task Collaborator ${collaboratorSuffix}`;
+      const teamMemberRoleId = await roleIdByName(page, "Team Member");
       const createAssignee = await page.request.post(
         `${apiBaseUrl}/api/v1/users`,
         {
@@ -51,8 +72,9 @@ test.describe("Task assignment and collaboration — end to end", () => {
           data: {
             email: assigneeEmail,
             firstName: "Task",
-            lastName: "Collaborator",
+            lastName: `Collaborator ${collaboratorSuffix}`,
             temporaryPassword: TEST_USER_PASSWORD,
+            roleId: teamMemberRoleId,
           },
         },
       );
@@ -103,7 +125,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
         password: TEST_USER_PASSWORD,
         role: "Team Member",
         firstName: "Task",
-        lastName: "Collaborator",
+        lastName: `Collaborator ${collaboratorSuffix}`,
       });
       await memberPage.goto("/tasks");
       await memberPage.getByRole("button", { name: title }).first().click();
@@ -209,15 +231,25 @@ test.describe("Task assignment and collaboration — end to end", () => {
         // fixture: its storageState is already revoked elsewhere in the
         // suite by auth-session.spec.ts (see that project note), which would
         // make this denied journey fail for a reason unrelated to
-        // authorization entirely.
-        const email = fixtureEmail("tasks-denied");
+        // authorization entirely. The suffix comes from `randomUUID()`, not
+        // `fixtureName`/`fixtureEmail`'s own counter: that counter is
+        // per-worker-process state, and a retried test can start in a fresh
+        // worker where it resets to the same value as the first attempt,
+        // colliding (409) with that attempt's still-lingering user.
+        const deniedSuffix = randomUUID().slice(0, 8);
+        const email = `tasks-denied-${deniedSuffix}@e2e.test`;
+        const teamMemberRoleId = await roleIdByName(
+          { request: owner },
+          "Team Member",
+        );
         const disposableUser = await owner.post(`${apiBaseUrl}/api/v1/users`, {
           headers: { "x-csrf-token": ownerCsrf as string },
           data: {
             email,
             firstName: "Tasks",
-            lastName: "Denied",
+            lastName: `Denied ${deniedSuffix}`,
             temporaryPassword: TEST_USER_PASSWORD,
+            roleId: teamMemberRoleId,
           },
         });
         expect(disposableUser.status()).toBe(201);
@@ -229,7 +261,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
           password: TEST_USER_PASSWORD,
           role: "Team Member",
           firstName: "Tasks",
-          lastName: "Denied",
+          lastName: `Denied ${deniedSuffix}`,
         });
 
         await disposablePage.goto("/tasks");
