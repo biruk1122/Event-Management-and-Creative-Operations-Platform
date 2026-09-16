@@ -11,12 +11,13 @@ function isPrismaError(error: unknown, code: string): boolean {
   );
 }
 
-const NONTERMINAL_STATUSES: readonly TaskStatus[] = [
-  TaskStatus.TODO,
-  TaskStatus.IN_PROGRESS,
-  TaskStatus.UNDER_REVIEW,
-  TaskStatus.BLOCKED,
-];
+// Matches `TasksRepository`'s own inline convention for "still open"
+// (e.g. its `addAssignee` visibility query) - kept inline rather than a
+// separate shared helper, the same way that existing convention does.
+const TERMINAL_TASK_STATUSES = [
+  TaskStatus.COMPLETED,
+  TaskStatus.CANCELLED,
+] as const;
 
 export interface DueTaskCandidate {
   id: string;
@@ -39,7 +40,7 @@ export class TasksSchedulerRepository {
     const rows = await this.db.task.findMany({
       where: {
         dueAt: { not: null, lte: asOf },
-        status: { in: [...NONTERMINAL_STATUSES] },
+        status: { notIn: [...TERMINAL_TASK_STATUSES] },
       },
       select: { id: true, dueAt: true },
     });
@@ -48,9 +49,11 @@ export class TasksSchedulerRepository {
 
   /**
    * Nonterminal tasks whose `dueAt` has passed AND already have a claimed
-   * `task.due` occurrence for that same `dueAt` - TASK_OVERDUE only ever
-   * follows TASK_DUE for the same instant, never fires alongside it on the
-   * same tick under normal (non-catch-up) operation.
+   * `task.due` occurrence for that same `dueAt`. `TasksSchedulerService`
+   * calls this before writing this tick's own due claims, so a matching
+   * claim can only be from a strictly earlier tick - TASK_OVERDUE never
+   * fires in the same tick as TASK_DUE for the same task, even right after
+   * downtime.
    */
   async findOverdueCandidates(
     asOf: Date,
@@ -60,7 +63,7 @@ export class TasksSchedulerRepository {
     const candidates = await this.db.task.findMany({
       where: {
         dueAt: { not: null, lt: asOf },
-        status: { in: [...NONTERMINAL_STATUSES] },
+        status: { notIn: [...TERMINAL_TASK_STATUSES] },
       },
       select: { id: true, dueAt: true },
     });

@@ -67,10 +67,14 @@ export class TasksSchedulerService implements OnModuleInit, OnModuleDestroy {
     this.ticking = true;
     try {
       const asOf = new Date();
-      const dueCandidates = await this.repository.findDueCandidates(asOf);
-      for (const task of dueCandidates) {
-        await this.claimAndFire(TASK_DUE_RULE, "task.due", task);
-      }
+      // Query overdue candidates BEFORE the due loop below writes any new
+      // claims. Reading the overdue query first means it can only ever see
+      // a task.due claim written on a strictly earlier tick - never one
+      // this same tick is about to write - so a task crossing its deadline
+      // right now always waits at least one full scan interval before
+      // TASK_OVERDUE can fire, and never fires in the same tick as
+      // TASK_DUE (including the catch-up case after downtime, which now
+      // splits across two ticks the same way instead of firing together).
       const overdueCandidates = await this.repository.findOverdueCandidates(
         asOf,
         TASK_DUE_RULE.name,
@@ -78,6 +82,10 @@ export class TasksSchedulerService implements OnModuleInit, OnModuleDestroy {
       );
       for (const task of overdueCandidates) {
         await this.claimAndFire(TASK_OVERDUE_RULE, "task.overdue", task);
+      }
+      const dueCandidates = await this.repository.findDueCandidates(asOf);
+      for (const task of dueCandidates) {
+        await this.claimAndFire(TASK_DUE_RULE, "task.due", task);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

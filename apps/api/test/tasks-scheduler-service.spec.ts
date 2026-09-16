@@ -99,6 +99,33 @@ describe("TasksSchedulerService", () => {
     );
   });
 
+  it("queries overdue candidates before writing this tick's own due claims, so a task can never be both in the same tick", async () => {
+    const callOrder: string[] = [];
+    repository.findOverdueCandidates = vi.fn(() => {
+      callOrder.push("findOverdueCandidates");
+      return Promise.resolve([]);
+    });
+    repository.findDueCandidates = vi.fn(() => {
+      callOrder.push("findDueCandidates");
+      return Promise.resolve([{ id: "task-1", dueAt: DUE_AT }]);
+    });
+    repository.tryClaim = vi.fn(() => {
+      callOrder.push("tryClaim");
+      return Promise.resolve(true);
+    });
+
+    await tick();
+
+    // findOverdueCandidates must run - and its result be fixed - before the
+    // due loop claims anything this tick, otherwise a task becoming due
+    // right now would also be picked up as overdue in the same tick.
+    expect(callOrder).toEqual([
+      "findOverdueCandidates",
+      "findDueCandidates",
+      "tryClaim",
+    ]);
+  });
+
   it("does not let an overlapping tick run concurrently", async () => {
     let resolveFind!: () => void;
     repository.findDueCandidates!.mockReturnValue(
