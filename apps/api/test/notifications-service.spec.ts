@@ -190,12 +190,15 @@ describe("NotificationsService", () => {
           taskId: "task-1",
         }),
       );
+      // The envelope's eventId is the originating domain event's id
+      // (event.id / sourceEventId), not the notification's own id - so a
+      // multi-recipient fan-out can still be correlated back to one event.
       expect(realtime.publish).toHaveBeenCalledWith(
         "user:assignee-1",
         "notification.invalidated",
         1,
         expect.objectContaining({ notificationId: "created-1" }),
-        "created-1",
+        "event-1",
       );
     });
 
@@ -256,7 +259,7 @@ describe("NotificationsService", () => {
         "notification.invalidated",
         1,
         expect.objectContaining({ notificationId: "created-1" }),
-        "created-1",
+        "event-1",
       );
     });
 
@@ -299,6 +302,32 @@ describe("NotificationsService", () => {
           type: NotificationType.TASK_APPROVED,
         }),
       );
+    });
+
+    it("publishes the same eventId for every frame in a multi-recipient fan-out from one domain event", async () => {
+      repository.getTaskAssigneeIds!.mockResolvedValue([
+        "assignee-1",
+        "assignee-2",
+      ]);
+      // Distinct notification ids per recipient, to prove the shared
+      // eventId below is the domain event's id, not a notification's own id.
+      repository.createIfAbsent = vi.fn((input: CreateNotificationInput) =>
+        Promise.resolve(
+          makeNotification({
+            id: `notification-for-${input.recipientUserId}`,
+          }),
+        ),
+      );
+      await service.processEvent(
+        makeEvent({
+          name: "task.reviewed",
+          payload: { outcome: "APPROVED", reviewId: "review-1" },
+        }),
+      );
+      expect(realtime.publish).toHaveBeenCalledTimes(2);
+      for (const call of realtime.publish.mock.calls as unknown[][]) {
+        expect(call[4]).toBe("event-1");
+      }
     });
 
     it("maps CHANGES_REQUESTED to TASK_REJECTED", async () => {
