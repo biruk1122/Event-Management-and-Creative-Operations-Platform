@@ -344,6 +344,85 @@ describe("NotificationsService", () => {
     });
   });
 
+  describe("processEvent: task.due / task.overdue", () => {
+    it("notifies every current active assignee using the scheduler's own occurrence key", async () => {
+      repository.getTaskAssigneeIds!.mockResolvedValue([
+        "assignee-1",
+        "assignee-2",
+      ]);
+      await service.processEvent(
+        makeEvent({
+          name: "task.due",
+          actorKind: OutboxActorKind.SYSTEM,
+          actorUserId: null,
+          payload: {
+            occurrenceKey: "task-1:2026-02-01T09:00:00.000Z:task.due:v1",
+          },
+        }),
+      );
+      expect(repository.getTaskAssigneeIds).toHaveBeenCalledWith("task-1");
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(2);
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "assignee-1",
+          type: NotificationType.TASK_DUE,
+          sourceEventId: "event-1",
+          occurrenceKey: "task-1:2026-02-01T09:00:00.000Z:task.due:v1",
+          taskId: "task-1",
+        }),
+      );
+    });
+
+    it("maps task.overdue to TASK_OVERDUE", async () => {
+      repository.getTaskAssigneeIds!.mockResolvedValue(["assignee-1"]);
+      await service.processEvent(
+        makeEvent({
+          name: "task.overdue",
+          payload: {
+            occurrenceKey: "task-1:2026-02-01T09:00:00.000Z:task.overdue:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: NotificationType.TASK_OVERDUE }),
+      );
+    });
+
+    it("respects a muted TASK_DUE/TASK_OVERDUE preference", async () => {
+      repository.getTaskAssigneeIds!.mockResolvedValue(["assignee-1"]);
+      repository.isMuted!.mockResolvedValue(true);
+      await service.processEvent(
+        makeEvent({
+          name: "task.due",
+          payload: {
+            occurrenceKey: "task-1:2026-02-01T09:00:00.000Z:task.due:v1",
+          },
+        }),
+      );
+      expect(repository.isMuted).toHaveBeenCalledWith(
+        "assignee-1",
+        NotificationType.TASK_DUE,
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the payload has no occurrenceKey or the task no longer exists", async () => {
+      await service.processEvent(makeEvent({ name: "task.due", payload: {} }));
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+
+      repository.getTask!.mockResolvedValue(null);
+      await service.processEvent(
+        makeEvent({
+          name: "task.due",
+          payload: {
+            occurrenceKey: "task-1:2026-02-01T09:00:00.000Z:task.due:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
   describe("processEvent: discuss.message.created", () => {
     it("notifies conversation members (NEW_MESSAGE) and mentioned users (MESSAGE_MENTION), skipping the author and muted members", async () => {
       repository.getConversationMemberIds!.mockResolvedValue([

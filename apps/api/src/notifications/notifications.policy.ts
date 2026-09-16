@@ -40,6 +40,14 @@ export function taskRejectedContent(taskTitle: string): NotificationContent {
   return { title: "Changes requested on your task", body: taskTitle };
 }
 
+export function taskDueContent(taskTitle: string): NotificationContent {
+  return { title: "Task due", body: taskTitle };
+}
+
+export function taskOverdueContent(taskTitle: string): NotificationContent {
+  return { title: "Task overdue", body: taskTitle };
+}
+
 export function newMessageContent(preview: string): NotificationContent {
   return { title: "New message", body: preview };
 }
