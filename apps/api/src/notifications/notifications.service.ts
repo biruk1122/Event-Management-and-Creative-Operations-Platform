@@ -249,12 +249,16 @@ export class NotificationsService {
   ): Promise<void> {
     const result = await this.repository.createIfAbsent(input);
     if (result === "duplicate") return;
+    // ADR 0004 §2: the envelope's `eventId` must be the originating internal
+    // domain event's id, not this notification's own id - so a multi-
+    // recipient fan-out (e.g. task.reviewed) still lets a client correlate
+    // every resulting frame back to the same domain event.
     this.realtime.publish<NotificationInvalidatedPayload>(
       roomName("user", input.recipientUserId),
       "notification.invalidated",
       1,
       { notificationId: result.id, type: result.type },
-      result.id,
+      input.sourceEventId,
     );
   }
 }
