@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import {
   AuditActorKind,
   AuditOutcome,
+  OutboxActorKind,
   Prisma,
   TaskActivityType,
   TaskStatus,
@@ -12,6 +13,7 @@ import {
 import { DatabaseService } from "../../database/database.service.js";
 import { AuditWriterService } from "../../audit/audit-writer.service.js";
 import type { SupportedAuditAction } from "../../audit/audit.types.js";
+import { OutboxWriterService } from "../../outbox/outbox-writer.service.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -279,6 +281,7 @@ export class TasksRepository {
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditWriterService,
+    private readonly outbox: OutboxWriterService,
   ) {}
 
   async findUserDepartmentId(userId: string): Promise<string | null> {
@@ -607,6 +610,18 @@ export class TasksRepository {
           resourceType: "task",
           ...(task.workspaceId ? { workspaceContext: task.workspaceId } : {}),
         });
+        await this.outbox.append(tx, {
+          name: "task.assigned",
+          version: 1,
+          actorKind: OutboxActorKind.USER,
+          actorUserId: actorId,
+          correlationId: requestId,
+          resourceType: "task",
+          resourceId: taskId,
+          ...(task.workspaceId ? { workspaceContext: task.workspaceId } : {}),
+          payload: { assigneeUserId: userId },
+          consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
+        });
       }
       return task ? toTaskRecord(task) : null;
     });
@@ -784,6 +799,18 @@ export class TasksRepository {
           resourceId: input.taskId,
           resourceType: "task",
           ...(task.workspaceId ? { workspaceContext: task.workspaceId } : {}),
+        });
+        await this.outbox.append(tx, {
+          name: "task.reviewed",
+          version: 1,
+          actorKind: OutboxActorKind.USER,
+          actorUserId: input.reviewerId,
+          correlationId: input.requestId,
+          resourceType: "task",
+          resourceId: input.taskId,
+          ...(task.workspaceId ? { workspaceContext: task.workspaceId } : {}),
+          payload: { outcome: input.outcome, reviewId: review.id },
+          consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
         });
       }
       return task

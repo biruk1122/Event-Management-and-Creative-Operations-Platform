@@ -12,6 +12,7 @@ import { DiscussModule } from "./discuss/discuss.module.js";
 import { EventsModule } from "./events/events.module.js";
 import { FileManagementModule } from "./file-management/file-management.module.js";
 import { HealthModule } from "./health/health.module.js";
+import { NotificationsModule } from "./notifications/notifications.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
@@ -61,6 +62,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     DiscussModule,
     FileManagementModule,
     RealtimeModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

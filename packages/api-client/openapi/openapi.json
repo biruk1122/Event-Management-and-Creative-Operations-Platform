@@ -1133,6 +1133,131 @@
         ],
         "type": "object"
       },
+      "NotificationFeedResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationResponse"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "description": "Opaque cursor for the next page; null when there is no more.",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["items"],
+        "type": "object"
+      },
+      "NotificationPreferenceResponse": {
+        "properties": {
+          "muted": {
+            "type": "boolean"
+          },
+          "type": {
+            "description": "Always one of the mutable types (ADR 0003 §4).",
+            "enum": [
+              "TASK_ASSIGNED",
+              "TASK_DUE",
+              "TASK_OVERDUE",
+              "TASK_APPROVED",
+              "TASK_REJECTED",
+              "NEW_MESSAGE",
+              "MESSAGE_MENTION",
+              "MEETING_INVITATION",
+              "MEETING_REMINDER",
+              "EVENT_REMINDER",
+              "TODO_REMINDER",
+              "REPORT_REMINDER"
+            ],
+            "type": "string"
+          }
+        },
+        "required": ["type", "muted"],
+        "type": "object"
+      },
+      "NotificationPreferencesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationPreferenceResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["items"],
+        "type": "object"
+      },
+      "NotificationResponse": {
+        "properties": {
+          "body": {
+            "example": "Confirm the venue booking",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "eventId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "messageId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "readAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "taskId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "example": "You were assigned a task",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "TASK_ASSIGNED",
+              "TASK_DUE",
+              "TASK_OVERDUE",
+              "TASK_APPROVED",
+              "TASK_REJECTED",
+              "NEW_MESSAGE",
+              "MESSAGE_MENTION",
+              "MEETING_INVITATION",
+              "MEETING_REMINDER",
+              "EVENT_REMINDER",
+              "TODO_REMINDER",
+              "REPORT_REMINDER"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "body",
+          "taskId",
+          "messageId",
+          "eventId",
+          "createdAt",
+          "readAt"
+        ],
+        "type": "object"
+      },
       "Object": {
         "properties": {},
         "type": "object"
@@ -2241,6 +2366,16 @@
           }
         },
         "required": ["status"],
+        "type": "object"
+      },
+      "UnreadCountResponse": {
+        "properties": {
+          "unreadCount": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["unreadCount"],
         "type": "object"
       },
       "UpdateChannelDto": {
@@ -6689,6 +6824,351 @@
         ],
         "summary": "Move an event to another lifecycle state",
         "tags": ["Event management"]
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "operationId": "Notifications_list_v1",
+        "parameters": [
+          {
+            "description": "Opaque cursor from a previous page's `nextCursor`.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationFeedResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission or invalid CSRF token"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the caller's own notifications, newest first",
+        "tags": ["Notifications"]
+      }
+    },
+    "/api/v1/notifications/preferences": {
+      "get": {
+        "operationId": "Notifications_listPreferences_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationPreferencesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission or invalid CSRF token"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the caller's mutable notification types and mute state",
+        "tags": ["Notifications"]
+      }
+    },
+    "/api/v1/notifications/preferences/{type}": {
+      "delete": {
+        "operationId": "Notifications_unmute_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preference updated"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unknown or non-mutable notification type"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission or invalid CSRF token"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Unmute a mutable notification type for the caller",
+        "tags": ["Notifications"]
+      },
+      "put": {
+        "operationId": "Notifications_mute_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "type",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preference updated"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unknown or non-mutable notification type"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission or invalid CSRF token"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Mute a mutable notification type for the caller",
+        "tags": ["Notifications"]
+      }
+    },
+    "/api/v1/notifications/unread-count": {
+      "get": {
+        "operationId": "Notifications_unreadCount_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCountResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission or invalid CSRF token"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Count the caller's unread notifications",
+        "tags": ["Notifications"]
+      }
+    },
+    "/api/v1/notifications/{id}/read": {
+      "put": {
+        "operationId": "Notifications_markRead_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No notification exists with that id for the caller"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Mark one of the caller's notifications as read",
+        "tags": ["Notifications"]
       }
     },
     "/api/v1/permissions": {
