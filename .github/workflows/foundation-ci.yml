@@ -214,6 +214,15 @@ jobs:
         if: always()
         run: docker compose down --volumes --remove-orphans
 
+      # Dev services bind-mount the checkout and run as root, so build
+      # output they touch (e.g. apps/api/dist) ends up root-owned on the
+      # self-hosted runner's host filesystem. Reset it with a throwaway
+      # container so the next job's actions/checkout can clean the
+      # workspace as the runner's unprivileged user.
+      - name: Reset workspace ownership
+        if: always()
+        run: docker run --rm -v "$PWD":/workspace alpine chown -R "$(id -u)":"$(id -g)" /workspace
+
   end-to-end:
     name: End-to-end
     runs-on: self-hosted
