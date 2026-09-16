@@ -3,10 +3,11 @@ import { randomUUID } from "node:crypto";
 import { expect, request, test, type Page } from "@playwright/test";
 
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
-import { authStatePath } from "../fixtures/auth.js";
+import { authStatePath, signInThroughUi } from "../fixtures/auth.js";
 import { queryInSchema } from "../fixtures/database.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
-import { fixtureName } from "../fixtures/test-data.js";
+import { fixtureEmail, fixtureName } from "../fixtures/test-data.js";
+import { TEST_USER_PASSWORD } from "../fixtures/test-users.js";
 
 function runDatabaseUrl(): string {
   const value = process.env.DATABASE_URL;
@@ -22,19 +23,6 @@ async function csrfToken(page: Page): Promise<string> {
   return token as string;
 }
 
-async function userId(page: Page, email: string): Promise<string> {
-  const response = await page.request.get(
-    `${apiBaseUrl}/api/v1/users?search=${encodeURIComponent(email)}`,
-  );
-  expect(response.ok()).toBe(true);
-  const body = (await response.json()) as {
-    items: { id: string; email: string }[];
-  };
-  const user = body.items.find((item) => item.email === email);
-  expect(user).toBeTruthy();
-  return user!.id;
-}
-
 test.describe("Task assignment and collaboration — end to end", () => {
   test.describe("administrator success journey", () => {
     test.use({ storageState: authStatePath("superAdmin") });
@@ -48,6 +36,27 @@ test.describe("Task assignment and collaboration — end to end", () => {
       const comment = "E2E collaboration update";
       const filename = "e2e-task-note.txt";
       const csrf = await csrfToken(page);
+
+      // A dedicated, disposable assignee rather than the shared `member`
+      // fixture: its storageState is already revoked elsewhere in the suite
+      // by auth-session.spec.ts (see that project note), which would make
+      // this journey's own assertions fail for a reason unrelated to task
+      // collaboration entirely.
+      const assigneeEmail = fixtureEmail("tasks-collaborator");
+      const assigneeName = "Task Collaborator";
+      const createAssignee = await page.request.post(
+        `${apiBaseUrl}/api/v1/users`,
+        {
+          headers: { "x-csrf-token": csrf },
+          data: {
+            email: assigneeEmail,
+            firstName: "Task",
+            lastName: "Collaborator",
+            temporaryPassword: TEST_USER_PASSWORD,
+          },
+        },
+      );
+      expect(createAssignee.status()).toBe(201);
 
       const workspaceResponse = await page.request.post(
         `${apiBaseUrl}/api/v1/workspaces`,
@@ -80,17 +89,22 @@ test.describe("Task assignment and collaboration — end to end", () => {
 
       await detail.getByRole("combobox", { name: "Add assignee" }).click();
       await page
-        .getByRole("option", { name: "Robin Doer", exact: true })
+        .getByRole("option", { name: assigneeName, exact: true })
         .click();
       await detail.getByRole("button", { name: "Add", exact: true }).click();
       await expect(
-        detail.getByText("Robin Doer", { exact: true }),
+        detail.getByText(assigneeName, { exact: true }),
       ).toBeVisible();
 
-      const memberContext = await browser.newContext({
-        storageState: authStatePath("member"),
+      const memberPage = await browser.newPage();
+      await signInThroughUi(memberPage, {
+        key: "tasks-collaborator",
+        email: assigneeEmail,
+        password: TEST_USER_PASSWORD,
+        role: "Team Member",
+        firstName: "Task",
+        lastName: "Collaborator",
       });
-      const memberPage = await memberContext.newPage();
       await memberPage.goto("/tasks");
       await memberPage.getByRole("button", { name: title }).first().click();
       const memberDetail = memberPage.getByRole("dialog");
@@ -129,7 +143,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
       await memberDetail
         .getByRole("button", { name: "Submit for review" })
         .click();
-      await memberContext.close();
+      await memberPage.close();
       await page.reload();
       await page.getByRole("button", { name: title }).first().click();
       const reviewDetail = page.getByRole("dialog");
@@ -167,15 +181,14 @@ test.describe("Task assignment and collaboration — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    test.use({ storageState: authStatePath("member") });
-
     test("an unassigned member cannot discover or mutate another task", async ({
-      page,
+      browser,
     }) => {
       const owner = await request.newContext({
         storageState: authStatePath("superAdmin"),
       });
       const title = `E2E denied task ${randomUUID().slice(0, 8)}`;
+      let disposablePage: Page | undefined;
       try {
         const ownerCsrf = (await owner.storageState()).cookies.find(
           (cookie) => cookie.name === "csrf_token",
@@ -192,19 +205,46 @@ test.describe("Task assignment and collaboration — end to end", () => {
         expect(created.status()).toBe(201);
         const taskId = ((await created.json()) as { id: string }).id;
 
-        await page.goto("/tasks");
+        // A dedicated, disposable account rather than the shared `member`
+        // fixture: its storageState is already revoked elsewhere in the
+        // suite by auth-session.spec.ts (see that project note), which would
+        // make this denied journey fail for a reason unrelated to
+        // authorization entirely.
+        const email = fixtureEmail("tasks-denied");
+        const disposableUser = await owner.post(`${apiBaseUrl}/api/v1/users`, {
+          headers: { "x-csrf-token": ownerCsrf as string },
+          data: {
+            email,
+            firstName: "Tasks",
+            lastName: "Denied",
+            temporaryPassword: TEST_USER_PASSWORD,
+          },
+        });
+        expect(disposableUser.status()).toBe(201);
+
+        disposablePage = await browser.newPage();
+        await signInThroughUi(disposablePage, {
+          key: "tasks-denied",
+          email,
+          password: TEST_USER_PASSWORD,
+          role: "Team Member",
+          firstName: "Tasks",
+          lastName: "Denied",
+        });
+
+        await disposablePage.goto("/tasks");
         await expect(
-          page.getByRole("heading", { name: "Tasks" }),
+          disposablePage.getByRole("heading", { name: "Tasks" }),
         ).toBeVisible();
-        await expect(page.getByText(title)).toHaveCount(0);
-        const read = await page.request.get(
+        await expect(disposablePage.getByText(title)).toHaveCount(0);
+        const read = await disposablePage.request.get(
           `${apiBaseUrl}/api/v1/tasks/${taskId}`,
         );
         expect(read.status()).toBe(403);
-        const denied = await page.request.patch(
+        const denied = await disposablePage.request.patch(
           `${apiBaseUrl}/api/v1/tasks/${taskId}/progress`,
           {
-            headers: { "x-csrf-token": await csrfToken(page) },
+            headers: { "x-csrf-token": await csrfToken(disposablePage) },
             data: { progress: 99 },
           },
         );
@@ -216,6 +256,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
         );
         expect(unchanged).toEqual([{ progress: 0 }]);
       } finally {
+        await disposablePage?.close();
         await owner.dispose();
       }
     });
