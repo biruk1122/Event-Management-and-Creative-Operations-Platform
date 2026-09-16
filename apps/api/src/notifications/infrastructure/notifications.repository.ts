@@ -1,6 +1,10 @@
 import { Injectable } from "@nestjs/common";
 
-import { NotificationType, Prisma } from "../../generated/prisma/client.js";
+import {
+  NotificationType,
+  Prisma,
+  UserAccountStatus,
+} from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
 
 const PRISMA_ERROR = { uniqueViolation: "P2002" } as const;
@@ -219,6 +223,15 @@ export class NotificationsRepository {
     });
   }
 
+  /** ADR 0003 §1/§2: a recipient must be an active user at creation time. */
+  async isUserActive(userId: string): Promise<boolean> {
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: { status: true },
+    });
+    return user?.status === UserAccountStatus.ACTIVE;
+  }
+
   async getTaskAssigneeIds(
     taskId: string,
     excludeUserId?: string,
@@ -227,6 +240,7 @@ export class NotificationsRepository {
       where: {
         taskId,
         ...(excludeUserId ? { userId: { not: excludeUserId } } : {}),
+        user: { status: UserAccountStatus.ACTIVE },
       },
       select: { userId: true },
     });
@@ -252,6 +266,7 @@ export class NotificationsRepository {
       where: {
         conversationId,
         ...(excludeUserId ? { userId: { not: excludeUserId } } : {}),
+        user: { status: UserAccountStatus.ACTIVE },
       },
       select: { userId: true },
     });
@@ -260,7 +275,7 @@ export class NotificationsRepository {
 
   async getMessageMentionUserIds(messageId: string): Promise<string[]> {
     const rows = await this.db.messageMention.findMany({
-      where: { messageId },
+      where: { messageId, user: { status: UserAccountStatus.ACTIVE } },
       select: { userId: true },
     });
     return rows.map((row) => row.userId);

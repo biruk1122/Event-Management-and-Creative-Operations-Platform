@@ -78,6 +78,7 @@ describe("NotificationsService", () => {
         title: "Confirm venue permits",
         workspaceId: null,
       }),
+      isUserActive: vi.fn().mockResolvedValue(true),
       getTaskAssigneeIds: vi.fn().mockResolvedValue([]),
       getMessage: vi.fn().mockResolvedValue({
         conversationId: "conversation-1",
@@ -194,6 +195,7 @@ describe("NotificationsService", () => {
         "notification.invalidated",
         1,
         expect.objectContaining({ notificationId: "created-1" }),
+        "created-1",
       );
     });
 
@@ -211,6 +213,24 @@ describe("NotificationsService", () => {
         makeEvent({ payload: { assigneeUserId: "assignee-1" } }),
       );
       expect(realtime.publish).not.toHaveBeenCalled();
+    });
+
+    it("does not notify a user who assigns the task to themselves", async () => {
+      await service.processEvent(
+        makeEvent({
+          actorUserId: "actor-1",
+          payload: { assigneeUserId: "actor-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("does not notify an assignee who is no longer an active user", async () => {
+      repository.isUserActive!.mockResolvedValue(false);
+      await service.processEvent(
+        makeEvent({ payload: { assigneeUserId: "assignee-1" } }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
     });
   });
 
@@ -301,6 +321,34 @@ describe("NotificationsService", () => {
         makeEvent({ name: "discuss.message.created", resourceId: "message-1" }),
       );
       expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("never notifies a mentioned user who is not a current conversation member", async () => {
+      repository.getConversationMemberIds!.mockResolvedValue(["member-1"]);
+      repository.getMessageMentionUserIds!.mockResolvedValue([
+        "member-1",
+        "outsider-1",
+      ]);
+      await service.processEvent(
+        makeEvent({
+          name: "discuss.message.created",
+          resourceType: "message",
+          resourceId: "message-1",
+          payload: { conversationId: "conversation-1" },
+        }),
+      );
+
+      const createCalls = repository.createIfAbsent!.mock.calls as [
+        CreateNotificationInput,
+      ][];
+      const mentionCalls = createCalls.filter(
+        ([input]) => input.type === NotificationType.MESSAGE_MENTION,
+      );
+      expect(mentionCalls).toHaveLength(1);
+      expect(mentionCalls[0]![0].recipientUserId).toBe("member-1");
+      expect(
+        createCalls.some(([input]) => input.recipientUserId === "outsider-1"),
+      ).toBe(false);
     });
   });
 

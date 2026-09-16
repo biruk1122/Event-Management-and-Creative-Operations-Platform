@@ -135,6 +135,10 @@ export class NotificationsService {
     const payload = event.payload as { assigneeUserId?: string } | null;
     const assigneeUserId = payload?.assigneeUserId;
     if (!assigneeUserId || !event.resourceId) return;
+    // ADR 0003 §2: "each newly assigned active user other than the actor" -
+    // a self-assignment must not notify the assigner about their own action.
+    if (assigneeUserId === event.actorUserId) return;
+    if (!(await this.repository.isUserActive(assigneeUserId))) return;
     const task = await this.repository.getTask(event.resourceId);
     if (!task) return;
     const content = taskAssignedContent(task.title);
@@ -193,12 +197,15 @@ export class NotificationsService {
     if (!message) return;
     const preview = previewText(message.content);
 
+    // Fetched once, including the author, so mentions can be checked against
+    // current membership below - a mention is never notified on its own.
     const memberIds = await this.repository.getConversationMemberIds(
       message.conversationId,
-      message.authorId ?? undefined,
     );
+    const memberSet = new Set(memberIds);
     const newMessage = newMessageContent(preview);
     for (const recipientUserId of memberIds) {
+      if (recipientUserId === message.authorId) continue;
       const muted = await this.repository.isMuted(
         recipientUserId,
         NotificationType.NEW_MESSAGE,
@@ -221,6 +228,10 @@ export class NotificationsService {
     const mention = messageMentionContent(preview);
     for (const recipientUserId of mentionIds) {
       if (recipientUserId === message.authorId) continue;
+      // ADR 0003 §1: a target must resolve through an approved module
+      // relation - a mention naming someone outside the conversation must
+      // never surface a preview of content they have no REST access to.
+      if (!memberSet.has(recipientUserId)) continue;
       await this.createAndPublish({
         recipientUserId,
         type: NotificationType.MESSAGE_MENTION,
@@ -243,6 +254,7 @@ export class NotificationsService {
       "notification.invalidated",
       1,
       { notificationId: result.id, type: result.type },
+      result.id,
     );
   }
 }

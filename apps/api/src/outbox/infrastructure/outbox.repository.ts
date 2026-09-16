@@ -74,6 +74,27 @@ export class OutboxRepository {
     limit: number,
   ): Promise<ClaimedOutboxDelivery[]> {
     return this.db.$transaction(async (tx) => {
+      // Self-healing sweep: a process crash between a successful claim and
+      // the relay recording its outcome leaves a row `PENDING` with
+      // `attempts` already at the ceiling but never durably `FAILED` (the
+      // ceiling check normally lives in `markFailed`, which a crash never
+      // reaches). Finalizing any such row here, on the next claim attempt by
+      // anyone, closes that gap without a separate sweep job.
+      await tx.outboxDelivery.updateMany({
+        where: {
+          status: OutboxDeliveryStatus.PENDING,
+          consumerName,
+          consumerVersion,
+          nextAttemptAt: { lte: new Date() },
+          attempts: { gte: MAX_ATTEMPTS },
+        },
+        data: {
+          status: OutboxDeliveryStatus.FAILED,
+          lastError:
+            "Exceeded the retry ceiling without a recorded failure - likely a crash between claim and completion.",
+        },
+      });
+
       const claimed = await tx.$queryRaw<Array<{ id: string }>>(
         Prisma.sql`
           SELECT id FROM outbox_deliveries

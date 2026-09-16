@@ -257,6 +257,33 @@ describe("notifications and outbox persistence", () => {
       expect(failed.status).toBe(OutboxDeliveryStatus.FAILED);
       expect(failed.lastError).toBe("attempt 4 failed");
     });
+
+    it("self-heals a row left PENDING at the retry ceiling by a crash between claim and completion", async () => {
+      const eventId = await appendOutboxEvent({ consumerName: "crash-test" });
+      // Simulate a process that claimed this row 4 times and crashed before
+      // ever calling markSucceeded/markFailed on the last attempt: status
+      // stays PENDING, attempts is already at the ceiling, and the lease has
+      // lapsed (due again).
+      await prisma.outboxDelivery.updateMany({
+        where: { eventId },
+        data: {
+          attempts: 4,
+          status: OutboxDeliveryStatus.PENDING,
+          nextAttemptAt: new Date(Date.now() - 1000),
+        },
+      });
+
+      const claimed = await outbox.claimBatch("crash-test", 1, 50);
+      expect(claimed.map((delivery) => delivery.event.id)).not.toContain(
+        eventId,
+      );
+
+      const row = await prisma.outboxDelivery.findFirstOrThrow({
+        where: { eventId },
+      });
+      expect(row.status).toBe(OutboxDeliveryStatus.FAILED);
+      expect(row.attempts).toBe(4);
+    });
   });
 
   describe("NotificationsRepository", () => {
@@ -422,6 +449,42 @@ describe("notifications and outbox persistence", () => {
         assigneeOne,
       );
       expect(excludingReviewer).toEqual([assigneeTwo]);
+    });
+
+    it("excludes a deactivated user from task assignees, conversation members, and mentions", async () => {
+      const taskId = await makeTask();
+      const activeAssignee = await makeUser();
+      const inactiveAssignee = await makeUser();
+      await prisma.taskAssignment.createMany({
+        data: [
+          { taskId, userId: activeAssignee },
+          { taskId, userId: inactiveAssignee },
+        ],
+      });
+      await prisma.user.update({
+        where: { id: inactiveAssignee },
+        data: { status: "INACTIVE", deactivatedAt: new Date() },
+      });
+
+      expect(await notifications.getTaskAssigneeIds(taskId)).toEqual([
+        activeAssignee,
+      ]);
+      expect(await notifications.isUserActive(activeAssignee)).toBe(true);
+      expect(await notifications.isUserActive(inactiveAssignee)).toBe(false);
+      expect(await notifications.isUserActive(randomUUID())).toBe(false);
+
+      const author = await makeUser();
+      const { conversationId, messageId } = await makeConversationWithMessage({
+        authorId: author,
+        memberIds: [author, activeAssignee, inactiveAssignee],
+        mentionedUserIds: [activeAssignee, inactiveAssignee],
+      });
+      expect(
+        await notifications.getConversationMemberIds(conversationId, author),
+      ).toEqual([activeAssignee]);
+      expect(await notifications.getMessageMentionUserIds(messageId)).toEqual([
+        activeAssignee,
+      ]);
     });
 
     it("resolves message, conversation membership, and mentions through Discuss's own tables", async () => {
