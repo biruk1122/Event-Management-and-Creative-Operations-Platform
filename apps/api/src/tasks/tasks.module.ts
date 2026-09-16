@@ -4,12 +4,13 @@ import { AuthModule } from "../auth/auth.module.js";
 import { AuditModule } from "../audit/audit.module.js";
 import { AUDIT_WORKSPACE_CONTEXT_RESOLVER } from "../audit/audit-workspace-context.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
+import { OutboxModule } from "../outbox/outbox.module.js";
 import { TasksRepository } from "./infrastructure/tasks.repository.js";
 import { TasksController } from "./tasks.controller.js";
 import { TasksService } from "./tasks.service.js";
 
 @Module({
-  imports: [AuditModule, AuthModule, PermissionsModule],
+  imports: [AuditModule, AuthModule, OutboxModule, PermissionsModule],
   controllers: [TasksController],
   providers: [
     TasksRepository,

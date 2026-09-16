@@ -597,6 +597,92 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/notifications": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the caller's own notifications, newest first */
+    get: operations["Notifications_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/notifications/preferences": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the caller's mutable notification types and mute state */
+    get: operations["Notifications_listPreferences_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/notifications/preferences/{type}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Mute a mutable notification type for the caller */
+    put: operations["Notifications_mute_v1"];
+    post?: never;
+    /** Unmute a mutable notification type for the caller */
+    delete: operations["Notifications_unmute_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/notifications/unread-count": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Count the caller's unread notifications */
+    get: operations["Notifications_unreadCount_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/notifications/{id}/read": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Mark one of the caller's notifications as read */
+    put: operations["Notifications_markRead_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/permissions": {
     parameters: {
       query?: never;
@@ -1878,6 +1964,66 @@ export interface components {
       /** Format: date-time */
       updatedAt: string;
     };
+    NotificationFeedResponse: {
+      items: components["schemas"]["NotificationResponse"][];
+      /** @description Opaque cursor for the next page; null when there is no more. */
+      nextCursor?: string | null;
+    };
+    NotificationPreferenceResponse: {
+      muted: boolean;
+      /**
+       * @description Always one of the mutable types (ADR 0003 §4).
+       * @enum {string}
+       */
+      type:
+        | "TASK_ASSIGNED"
+        | "TASK_DUE"
+        | "TASK_OVERDUE"
+        | "TASK_APPROVED"
+        | "TASK_REJECTED"
+        | "NEW_MESSAGE"
+        | "MESSAGE_MENTION"
+        | "MEETING_INVITATION"
+        | "MEETING_REMINDER"
+        | "EVENT_REMINDER"
+        | "TODO_REMINDER"
+        | "REPORT_REMINDER";
+    };
+    NotificationPreferencesResponse: {
+      items: components["schemas"]["NotificationPreferenceResponse"][];
+    };
+    NotificationResponse: {
+      /** @example Confirm the venue booking */
+      body: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      eventId: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      messageId: string | null;
+      /** Format: date-time */
+      readAt: string | null;
+      /** Format: uuid */
+      taskId: string | null;
+      /** @example You were assigned a task */
+      title: string;
+      /** @enum {string} */
+      type:
+        | "TASK_ASSIGNED"
+        | "TASK_DUE"
+        | "TASK_OVERDUE"
+        | "TASK_APPROVED"
+        | "TASK_REJECTED"
+        | "NEW_MESSAGE"
+        | "MESSAGE_MENTION"
+        | "MEETING_INVITATION"
+        | "MEETING_REMINDER"
+        | "EVENT_REMINDER"
+        | "TODO_REMINDER"
+        | "REPORT_REMINDER";
+    };
     Object: Record<string, never>;
     PaginatedConversationsResponse: {
       items: components["schemas"]["ConversationResponse"][];
@@ -2368,6 +2514,9 @@ export interface components {
     TransitionTaskDto: {
       /** @enum {string} */
       status: "TODO" | "IN_PROGRESS" | "BLOCKED" | "CANCELLED";
+    };
+    UnreadCountResponse: {
+      unreadCount: number;
     };
     UpdateChannelDto: {
       name?: string;
@@ -5282,6 +5431,263 @@ export interface operations {
       };
       /** @description That transition is not allowed from the current state */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Notifications_list_v1: {
+    parameters: {
+      query?: {
+        /** @description Opaque cursor from a previous page's `nextCursor`. */
+        cursor?: string;
+        limit?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationFeedResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Notifications_listPreferences_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationPreferencesResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Notifications_mute_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        type: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Preference updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unknown or non-mutable notification type */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Notifications_unmute_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        type: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Preference updated */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Unknown or non-mutable notification type */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Notifications_unreadCount_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UnreadCountResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Notifications_markRead_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["NotificationResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description No notification exists with that id for the caller */
+      404: {
         headers: {
           [name: string]: unknown;
         };

@@ -3,9 +3,11 @@ import { Injectable } from "@nestjs/common";
 import {
   ChannelVisibility,
   ConversationType,
+  OutboxActorKind,
   Prisma,
 } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
+import { OutboxWriterService } from "../../outbox/outbox-writer.service.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -185,7 +187,10 @@ function visibleWhere(
 
 @Injectable()
 export class DiscussRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly outbox: OutboxWriterService,
+  ) {}
 
   async findUserDepartmentId(userId: string): Promise<string | null> {
     if (!isUuid(userId)) return null;
@@ -498,6 +503,16 @@ export class DiscussRepository {
           },
         },
         select: MESSAGE_SELECT,
+      });
+      await this.outbox.append(tx, {
+        name: "discuss.message.created",
+        version: 1,
+        actorKind: OutboxActorKind.USER,
+        actorUserId: input.authorId,
+        resourceType: "message",
+        resourceId: message.id,
+        payload: { conversationId: input.conversationId },
+        consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
       });
       return toMessageRecord(message);
     });
