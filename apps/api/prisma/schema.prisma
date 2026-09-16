@@ -127,6 +127,8 @@ model User {
   pinnedMessages           Message[]                 @relation("MessagePinnedBy")
   messageMentions          MessageMention[]
   messageAttachments       MessageAttachment[]       @relation("MessageAttachmentActor")
+  notifications            Notification[]
+  notificationPreferences  NotificationPreference[]
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -665,15 +667,16 @@ model Task {
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace   Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  department  Department?      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  createdBy   User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  assignments TaskAssignment[]
-  comments    TaskComment[]
-  attachments TaskAttachment[]
-  fileIntents ManagedFile[]    @relation("ManagedFileIntentTask")
-  reviews     TaskReview[]
-  activities  TaskActivity[]
+  workspace     Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  department    Department?      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  createdBy     User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignments   TaskAssignment[]
+  comments      TaskComment[]
+  attachments   TaskAttachment[]
+  fileIntents   ManagedFile[]    @relation("ManagedFileIntentTask")
+  reviews       TaskReview[]
+  activities    TaskActivity[]
+  notifications Notification[]
 
   // List/Kanban views are owner + status scoped; calendar projections sort
   // independently by start and due time. Overdue remains a derived query.
@@ -874,12 +877,13 @@ model Event {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  createdBy User?     @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  createdBy     User?          @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   /// General projects that optionally relate to this event (PRJ-01). A soft,
   /// unbounded cross-reference between peers, not ownership - deleting the
   /// event clears it on each project rather than being blocked.
-  projects  Project[]
+  projects      Project[]
+  notifications Notification[]
 
   // Administration and the connected-workspace overview filter events by
   // lifecycle state, type, schedule, and author.
@@ -1083,6 +1087,7 @@ model Message {
   readCursors   ConversationMember[] @relation("ConversationMemberLastRead")
   mentions      MessageMention[]
   attachments   MessageAttachment[]
+  notifications Notification[]
 
   // List/search a conversation's messages in order; find a message's
   // replies; list a conversation's pinned messages.
@@ -1126,4 +1131,177 @@ model MessageAttachment {
   @@index([managedFileId])
   @@index([attachedById])
   @@map("message_attachments")
+}
+
+/// The complete initial SRS notification-type contract (ADR 0003 section 2).
+/// Six of the twelve values - the MEETING_*, TODO_REMINDER, and
+/// REPORT_REMINDER types - name domains (Meeting, To-Do, Report) that do not
+/// exist in this schema yet; their notifications cannot carry a resolved
+/// target until each domain's own schema issue extends `Notification` with
+/// its own nullable target column, mirroring `taskId`/`messageId`/`eventId`
+/// below. The type itself is recorded regardless, since it is just a string
+/// constraint with no dependency on the target domain's tables.
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_DUE
+  TASK_OVERDUE
+  TASK_APPROVED
+  TASK_REJECTED
+  NEW_MESSAGE
+  MESSAGE_MENTION
+  MEETING_INVITATION
+  MEETING_REMINDER
+  EVENT_REMINDER
+  TODO_REMINDER
+  REPORT_REMINDER
+
+  @@map("notification_type")
+}
+
+/// ADR 0001 section 1: a domain event's actor is a user or the system itself
+/// (a scheduler, a cleanup job). Unlike `AuditActorKind` this has no
+/// `ANONYMOUS` value - an unauthenticated attempt never has a durable
+/// consumer here.
+enum OutboxActorKind {
+  USER
+  SYSTEM
+
+  @@map("outbox_actor_kind")
+}
+
+enum OutboxDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+
+  @@map("outbox_delivery_status")
+}
+
+/// The durable outbox event envelope (ADR 0001 section 1; ADR 0004 section 6
+/// fixes the poller policy this table exists to support). Only an event with
+/// at least one durable consumer gets a row here - best-effort-only domain
+/// events (ADR 0001's other delivery tier) are never persisted. `id` is the
+/// event's own application-assigned `eventId`, not a surrogate; the
+/// `uuidv7()` default is only a safety net if a caller omits it.
+/// `actorUserId` and `resourceId` intentionally have no foreign key,
+/// mirroring `AuditRecord`: `resourceType` is polymorphic across every
+/// future producer module, so a single non-polymorphic FK cannot express it,
+/// and the envelope must stay inspectable even if the referenced actor or
+/// resource is later removed.
+model OutboxEvent {
+  id               String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name             String
+  version          Int
+  occurredAt       DateTime        @map("occurred_at") @db.Timestamptz(6)
+  actorKind        OutboxActorKind @map("actor_kind")
+  actorUserId      String?         @map("actor_user_id") @db.Uuid
+  correlationId    String?         @map("correlation_id")
+  resourceType     String          @map("resource_type")
+  resourceId       String?         @map("resource_id") @db.Uuid
+  workspaceContext String?         @map("workspace_context") @db.Uuid
+  payload          Json            @default("{}") @db.JsonB
+  createdAt        DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  deliveries    OutboxDelivery[]
+  notifications Notification[]
+
+  @@index([name, occurredAt])
+  @@index([resourceType, resourceId])
+  @@map("outbox_events")
+}
+
+/// One row per durable consumer intended for an `OutboxEvent` (ADR 0001
+/// sections 3-4; ADR 0004 section 6). The unique constraint below is the
+/// exact idempotency tuple both ADRs require: a crash-and-retry or a poller
+/// re-claim can never create a duplicate delivery obligation for the same
+/// consumer. `nextAttemptAt` defaults to now - the initial attempt is
+/// immediately claimable - and the implementing poller advances it using
+/// ADR 0004's fixed backoff schedule (30s, 2m, 10m) on each failure, up to
+/// ADR 0001's ceiling of three retries after the initial attempt before
+/// marking the row durably `FAILED` for manual replay with the same
+/// `eventId`.
+model OutboxDelivery {
+  id              String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  eventId         String               @map("event_id") @db.Uuid
+  consumerName    String               @map("consumer_name")
+  consumerVersion Int                  @map("consumer_version")
+  status          OutboxDeliveryStatus @default(PENDING)
+  attempts        Int                  @default(0)
+  nextAttemptAt   DateTime             @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  lastError       String?              @map("last_error")
+  succeededAt     DateTime?            @map("succeeded_at") @db.Timestamptz(6)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  event OutboxEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // The poller's claim query (ADR 0004 section 6): pending, due rows in
+  // (createdAt, id) order under `FOR UPDATE SKIP LOCKED`.
+  @@unique([eventId, consumerName, consumerVersion])
+  @@index([status, nextAttemptAt, createdAt])
+  @@map("outbox_deliveries")
+}
+
+/// The durable, per-recipient notification record (ADR 0003 section 1) - the
+/// system of record a client's REST feed reads and reconciles against; a
+/// real-time frame is only ever an advisory nudge to refetch it. `taskId`,
+/// `messageId`, and `eventId` are the typed target union ADR 0003 requires
+/// ("not an unchecked entityType/entityId reference... must resolve through
+/// an approved module relation") - real foreign keys, not a polymorphic
+/// pair, for the three target domains that exist today. A CHECK constraint
+/// (added by hand; see the migration) keeps at most one set. A
+/// `MEETING_INVITATION`, `MEETING_REMINDER`, `TODO_REMINDER`, or
+/// `REPORT_REMINDER` notification necessarily carries no target yet - those
+/// domains do not exist, and no producer can create them until each
+/// domain's own schema issue adds its own nullable target column here and
+/// widens the CHECK.
+model Notification {
+  id              String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  recipientUserId String           @map("recipient_user_id") @db.Uuid
+  type            NotificationType
+  sourceEventId   String           @map("source_event_id") @db.Uuid
+  /// Producer-defined deduplication key (ADR 0003 section 3): an immediate
+  /// producer's key includes the source event id; a scheduled producer's key
+  /// includes the source record id, the exact scheduled UTC instant, and a
+  /// rule/version identifier. This column stores the already-computed key;
+  /// it does not interpret its shape.
+  occurrenceKey   String           @map("occurrence_key")
+  title           String
+  body            String
+  taskId          String?          @map("task_id") @db.Uuid
+  messageId       String?          @map("message_id") @db.Uuid
+  eventId         String?          @map("event_id") @db.Uuid
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  readAt          DateTime?        @map("read_at") @db.Timestamptz(6)
+
+  recipient   User        @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+  sourceEvent OutboxEvent @relation(fields: [sourceEventId], references: [id], onDelete: Restrict)
+  task        Task?       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  message     Message?    @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  event       Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // The cursor feed reads a recipient's own notifications newest first
+  // (ADR 0003 section 5); the second index supports the unread count.
+  @@unique([recipientUserId, type, occurrenceKey])
+  @@index([recipientUserId, createdAt, id])
+  @@index([recipientUserId, readAt])
+  @@map("notifications")
+}
+
+/// A per-user, per-type mute override (ADR 0003 section 4): every user
+/// starts enabled for every type, so a row's mere existence, not a boolean
+/// column, means "muted." Only seven of the twelve `NotificationType` values
+/// may ever be muted - assignment, review-outcome, mention, and
+/// meeting-invitation notifications represent a direct action, outcome, or
+/// participation obligation and cannot be silenced. A CHECK constraint
+/// (added by hand; see the migration) enforces that restriction at the
+/// database, not just in application code.
+model NotificationPreference {
+  userId  String           @map("user_id") @db.Uuid
+  type    NotificationType
+  mutedAt DateTime         @default(now()) @map("muted_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+  @@map("notification_preferences")
 }
