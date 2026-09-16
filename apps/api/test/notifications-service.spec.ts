@@ -232,6 +232,47 @@ describe("NotificationsService", () => {
       );
       expect(repository.createIfAbsent).not.toHaveBeenCalled();
     });
+
+    it("waits for durable persistence before publishing the advisory frame", async () => {
+      let resolveCreate!: (notification: NotificationRecord) => void;
+      const persistence = new Promise<NotificationRecord>((resolve) => {
+        resolveCreate = resolve;
+      });
+      repository.createIfAbsent!.mockReturnValue(persistence);
+
+      const processing = service.processEvent(
+        makeEvent({ payload: { assigneeUserId: "assignee-1" } }),
+      );
+      await vi.waitFor(() => {
+        expect(repository.createIfAbsent).toHaveBeenCalledOnce();
+      });
+
+      expect(realtime.publish).not.toHaveBeenCalled();
+
+      resolveCreate(makeNotification({ id: "created-1" }));
+      await processing;
+      expect(realtime.publish).toHaveBeenCalledWith(
+        "user:assignee-1",
+        "notification.invalidated",
+        1,
+        expect.objectContaining({ notificationId: "created-1" }),
+        "created-1",
+      );
+    });
+
+    it("never publishes when persistence fails", async () => {
+      repository.createIfAbsent!.mockRejectedValue(
+        new Error("database unavailable"),
+      );
+
+      await expect(
+        service.processEvent(
+          makeEvent({ payload: { assigneeUserId: "assignee-1" } }),
+        ),
+      ).rejects.toThrow("database unavailable");
+
+      expect(realtime.publish).not.toHaveBeenCalled();
+    });
   });
 
   describe("processEvent: task.reviewed", () => {
