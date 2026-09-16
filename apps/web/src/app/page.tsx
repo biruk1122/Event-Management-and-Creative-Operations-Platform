@@ -7,6 +7,7 @@ import { TasksNavigation } from "@/features/tasks";
 import { TeamsNavigation } from "@/features/teams";
 import { UsersNavigation } from "@/features/users";
 import { WorkspacesNavigation } from "@/features/workspaces";
+import { NotificationsNavigation } from "@/features/notifications";
 
 import { RolesNavigation } from "@/features/rbac/components/roles-navigation";
 
@@ -22,6 +23,7 @@ export default function Home() {
       <ProjectsNavigation />
       <TasksNavigation />
       <DiscussNavigation />
+      <NotificationsNavigation />
       <FoundationOverview />
     </>
   );
