@@ -6,6 +6,7 @@ export type {
   RealtimeConnectionListener,
   RealtimeConnectionState,
   RealtimeConnectionStatus,
+  RealtimeFrameListener,
   RealtimeRoomSummary,
   RealtimeUnsubscribe,
 } from "./lib/realtime-types";

@@ -1,39 +1,13 @@
-export type NotificationType =
-  | "TASK_ASSIGNED"
-  | "TASK_DUE"
-  | "TASK_OVERDUE"
-  | "TASK_APPROVED"
-  | "TASK_REJECTED"
-  | "NEW_MESSAGE"
-  | "MESSAGE_MENTION"
-  | "MEETING_INVITATION"
-  | "MEETING_REMINDER"
-  | "EVENT_REMINDER"
-  | "TODO_REMINDER"
-  | "REPORT_REMINDER";
+import type { components } from "@event-platform/api-client";
 
-export interface NotificationItem {
-  id: string;
-  type: NotificationType;
-  title: string;
-  body: string;
-  createdAt: string;
-  readAt: string | null;
-}
-
-export type MutableNotificationType =
-  | "TASK_DUE"
-  | "TASK_OVERDUE"
-  | "NEW_MESSAGE"
-  | "MEETING_REMINDER"
-  | "EVENT_REMINDER"
-  | "TODO_REMINDER"
-  | "REPORT_REMINDER";
-
-export interface NotificationPreference {
-  type: MutableNotificationType;
-  muted: boolean;
-}
+export type NotificationItem = components["schemas"]["NotificationResponse"];
+export type NotificationType = NotificationItem["type"];
+export type NotificationFeed =
+  components["schemas"]["NotificationFeedResponse"];
+export type NotificationPreference =
+  components["schemas"]["NotificationPreferenceResponse"];
+export type MutableNotificationType = NotificationPreference["type"];
+export type PaginatedNotifications = NotificationFeed;
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   TASK_ASSIGNED: "Task assignment",

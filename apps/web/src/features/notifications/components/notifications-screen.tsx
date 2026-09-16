@@ -2,9 +2,17 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useCurrentAccess } from "@/features/auth/api/access-queries";
-import { NotificationsCenter } from "./notifications-center";
+import type { ConnectRealtime } from "@/features/realtime";
+import { NotificationsManager } from "./notifications-manager";
 
-export function NotificationsScreen() {
+export interface NotificationsScreenProps {
+  /** Testing seam, forwarded to `NotificationsManager`. */
+  connect?: ConnectRealtime;
+}
+
+export function NotificationsScreen({
+  connect,
+}: NotificationsScreenProps = {}) {
   const access = useCurrentAccess();
   const allowed =
     access.data?.grants.some(
@@ -35,5 +43,11 @@ export function NotificationsScreen() {
     );
   if (!allowed)
     return <p role="alert">You do not have access to notifications.</p>;
-  return <NotificationsCenter />;
+  return (
+    <NotificationsManager
+      key={access.data.userId}
+      access={access.data}
+      {...(connect ? { connect } : {})}
+    />
+  );
 }

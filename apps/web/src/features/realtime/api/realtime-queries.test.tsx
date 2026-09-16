@@ -22,6 +22,7 @@ import type {
   ConnectRealtime,
   RealtimeConnectionListener,
   RealtimeConnectionState,
+  RealtimeFrameListener,
 } from "../lib/realtime-types";
 
 function wrapper(client: QueryClient) {
@@ -39,11 +40,13 @@ function makeClient() {
 /** A controllable fake `ConnectRealtime`: the test drives every emission. */
 function fakeConnect() {
   const listeners: RealtimeConnectionListener[] = [];
+  const frameListeners: RealtimeFrameListener[] = [];
   const closes: number[] = [];
   let openCalls = 0;
-  const connect: ConnectRealtime = (listener) => {
+  const connect: ConnectRealtime = (listener, onFrame) => {
     openCalls += 1;
     listeners.push(listener);
+    if (onFrame) frameListeners.push(onFrame);
     const index = listeners.length - 1;
     return () => {
       closes.push(index);
@@ -54,6 +57,10 @@ function fakeConnect() {
     emit: (state: RealtimeConnectionState) => {
       const current = listeners[listeners.length - 1];
       current?.(state);
+    },
+    emitFrame: (event: string, payload: unknown) => {
+      const current = frameListeners[frameListeners.length - 1];
+      current?.(event, payload);
     },
     get openCalls() {
       return openCalls;
@@ -176,5 +183,53 @@ describe("useRealtimeConnection", () => {
     expect(fake.closedCount).toBe(0);
     unmount();
     expect(fake.closedCount).toBe(1);
+  });
+
+  it("forwards a live frame to the caller's onFrame", async () => {
+    const client = makeClient();
+    const fake = fakeConnect();
+    const received: Array<[string, unknown]> = [];
+
+    renderHook(
+      () =>
+        useRealtimeConnection(fake.connect, (event, payload) =>
+          received.push([event, payload]),
+        ),
+      { wrapper: wrapper(client) },
+    );
+
+    act(() =>
+      fake.emitFrame("notification.invalidated", { notificationId: "n-1" }),
+    );
+    await waitFor(() =>
+      expect(received).toEqual([
+        ["notification.invalidated", { notificationId: "n-1" }],
+      ]),
+    );
+  });
+
+  it("always calls the latest onFrame without reconnecting when it changes across renders", async () => {
+    const client = makeClient();
+    const fake = fakeConnect();
+    const first = vi.fn();
+    const second = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ onFrame }: { onFrame: (event: string) => void }) =>
+        useRealtimeConnection(fake.connect, onFrame),
+      { wrapper: wrapper(client), initialProps: { onFrame: first } },
+    );
+    expect(fake.openCalls).toBe(1);
+
+    rerender({ onFrame: second });
+    // A fresh inline listener each render must never itself reconnect the
+    // socket - only `retry()` does that.
+    expect(fake.openCalls).toBe(1);
+
+    act(() => fake.emitFrame("notification.invalidated", {}));
+    await waitFor(() =>
+      expect(second).toHaveBeenCalledWith("notification.invalidated", {}),
+    );
+    expect(first).not.toHaveBeenCalled();
   });
 });
