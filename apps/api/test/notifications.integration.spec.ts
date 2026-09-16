@@ -343,8 +343,8 @@ describe("notifications API and delivery pipeline", () => {
   );
 
   it(
-    "delivers NEW_MESSAGE to other members and MESSAGE_MENTION to a mentioned member, never to the author",
-    { timeout: 30_000 },
+    "delivers NEW_MESSAGE to other members and MESSAGE_MENTION to a mentioned member, never to the author or a non-member mention",
+    { timeout: 45_000 },
     async () => {
       const conversation = body<{ id: string }>(
         await as(member, "post", "/api/v1/conversations").send({
@@ -352,6 +352,8 @@ describe("notifications API and delivery pipeline", () => {
           memberIds: [secondMember.id, departmentManager.id],
         }),
       );
+      // `management` is deliberately not a member of this conversation, so
+      // mentioning them exercises the non-member-mention exclusion below.
       const posted = body<{ id: string }>(
         await as(
           member,
@@ -359,7 +361,7 @@ describe("notifications API and delivery pipeline", () => {
           `/api/v1/conversations/${conversation.id}/messages`,
         ).send({
           content: "Standup notes",
-          mentionedUserIds: [secondMember.id],
+          mentionedUserIds: [secondMember.id, management.id],
         }),
       );
 
@@ -390,6 +392,18 @@ describe("notifications API and delivery pipeline", () => {
 
       const authorFeed = await feedFor(member);
       expect(authorFeed.some((item) => item.messageId === posted.id)).toBe(
+        false,
+      );
+
+      // A mention naming someone who isn't actually a conversation member
+      // must never surface a preview of content they have no API access to.
+      // Give the relay several cycles, then assert absence - there is no
+      // "eventually appears" signal to wait for here.
+      await new Promise((resolve) =>
+        setTimeout(resolve, 3 * RELAY_POLL_INTERVAL_MS),
+      );
+      const nonMemberFeed = await feedFor(management);
+      expect(nonMemberFeed.some((item) => item.messageId === posted.id)).toBe(
         false,
       );
     },
@@ -466,6 +480,37 @@ describe("notifications API and delivery pipeline", () => {
       expect.arrayContaining([{ type: "NEW_MESSAGE", muted: false }]),
     );
   });
+
+  it(
+    "does not notify a manager who assigns a task to themselves",
+    { timeout: 15_000 },
+    async () => {
+      const created = body<{ id: string }>(
+        await as(management, "post", "/api/v1/tasks").send({
+          title: "Self-assignment check",
+          departmentId,
+          workspaceId,
+        }),
+      );
+      await as(
+        departmentManager,
+        "put",
+        `/api/v1/tasks/${created.id}/assignees/${departmentManager.id}`,
+      ).expect(200);
+
+      // No "eventually appears" signal for a negative assertion - give the
+      // relay several cycles, then confirm absence.
+      await new Promise((resolve) =>
+        setTimeout(resolve, 3 * RELAY_POLL_INTERVAL_MS),
+      );
+      const feed = await feedFor(departmentManager);
+      expect(
+        feed.some(
+          (item) => item.type === "TASK_ASSIGNED" && item.taskId === created.id,
+        ),
+      ).toBe(false);
+    },
+  );
 
   it("requires authentication and a CSRF token", async () => {
     const unauthenticated = await request(http).get("/api/v1/notifications");
