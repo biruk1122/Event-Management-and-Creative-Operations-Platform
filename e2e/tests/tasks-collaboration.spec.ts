@@ -46,6 +46,10 @@ test.describe("Task assignment and collaboration — end to end", () => {
       page,
       browser,
     }) => {
+      // A long multi-actor journey (assign, collaborate, a real storage
+      // upload plus file scan, submit, review, reload) needs more than
+      // the suite's default test timeout.
+      test.setTimeout(75_000);
       const suffix = `${fixtureName("task")}-${randomUUID().slice(0, 8)}`;
       const title = `E2E Task ${suffix}`;
       const comment = "E2E collaboration update";
@@ -145,10 +149,14 @@ test.describe("Task assignment and collaboration — end to end", () => {
         mimeType: "text/plain",
         buffer: Buffer.from("task attachment", "utf8"),
       });
+      // A real upload to storage plus the (test-mode) file scan step is
+      // slower than a typical page action, so give it its own headroom
+      // beyond the suite's default action timeout.
       const storageUpload = memberPage.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
           new URL(response.url()).port === "9000",
+        { timeout: 45_000 },
       );
       await memberDetail.getByRole("button", { name: "Upload" }).click();
       expect((await storageUpload).ok()).toBe(true);

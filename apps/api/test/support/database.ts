@@ -79,11 +79,25 @@ export async function createIsolatedDatabase(): Promise<IsolatedDatabase> {
 
   await runOnce(adminUrl, `CREATE SCHEMA "${schema}"`);
 
-  execSync("pnpm exec prisma migrate deploy", {
-    cwd: apiRoot,
-    env: { ...process.env, DATABASE_URL: url },
-    stdio: "pipe",
-  });
+  // Every parallel test file's `migrate deploy` contends for the same
+  // engine-wide advisory lock (it is not scoped to this schema), so a
+  // busy run can exceed its fixed 10s wait. Retry rather than fail the
+  // whole file over lock contention alone.
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      execSync("pnpm exec prisma migrate deploy", {
+        cwd: apiRoot,
+        env: { ...process.env, DATABASE_URL: url },
+        stdio: "pipe",
+      });
+      break;
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        throw error;
+      }
+    }
+  }
 
   return {
     schema,

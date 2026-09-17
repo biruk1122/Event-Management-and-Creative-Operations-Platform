@@ -47,6 +47,10 @@ test.describe("Secure event-file management — end to end", () => {
     test("uploads, verifies, downloads, and reloads an event file from authoritative services", async ({
       page,
     }) => {
+      // A real storage upload plus the (test-mode) file scan step, on
+      // top of the test's other steps, needs more than the suite's
+      // default test timeout.
+      test.setTimeout(60_000);
       const eventName = `E2E File Event ${fixtureName("file")}-${randomUUID().slice(0, 8)}`;
       const filename = "e2e-call-sheet.txt";
       const bytes = Buffer.from("E2E call sheet\n", "utf8");
@@ -76,10 +80,14 @@ test.describe("Secure event-file management — end to end", () => {
       });
       const attachButton = detail.getByRole("button", { name: "Attach file" });
       await expect(attachButton).toBeEnabled();
+      // A real upload to storage plus the (test-mode) file scan step is
+      // slower than a typical page action, so give it its own headroom
+      // beyond the suite's default action timeout.
       const uploadResponse = page.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
           new URL(response.url()).port === "9000",
+        { timeout: 45_000 },
       );
       await attachButton.click();
       expect((await uploadResponse).ok()).toBe(true);
