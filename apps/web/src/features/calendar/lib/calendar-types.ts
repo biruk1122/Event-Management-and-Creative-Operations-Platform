@@ -5,6 +5,7 @@
 export const CALENDAR_ENTRY_TYPES = [
   "EVENT",
   "TASK",
+  "MEETING",
   "PROJECT",
   "PERSONAL",
   "REMINDER",
@@ -28,6 +29,7 @@ export function isMutableCalendarEntryType(
 export const CALENDAR_ENTRY_TYPE_LABELS: Record<CalendarEntryType, string> = {
   EVENT: "Event",
   TASK: "Task",
+  MEETING: "Meeting",
   PROJECT: "Project",
   PERSONAL: "Personal",
   REMINDER: "Reminder",
@@ -45,6 +47,8 @@ export interface CalendarEntry {
   eventId: string | null;
   taskId: string | null;
   projectId: string | null;
+  /** Optional while CAL-04 fixture data remains supported. */
+  meetingId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
