@@ -234,6 +234,16 @@ test.describe("Calendar and personal schedules — end to end", () => {
           { headers: { "x-csrf-token": csrfB } },
         );
         expect(crossDelete.status()).toBe(404);
+
+        // The 404 above must mean "never touched," not just "reported as
+        // not found while quietly deleting it anyway" - confirm the row
+        // itself survived the rejected cross-user attempt.
+        const survivingRows = await queryInSchema(
+          runDatabaseUrl(),
+          `SELECT id FROM calendar_entries WHERE id = $1`,
+          [entryId],
+        );
+        expect(survivingRows).toHaveLength(1);
       } finally {
         await pageA.close();
         await pageB.close();
