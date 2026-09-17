@@ -87,20 +87,36 @@ test.describe("User administration — end to end", () => {
         .fill(NEW_USER.password);
       await createDialog.getByRole("button", { name: "Create user" }).click();
 
-      // It lands in the list and in the authoritative store.
-      await expect(page.getByText(`${baselineTotal + 1} users`)).toBeVisible();
+      // Wait for the write's authoritative result before checking the
+      // invalidated browser query. On busy CI runners the dialog's mutation
+      // can settle one render before the list refetch paints its new total.
+      let created: ApiUser | undefined;
+      await expect
+        .poll(
+          async () => {
+            const response = await page.request.get(
+              `${apiBaseUrl}/api/v1/users?search=${encodeURIComponent(NEW_USER.email)}`,
+            );
+            if (!response.ok()) return null;
+            const items = ((await response.json()) as { items: ApiUser[] })
+              .items;
+            created = items.find((user) => user.email === NEW_USER.email);
+            return created?.id ?? null;
+          },
+          { timeout: 20_000 },
+        )
+        .not.toBeNull();
+
+      // It lands in the list as well as the authoritative store.
+      await expect(page.getByText(`${baselineTotal + 1} users`)).toBeVisible({
+        timeout: 20_000,
+      });
       await expect(
         page.getByRole("button", {
           name: `${NEW_USER.firstName} ${NEW_USER.lastName}`,
         }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 20_000 });
 
-      const listAfterCreate = await page.request.get(
-        `${apiBaseUrl}/api/v1/users?search=${encodeURIComponent(NEW_USER.email)}`,
-      );
-      const created = (
-        (await listAfterCreate.json()) as { items: ApiUser[] }
-      ).items.find((user) => user.email === NEW_USER.email);
       expect(
         created,
         "created user should be readable from the API",

@@ -98,6 +98,34 @@ async function createTask(
   return ((await response.json()) as { id: string }).id;
 }
 
+/** The notification relay is asynchronous. Poll REST (the durable source of
+ * truth) before exercising a page's initial fetch or cross-user isolation. */
+async function waitForNotification(
+  page: Pick<Page, "request">,
+  title: string,
+): Promise<string> {
+  let notificationId: string | undefined;
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.get(
+          `${apiBaseUrl}/api/v1/notifications`,
+        );
+        if (!response.ok()) return null;
+        const feed = (await response.json()) as {
+          items: { id: string; body: string }[];
+        };
+        notificationId = feed.items.find((item) =>
+          item.body.includes(title),
+        )?.id;
+        return notificationId ?? null;
+      },
+      { timeout: 20_000 },
+    )
+    .not.toBeNull();
+  return notificationId!;
+}
+
 /** Assigns `assigneeName` to `title` through the real task dialog - the
  * actual trigger for a TASK_ASSIGNED notification, not a direct API call to
  * whatever internal endpoint the dialog itself happens to use. */
@@ -167,6 +195,8 @@ test.describe("In-app notifications — end to end", () => {
           firstName: "Notif",
           lastName: "Recipient",
         });
+
+        await waitForNotification(memberPage, firstTitle);
 
         await memberPage.goto("/notifications");
         await expect(
@@ -287,6 +317,8 @@ test.describe("In-app notifications — end to end", () => {
           lastName: "Isolation B",
         });
 
+        const notificationBId = await waitForNotification(pageB, titleB);
+
         await pageA.goto("/notifications");
         await expect(
           pageA.getByRole("listitem").filter({ hasText: titleA }),
@@ -294,18 +326,6 @@ test.describe("In-app notifications — end to end", () => {
         await expect(
           pageA.getByRole("listitem").filter({ hasText: titleB }),
         ).toHaveCount(0);
-
-        const listB = await pageB.request.get(
-          `${apiBaseUrl}/api/v1/notifications`,
-        );
-        expect(listB.ok()).toBe(true);
-        const notificationBId = (
-          (await listB.json()) as { items: { id: string; body: string }[] }
-        ).items.find((item) => item.body.includes(titleB))?.id;
-        expect(
-          notificationBId,
-          "user B's own notification should be readable to user B",
-        ).toBeTruthy();
 
         const csrfA = await csrfToken(pageA);
         const crossRead = await pageA.request.put(
