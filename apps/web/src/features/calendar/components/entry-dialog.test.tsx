@@ -96,9 +96,9 @@ describe("EntryDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("pre-fills the form and offers delete when editing an existing entry", async () => {
+  it("pre-fills the form, disables the type, and offers delete when editing an existing entry", async () => {
     const user = userEvent.setup();
-    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue({ status: "success" });
     render(
       <EntryDialog
         open
@@ -110,9 +110,34 @@ describe("EntryDialog", () => {
     );
 
     expect(screen.getByLabelText("Title")).toHaveValue("Dentist appointment");
+    expect(screen.getByLabelText("Type")).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Delete" }));
 
     expect(onDelete).toHaveBeenCalledWith("entry-1");
+  });
+
+  it("shows an error and stays open when the delete outcome is not-found", async () => {
+    const user = userEvent.setup();
+    const onDelete = vi.fn().mockResolvedValue({ status: "not_found" });
+    const onOpenChange = vi.fn();
+    render(
+      <EntryDialog
+        open
+        onOpenChange={onOpenChange}
+        entry={personalEntry()}
+        onSubmit={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(
+      await screen.findByText(
+        "This entry no longer exists. It may already have been changed or removed elsewhere.",
+      ),
+    ).toBeVisible();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
   it("shows a generic error when the save outcome is unexpected", async () => {

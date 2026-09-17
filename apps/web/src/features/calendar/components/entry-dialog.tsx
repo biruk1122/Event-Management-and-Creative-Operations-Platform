@@ -23,6 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import type {
+  CalendarEntryFormValues,
+  DeleteCalendarEntryOutcome,
+} from "../lib/calendar-outcome";
 import {
   CALENDAR_ENTRY_TYPE_LABELS,
   MUTABLE_CALENDAR_ENTRY_TYPES,
@@ -30,23 +34,25 @@ import {
   type MutableCalendarEntryType,
 } from "../lib/calendar-types";
 
-export interface EntryFormValues {
-  title: string;
-  description: string;
-  type: MutableCalendarEntryType;
-  startAt: string;
-  endAt: string;
-}
+export type EntryFormValues = CalendarEntryFormValues;
 
 export type EntryFormOutcome =
   | { status: "success"; entry: CalendarEntry }
+  | { status: "schedule_invalid" }
+  | { status: "not_found" }
   | {
       status: "field_errors";
       fieldErrors: Partial<Record<keyof EntryFormValues, string>>;
     }
+  | { status: "permission_denied" }
   | { status: "unexpected" };
 
 const FORM_ERRORS: Record<string, string> = {
+  schedule_invalid: "End must be at or after the start.",
+  not_found:
+    "This entry no longer exists. It may already have been changed or removed elsewhere.",
+  permission_denied:
+    "You don't have permission to do that. Refresh and try again.",
   unexpected: "We could not save this entry. Try again.",
 };
 
@@ -86,7 +92,7 @@ export interface EntryDialogProps {
   /** Pre-fills the start time when opened by clicking a date. */
   initialStart?: Date | null;
   onSubmit: (values: EntryFormValues) => Promise<EntryFormOutcome>;
-  onDelete?: (id: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<DeleteCalendarEntryOutcome>;
 }
 
 /** The form's own state only initializes once per mount, not on every
@@ -161,16 +167,20 @@ export function EntryDialog({
         setFieldErrors(outcome.fieldErrors);
         return;
       default:
-        setFormError(FORM_ERRORS.unexpected!);
+        setFormError(FORM_ERRORS[outcome.status] ?? FORM_ERRORS.unexpected!);
     }
   }
 
   async function handleDelete() {
     if (!entry || !onDelete) return;
     setDeleting(true);
-    await onDelete(entry.id);
+    const outcome = await onDelete(entry.id);
     setDeleting(false);
-    onOpenChange(false);
+    if (outcome.status === "success") {
+      onOpenChange(false);
+      return;
+    }
+    setFormError(FORM_ERRORS[outcome.status] ?? FORM_ERRORS.unexpected!);
   }
 
   const busy = submitting || deleting;
@@ -228,6 +238,7 @@ export function EntryDialog({
               onValueChange={(value) =>
                 set("type", value as MutableCalendarEntryType)
               }
+              disabled={Boolean(entry)}
             >
               <SelectTrigger id={ids.type}>
                 <SelectValue />
@@ -240,6 +251,11 @@ export function EntryDialog({
                 ))}
               </SelectContent>
             </Select>
+            {entry ? (
+              <p className="text-muted-foreground text-xs">
+                Type can&apos;t be changed after creation.
+              </p>
+            ) : null}
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
