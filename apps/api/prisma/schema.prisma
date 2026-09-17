@@ -123,6 +123,8 @@ model User {
   taskActivities           TaskActivity[]            @relation("TaskActivityActor")
   calendarEntries          CalendarEntry[]           @relation("CalendarEntryOwner")
   createdCalendarEntries   CalendarEntry[]           @relation("CalendarEntryCreatedBy")
+  todos                    Todo[]                    @relation("TodoOwner")
+  createdTodos             Todo[]                    @relation("TodoCreatedBy")
   createdConversations     Conversation[]            @relation("ConversationCreatedBy")
   conversationMemberships  ConversationMember[]
   messages                 Message[]                 @relation("MessageAuthor")
@@ -891,6 +893,7 @@ model Event {
   projects        Project[]
   calendarEntries CalendarEntry[]
   notifications   Notification[]
+  todos           Todo[]
 
   // Administration and the connected-workspace overview filter events by
   // lifecycle state, type, schedule, and author.
@@ -972,6 +975,7 @@ model Project {
   event           Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
   createdBy       User?           @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   calendarEntries CalendarEntry[]
+  todos           Todo[]
 
   // Administration and the connected-workspace overview filter projects by
   // lifecycle state, related event, schedule, and author.
@@ -1100,6 +1104,99 @@ model CalendarEntry {
   @@index([type, startAt])
   @@index([createdById])
   @@map("calendar_entries")
+}
+
+/// SRS 5.15's To-Do types. The To-Do module is deliberately separate from
+/// Task (official organizational work); these are personal planning items.
+enum TodoType {
+  PERSONAL
+  WORK
+  REMINDER
+  QUICK_NOTE
+  FOLLOW_UP
+
+  @@map("todo_type")
+}
+
+enum TodoPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("todo_priority")
+}
+
+enum TodoStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+
+  @@map("todo_status")
+}
+
+/// A user's private planning item (SRS 5.15) - always personal to its owner,
+/// unlike Task which is official organizational work. `relatedEventId` and
+/// `relatedProjectId` are optional context only, the same soft,
+/// `ON DELETE SET NULL` cross-reference `Project.event` already uses:
+/// deleting the referenced Event/Project clears the reference here, it never
+/// removes the Todo itself (contrast `CalendarEntry`, whose projection rows
+/// are genuinely owned by their source and cascade with it).
+model Todo {
+  id               String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId           String       @map("user_id") @db.Uuid
+  title            String
+  description      String?
+  type             TodoType     @default(PERSONAL)
+  priority         TodoPriority @default(MEDIUM)
+  status           TodoStatus   @default(NOT_STARTED)
+  /// A due date and its optional time of day are stored separately (SRS
+  /// entity fields `dueDate`/`dueTime`) because a Todo may be due on a day
+  /// without a specific time; a CHECK forbids a time without its date.
+  dueDate          DateTime?    @map("due_date") @db.Date
+  dueTime          DateTime?    @map("due_time") @db.Time(6)
+  relatedEventId   String?      @map("related_event_id") @db.Uuid
+  relatedProjectId String?      @map("related_project_id") @db.Uuid
+  reminderEnabled  Boolean      @default(false) @map("reminder_enabled")
+  createdById      String?      @map("created_by_id") @db.Uuid
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user           User           @relation("TodoOwner", fields: [userId], references: [id], onDelete: Cascade)
+  relatedEvent   Event?         @relation(fields: [relatedEventId], references: [id], onDelete: SetNull)
+  relatedProject Project?       @relation(fields: [relatedProjectId], references: [id], onDelete: SetNull)
+  createdBy      User?          @relation("TodoCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reminders      TodoReminder[]
+
+  // "My Day"/"Upcoming" smart views filter by owner and status, sorted by
+  // due date; the type index supports the Work/Personal category filter.
+  @@index([userId, status, dueDate])
+  @@index([userId, type])
+  @@index([relatedEventId])
+  @@index([relatedProjectId])
+  @@index([createdById])
+  @@map("todos")
+}
+
+/// An explicit reminder moment for a Todo (SRS 5.15's `TodoReminder`
+/// entity), independent of the Todo's own due date/time - a floating note
+/// can carry a reminder with no due date at all. This models only the
+/// scheduled moment and whether it fired; the scheduler that claims due,
+/// unsent rows and the TODO_REMINDER notification it produces are later
+/// slices (mirrors `OutboxDelivery`'s own claim-query shape, not its
+/// retry/backoff machinery, which this simpler table does not need yet).
+model TodoReminder {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  todoId     String   @map("todo_id") @db.Uuid
+  reminderAt DateTime @map("reminder_at") @db.Timestamptz(6)
+  sent       Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  todo Todo @relation(fields: [todoId], references: [id], onDelete: Cascade)
+
+  @@unique([todoId, reminderAt])
+  @@index([sent, reminderAt])
+  @@map("todo_reminders")
 }
 
 enum ConversationType {
