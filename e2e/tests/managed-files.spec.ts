@@ -76,10 +76,14 @@ test.describe("Secure event-file management — end to end", () => {
       });
       const attachButton = detail.getByRole("button", { name: "Attach file" });
       await expect(attachButton).toBeEnabled();
+      // A real upload to storage plus the (test-mode) file scan step is
+      // slower than a typical page action, so give it its own headroom
+      // beyond the suite's default action timeout.
       const uploadResponse = page.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
           new URL(response.url()).port === "9000",
+        { timeout: 45_000 },
       );
       await attachButton.click();
       expect((await uploadResponse).ok()).toBe(true);
