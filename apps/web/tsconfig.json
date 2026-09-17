@@ -3,7 +3,8 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@event-platform/api-client": ["../../packages/api-client/src/index.ts"]
     }
   },
   "include": [
