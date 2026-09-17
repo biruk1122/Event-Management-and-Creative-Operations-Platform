@@ -1,6 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { Button } from "@/components/ui/button";
+import {
+  accessKey,
+  type CurrentAccess,
+} from "@/features/auth/api/access-queries";
+import {
+  useRealtimeConnection,
+  type ConnectRealtime,
+} from "@/features/realtime";
 
 import { AgendaView } from "./agenda-view";
 import { CalendarToolbar } from "./calendar-toolbar";
@@ -13,8 +24,19 @@ import {
 } from "./entry-dialog";
 import { MonthView } from "./month-view";
 import { WeekView } from "./week-view";
-import { addDays, addMonths, startOfDay } from "../lib/calendar-date";
-import { calendarFixtures } from "../lib/calendar-fixtures";
+import { CalendarRequestError } from "../api/calendar-gateway";
+import {
+  calendarKeys,
+  useCalendarMutations,
+  useCalendarRange,
+} from "../api/calendar-queries";
+import {
+  addDays,
+  addMonths,
+  rangeForView,
+  startOfDay,
+} from "../lib/calendar-date";
+import type { DeleteCalendarEntryOutcome } from "../lib/calendar-outcome";
 import {
   CALENDAR_ENTRY_TYPES,
   isMutableCalendarEntryType,
@@ -35,19 +57,23 @@ function nextAnchor(
 }
 
 export interface CalendarManagerProps {
-  /** Testing seam: the demo data is anchored to "today" by default, which
-   * would make assertions on rendered content non-deterministic. */
-  initialEntries?: CalendarEntry[];
+  access: CurrentAccess;
+  /** Testing seam, mirroring `NotificationsManagerProps.connect`; defaults to
+   * the real `/realtime` handshake. */
+  connect?: ConnectRealtime;
+  /** Testing seam: the default anchor is "today", which would make
+   * assertions on the rendered range non-deterministic. */
   initialAnchor?: Date;
 }
 
 export function CalendarManager({
-  initialEntries,
+  access,
+  connect,
   initialAnchor,
-}: CalendarManagerProps = {}) {
-  const [entries, setEntries] = useState<CalendarEntry[]>(
-    () => initialEntries ?? calendarFixtures(),
-  );
+}: CalendarManagerProps) {
+  const client = useQueryClient();
+  const keys = calendarKeys(access);
+
   const [view, setView] = useState<CalendarViewMode>("month");
   const [anchor, setAnchor] = useState<Date>(
     () => initialAnchor ?? startOfDay(new Date()),
@@ -64,6 +90,43 @@ export function CalendarManager({
   // effect (see that component's own doc comment).
   const [dialogInstanceKey, setDialogInstanceKey] = useState(0);
 
+  const range = useMemo(() => rangeForView(view, anchor), [view, anchor]);
+  const rangeParams = useMemo(
+    () => ({ from: range.from.toISOString(), to: range.to.toISOString() }),
+    [range.from, range.to],
+  );
+
+  const reconcile = useCallback(() => {
+    void client.invalidateQueries({ queryKey: keys.all });
+  }, [client, keys.all]);
+
+  // The backend has no calendar-specific live event today (only
+  // `notification.invalidated` exists anywhere in this app), so there is no
+  // frame worth matching here - only a reconnect's own REST refetch below is
+  // authoritative for "something may have changed while disconnected."
+  const connection = useRealtimeConnection(connect);
+
+  const everConnectedRef = useRef(false);
+  useEffect(() => {
+    if (connection.state.status === "connected") {
+      if (everConnectedRef.current) reconcile();
+      everConnectedRef.current = true;
+    }
+  }, [connection.state.status, reconcile]);
+
+  const feed = useCalendarRange(access, rangeParams);
+  const mutations = useCalendarMutations(access);
+
+  useEffect(() => {
+    if (
+      feed.error instanceof CalendarRequestError &&
+      (feed.error.status === 401 || feed.error.status === 403)
+    ) {
+      void client.invalidateQueries({ queryKey: accessKey });
+    }
+  }, [feed.error, client]);
+
+  const entries = useMemo(() => feed.data ?? [], [feed.data]);
   const visibleEntries = useMemo(
     () => entries.filter((entry) => activeTypes.has(entry.type)),
     [entries, activeTypes],
@@ -107,48 +170,47 @@ export function CalendarManager({
   async function submitEntry(
     values: EntryFormValues,
   ): Promise<EntryFormOutcome> {
-    const startAt = new Date(values.startAt).toISOString();
-    const endAt = values.endAt ? new Date(values.endAt).toISOString() : null;
-
     if (editingEntry) {
-      const updated: CalendarEntry = {
-        ...editingEntry,
-        title: values.title.trim(),
-        description: values.description.trim() || null,
-        type: values.type,
-        startAt,
-        endAt,
-        updatedAt: new Date().toISOString(),
-      };
-      setEntries((current) =>
-        current.map((entry) => (entry.id === updated.id ? updated : entry)),
-      );
-      return { status: "success", entry: updated };
+      return mutations.update.mutateAsync({ id: editingEntry.id, values });
     }
-
-    const created: CalendarEntry = {
-      id: `local-${crypto.randomUUID()}`,
-      title: values.title.trim(),
-      description: values.description.trim() || null,
-      type: values.type,
-      startAt,
-      endAt,
-      eventId: null,
-      taskId: null,
-      projectId: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setEntries((current) => [...current, created]);
-    return { status: "success", entry: created };
+    return mutations.create.mutateAsync(values);
   }
 
-  async function deleteEntry(id: string): Promise<void> {
-    setEntries((current) => current.filter((entry) => entry.id !== id));
+  async function deleteEntry(id: string): Promise<DeleteCalendarEntryOutcome> {
+    return mutations.remove.mutateAsync(id);
+  }
+
+  if (feed.isPending) {
+    return <p role="status">Loading your calendar…</p>;
+  }
+
+  if (feed.isError) {
+    return (
+      <div role="alert" className="space-y-2">
+        <p>
+          {feed.error instanceof CalendarRequestError
+            ? feed.error.message
+            : "We could not load your calendar. Try again."}
+        </p>
+        <Button variant="outline" onClick={() => void feed.refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
+      {connection.state.status === "denied" ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          Live updates are unavailable. Refresh to see changes made elsewhere.
+        </p>
+      ) : connection.state.status === "reconnecting" ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          Reconnecting…
+        </p>
+      ) : null}
+
       <CalendarToolbar
         view={view}
         anchor={anchor}
