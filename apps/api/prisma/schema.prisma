@@ -121,6 +121,8 @@ model User {
   taskAttachments          TaskAttachment[]          @relation("TaskAttachmentActor")
   taskReviews              TaskReview[]              @relation("TaskReviewer")
   taskActivities           TaskActivity[]            @relation("TaskActivityActor")
+  calendarEntries          CalendarEntry[]           @relation("CalendarEntryOwner")
+  createdCalendarEntries   CalendarEntry[]           @relation("CalendarEntryCreatedBy")
   createdConversations     Conversation[]            @relation("ConversationCreatedBy")
   conversationMemberships  ConversationMember[]
   messages                 Message[]                 @relation("MessageAuthor")
@@ -667,16 +669,17 @@ model Task {
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace     Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  department    Department?      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  createdBy     User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  assignments   TaskAssignment[]
-  comments      TaskComment[]
-  attachments   TaskAttachment[]
-  fileIntents   ManagedFile[]    @relation("ManagedFileIntentTask")
-  reviews       TaskReview[]
-  activities    TaskActivity[]
-  notifications Notification[]
+  workspace       Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  department      Department?      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  createdBy       User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignments     TaskAssignment[]
+  comments        TaskComment[]
+  attachments     TaskAttachment[]
+  fileIntents     ManagedFile[]    @relation("ManagedFileIntentTask")
+  reviews         TaskReview[]
+  activities      TaskActivity[]
+  calendarEntries CalendarEntry[]
+  notifications   Notification[]
 
   // List/Kanban views are owner + status scoped; calendar projections sort
   // independently by start and due time. Overdue remains a derived query.
@@ -877,13 +880,14 @@ model Event {
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  createdBy     User?          @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  createdBy       User?           @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   /// General projects that optionally relate to this event (PRJ-01). A soft,
   /// unbounded cross-reference between peers, not ownership - deleting the
   /// event clears it on each project rather than being blocked.
-  projects      Project[]
-  notifications Notification[]
+  projects        Project[]
+  calendarEntries CalendarEntry[]
+  notifications   Notification[]
 
   // Administration and the connected-workspace overview filter events by
   // lifecycle state, type, schedule, and author.
@@ -961,9 +965,10 @@ model Project {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  event     Event?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  createdBy User?     @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  event           Event?          @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy       User?           @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  calendarEntries CalendarEntry[]
 
   // Administration and the connected-workspace overview filter projects by
   // lifecycle state, related event, schedule, and author.
@@ -972,6 +977,55 @@ model Project {
   @@index([startAt])
   @@index([createdById])
   @@map("projects")
+}
+
+/// The SRS calendar-entry vocabulary. `MEETING` and `CAMPAIGN` are reserved
+/// for their owning modules; EVE-117 deliberately creates no unchecked
+/// polymorphic reference for them.
+enum CalendarEntryType {
+  EVENT
+  TASK
+  MEETING
+  PROJECT
+  CAMPAIGN
+  PERSONAL
+  REMINDER
+
+  @@map("calendar_entry_type")
+}
+
+/// A calendar-owned entry for one user's authorized calendar. Projections
+/// retain explicit foreign keys to their source record, while personal plans
+/// and reminders are owned directly by the calendar. Meeting and campaign
+/// projections are reserved until their modules provide concrete tables.
+model CalendarEntry {
+  id          String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  title       String
+  description String?
+  type        CalendarEntryType
+  startAt     DateTime          @map("start_at") @db.Timestamptz(6)
+  endAt       DateTime?         @map("end_at") @db.Timestamptz(6)
+  userId      String            @map("user_id") @db.Uuid
+  eventId     String?           @map("event_id") @db.Uuid
+  taskId      String?           @map("task_id") @db.Uuid
+  projectId   String?           @map("project_id") @db.Uuid
+  createdById String?           @map("created_by_id") @db.Uuid
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user      User     @relation("CalendarEntryOwner", fields: [userId], references: [id], onDelete: Cascade)
+  event     Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("CalendarEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, eventId])
+  @@unique([userId, taskId])
+  @@unique([userId, projectId])
+  @@index([userId, startAt])
+  @@index([type, startAt])
+  @@index([createdById])
+  @@map("calendar_entries")
 }
 
 enum ConversationType {
