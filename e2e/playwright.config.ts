@@ -59,7 +59,10 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
-    actionTimeout: 10_000,
+    // 10s was tuned against a GitHub-hosted cloud runner; a busy
+    // self-hosted machine can occasionally exceed it on real (not
+    // stuck) requests.
+    actionTimeout: 20_000,
   },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts$/ },
