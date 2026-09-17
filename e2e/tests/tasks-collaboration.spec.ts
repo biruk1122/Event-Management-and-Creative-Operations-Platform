@@ -46,6 +46,10 @@ test.describe("Task assignment and collaboration — end to end", () => {
       page,
       browser,
     }) => {
+      // A long multi-actor journey (assign, collaborate, a real storage
+      // upload plus file scan, submit, review, reload) needs more than
+      // the suite's default test timeout.
+      test.setTimeout(75_000);
       const suffix = `${fixtureName("task")}-${randomUUID().slice(0, 8)}`;
       const title = `E2E Task ${suffix}`;
       const comment = "E2E collaboration update";
