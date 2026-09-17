@@ -131,7 +131,19 @@ jobs:
 
       - name: Apply and inspect committed migrations
         run: |
-          pnpm db:migrate:deploy
+          # The postgres image's health check can briefly report ready
+          # during its own internal bootstrap restart, before the final
+          # listener (with the configured role/password) is actually up.
+          # Retry past that narrow window instead of failing outright.
+          for attempt in {1..10}; do
+            if pnpm db:migrate:deploy; then
+              break
+            fi
+            if [ "$attempt" -eq 10 ]; then
+              exit 1
+            fi
+            sleep 3
+          done
           pnpm db:migrate:status
 
       - name: Run database integration tests
@@ -262,6 +274,11 @@ jobs:
       # as of RTC-06; not tuned to the exact current count, so it has room
       # for the epics still to come.
       API_RATE_LIMIT_MAX: 10000
+      # This runner's WSL2 distro is Ubuntu 26.04, newer than any release
+      # Playwright 1.56 recognizes, so it refuses to resolve apt
+      # dependencies or a Chromium build for it. Ubuntu 24.04 is close
+      # enough in practice (same Chromium runtime library set).
+      PLAYWRIGHT_HOST_PLATFORM_OVERRIDE: ubuntu24.04-x64
     services:
       minio:
         image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
