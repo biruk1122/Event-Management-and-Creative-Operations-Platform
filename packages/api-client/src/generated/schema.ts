@@ -89,6 +89,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/calendar": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the caller's calendar entries in an inclusive/exclusive range of at most 90 days */
+    get: operations["Calendar_list_v1"];
+    put?: never;
+    /** Create a personal schedule or reminder */
+    post: operations["Calendar_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/calendar/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one calendar entry owned by the caller */
+    get: operations["Calendar_get_v1"];
+    put?: never;
+    post?: never;
+    /** Delete a calendar-owned personal schedule or reminder */
+    delete: operations["Calendar_remove_v1"];
+    options?: never;
+    head?: never;
+    /** Update a calendar-owned personal schedule or reminder */
+    patch: operations["Calendar_update_v1"];
+    trace?: never;
+  };
   "/api/v1/conversations": {
     parameters: {
       query?: never;
@@ -1486,6 +1523,31 @@ export interface components {
        */
       status: "ACTIVE" | "INACTIVE";
     };
+    CalendarEntryResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      description: string | null;
+      /** Format: date-time */
+      endAt: string | null;
+      /** Format: uuid */
+      eventId: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      projectId: string | null;
+      /** Format: date-time */
+      startAt: string;
+      /** Format: uuid */
+      taskId: string | null;
+      title: string;
+      /** @enum {string} */
+      type: "EVENT" | "TASK" | "PROJECT" | "PERSONAL" | "REMINDER";
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CalendarFeedResponse: {
+      items: components["schemas"]["CalendarEntryResponse"][];
+    };
     ConversationMemberResponse: {
       /** Format: email */
       email: string;
@@ -1520,6 +1582,16 @@ export interface components {
       visibility: "PUBLIC" | "PRIVATE" | null;
       /** Format: uuid */
       workspaceId: string | null;
+    };
+    CreateCalendarEntryDto: {
+      description?: string;
+      /** Format: date-time */
+      endAt?: string;
+      /** Format: date-time */
+      startAt: string;
+      title: string;
+      /** @enum {string} */
+      type: "PERSONAL" | "REMINDER";
     };
     CreateChannelDto: {
       /** Format: uuid */
@@ -2518,6 +2590,14 @@ export interface components {
     UnreadCountResponse: {
       unreadCount: number;
     };
+    UpdateCalendarEntryDto: {
+      description?: string | null;
+      /** Format: date-time */
+      endAt?: string | null;
+      /** Format: date-time */
+      startAt?: string;
+      title?: string;
+    };
     UpdateChannelDto: {
       name?: string;
       /** @enum {string} */
@@ -2932,6 +3012,237 @@ export interface operations {
       };
       /** @description CSRF token invalid */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Calendar_list_v1: {
+    parameters: {
+      query: {
+        /** @description Inclusive UTC range start. */
+        from: string;
+        /** @description Exclusive UTC range end; at most 90 days after from. */
+        to: string;
+        type?: "EVENT" | "TASK" | "PROJECT" | "PERSONAL" | "REMINDER";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CalendarFeedResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Calendar_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateCalendarEntryDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CalendarEntryResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Calendar_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CalendarEntryResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Calendar entry not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Calendar_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The calendar entry was removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Calendar entry not found or is a read-only projection */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Calendar_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateCalendarEntryDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CalendarEntryResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Calendar entry not found or is a read-only projection */
+      404: {
         headers: {
           [name: string]: unknown;
         };

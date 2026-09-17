@@ -176,6 +176,9 @@ Keys are grouped by resource. Every key traces to one or more SRS abilities; see
 | `meeting.update`  | Update or move a meeting the user organizes.                  |
 | `meeting.respond` | Record a Pending, Accepted, or Declined participant response. |
 | `calendar.read`   | View calendar data within scope.                              |
+| `calendar.create` | Create a personal calendar entry.                             |
+| `calendar.update` | Update one's own personal calendar entry.                     |
+| `calendar.delete` | Delete one's own personal calendar entry.                     |
 | `todo.create`     | Create a personal To-Do item.                                 |
 | `todo.read`       | View one's own To-Do items.                                   |
 | `todo.update`     | Update one's own To-Do items.                                 |
@@ -197,7 +200,8 @@ Keys are grouped by resource. Every key traces to one or more SRS abilities; see
 
 Independent of role, an authenticated active user holds: `profile.read` and `profile.update` at
 `self`; `directory.read` at `organization`; `dashboard.read`, `notification.read`, `calendar.read`,
-`todo.create`, `todo.read`, `todo.update`, and `todo.delete` at `self`; `meeting.respond` at `self`;
+`calendar.create`, `calendar.update`, `calendar.delete`, `todo.create`, `todo.read`, `todo.update`,
+and `todo.delete` at `self`; `meeting.respond` at `self`;
 `message.send` and `conversation.create` at `self`; and `conversation.read` and `channel.participate`
 for conversations and channels they are a member of. These grants never expose another user's private
 data and are additive to the role matrix below.
