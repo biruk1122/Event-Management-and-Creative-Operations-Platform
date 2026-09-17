@@ -327,8 +327,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # `--with-deps` always shells out to `sudo apt-get install`, even
+      # when every package is already present, and that sudo call has
+      # no TTY to authenticate against on this unattended runner.
+      # Chromium's runtime libraries are pre-installed on the runner
+      # host instead, so only the browser binary needs fetching here.
       - name: Install Playwright browser
-        run: pnpm --filter @event-platform/e2e exec playwright install --with-deps chromium
+        run: pnpm --filter @event-platform/e2e exec playwright install chromium
 
       - name: Generate Prisma client
         run: pnpm db:generate
