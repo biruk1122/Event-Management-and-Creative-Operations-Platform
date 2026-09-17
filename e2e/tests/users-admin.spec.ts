@@ -52,7 +52,12 @@ test.describe("User administration — end to end", () => {
 
     test("creates, edits, assigns a role, deactivates, reloads, and reactivates a user", async ({
       page,
-    }) => {
+    }, testInfo) => {
+      const userEmail =
+        testInfo.retry === 0
+          ? NEW_USER.email
+          : `usr06.journey.retry-${testInfo.retry}@e2e.test`;
+
       // The account holds `user.read`, so the permission-aware nav entry shows.
       await page.goto("/");
       const navLink = page.getByRole("link", { name: "Users" });
@@ -81,7 +86,7 @@ test.describe("User administration — end to end", () => {
       await expectNoWcag22AaViolations(page, "create user dialog");
       await createDialog.getByLabel("First name").fill(NEW_USER.firstName);
       await createDialog.getByLabel("Last name").fill(NEW_USER.lastName);
-      await createDialog.getByLabel("Email").fill(NEW_USER.email);
+      await createDialog.getByLabel("Email").fill(userEmail);
       await createDialog
         .getByLabel("Temporary password")
         .fill(NEW_USER.password);
@@ -95,12 +100,12 @@ test.describe("User administration — end to end", () => {
         .poll(
           async () => {
             const response = await page.request.get(
-              `${apiBaseUrl}/api/v1/users?search=${encodeURIComponent(NEW_USER.email)}`,
+              `${apiBaseUrl}/api/v1/users?search=${encodeURIComponent(userEmail)}`,
             );
             if (!response.ok()) return null;
             const items = ((await response.json()) as { items: ApiUser[] })
               .items;
-            created = items.find((user) => user.email === NEW_USER.email);
+            created = items.find((user) => user.email === userEmail);
             return created?.id ?? null;
           },
           { timeout: 20_000 },
@@ -259,21 +264,16 @@ test.describe("User administration — end to end", () => {
         deactivated_at: null,
       });
 
-      // Filtering the list asks the API for the narrowed set: the seeded
-      // accounts (no name -> "Unnamed user") drop out, the match stays.
+      // Filtering the list asks the API for the narrowed set and leaves only
+      // the matching account, regardless of which rows pagination showed.
       await reopened.getByRole("button", { name: "Close" }).click();
-      await expect(
-        page.getByRole("button", { name: "Unnamed user" }).first(),
-      ).toBeVisible();
-      await page.getByLabel("Search").fill(NEW_USER.email);
+      await page.getByLabel("Search").fill(userEmail);
+      await expect(page.getByText("1 user", { exact: true })).toBeVisible();
       await expect(
         page.getByRole("button", {
           name: `${NEW_USER.firstName} ${NEW_USER.lastName}`,
         }),
       ).toBeVisible();
-      await expect(
-        page.getByRole("button", { name: "Unnamed user" }),
-      ).toHaveCount(0);
     });
   });
 
