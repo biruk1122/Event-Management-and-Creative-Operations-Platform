@@ -1,4 +1,5 @@
 import { FoundationOverview } from "@/features/foundation";
+import { CalendarNavigation } from "@/features/calendar";
 import { DepartmentsNavigation } from "@/features/departments";
 import { DiscussNavigation } from "@/features/discuss";
 import { EventsNavigation } from "@/features/events";
@@ -24,6 +25,7 @@ export default function Home() {
       <TasksNavigation />
       <DiscussNavigation />
       <NotificationsNavigation />
+      <CalendarNavigation />
       <FoundationOverview />
     </>
   );
