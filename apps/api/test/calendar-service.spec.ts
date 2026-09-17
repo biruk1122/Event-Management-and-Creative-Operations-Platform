@@ -1,10 +1,7 @@
 import { HttpException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  CalendarEntryType,
-  PermissionScope,
-} from "../src/generated/prisma/client.js";
+import type { PermissionScope } from "../src/generated/prisma/client.js";
 import type { CalendarEntryRecord } from "../src/calendar/infrastructure/calendar.repository.js";
 import { CalendarService } from "../src/calendar/calendar.service.js";
 
@@ -18,7 +15,7 @@ function makeEntry(
     id: ENTRY_ID,
     title: "Plan venue visit",
     description: null,
-    type: "PERSONAL" as CalendarEntryType,
+    type: "PERSONAL",
     startAt: new Date("2026-05-01T10:00:00.000Z"),
     endAt: null,
     userId: ACTOR,
@@ -150,9 +147,7 @@ describe("CalendarService", () => {
   });
 
   it("does not allow a source projection to be updated or deleted", async () => {
-    repository.findOwned!.mockResolvedValue(
-      makeEntry({ type: "EVENT" as CalendarEntryType }),
-    );
+    repository.findOwned!.mockResolvedValue(makeEntry({ type: "EVENT" }));
     await expectCode(
       service.update(ACTOR, ENTRY_ID, { title: "new" }),
       "CALENDAR_ENTRY_NOT_FOUND",
