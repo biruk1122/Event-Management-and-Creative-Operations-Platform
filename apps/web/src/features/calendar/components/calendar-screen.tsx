@@ -4,10 +4,16 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { useCurrentAccess } from "@/features/auth/api/access-queries";
+import type { ConnectRealtime } from "@/features/realtime";
 
 import { CalendarManager } from "./calendar-manager";
 
-export function CalendarScreen() {
+export interface CalendarScreenProps {
+  /** Testing seam, forwarded to `CalendarManager`. */
+  connect?: ConnectRealtime;
+}
+
+export function CalendarScreen({ connect }: CalendarScreenProps = {}) {
   const access = useCurrentAccess();
   const allowed =
     access.data?.grants.some(
@@ -38,5 +44,11 @@ export function CalendarScreen() {
     );
   if (!allowed)
     return <p role="alert">You do not have access to the calendar.</p>;
-  return <CalendarManager key={access.data.userId} />;
+  return (
+    <CalendarManager
+      key={access.data.userId}
+      access={access.data}
+      {...(connect ? { connect } : {})}
+    />
+  );
 }
