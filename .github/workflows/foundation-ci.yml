@@ -228,6 +228,10 @@ jobs:
       # as of RTC-06; not tuned to the exact current count, so it has room
       # for the epics still to come.
       API_RATE_LIMIT_MAX: 10000
+      # The suite also performs real UI sign-ins in isolated browser contexts.
+      # Avoid exhausting the production per-IP login ceiling during one test
+      # run; application-level rate-limit behavior remains covered in API tests.
+      AUTH_LOGIN_RATE_LIMIT_MAX: 10000
     services:
       minio:
         image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
