@@ -57,6 +57,11 @@ test.describe("User administration — end to end", () => {
         testInfo.retry === 0
           ? NEW_USER.email
           : `usr06.journey.retry-${testInfo.retry}@e2e.test`;
+      const userLastName =
+        testInfo.retry === 0
+          ? NEW_USER.lastName
+          : `${NEW_USER.lastName} Retry ${testInfo.retry}`;
+      const userDisplayName = `${NEW_USER.firstName} ${userLastName}`;
 
       // The account holds `user.read`, so the permission-aware nav entry shows.
       await page.goto("/");
@@ -85,7 +90,7 @@ test.describe("User administration — end to end", () => {
       ).toBeVisible();
       await expectNoWcag22AaViolations(page, "create user dialog");
       await createDialog.getByLabel("First name").fill(NEW_USER.firstName);
-      await createDialog.getByLabel("Last name").fill(NEW_USER.lastName);
+      await createDialog.getByLabel("Last name").fill(userLastName);
       await createDialog.getByLabel("Email").fill(userEmail);
       await createDialog
         .getByLabel("Temporary password")
@@ -118,7 +123,7 @@ test.describe("User administration — end to end", () => {
       });
       await expect(
         page.getByRole("button", {
-          name: `${NEW_USER.firstName} ${NEW_USER.lastName}`,
+          name: userDisplayName,
         }),
       ).toBeVisible({ timeout: 20_000 });
 
@@ -148,13 +153,13 @@ test.describe("User administration — end to end", () => {
       // Edit profile fields through the detail dialog.
       await page
         .getByRole("button", {
-          name: `${NEW_USER.firstName} ${NEW_USER.lastName}`,
+          name: userDisplayName,
         })
         .click();
       const detailDialog = page.getByRole("dialog");
       await expect(
         detailDialog.getByRole("heading", {
-          name: `${NEW_USER.firstName} ${NEW_USER.lastName}`,
+          name: userDisplayName,
         }),
       ).toBeVisible();
       await detailDialog.getByLabel("Phone").fill(NEW_USER.phone);
@@ -230,7 +235,7 @@ test.describe("User administration — end to end", () => {
       await expect(page.getByText(`${baselineTotal + 1} users`)).toBeVisible();
       await page
         .getByRole("button", {
-          name: `${NEW_USER.firstName} ${NEW_USER.lastName}`,
+          name: userDisplayName,
         })
         .click();
       const reopened = page.getByRole("dialog");
@@ -268,10 +273,12 @@ test.describe("User administration — end to end", () => {
       // the matching account, regardless of which rows pagination showed.
       await reopened.getByRole("button", { name: "Close" }).click();
       await page.getByLabel("Search").fill(userEmail);
-      await expect(page.getByText("1 user", { exact: true })).toBeVisible();
+      await expect(
+        page.getByText("1 user match these filters", { exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByRole("button", {
-          name: `${NEW_USER.firstName} ${NEW_USER.lastName}`,
+          name: userDisplayName,
         }),
       ).toBeVisible();
     });
