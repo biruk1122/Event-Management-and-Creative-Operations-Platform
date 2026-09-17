@@ -255,7 +255,11 @@ describe("CalendarManager", () => {
   });
 
   it("creates a new entry through the real API via the toolbar's Add entry action", async () => {
-    const created = { ...personalEntry(), id: "personal-2", title: "Vet visit" };
+    const created = {
+      ...personalEntry(),
+      id: "personal-2",
+      title: "Vet visit",
+    };
     get
       .mockResolvedValueOnce(ok({ items: [] }))
       .mockResolvedValueOnce(ok({ items: [created] }));
@@ -299,6 +303,35 @@ describe("CalendarManager", () => {
       };
       expect(latestQuery.from).not.toBe(initialQuery.from);
     });
+  });
+
+  it("keeps the toolbar visible (no full reload flash) while a navigation's new range is still loading", async () => {
+    get.mockResolvedValueOnce(ok({ items: [entry()] }));
+    const { user } = setup();
+    await screen.findByText("Q4 launch event");
+
+    let resolveNextMonth: (value: unknown) => void = () => {};
+    get.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveNextMonth = resolve;
+        }),
+    );
+    await user.click(screen.getByRole("button", { name: "Next month" }));
+
+    // The range is still in flight, but the toolbar (and last month's data)
+    // must stay on screen rather than the whole view unmounting to a loading
+    // paragraph - the same `keepPreviousData` behavior every other paginated
+    // list manager in this repo relies on.
+    expect(screen.getByRole("button", { name: "Add entry" })).toBeVisible();
+    expect(
+      screen.queryByText("Loading your calendar…"),
+    ).not.toBeInTheDocument();
+
+    resolveNextMonth(ok({ items: [] }));
+    await waitFor(() =>
+      expect(screen.queryByText("Q4 launch event")).not.toBeInTheDocument(),
+    );
   });
 
   it("shows an error state with a retry action when the feed fails to load", async () => {

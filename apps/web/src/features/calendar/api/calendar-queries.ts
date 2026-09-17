@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
@@ -33,6 +38,12 @@ export function useCalendarRange(
   return useQuery({
     queryKey: keys.range(params.from, params.to),
     queryFn: ({ signal }) => gateway.listCalendarEntries(params, signal),
+    // Every prev/next/today click and every view switch changes the range
+    // query key; without this, each one would unmount the whole calendar
+    // (toolbar included) to a bare loading state, matching the pagination
+    // convention every other list manager in this repo already follows
+    // (tasks-manager.tsx et al.).
+    placeholderData: keepPreviousData,
     retry: false,
     refetchOnWindowFocus: true,
   });
