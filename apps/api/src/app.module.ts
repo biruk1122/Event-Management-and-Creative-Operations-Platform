@@ -4,6 +4,7 @@ import { Module } from "@nestjs/common";
 import { LoggerModule } from "nestjs-pino";
 
 import { AuthModule } from "./auth/auth.module.js";
+import { CalendarModule } from "./calendar/calendar.module.js";
 import { environment } from "./config/environment.js";
 import { EnvironmentModule } from "./config/environment.module.js";
 import { DatabaseModule } from "./database/database.module.js";
@@ -51,6 +52,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     DatabaseModule,
     HealthModule,
     AuthModule,
+    CalendarModule,
     RbacModule,
     UsersModule,
     DepartmentsModule,
