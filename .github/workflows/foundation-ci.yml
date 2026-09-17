@@ -15,10 +15,14 @@ permissions:
 
 # This runner also hosts the maintainer's own persistent local dev stack
 # (compose.yaml `name: event-platform`) on host ports
-# 3000/4000/55432/9000-9001. Every job below binds its API/web/MinIO ports
-# to the host, so they use a distinct range (3100/4100/9100-9101) to avoid
-# colliding with those live containers. 5432 is left as-is: the dev stack's
-# own Postgres container uses 55432, so there is no clash there.
+# 3000/4000/55432/9000-9001, plus a native (non-Docker) PostgreSQL
+# install listening on 5432. Under this runner's WSL2 mirrored
+# networking mode, Windows and WSL2 share the same loopback, so a
+# WSL2/Docker process publishing a container port to 127.0.0.1:5432
+# does not shadow that native listener - connections there reach the
+# native install instead, with unrelated credentials. Every job below
+# therefore binds its API/web/Postgres/MinIO ports to a distinct,
+# verified-free range (3100/4100/5433/9100-9101).
 env:
   API_HOST: 0.0.0.0
   API_INTERNAL_URL: http://127.0.0.1:4100/api/v1
@@ -32,7 +36,7 @@ env:
   AUTH_REFRESH_TOKEN_SECRET: ci-refresh-token-secret-at-least-32-characters
   AUTH_REFRESH_TOKEN_TTL: 30d
   CORS_ORIGINS: http://127.0.0.1:3100
-  DATABASE_URL: postgresql://event_platform:event_platform_ci@127.0.0.1:5432/event_platform?schema=public
+  DATABASE_URL: postgresql://event_platform:event_platform_ci@127.0.0.1:5433/event_platform?schema=public
   FILE_STORAGE_ACCESS_KEY: minioadmin
   FILE_STORAGE_BUCKET: event-platform-files
   FILE_STORAGE_ENDPOINT: http://127.0.0.1:9100
@@ -46,7 +50,7 @@ env:
   NEXT_PUBLIC_WS_URL: http://127.0.0.1:4100
   POSTGRES_DB: event_platform
   POSTGRES_PASSWORD: event_platform_ci
-  POSTGRES_PORT: 5432
+  POSTGRES_PORT: 5433
   POSTGRES_USER: event_platform
   WEB_PORT: 3100
 
@@ -104,7 +108,7 @@ jobs:
           POSTGRES_PASSWORD: event_platform_ci
           POSTGRES_USER: event_platform
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U event_platform -d event_platform"
           --health-interval 5s
@@ -131,15 +135,15 @@ jobs:
 
       - name: Apply and inspect committed migrations
         run: |
-          # The postgres image's health check can briefly report ready
-          # during its own internal bootstrap restart, before the final
-          # listener (with the configured role/password) is actually up.
-          # Retry past that narrow window instead of failing outright.
-          for attempt in {1..10}; do
+          # Cheap insurance against the postgres image's own internal
+          # bootstrap restart racing this step: its health check can
+          # briefly report ready before the final listener is actually
+          # up. Retry a couple of times before failing outright.
+          for attempt in {1..5}; do
             if pnpm db:migrate:deploy; then
               break
             fi
-            if [ "$attempt" -eq 10 ]; then
+            if [ "$attempt" -eq 5 ]; then
               exit 1
             fi
             sleep 3
@@ -301,7 +305,7 @@ jobs:
           POSTGRES_PASSWORD: event_platform_ci
           POSTGRES_USER: event_platform
         ports:
-          - 5432:5432
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U event_platform -d event_platform"
           --health-interval 5s
