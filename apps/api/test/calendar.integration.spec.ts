@@ -226,4 +226,120 @@ describe("calendar and personal schedules API", () => {
     expect(range.status).toBe(400);
     expect(range.body).toMatchObject({ code: "CALENDAR_RANGE_INVALID" });
   });
+
+  it("enforces authentication and CSRF before calendar mutations", async () => {
+    expect((await request(http).get("/api/v1/calendar")).status).toBe(401);
+
+    const missingCsrf = await request(http)
+      .post("/api/v1/calendar")
+      .set("Cookie", owner.cookies)
+      .send({
+        title: "No CSRF",
+        type: "PERSONAL",
+        startAt: "2026-05-06T09:00:00.000Z",
+      });
+    expect(missingCsrf.status).toBe(403);
+    expect(missingCsrf.body).toMatchObject({ code: "CSRF_TOKEN_INVALID" });
+  });
+
+  it("requires the exact SELF grant after the transport guard accepts the key", async () => {
+    await prisma.baselineGrant.delete({
+      where: {
+        permissionKey_scope: {
+          permissionKey: "calendar.create",
+          scope: "SELF",
+        },
+      },
+    });
+    await prisma.baselineGrant.create({
+      data: { permissionKey: "calendar.create", scope: "DEPARTMENT" },
+    });
+
+    try {
+      const response = await as(owner, "post", "/api/v1/calendar").send({
+        title: "Wrong scope",
+        type: "PERSONAL",
+        startAt: "2026-05-06T09:00:00.000Z",
+      });
+      expect(response.status).toBe(403);
+      expect(response.body).toMatchObject({ code: "PERMISSION_DENIED" });
+    } finally {
+      await prisma.baselineGrant.delete({
+        where: {
+          permissionKey_scope: {
+            permissionKey: "calendar.create",
+            scope: "DEPARTMENT",
+          },
+        },
+      });
+      await prisma.baselineGrant.create({
+        data: { permissionKey: "calendar.create", scope: "SELF" },
+      });
+    }
+  });
+
+  it("uses exclusive range boundaries and maps schedule and transport errors stably", async () => {
+    const [spanning, endedAtStart, startsAtEnd] = await Promise.all([
+      prisma.calendarEntry.create({
+        data: {
+          userId: owner.userId,
+          title: "Spanning view",
+          type: "PERSONAL",
+          startAt: new Date("2026-05-09T23:00:00.000Z"),
+          endAt: new Date("2026-05-11T01:00:00.000Z"),
+        },
+      }),
+      prisma.calendarEntry.create({
+        data: {
+          userId: owner.userId,
+          title: "Ended at view start",
+          type: "PERSONAL",
+          startAt: new Date("2026-05-09T23:00:00.000Z"),
+          endAt: new Date("2026-05-10T00:00:00.000Z"),
+        },
+      }),
+      prisma.calendarEntry.create({
+        data: {
+          userId: owner.userId,
+          title: "Starts at view end",
+          type: "PERSONAL",
+          startAt: new Date("2026-05-11T00:00:00.000Z"),
+        },
+      }),
+    ]);
+    const list = await as(
+      owner,
+      "get",
+      "/api/v1/calendar?from=2026-05-10T00:00:00.000Z&to=2026-05-11T00:00:00.000Z&type=PERSONAL",
+    );
+    expect(list.status).toBe(200);
+    const ids = (list.body as { items: CalendarEntryBody[] }).items.map(
+      ({ id }) => id,
+    );
+    expect(ids).toContain(spanning.id);
+    expect(ids).not.toContain(endedAtStart.id);
+    expect(ids).not.toContain(startsAtEnd.id);
+
+    const invalidSchedule = await as(owner, "post", "/api/v1/calendar").send({
+      title: "Invalid schedule",
+      type: "PERSONAL",
+      startAt: "2026-05-12T10:00:00.000Z",
+      endAt: "2026-05-12T09:00:00.000Z",
+    });
+    expect(invalidSchedule.status).toBe(400);
+    expect(invalidSchedule.body).toMatchObject({
+      code: "CALENDAR_SCHEDULE_INVALID",
+    });
+
+    const malformed = await as(
+      owner,
+      "get",
+      "/api/v1/calendar?from=soon&to=2026-05-11T00:00:00.000Z",
+    );
+    expect(malformed.status).toBe(400);
+    expect(malformed.body).toMatchObject({ code: "VALIDATION_ERROR" });
+    const missing = await as(owner, "get", "/api/v1/calendar/not-a-uuid");
+    expect(missing.status).toBe(404);
+    expect(missing.body).toMatchObject({ code: "CALENDAR_ENTRY_NOT_FOUND" });
+  });
 });
