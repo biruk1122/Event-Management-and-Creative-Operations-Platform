@@ -98,6 +98,11 @@ export function serverEnv(): Record<string, string> {
     // this default alone does not.
     API_RATE_LIMIT_MAX: "10000",
     API_RATE_LIMIT_TTL_MS: "60000",
+    // Browser journeys intentionally authenticate through the UI, including
+    // isolated recovery and denied-access contexts. Keep this test-only
+    // ceiling aligned with the E2E workflow so valid logins cannot exhaust
+    // the production-oriented per-IP default during one full suite.
+    AUTH_LOGIN_RATE_LIMIT_MAX: "10000",
     AUTH_ACCESS_TOKEN_SECRET: "e2e-access-token-secret-at-least-32-characters",
     AUTH_ACCESS_TOKEN_TTL: "15m",
     AUTH_REFRESH_TOKEN_SECRET:

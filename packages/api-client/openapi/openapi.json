@@ -146,6 +146,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "meetingId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "projectId": {
             "format": "uuid",
             "nullable": true,
@@ -164,7 +169,14 @@
             "type": "string"
           },
           "type": {
-            "enum": ["EVENT", "TASK", "PROJECT", "PERSONAL", "REMINDER"],
+            "enum": [
+              "EVENT",
+              "TASK",
+              "MEETING",
+              "PROJECT",
+              "PERSONAL",
+              "REMINDER"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -182,6 +194,7 @@
           "eventId",
           "taskId",
           "projectId",
+          "meetingId",
           "createdAt",
           "updatedAt"
         ],
@@ -3301,7 +3314,14 @@
             "name": "type",
             "required": false,
             "schema": {
-              "enum": ["EVENT", "TASK", "PROJECT", "PERSONAL", "REMINDER"],
+              "enum": [
+                "EVENT",
+                "TASK",
+                "MEETING",
+                "PROJECT",
+                "PERSONAL",
+                "REMINDER"
+              ],
               "type": "string"
             }
           }

@@ -3,6 +3,7 @@ import type { components } from "@event-platform/api-client";
 export const CALENDAR_ENTRY_TYPES = [
   "EVENT",
   "TASK",
+  "MEETING",
   "PROJECT",
   "PERSONAL",
   "REMINDER",
@@ -26,6 +27,7 @@ export function isMutableCalendarEntryType(
 export const CALENDAR_ENTRY_TYPE_LABELS: Record<CalendarEntryType, string> = {
   EVENT: "Event",
   TASK: "Task",
+  MEETING: "Meeting",
   PROJECT: "Project",
   PERSONAL: "Personal",
   REMINDER: "Reminder",

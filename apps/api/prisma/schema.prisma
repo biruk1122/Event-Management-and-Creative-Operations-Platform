@@ -131,6 +131,8 @@ model User {
   messageAttachments       MessageAttachment[]       @relation("MessageAttachmentActor")
   notifications            Notification[]
   notificationPreferences  NotificationPreference[]
+  organizedMeetings        Meeting[]                 @relation("MeetingOrganizer")
+  meetingParticipations    MeetingParticipant[]
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -450,6 +452,7 @@ model Workspace {
   event             Event?
   project           Project?
   tasks             Task[]
+  meetings          Meeting[]
   conversations     Conversation[]
 
   // "Workspaces of kind X" and "workspaces a user manages" are the two root
@@ -982,6 +985,74 @@ model Project {
 /// The SRS calendar-entry vocabulary. `MEETING` and `CAMPAIGN` are reserved
 /// for their owning modules; EVE-117 deliberately creates no unchecked
 /// polymorphic reference for them.
+enum MeetingType {
+  PHYSICAL
+  ONLINE
+  HYBRID
+
+  @@map("meeting_type")
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+
+  @@map("meeting_status")
+}
+
+enum MeetingParticipantResponse {
+  PENDING
+  ACCEPTED
+  DECLINED
+
+  @@map("meeting_participant_response")
+}
+
+model Meeting {
+  id          String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  title       String
+  description String?
+  type        MeetingType
+  status      MeetingStatus @default(SCHEDULED)
+  organizerId String        @map("organizer_id") @db.Uuid
+  workspaceId String?       @map("workspace_id") @db.Uuid
+  startAt     DateTime      @map("start_at") @db.Timestamptz(6)
+  endAt       DateTime      @map("end_at") @db.Timestamptz(6)
+  location    String?
+  onlineLink  String?       @map("online_link")
+  reminderAt  DateTime?     @map("reminder_at") @db.Timestamptz(6)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organizer       User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
+  workspace       Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  participants    MeetingParticipant[]
+  calendarEntries CalendarEntry[]
+  notifications   Notification[]
+
+  @@index([organizerId, startAt])
+  @@index([workspaceId, startAt])
+  @@index([status, startAt])
+  @@map("meetings")
+}
+
+model MeetingParticipant {
+  meetingId   String                     @map("meeting_id") @db.Uuid
+  userId      String                     @map("user_id") @db.Uuid
+  response    MeetingParticipantResponse @default(PENDING)
+  respondedAt DateTime?                  @map("responded_at") @db.Timestamptz(6)
+  createdAt   DateTime                   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime                   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([meetingId, userId])
+  @@index([userId, response])
+  @@map("meeting_participants")
+}
+
 enum CalendarEntryType {
   EVENT
   TASK
@@ -1009,6 +1080,7 @@ model CalendarEntry {
   eventId     String?           @map("event_id") @db.Uuid
   taskId      String?           @map("task_id") @db.Uuid
   projectId   String?           @map("project_id") @db.Uuid
+  meetingId   String?           @map("meeting_id") @db.Uuid
   createdById String?           @map("created_by_id") @db.Uuid
   createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -1017,11 +1089,13 @@ model CalendarEntry {
   event     Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  meeting   Meeting? @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   createdBy User?    @relation("CalendarEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@unique([userId, eventId])
   @@unique([userId, taskId])
   @@unique([userId, projectId])
+  @@unique([userId, meetingId])
   @@index([userId, startAt])
   @@index([type, startAt])
   @@index([createdById])
@@ -1346,6 +1420,7 @@ model Notification {
   taskId          String?          @map("task_id") @db.Uuid
   messageId       String?          @map("message_id") @db.Uuid
   eventId         String?          @map("event_id") @db.Uuid
+  meetingId       String?          @map("meeting_id") @db.Uuid
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   readAt          DateTime?        @map("read_at") @db.Timestamptz(6)
 
@@ -1354,6 +1429,7 @@ model Notification {
   task        Task?       @relation(fields: [taskId], references: [id], onDelete: Cascade)
   message     Message?    @relation(fields: [messageId], references: [id], onDelete: Cascade)
   event       Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  meeting     Meeting?    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
   // The cursor feed reads a recipient's own notifications newest first
   // (ADR 0003 section 5); the second index supports the unread count.

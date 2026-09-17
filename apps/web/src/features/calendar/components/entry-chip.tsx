@@ -14,6 +14,7 @@ const TYPE_VARIANT: Record<
 > = {
   EVENT: "default",
   TASK: "secondary",
+  MEETING: "default",
   PROJECT: "secondary",
   PERSONAL: "outline",
   REMINDER: "outline",

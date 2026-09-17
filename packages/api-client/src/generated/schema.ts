@@ -1534,6 +1534,8 @@ export interface components {
       /** Format: uuid */
       id: string;
       /** Format: uuid */
+      meetingId: string | null;
+      /** Format: uuid */
       projectId: string | null;
       /** Format: date-time */
       startAt: string;
@@ -1541,7 +1543,7 @@ export interface components {
       taskId: string | null;
       title: string;
       /** @enum {string} */
-      type: "EVENT" | "TASK" | "PROJECT" | "PERSONAL" | "REMINDER";
+      type: "EVENT" | "TASK" | "MEETING" | "PROJECT" | "PERSONAL" | "REMINDER";
       /** Format: date-time */
       updatedAt: string;
     };
@@ -3028,7 +3030,8 @@ export interface operations {
         from: string;
         /** @description Exclusive UTC range end; at most 90 days after from. */
         to: string;
-        type?: "EVENT" | "TASK" | "PROJECT" | "PERSONAL" | "REMINDER";
+        type?:
+          "EVENT" | "TASK" | "MEETING" | "PROJECT" | "PERSONAL" | "REMINDER";
       };
       header?: never;
       path?: never;
