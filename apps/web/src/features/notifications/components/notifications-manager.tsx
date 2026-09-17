@@ -89,7 +89,7 @@ export function NotificationsManager({
 
   const state: NotificationsViewState = feed.isPending
     ? "loading"
-    : feed.isError
+    : feed.isError || unread.isError || preferences.isError
       ? "error"
       : connection.state.status === "reconnecting"
         ? "reconnecting"
@@ -105,7 +105,14 @@ export function NotificationsManager({
       loadingMore={feed.isFetchingNextPage}
       preferences={preferences.data ?? []}
       state={state}
-      onRetry={() => void feed.refetch()}
+      onRetry={() => {
+        // The failure driving the "error" state above may be any of the
+        // three queries, not necessarily the feed - retry all of them so
+        // "Try again" recovers regardless of which one actually failed.
+        void feed.refetch();
+        void unread.refetch();
+        void preferences.refetch();
+      }}
       onLoadMore={() => void feed.fetchNextPage()}
       onMarkRead={(id) => void mutations.markRead.mutateAsync(id)}
       onTogglePreference={(type: MutableNotificationType, muted: boolean) =>
