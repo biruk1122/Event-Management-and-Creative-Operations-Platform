@@ -71,6 +71,19 @@ function fakeConnect() {
 
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } });
 
+// Each endpoint's own valid "nothing to report" shape - not one shape
+// reused everywhere. React Query treats a queryFn resolving to `undefined`
+// as an error in its own right (see notifications-manager.test.tsx's
+// "surfaces an error..." cases), so a fallback shaped wrong for a given
+// endpoint (e.g. the feed's `{ items, nextCursor }` used for unread-count,
+// which has no such fields) would silently error that query on every test
+// that does not care about it.
+const DEFAULT_ROUTES = {
+  "/api/v1/notifications": { items: [], nextCursor: null },
+  "/api/v1/notifications/unread-count": { unreadCount: 0 },
+  "/api/v1/notifications/preferences": { items: [] },
+} as const;
+
 function mockGet(
   routes: Partial<{
     "/api/v1/notifications": unknown;
@@ -79,9 +92,11 @@ function mockGet(
   }>,
 ) {
   get.mockImplementation((path: string) => {
-    if (path in routes)
-      return Promise.resolve(ok(routes[path as keyof typeof routes]));
-    return Promise.resolve(ok({ items: [], nextCursor: null }));
+    const value =
+      path in routes
+        ? routes[path as keyof typeof routes]
+        : DEFAULT_ROUTES[path as keyof typeof DEFAULT_ROUTES];
+    return Promise.resolve(ok(value));
   });
 }
 
@@ -240,5 +255,84 @@ describe("NotificationsManager", () => {
     fake.emitFrame("some.other.event", {});
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(get.mock.calls.length).toBe(callsBeforeFrame);
+  });
+
+  it("surfaces an error when the unread count fails, even though the feed succeeds", async () => {
+    get.mockImplementation((path: string) => {
+      if (path === "/api/v1/notifications/unread-count") {
+        return Promise.resolve({
+          data: undefined,
+          response: { ok: false, status: 500 },
+        });
+      }
+      if (path === "/api/v1/notifications") {
+        return Promise.resolve(
+          ok({ items: [notification()], nextCursor: null }),
+        );
+      }
+      return Promise.resolve(ok({ items: [], nextCursor: null }));
+    });
+    setup();
+
+    expect(
+      await screen.findByText("Notifications could not load"),
+    ).toBeVisible();
+    // The feed itself loaded fine; a silent "0 unread" would be the bug
+    // this issue exists to fix.
+    expect(
+      screen.queryByText("You were assigned a task"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("surfaces an error when preferences fail, even though the feed succeeds", async () => {
+    get.mockImplementation((path: string) => {
+      if (path === "/api/v1/notifications/preferences") {
+        return Promise.resolve({
+          data: undefined,
+          response: { ok: false, status: 500 },
+        });
+      }
+      if (path === "/api/v1/notifications") {
+        return Promise.resolve(
+          ok({ items: [notification()], nextCursor: null }),
+        );
+      }
+      return Promise.resolve(ok({ items: [], nextCursor: null }));
+    });
+    setup();
+
+    expect(
+      await screen.findByText("Notifications could not load"),
+    ).toBeVisible();
+  });
+
+  it("retries all three queries on Try again, regardless of which one failed", async () => {
+    let unreadShouldFail = true;
+    get.mockImplementation((path: string) => {
+      if (path === "/api/v1/notifications/unread-count") {
+        return unreadShouldFail
+          ? Promise.resolve({
+              data: undefined,
+              response: { ok: false, status: 500 },
+            })
+          : Promise.resolve(ok({ unreadCount: 2 }));
+      }
+      if (path === "/api/v1/notifications") {
+        return Promise.resolve(
+          ok({ items: [notification()], nextCursor: null }),
+        );
+      }
+      return Promise.resolve(ok({ items: [], nextCursor: null }));
+    });
+    const { user } = setup();
+
+    await screen.findByText("Notifications could not load");
+    unreadShouldFail = false;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText("2 unread notifications")).toBeVisible();
+    expect(
+      await screen.findByText("You were assigned a task"),
+    ).toBeInTheDocument();
   });
 });

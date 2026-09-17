@@ -20,6 +20,17 @@ const noopConnect: ConnectRealtime = () => () => {};
 
 let currentAccess: CurrentAccess | null;
 
+// Each endpoint's own valid "nothing to report" shape - not one shape
+// reused everywhere. React Query treats a queryFn resolving to `undefined`
+// as an error in its own right, so a fallback shaped wrong for a given
+// endpoint (e.g. the feed's `{ items, nextCursor }` used for unread-count,
+// which has no such fields) would silently error that query.
+const DEFAULT_ROUTES: Record<string, unknown> = {
+  "/api/v1/notifications": { items: [], nextCursor: null },
+  "/api/v1/notifications/unread-count": { unreadCount: 0 },
+  "/api/v1/notifications/preferences": { items: [] },
+};
+
 beforeEach(() => {
   currentAccess = { userId: "account-1", grants: [] };
   get.mockImplementation((path: string) => {
@@ -30,7 +41,7 @@ beforeEach(() => {
       });
     }
     return Promise.resolve({
-      data: { items: [], nextCursor: null },
+      data: DEFAULT_ROUTES[path],
       response: { ok: true, status: 200 },
     });
   });
