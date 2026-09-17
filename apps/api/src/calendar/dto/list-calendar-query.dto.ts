@@ -4,6 +4,7 @@ import { IsEnum, IsISO8601, IsOptional } from "class-validator";
 const CALENDAR_TYPES = [
   "EVENT",
   "TASK",
+  "MEETING",
   "PROJECT",
   "PERSONAL",
   "REMINDER",

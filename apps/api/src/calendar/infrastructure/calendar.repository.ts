@@ -14,6 +14,7 @@ export interface CalendarEntryRecord {
   eventId: string | null;
   taskId: string | null;
   projectId: string | null;
+  meetingId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +60,7 @@ const CALENDAR_ENTRY_SELECT = {
   eventId: true,
   taskId: true,
   projectId: true,
+  meetingId: true,
   createdAt: true,
   updatedAt: true,
 } as const;

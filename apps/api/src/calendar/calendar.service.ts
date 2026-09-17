@@ -169,6 +169,7 @@ function toCalendarEntryResponse(
     eventId: entry.eventId,
     taskId: entry.taskId,
     projectId: entry.projectId,
+    meetingId: entry.meetingId,
     createdAt: entry.createdAt.toISOString(),
     updatedAt: entry.updatedAt.toISOString(),
   };
