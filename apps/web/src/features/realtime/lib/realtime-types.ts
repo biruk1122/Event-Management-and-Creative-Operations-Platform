@@ -63,12 +63,25 @@ export type RealtimeConnectionListener = (
 export type RealtimeUnsubscribe = () => void;
 
 /**
+ * A raw server-to-client frame, forwarded exactly as the gateway named and
+ * shaped it (ADR 0004 §2's versioned envelope, e.g. `notification.invalidated`
+ * on the caller's own `user:<id>` room, which every socket auto-joins on
+ * connect - no `room:subscribe` call is needed for it). A feature that only
+ * cares about connection status (the badge/panel) passes no listener and
+ * never receives this.
+ */
+export type RealtimeFrameListener = (event: string, payload: unknown) => void;
+
+/**
  * Opens the `/realtime` connection and invokes `listener` with every status
  * transition (connecting, connected, reconnecting after a drop, denied,
  * error) until the returned function closes the connection. A long-lived
  * subscription rather than a one-shot fetch, since a real handshake keeps
  * running and can transition states on its own after the initial call.
+ * `onFrame`, when given, is invoked for every named event the socket
+ * receives, on top of - not instead of - the connection-status callback.
  */
 export type ConnectRealtime = (
   listener: RealtimeConnectionListener,
+  onFrame?: RealtimeFrameListener,
 ) => RealtimeUnsubscribe;

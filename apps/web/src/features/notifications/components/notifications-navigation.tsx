@@ -13,7 +13,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useCurrentAccess } from "@/features/auth/api/access-queries";
-import { NOTIFICATION_FIXTURE } from "../lib/notifications-fixtures";
+
+import {
+  useNotificationsFeed,
+  useUnreadCount,
+} from "../api/notifications-queries";
+
+const RECENT_PREVIEW_COUNT = 2;
 
 export function NotificationsNavigation() {
   const access = useCurrentAccess();
@@ -21,7 +27,23 @@ export function NotificationsNavigation() {
     access.data?.grants.some(
       (grant) => grant.permissionKey === "notification.read",
     ) ?? false;
-  if (access.isError || !allowed) return null;
+  if (access.isError || !allowed || !access.data) return null;
+  return <NotificationsBell access={access.data} />;
+}
+
+function NotificationsBell({
+  access,
+}: {
+  access: NonNullable<ReturnType<typeof useCurrentAccess>["data"]>;
+}) {
+  const unread = useUnreadCount(access);
+  const feed = useNotificationsFeed(access);
+  const recent = (feed.data?.pages[0]?.items ?? []).slice(
+    0,
+    RECENT_PREVIEW_COUNT,
+  );
+  const unreadCount = unread.data ?? 0;
+
   return (
     <nav aria-label="Utility navigation" className="flex justify-end px-5 py-3">
       <Dialog>
@@ -34,24 +56,26 @@ export function NotificationsNavigation() {
           <DialogHeader>
             <DialogTitle>Notifications</DialogTitle>
             <DialogDescription>
-              {
-                NOTIFICATION_FIXTURE.filter((item) => item.readAt === null)
-                  .length
-              }{" "}
-              unread notifications.
+              {unreadCount} unread notification{unreadCount === 1 ? "" : "s"}.
             </DialogDescription>
           </DialogHeader>
-          <ul aria-label="Recent notifications" className="space-y-3">
-            {NOTIFICATION_FIXTURE.slice(0, 2).map((item) => (
-              <li
-                key={item.id}
-                className="border-border rounded-lg border p-3 text-sm"
-              >
-                <p className="font-medium">{item.title}</p>
-                <p className="text-muted-foreground">{item.body}</p>
-              </li>
-            ))}
-          </ul>
+          {recent.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              You have no notifications yet.
+            </p>
+          ) : (
+            <ul aria-label="Recent notifications" className="space-y-3">
+              {recent.map((item) => (
+                <li
+                  key={item.id}
+                  className="border-border rounded-lg border p-3 text-sm"
+                >
+                  <p className="font-medium">{item.title}</p>
+                  <p className="text-muted-foreground">{item.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
           <Link
             href="/notifications"
             className="text-sm underline underline-offset-4"

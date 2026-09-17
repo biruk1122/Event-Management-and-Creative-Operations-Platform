@@ -9,6 +9,7 @@ import { connectRealtime as defaultConnectRealtime } from "./connect-realtime";
 import type {
   ConnectRealtime,
   RealtimeConnectionState,
+  RealtimeFrameListener,
 } from "../lib/realtime-types";
 
 const CONNECTING_STATE: RealtimeConnectionState = {
@@ -36,12 +37,22 @@ export interface RealtimeConnection {
  */
 export function useRealtimeConnection(
   connect: ConnectRealtime = defaultConnectRealtime,
+  onFrame?: RealtimeFrameListener,
 ): RealtimeConnection {
   const client = useQueryClient();
   const [state, setState] = useState<RealtimeConnectionState>(CONNECTING_STATE);
   const [attempt, setAttempt] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const everConnectedRef = useRef(false);
+  // A ref, not an effect dependency: an inline `onFrame` a caller passes
+  // fresh every render must never itself force a reconnect - only `attempt`
+  // (via `retry()`) does that. Updated in its own effect (never during
+  // render) so it's always current by the time an async socket event reads
+  // it, without being part of the connection effect's own dependency array.
+  const onFrameRef = useRef(onFrame);
+  useEffect(() => {
+    onFrameRef.current = onFrame;
+  });
 
   useEffect(() => {
     // Deliberately not reset per attempt: a manual retry commonly follows
@@ -51,16 +62,19 @@ export function useRealtimeConnection(
     // the same as a connect that succeeds after an automatic reconnect.
     // Only the very first connect of this hook's lifetime is exempt, since
     // nothing has been cached yet that could have gone stale.
-    const close = connect((next) => {
-      if (next.status === "connected") {
-        if (everConnectedRef.current) {
-          void client.invalidateQueries({ queryKey: accessKey });
+    const close = connect(
+      (next) => {
+        if (next.status === "connected") {
+          if (everConnectedRef.current) {
+            void client.invalidateQueries({ queryKey: accessKey });
+          }
+          everConnectedRef.current = true;
         }
-        everConnectedRef.current = true;
-      }
-      setState(next);
-      setRetrying(false);
-    });
+        setState(next);
+        setRetrying(false);
+      },
+      (event, payload) => onFrameRef.current?.(event, payload),
+    );
     return close;
     // `attempt` is not read in the body; bumping it in `retry()` below is
     // what forces this effect to close the old connection and open a fresh

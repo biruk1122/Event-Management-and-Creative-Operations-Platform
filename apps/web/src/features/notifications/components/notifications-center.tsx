@@ -8,11 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 
 import {
-  NOTIFICATION_FIXTURE,
-  NOTIFICATION_PREFERENCES_FIXTURE,
-} from "../lib/notifications-fixtures";
-import {
   NOTIFICATION_TYPE_LABELS,
+  type MutableNotificationType,
   type NotificationItem,
   type NotificationPreference,
 } from "../lib/notifications-types";
@@ -20,12 +17,17 @@ import {
 export type NotificationsViewState =
   "ready" | "loading" | "error" | "reconnecting" | "disabled";
 
-interface NotificationsCenterProps {
-  items?: readonly NotificationItem[];
-  nextItems?: readonly NotificationItem[];
-  preferences?: readonly NotificationPreference[];
-  state?: NotificationsViewState;
-  onRetry?: () => void;
+export interface NotificationsCenterProps {
+  items: readonly NotificationItem[];
+  unreadCount: number;
+  hasMore: boolean;
+  loadingMore: boolean;
+  preferences: readonly NotificationPreference[];
+  state: NotificationsViewState;
+  onRetry: () => void;
+  onLoadMore: () => void;
+  onMarkRead: (id: string) => void;
+  onTogglePreference: (type: MutableNotificationType, muted: boolean) => void;
 }
 
 function relativeDate(value: string): string {
@@ -36,18 +38,21 @@ function relativeDate(value: string): string {
 }
 
 export function NotificationsCenter({
-  items: initialItems = NOTIFICATION_FIXTURE,
-  nextItems = [],
-  preferences: initialPreferences = NOTIFICATION_PREFERENCES_FIXTURE,
-  state = "ready",
+  items,
+  unreadCount,
+  hasMore,
+  loadingMore,
+  preferences,
+  state,
   onRetry,
+  onLoadMore,
+  onMarkRead,
+  onTogglePreference,
 }: NotificationsCenterProps) {
-  const [items, setItems] = useState(initialItems);
-  const [hasMore, setHasMore] = useState(nextItems.length > 0);
-  const [preferences, setPreferences] = useState(initialPreferences);
   const [showUnread, setShowUnread] = useState(false);
   const interactionsDisabled = state === "disabled";
-  const unreadCount = items.filter((item) => item.readAt === null).length;
+  // The feed endpoint has no server-side unread filter, so this only
+  // narrows the pages already loaded - it is not a separate query.
   const visibleItems = useMemo(
     () => (showUnread ? items.filter((item) => item.readAt === null) : items),
     [items, showUnread],
@@ -138,18 +143,7 @@ export function NotificationsCenter({
                       size="sm"
                       variant="outline"
                       disabled={interactionsDisabled}
-                      onClick={() =>
-                        setItems((current) =>
-                          current.map((currentItem) =>
-                            currentItem.id === item.id
-                              ? {
-                                  ...currentItem,
-                                  readAt: new Date().toISOString(),
-                                }
-                              : currentItem,
-                          ),
-                        )
-                      }
+                      onClick={() => onMarkRead(item.id)}
                     >
                       Mark as read
                     </Button>
@@ -164,13 +158,10 @@ export function NotificationsCenter({
         {hasMore ? (
           <Button
             variant="outline"
-            disabled={interactionsDisabled}
-            onClick={() => {
-              setItems((current) => [...current, ...nextItems]);
-              setHasMore(false);
-            }}
+            disabled={interactionsDisabled || loadingMore}
+            onClick={onLoadMore}
           >
-            Load more notifications
+            {loadingMore ? "Loading…" : "Load more notifications"}
           </Button>
         ) : (
           <p className="text-muted-foreground text-sm">End of notifications.</p>
@@ -208,13 +199,7 @@ export function NotificationsCenter({
                 checked={!preference.muted}
                 disabled={interactionsDisabled}
                 onCheckedChange={(checked) =>
-                  setPreferences((current) =>
-                    current.map((entry) =>
-                      entry.type === preference.type
-                        ? { ...entry, muted: checked !== true }
-                        : entry,
-                    ),
-                  )
+                  onTogglePreference(preference.type, checked !== true)
                 }
                 aria-label={`${NOTIFICATION_TYPE_LABELS[preference.type]} enabled`}
               />

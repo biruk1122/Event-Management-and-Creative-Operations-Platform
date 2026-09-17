@@ -22,13 +22,22 @@ const UNAUTHENTICATED = "unauthenticated";
  * (EVE-102) shipped; `useRealtimeConnection` (`./realtime-queries.ts`) is the
  * only intended caller.
  */
-export const connectRealtime: ConnectRealtime = (listener) => {
+export const connectRealtime: ConnectRealtime = (listener, onFrame) => {
   const socket: Socket = io(
     `${clientEnvironment.NEXT_PUBLIC_WS_URL}/realtime`,
     { withCredentials: true },
   );
 
   let torndown = false;
+
+  if (onFrame) {
+    // Every server-to-client frame (ADR 0004 §2), forwarded as-is; the
+    // caller matches on its own event name (e.g. `notification.invalidated`).
+    socket.onAny((event: string, payload: unknown) => {
+      if (torndown) return;
+      onFrame(event, payload);
+    });
+  }
 
   socket.on("connect", () => {
     if (torndown) return;

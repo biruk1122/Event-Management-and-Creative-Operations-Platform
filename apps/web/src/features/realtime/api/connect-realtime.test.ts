@@ -4,8 +4,11 @@ import type { RealtimeConnectionState } from "../lib/realtime-types";
 
 type Handler = (...args: unknown[]) => void;
 
+type AnyHandler = (event: string, ...args: unknown[]) => void;
+
 class FakeSocket {
   readonly listeners = new Map<string, Set<Handler>>();
+  readonly anyListeners = new Set<AnyHandler>();
   connectCalls = 0;
   disconnectCalls = 0;
 
@@ -13,6 +16,11 @@ class FakeSocket {
     const set = this.listeners.get(event) ?? new Set();
     set.add(handler);
     this.listeners.set(event, set);
+    return this;
+  }
+
+  onAny(handler: AnyHandler): this {
+    this.anyListeners.add(handler);
     return this;
   }
 
@@ -29,6 +37,10 @@ class FakeSocket {
   trigger(event: string, ...args: unknown[]): void {
     for (const handler of this.listeners.get(event) ?? []) handler(...args);
   }
+
+  triggerAny(event: string, ...args: unknown[]): void {
+    for (const handler of this.anyListeners) handler(event, ...args);
+  }
 }
 
 const { ioMock } = vi.hoisted(() => ({ ioMock: vi.fn() }));
@@ -42,11 +54,11 @@ vi.mock("@/env/client", () => ({
 
 import { connectRealtime } from "./connect-realtime";
 
-function open() {
+function open(onFrame?: (event: string, payload: unknown) => void) {
   const socket = new FakeSocket();
   ioMock.mockReturnValueOnce(socket);
   const states: RealtimeConnectionState[] = [];
-  const close = connectRealtime((state) => states.push(state));
+  const close = connectRealtime((state) => states.push(state), onFrame);
   return { socket, states, close };
 }
 
@@ -135,5 +147,30 @@ describe("connectRealtime", () => {
     socket.trigger("connect");
     socket.trigger("connect_error", new Error("network"));
     expect(states).toEqual([]);
+  });
+
+  it("forwards a named frame to onFrame with its event name and payload", () => {
+    const frames: Array<[string, unknown]> = [];
+    const { socket } = open((event, payload) => frames.push([event, payload]));
+    socket.triggerAny("notification.invalidated", {
+      notificationId: "n-1",
+      type: "TASK_DUE",
+    });
+    expect(frames).toEqual([
+      ["notification.invalidated", { notificationId: "n-1", type: "TASK_DUE" }],
+    ]);
+  });
+
+  it("never calls onAny when no onFrame is given", () => {
+    const { socket } = open();
+    expect(socket.anyListeners.size).toBe(0);
+  });
+
+  it("stops forwarding frames once closed", () => {
+    const frames: unknown[] = [];
+    const { socket, close } = open((event) => frames.push(event));
+    close();
+    socket.triggerAny("notification.invalidated", {});
+    expect(frames).toEqual([]);
   });
 });
