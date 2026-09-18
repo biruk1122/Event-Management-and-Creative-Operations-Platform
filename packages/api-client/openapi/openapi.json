@@ -646,6 +646,58 @@
         "required": ["name", "departmentId"],
         "type": "object"
       },
+      "CreateTodoDto": {
+        "properties": {
+          "description": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "dueDate": {
+            "example": "2026-10-01",
+            "type": "string"
+          },
+          "dueTime": {
+            "example": "09:30:00",
+            "type": "string"
+          },
+          "priority": {
+            "default": "MEDIUM",
+            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "type": "string"
+          },
+          "relatedEventId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "relatedProjectId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "reminderAt": {
+            "description": "Schedules a single reminder for this to-do.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "default": "NOT_STARTED",
+            "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "default": "PERSONAL",
+            "enum": ["PERSONAL", "WORK", "REMINDER", "QUICK_NOTE", "FOLLOW_UP"],
+            "type": "string"
+          }
+        },
+        "required": ["title"],
+        "type": "object"
+      },
       "CreateUploadIntentDto": {
         "properties": {
           "filename": {
@@ -2448,6 +2500,98 @@
         "required": ["id", "email", "firstName", "lastName"],
         "type": "object"
       },
+      "TodoFeedResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TodoResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["items"],
+        "type": "object"
+      },
+      "TodoResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "dueDate": {
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "dueTime": {
+            "example": "09:30:00",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "priority": {
+            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "type": "string"
+          },
+          "relatedEventId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "relatedProjectId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "reminderAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "reminderEnabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "enum": ["PERSONAL", "WORK", "REMINDER", "QUICK_NOTE", "FOLLOW_UP"],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "description",
+          "type",
+          "priority",
+          "status",
+          "dueDate",
+          "dueTime",
+          "relatedEventId",
+          "relatedProjectId",
+          "reminderEnabled",
+          "reminderAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "TransitionEventDto": {
         "properties": {
           "status": {
@@ -2722,6 +2866,60 @@
             "example": "Production Team",
             "maxLength": 120,
             "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateTodoDto": {
+        "properties": {
+          "description": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "nullable": true,
+            "type": "string"
+          },
+          "dueDate": {
+            "example": "2026-10-01",
+            "nullable": true,
+            "type": "string"
+          },
+          "dueTime": {
+            "example": "09:30:00",
+            "nullable": true,
+            "type": "string"
+          },
+          "priority": {
+            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "type": "string"
+          },
+          "relatedEventId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "relatedProjectId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "reminderAt": {
+            "description": "Replaces this to-do's single reminder, or clears it if null.",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": {
+            "enum": ["PERSONAL", "WORK", "REMINDER", "QUICK_NOTE", "FOLLOW_UP"],
             "type": "string"
           }
         },
@@ -11396,6 +11594,358 @@
         ],
         "summary": "Reactivate a deactivated team",
         "tags": ["Team management"]
+      }
+    },
+    "/api/v1/todos": {
+      "get": {
+        "operationId": "Todo_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "enum": [
+                "PERSONAL",
+                "WORK",
+                "REMINDER",
+                "QUICK_NOTE",
+                "FOLLOW_UP"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "priority",
+            "required": false,
+            "schema": {
+              "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on dueDate.",
+            "in": "query",
+            "name": "dueFrom",
+            "required": false,
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive upper bound on dueDate.",
+            "in": "query",
+            "name": "dueTo",
+            "required": false,
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoFeedResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the caller's to-do items",
+        "tags": ["Personal to-do and reminders"]
+      },
+      "post": {
+        "operationId": "Todo_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTodoDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a personal to-do item",
+        "tags": ["Personal to-do and reminders"]
+      }
+    },
+    "/api/v1/todos/{id}": {
+      "delete": {
+        "operationId": "Todo_remove_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "The to-do item was removed"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "To-do not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Delete a to-do item owned by the caller",
+        "tags": ["Personal to-do and reminders"]
+      },
+      "get": {
+        "operationId": "Todo_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "To-do not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get one to-do item owned by the caller",
+        "tags": ["Personal to-do and reminders"]
+      },
+      "patch": {
+        "operationId": "Todo_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTodoDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodoResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "To-do not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Update a to-do item owned by the caller",
+        "tags": ["Personal to-do and reminders"]
       }
     },
     "/api/v1/users": {

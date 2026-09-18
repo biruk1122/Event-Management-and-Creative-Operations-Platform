@@ -1229,6 +1229,43 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/todos": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the caller's to-do items */
+    get: operations["Todo_list_v1"];
+    put?: never;
+    /** Create a personal to-do item */
+    post: operations["Todo_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/todos/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one to-do item owned by the caller */
+    get: operations["Todo_get_v1"];
+    put?: never;
+    post?: never;
+    /** Delete a to-do item owned by the caller */
+    delete: operations["Todo_remove_v1"];
+    options?: never;
+    head?: never;
+    /** Update a to-do item owned by the caller */
+    patch: operations["Todo_update_v1"];
+    trace?: never;
+  };
   "/api/v1/users": {
     parameters: {
       query?: never;
@@ -1745,6 +1782,38 @@ export interface components {
       managerId?: string;
       /** @example Production Team */
       name: string;
+    };
+    CreateTodoDto: {
+      description?: string;
+      /** @example 2026-10-01 */
+      dueDate?: string;
+      /** @example 09:30:00 */
+      dueTime?: string;
+      /**
+       * @default MEDIUM
+       * @enum {string}
+       */
+      priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+      /** Format: uuid */
+      relatedEventId?: string;
+      /** Format: uuid */
+      relatedProjectId?: string;
+      /**
+       * Format: date-time
+       * @description Schedules a single reminder for this to-do.
+       */
+      reminderAt?: string;
+      /**
+       * @default NOT_STARTED
+       * @enum {string}
+       */
+      status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+      title: string;
+      /**
+       * @default PERSONAL
+       * @enum {string}
+       */
+      type: "PERSONAL" | "WORK" | "REMINDER" | "QUICK_NOTE" | "FOLLOW_UP";
     };
     CreateUploadIntentDto: {
       /** @example call-sheet.pdf */
@@ -2571,6 +2640,36 @@ export interface components {
       /** @example Okafor */
       lastName: string | null;
     };
+    TodoFeedResponse: {
+      items: components["schemas"]["TodoResponse"][];
+    };
+    TodoResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      description: string | null;
+      /** Format: date */
+      dueDate: string | null;
+      /** @example 09:30:00 */
+      dueTime: string | null;
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+      /** Format: uuid */
+      relatedEventId: string | null;
+      /** Format: uuid */
+      relatedProjectId: string | null;
+      /** Format: date-time */
+      reminderAt: string | null;
+      reminderEnabled: boolean;
+      /** @enum {string} */
+      status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+      title: string;
+      /** @enum {string} */
+      type: "PERSONAL" | "WORK" | "REMINDER" | "QUICK_NOTE" | "FOLLOW_UP";
+      /** Format: date-time */
+      updatedAt: string;
+    };
     TransitionEventDto: {
       /**
        * @description The lifecycle state to move to. Must be reachable from the current state under the approved graph.
@@ -2678,6 +2777,29 @@ export interface components {
       description?: string;
       /** @example Production Team */
       name?: string;
+    };
+    UpdateTodoDto: {
+      description?: string | null;
+      /** @example 2026-10-01 */
+      dueDate?: string | null;
+      /** @example 09:30:00 */
+      dueTime?: string | null;
+      /** @enum {string} */
+      priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+      /** Format: uuid */
+      relatedEventId?: string | null;
+      /** Format: uuid */
+      relatedProjectId?: string | null;
+      /**
+       * Format: date-time
+       * @description Replaces this to-do's single reminder, or clears it if null.
+       */
+      reminderAt?: string | null;
+      /** @enum {string} */
+      status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+      title?: string;
+      /** @enum {string} */
+      type?: "PERSONAL" | "WORK" | "REMINDER" | "QUICK_NOTE" | "FOLLOW_UP";
     };
     UpdateUserDto: {
       /**
@@ -8518,6 +8640,239 @@ export interface operations {
       };
       /** @description The team is already active */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Todo_list_v1: {
+    parameters: {
+      query?: {
+        status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+        type?: "PERSONAL" | "WORK" | "REMINDER" | "QUICK_NOTE" | "FOLLOW_UP";
+        priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+        /** @description Inclusive lower bound on dueDate. */
+        dueFrom?: string;
+        /** @description Inclusive upper bound on dueDate. */
+        dueTo?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TodoFeedResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Todo_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTodoDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TodoResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Todo_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TodoResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description To-do not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Todo_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The to-do item was removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description To-do not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Todo_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTodoDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TodoResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description To-do not found */
+      404: {
         headers: {
           [name: string]: unknown;
         };
