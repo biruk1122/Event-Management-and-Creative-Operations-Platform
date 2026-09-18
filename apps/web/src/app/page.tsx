@@ -9,6 +9,7 @@ import { TeamsNavigation } from "@/features/teams";
 import { UsersNavigation } from "@/features/users";
 import { WorkspacesNavigation } from "@/features/workspaces";
 import { NotificationsNavigation } from "@/features/notifications";
+import { TodoNavigation } from "@/features/todo";
 
 import { RolesNavigation } from "@/features/rbac/components/roles-navigation";
 
@@ -26,6 +27,7 @@ export default function Home() {
       <DiscussNavigation />
       <NotificationsNavigation />
       <CalendarNavigation />
+      <TodoNavigation />
       <FoundationOverview />
     </>
   );
