@@ -121,6 +121,15 @@ test.describe("User administration — end to end", () => {
       await expect(page.getByText(`${baselineTotal + 1} users`)).toBeVisible({
         timeout: 20_000,
       });
+      // The suite's other specs create their own disposable users in this
+      // same shared schema, so the new (oldest-last, per the list's default
+      // sort) row is not guaranteed to land on the unfiltered first page -
+      // filter down to just this account first, the same way the very end
+      // of this test already does.
+      await page.getByLabel("Search").fill(userEmail);
+      await expect(
+        page.getByText("1 user match these filters", { exact: true }),
+      ).toBeVisible({ timeout: 20_000 });
       await expect(
         page.getByRole("button", {
           name: userDisplayName,
@@ -233,6 +242,13 @@ test.describe("User administration — end to end", () => {
       // AC: the full workflow persists and reloads authoritative data.
       await page.reload();
       await expect(page.getByText(`${baselineTotal + 1} users`)).toBeVisible();
+      // A reload drops the client-side search filter along with the current
+      // page, so the row is once again not guaranteed to land on the
+      // unfiltered first page - see the identical note above.
+      await page.getByLabel("Search").fill(userEmail);
+      await expect(
+        page.getByText("1 user match these filters", { exact: true }),
+      ).toBeVisible();
       await page
         .getByRole("button", {
           name: userDisplayName,
