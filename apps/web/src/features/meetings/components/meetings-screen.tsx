@@ -48,7 +48,7 @@ export function MeetingsScreen() {
         <p
           role="status"
           aria-live="polite"
-          className="text-sm text-muted-foreground"
+          className="text-muted-foreground text-sm"
         >
           {notice}
         </p>
@@ -70,7 +70,7 @@ export function MeetingsScreen() {
           </div>
           <Badge variant="secondary">No meeting selected</Badge>
         </div>
-        <div className="mt-6 rounded-md bg-muted/50 p-4">
+        <div className="bg-muted/50 mt-6 rounded-md p-4">
           <p className="font-medium">No meetings to show</p>
           <p className="text-muted-foreground mt-1 text-sm">
             When you are invited to a meeting, it will appear here and in your
