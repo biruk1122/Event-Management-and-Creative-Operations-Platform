@@ -47,6 +47,7 @@ function notification(
     taskId: null,
     messageId: null,
     eventId: null,
+    meetingId: null,
     ...overrides,
   };
 }

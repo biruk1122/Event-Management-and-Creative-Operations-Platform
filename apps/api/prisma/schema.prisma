@@ -986,9 +986,7 @@ model Project {
   @@map("projects")
 }
 
-/// The SRS calendar-entry vocabulary. `MEETING` and `CAMPAIGN` are reserved
-/// for their owning modules; EVE-117 deliberately creates no unchecked
-/// polymorphic reference for them.
+/// The approved meeting-type vocabulary used by the meeting domain and API.
 enum MeetingType {
   PHYSICAL
   ONLINE
@@ -1057,6 +1055,8 @@ model MeetingParticipant {
   @@map("meeting_participants")
 }
 
+/// The SRS calendar-entry vocabulary. Source projections keep concrete foreign
+/// keys rather than an unchecked polymorphic reference.
 enum CalendarEntryType {
   EVENT
   TASK
@@ -1071,8 +1071,8 @@ enum CalendarEntryType {
 
 /// A calendar-owned entry for one user's authorized calendar. Projections
 /// retain explicit foreign keys to their source record, while personal plans
-/// and reminders are owned directly by the calendar. Meeting and campaign
-/// projections are reserved until their modules provide concrete tables.
+/// and reminders are owned directly by the calendar. Meeting projections are
+/// written transactionally by the Meetings module.
 model CalendarEntry {
   id          String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
   title       String
@@ -1494,13 +1494,11 @@ model ScheduledOccurrenceClaim {
 /// `messageId`, and `eventId` are the typed target union ADR 0003 requires
 /// ("not an unchecked entityType/entityId reference... must resolve through
 /// an approved module relation") - real foreign keys, not a polymorphic
-/// pair, for the three target domains that exist today. A CHECK constraint
+/// pair, for the four target domains that exist today. A CHECK constraint
 /// (added by hand; see the migration) keeps at most one set. A
-/// `MEETING_INVITATION`, `MEETING_REMINDER`, `TODO_REMINDER`, or
-/// `REPORT_REMINDER` notification necessarily carries no target yet - those
-/// domains do not exist, and no producer can create them until each
-/// domain's own schema issue adds its own nullable target column here and
-/// widens the CHECK.
+/// Meeting notifications use the concrete meeting target. To-Do and report
+/// reminders carry no target until those domains provide an approved concrete
+/// relation and widen the CHECK.
 model Notification {
   id              String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   recipientUserId String           @map("recipient_user_id") @db.Uuid

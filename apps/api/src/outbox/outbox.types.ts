@@ -9,8 +9,26 @@ export type SupportedOutboxEventName =
   | "task.assigned"
   | "task.reviewed"
   | "discuss.message.created"
+  | "meeting.participant.invited"
+  | "meeting.reminder"
   | "task.due"
   | "task.overdue";
+
+/**
+ * `meeting.participant.invited` v1 payload. The consumer resolves all other
+ * notification content and authorization-sensitive state from the meeting.
+ */
+export interface MeetingParticipantInvitedEventPayload {
+  participantUserId: string;
+}
+
+/**
+ * `meeting.reminder` v1 payload. The deterministic key is
+ * `<meetingId>:<exact reminder UTC instant>:meeting.reminder:v1`.
+ */
+export interface MeetingReminderEventPayload {
+  occurrenceKey: string;
+}
 
 export interface OutboxConsumerTarget {
   consumerName: string;
@@ -25,7 +43,7 @@ export interface AppendOutboxEventInput {
   actorKind: OutboxActorKind;
   actorUserId?: string;
   correlationId?: string;
-  resourceType: "task" | "message";
+  resourceType: "task" | "message" | "meeting";
   resourceId: string;
   workspaceContext?: string;
   payload?: Prisma.InputJsonObject;

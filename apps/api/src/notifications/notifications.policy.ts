@@ -56,6 +56,18 @@ export function messageMentionContent(preview: string): NotificationContent {
   return { title: "You were mentioned", body: preview };
 }
 
+export function meetingInvitationContent(
+  meetingTitle: string,
+): NotificationContent {
+  return { title: "Meeting invitation", body: meetingTitle };
+}
+
+export function meetingReminderContent(
+  meetingTitle: string,
+): NotificationContent {
+  return { title: "Meeting reminder", body: meetingTitle };
+}
+
 /** Server-derived body text is bounded, never the raw message verbatim past
  * this length (ADR 0003 §1: title/body are server-derived, not client input). */
 export function previewText(content: string, maxLength = 140): string {

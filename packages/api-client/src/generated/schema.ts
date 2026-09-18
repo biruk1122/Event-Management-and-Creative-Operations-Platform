@@ -634,6 +634,111 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/meetings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List meetings visible to the current user */
+    get: operations["Meetings_list_v1"];
+    put?: never;
+    /** Schedule a meeting and invite its participants */
+    post: operations["Meetings_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/meetings/availability": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Check participant availability for a UTC interval */
+    post: operations["Meetings_availability_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/meetings/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get meeting details and participant responses */
+    get: operations["Meetings_get_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update a scheduled meeting as its organizer */
+    patch: operations["Meetings_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/meetings/{id}/participants/{userId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Invite an active participant to a scheduled meeting */
+    put: operations["Meetings_addParticipant_v1"];
+    post?: never;
+    /** Remove an invited participant from a scheduled meeting */
+    delete: operations["Meetings_removeParticipant_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/meetings/{id}/response": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Acknowledge an invitation as accepted or declined */
+    put: operations["Meetings_respond_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/meetings/{id}/transition": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Complete or cancel a scheduled meeting as its organizer */
+    post: operations["Meetings_transition_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/notifications": {
     parameters: {
       query?: never;
@@ -1587,6 +1692,18 @@ export interface components {
     CalendarFeedResponse: {
       items: components["schemas"]["CalendarEntryResponse"][];
     };
+    CheckMeetingAvailabilityDto: {
+      /** Format: date-time */
+      endAt: string;
+      /**
+       * Format: uuid
+       * @description Meeting excluded when checking a reschedule.
+       */
+      excludeMeetingId?: string;
+      /** Format: date-time */
+      startAt: string;
+      userIds: string[];
+    };
     ConversationMemberResponse: {
       /** Format: email */
       email: string;
@@ -1701,6 +1818,31 @@ export interface components {
        * @description UTC start. If both ends are given, the end may not precede it.
        */
       startAt?: string;
+    };
+    CreateMeetingDto: {
+      description?: string;
+      /**
+       * Format: date-time
+       * @description UTC meeting end.
+       */
+      endAt: string;
+      location?: string;
+      /** Format: uri */
+      onlineLink?: string;
+      participantIds?: string[];
+      /** Format: date-time */
+      reminderAt?: string;
+      /**
+       * Format: date-time
+       * @description UTC meeting start.
+       */
+      startAt: string;
+      /** @example Production stand-up */
+      title: string;
+      /** @enum {string} */
+      type: "PHYSICAL" | "ONLINE" | "HYBRID";
+      /** Format: uuid */
+      workspaceId?: string;
     };
     CreateMessageDto: {
       content: string;
@@ -2081,6 +2223,70 @@ export interface components {
       /** @example available */
       state: string;
     };
+    MeetingAcknowledgementResponse: {
+      /** Format: uuid */
+      meetingId: string;
+      /** Format: date-time */
+      respondedAt: string;
+      /** @enum {string} */
+      response: "PENDING" | "ACCEPTED" | "DECLINED";
+    };
+    MeetingAvailabilityResponse: {
+      /** Format: date-time */
+      endAt: string;
+      /** Format: date-time */
+      startAt: string;
+      users: components["schemas"]["UserAvailabilityResponse"][];
+    };
+    MeetingParticipantResponseContract: {
+      /** Format: email */
+      email: string;
+      firstName: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      invitedAt: string;
+      lastName: string | null;
+      /** Format: date-time */
+      respondedAt: string | null;
+      /** @enum {string} */
+      response: "PENDING" | "ACCEPTED" | "DECLINED";
+    };
+    MeetingPersonSummary: {
+      /** Format: email */
+      email: string;
+      firstName: string | null;
+      /** Format: uuid */
+      id: string;
+      lastName: string | null;
+    };
+    MeetingResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      description: string | null;
+      /** Format: date-time */
+      endAt: string;
+      /** Format: uuid */
+      id: string;
+      location: string | null;
+      /** Format: uri */
+      onlineLink: string | null;
+      organizer: components["schemas"]["MeetingPersonSummary"];
+      participants: components["schemas"]["MeetingParticipantResponseContract"][];
+      /** Format: date-time */
+      reminderAt: string | null;
+      /** Format: date-time */
+      startAt: string;
+      /** @enum {string} */
+      status: "SCHEDULED" | "COMPLETED" | "CANCELLED";
+      title: string;
+      /** @enum {string} */
+      type: "PHYSICAL" | "ONLINE" | "HYBRID";
+      /** Format: date-time */
+      updatedAt: string;
+      /** Format: uuid */
+      workspaceId: string | null;
+    };
     MessageResponse: {
       author: components["schemas"]["DiscussPersonSummary"] | null;
       /**
@@ -2144,6 +2350,8 @@ export interface components {
       eventId: string | null;
       /** Format: uuid */
       id: string;
+      /** Format: uuid */
+      meetingId: string | null;
       /** Format: uuid */
       messageId: string | null;
       /** Format: date-time */
@@ -2211,6 +2419,12 @@ export interface components {
       /** @example 20 */
       pageSize: number;
       /** @example 1 */
+      total: number;
+    };
+    PaginatedMeetingsResponse: {
+      items: components["schemas"]["MeetingResponse"][];
+      page: number;
+      pageSize: number;
       total: number;
     };
     PaginatedMessagesResponse: {
@@ -2419,6 +2633,10 @@ export interface components {
        * @example 2026-09-01T09:00:00.000Z
        */
       timestamp: string;
+    };
+    RespondToMeetingDto: {
+      /** @enum {string} */
+      response: "ACCEPTED" | "DECLINED";
     };
     ReviewTaskDto: {
       note?: string;
@@ -2677,6 +2895,10 @@ export interface components {
        */
       status: "PLANNING" | "READY" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
     };
+    TransitionMeetingDto: {
+      /** @enum {string} */
+      status: "COMPLETED" | "CANCELLED";
+    };
     TransitionProjectDto: {
       /**
        * @description The lifecycle state to move to. Must be reachable from the current state under the approved graph.
@@ -2728,6 +2950,21 @@ export interface components {
       organizerName?: string | null;
       /** Format: date-time */
       startAt?: string | null;
+    };
+    UpdateMeetingDto: {
+      description?: string | null;
+      /** Format: date-time */
+      endAt?: string;
+      location?: string | null;
+      /** Format: uri */
+      onlineLink?: string | null;
+      /** Format: date-time */
+      reminderAt?: string | null;
+      /** Format: date-time */
+      startAt?: string;
+      title?: string;
+      /** @enum {string} */
+      type?: "PHYSICAL" | "ONLINE" | "HYBRID";
     };
     UpdateMessageDto: {
       content: string;
@@ -2842,6 +3079,12 @@ export interface components {
       /** @example available */
       state: string;
       upload: components["schemas"]["UploadFormResponse"];
+    };
+    UserAvailabilityResponse: {
+      available: boolean;
+      conflictingMeetingCount: number;
+      /** Format: uuid */
+      userId: string;
     };
     UserResponse: {
       /** Format: date-time */
@@ -5866,6 +6109,589 @@ export interface operations {
         };
       };
       /** @description That transition is not allowed from the current state */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_list_v1: {
+    parameters: {
+      query?: {
+        status?: "SCHEDULED" | "COMPLETED" | "CANCELLED";
+        type?: "PHYSICAL" | "ONLINE" | "HYBRID";
+        workspaceId?: string;
+        from?: string;
+        to?: string;
+        search?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedMeetingsResponse"];
+        };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateMeetingDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetingResponse"];
+        };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Workspace or participant not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Organizer is also listed as a participant */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_availability_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CheckMeetingAvailabilityDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetingAvailabilityResponse"];
+        };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description One or more users do not exist or are inactive */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetingResponse"];
+        };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Meeting not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateMeetingDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetingResponse"];
+        };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Meeting not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Meeting is no longer scheduled */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_addParticipant_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        userId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetingResponse"];
+        };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Meeting or participant not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Participant already invited or meeting is terminal */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_removeParticipant_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        userId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetingResponse"];
+        };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Meeting not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Participant was not invited or meeting is terminal */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_respond_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RespondToMeetingDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetingAcknowledgementResponse"];
+        };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Meeting not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Response was already acknowledged or meeting is terminal */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_transition_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TransitionMeetingDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetingResponse"];
+        };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Meeting not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Invalid lifecycle transition */
       409: {
         headers: {
           [name: string]: unknown;

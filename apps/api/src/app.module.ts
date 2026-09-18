@@ -13,6 +13,7 @@ import { DiscussModule } from "./discuss/discuss.module.js";
 import { EventsModule } from "./events/events.module.js";
 import { FileManagementModule } from "./file-management/file-management.module.js";
 import { HealthModule } from "./health/health.module.js";
+import { MeetingsModule } from "./meetings/meetings.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
@@ -53,6 +54,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     DatabaseModule,
     HealthModule,
     AuthModule,
+    MeetingsModule,
     CalendarModule,
     RbacModule,
     UsersModule,
