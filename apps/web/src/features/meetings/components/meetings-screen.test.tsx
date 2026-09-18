@@ -20,6 +20,8 @@ describe("MeetingsScreen", () => {
     expect(
       screen.getByRole("button", { name: "Schedule meeting" }),
     ).toBeDisabled();
-    expect(screen.getByText(/Scheduling will be available/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Scheduling will be available/),
+    ).toBeInTheDocument();
   });
 });

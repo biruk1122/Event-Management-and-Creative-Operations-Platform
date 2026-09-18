@@ -32,7 +32,9 @@ export function MeetingsScreen() {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-muted-foreground text-sm">Meetings</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Your schedule</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Your schedule
+          </h1>
         </div>
         <Button type="button" disabled aria-describedby="meeting-create-help">
           Schedule meeting
@@ -43,33 +45,76 @@ export function MeetingsScreen() {
       </header>
 
       {notice ? (
-        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+        <p
+          role="status"
+          aria-live="polite"
+          className="text-sm text-muted-foreground"
+        >
           {notice}
         </p>
       ) : null}
 
-      <section aria-labelledby="meeting-preview-title" className="rounded-lg border p-4 sm:p-6">
+      <section
+        aria-labelledby="meeting-preview-title"
+        className="rounded-lg border p-4 sm:p-6"
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
-            <h2 id="meeting-preview-title" className="text-lg font-medium">Meeting details</h2>
-            <p className="text-muted-foreground text-sm">Select a meeting to view its time, participants, location or online link, and reminder.</p>
+            <h2 id="meeting-preview-title" className="text-lg font-medium">
+              Meeting details
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Select a meeting to view its time, participants, location or
+              online link, and reminder.
+            </p>
           </div>
           <Badge variant="secondary">No meeting selected</Badge>
         </div>
         <div className="mt-6 rounded-md bg-muted/50 p-4">
           <p className="font-medium">No meetings to show</p>
-          <p className="text-muted-foreground mt-1 text-sm">When you are invited to a meeting, it will appear here and in your calendar.</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            When you are invited to a meeting, it will appear here and in your
+            calendar.
+          </p>
         </div>
       </section>
 
-      <section aria-labelledby="response-title" className="rounded-lg border p-4 sm:p-6">
-        <h2 id="response-title" className="text-lg font-medium">Invitation response</h2>
-        <p className="text-muted-foreground mt-1 text-sm">Responses are final after you accept or decline. You can still review the meeting details in your calendar.</p>
+      <section
+        aria-labelledby="response-title"
+        className="rounded-lg border p-4 sm:p-6"
+      >
+        <h2 id="response-title" className="text-lg font-medium">
+          Invitation response
+        </h2>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Responses are final after you accept or decline. You can still review
+          the meeting details in your calendar.
+        </p>
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Badge aria-label={`Current response: ${responseLabel[response]}`}>{responseLabel[response]}</Badge>
-          <div className="flex gap-2" role="group" aria-label="Respond to meeting invitation">
-            <Button type="button" variant="outline" disabled={response !== "PENDING"} onClick={() => respond("ACCEPTED")}>Accept</Button>
-            <Button type="button" variant="outline" disabled={response !== "PENDING"} onClick={() => respond("DECLINED")}>Decline</Button>
+          <Badge aria-label={`Current response: ${responseLabel[response]}`}>
+            {responseLabel[response]}
+          </Badge>
+          <div
+            className="flex gap-2"
+            role="group"
+            aria-label="Respond to meeting invitation"
+          >
+            <Button
+              type="button"
+              variant="outline"
+              disabled={response !== "PENDING"}
+              onClick={() => respond("ACCEPTED")}
+            >
+              Accept
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={response !== "PENDING"}
+              onClick={() => respond("DECLINED")}
+            >
+              Decline
+            </Button>
           </div>
         </div>
       </section>
