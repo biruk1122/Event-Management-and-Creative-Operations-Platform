@@ -23,6 +23,27 @@ import {
 
 const LIVE_EVENT = "notification.invalidated";
 
+const MEETING_TYPE_LABELS: Record<Meeting["type"], string> = {
+  PHYSICAL: "In person",
+  ONLINE: "Online",
+  HYBRID: "Hybrid",
+};
+
+const MEETING_STATUS_LABELS: Record<Meeting["status"], string> = {
+  SCHEDULED: "Scheduled",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+const PARTICIPANT_RESPONSE_LABELS: Record<
+  Meeting["participants"][number]["response"],
+  string
+> = {
+  PENDING: "Pending",
+  ACCEPTED: "Accepted",
+  DECLINED: "Declined",
+};
+
 function personName(person: {
   firstName: string | null;
   lastName: string | null;
@@ -234,7 +255,7 @@ function MeetingDetail({
             {formatWhen(meeting.startAt)} – {formatWhen(meeting.endAt)}
           </p>
         </div>
-        <Badge>{meeting.status}</Badge>
+        <Badge>{MEETING_STATUS_LABELS[meeting.status]}</Badge>
       </div>
       {meeting.description ? (
         <p className="mt-4 text-sm">{meeting.description}</p>
@@ -246,7 +267,7 @@ function MeetingDetail({
         </div>
         <div>
           <dt className="text-muted-foreground">Format</dt>
-          <dd>{meeting.type}</dd>
+          <dd>{MEETING_TYPE_LABELS[meeting.type]}</dd>
         </div>
         {meeting.location ? (
           <div>
@@ -274,7 +295,9 @@ function MeetingDetail({
           {meeting.participants.map((item) => (
             <li key={item.id} className="flex justify-between gap-2">
               <span>{personName(item)}</span>
-              <span className="text-muted-foreground">{item.response}</span>
+              <span className="text-muted-foreground">
+                {PARTICIPANT_RESPONSE_LABELS[item.response]}
+              </span>
             </li>
           ))}
         </ul>
@@ -282,7 +305,7 @@ function MeetingDetail({
       {participant ? (
         <div className="mt-5">
           <p className="text-sm font-medium">
-            Your response: {participant.response}
+            Your response: {PARTICIPANT_RESPONSE_LABELS[participant.response]}
           </p>
           {canRespond ? (
             <div
