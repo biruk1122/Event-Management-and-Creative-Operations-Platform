@@ -404,9 +404,6 @@ export class MeetingsRepository {
           ...(fields.endAt !== undefined ? { endAt: fields.endAt } : {}),
         },
       });
-      if (status === MeetingStatus.CANCELLED) {
-        await tx.calendarEntry.deleteMany({ where: { meetingId: id } });
-      }
       return toRecord(updated);
     });
   }
@@ -573,6 +570,9 @@ export class MeetingsRepository {
         data: { status },
         select: MEETING_SELECT,
       });
+      if (status === MeetingStatus.CANCELLED) {
+        await tx.calendarEntry.deleteMany({ where: { meetingId: id } });
+      }
       return toRecord(updated);
     });
   }
