@@ -25,6 +25,7 @@ function makeNotification(
     taskId: "task-1",
     messageId: null,
     eventId: null,
+    meetingId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     readAt: null,
     ...overrides,
@@ -80,6 +81,12 @@ describe("NotificationsService", () => {
       }),
       isUserActive: vi.fn().mockResolvedValue(true),
       getTaskAssigneeIds: vi.fn().mockResolvedValue([]),
+      getMeeting: vi.fn().mockResolvedValue({
+        title: "Production stand-up",
+        status: "SCHEDULED",
+      }),
+      isMeetingParticipant: vi.fn().mockResolvedValue(true),
+      getMeetingReminderRecipientIds: vi.fn().mockResolvedValue([]),
       getMessage: vi.fn().mockResolvedValue({
         conversationId: "conversation-1",
         authorId: "author-1",
@@ -340,6 +347,90 @@ describe("NotificationsService", () => {
       );
       expect(repository.createIfAbsent).toHaveBeenCalledWith(
         expect.objectContaining({ type: NotificationType.TASK_REJECTED }),
+      );
+    });
+  });
+
+  describe("processEvent: meeting invitation and reminder", () => {
+    it("notifies the newly invited active participant with a concrete meeting target", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "meeting.participant.invited",
+          resourceType: "meeting",
+          resourceId: "meeting-1",
+          payload: { participantUserId: "participant-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "participant-1",
+          type: NotificationType.MEETING_INVITATION,
+          meetingId: "meeting-1",
+          occurrenceKey: "event-1",
+        }),
+      );
+    });
+
+    it("suppresses a delayed invitation after the participant was removed", async () => {
+      repository.isMeetingParticipant!.mockResolvedValue(false);
+      await service.processEvent(
+        makeEvent({
+          name: "meeting.participant.invited",
+          resourceType: "meeting",
+          resourceId: "meeting-1",
+          payload: { participantUserId: "participant-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("suppresses delayed meeting events after the meeting is terminal", async () => {
+      repository.getMeeting!.mockResolvedValue({
+        title: "Production stand-up",
+        status: "CANCELLED",
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "meeting.reminder",
+          resourceType: "meeting",
+          resourceId: "meeting-1",
+          payload: {
+            occurrenceKey:
+              "meeting-1:2030-01-01T09:45:00.000Z:meeting.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("reminds only current eligible participants and honors reminder mutes", async () => {
+      repository.getMeetingReminderRecipientIds!.mockResolvedValue([
+        "participant-1",
+        "participant-2",
+      ]);
+      repository.isMuted!.mockImplementation(
+        (userId: string) => userId === "participant-2",
+      );
+      await service.processEvent(
+        makeEvent({
+          name: "meeting.reminder",
+          actorKind: OutboxActorKind.SYSTEM,
+          actorUserId: null,
+          resourceType: "meeting",
+          resourceId: "meeting-1",
+          payload: {
+            occurrenceKey:
+              "meeting-1:2030-01-01T09:45:00.000Z:meeting.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(1);
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "participant-1",
+          type: NotificationType.MEETING_REMINDER,
+          meetingId: "meeting-1",
+        }),
       );
     });
   });

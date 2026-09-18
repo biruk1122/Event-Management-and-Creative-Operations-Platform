@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 
 import {
+  MeetingParticipantResponse,
+  MeetingStatus,
   NotificationType,
   Prisma,
   UserAccountStatus,
@@ -23,6 +25,7 @@ export interface NotificationRecord {
   taskId: string | null;
   messageId: string | null;
   eventId: string | null;
+  meetingId: string | null;
   createdAt: Date;
   readAt: Date | null;
 }
@@ -35,6 +38,7 @@ const NOTIFICATION_SELECT = {
   taskId: true,
   messageId: true,
   eventId: true,
+  meetingId: true,
   createdAt: true,
   readAt: true,
 } as const;
@@ -49,11 +53,31 @@ export interface CreateNotificationInput {
   taskId?: string;
   messageId?: string;
   eventId?: string;
+  meetingId?: string;
 }
 
 interface FeedCursor {
   createdAt: Date;
   id: string;
+}
+
+function visibleToRecipient(
+  recipientUserId: string,
+): Prisma.NotificationWhereInput {
+  return {
+    recipientUserId,
+    OR: [
+      { meetingId: null },
+      {
+        meeting: {
+          OR: [
+            { organizerId: recipientUserId },
+            { participants: { some: { userId: recipientUserId } } },
+          ],
+        },
+      },
+    ],
+  };
 }
 
 function encodeCursor(cursor: FeedCursor): string {
@@ -101,6 +125,7 @@ export class NotificationsRepository {
           ...(input.taskId ? { taskId: input.taskId } : {}),
           ...(input.messageId ? { messageId: input.messageId } : {}),
           ...(input.eventId ? { eventId: input.eventId } : {}),
+          ...(input.meetingId ? { meetingId: input.meetingId } : {}),
         },
         select: NOTIFICATION_SELECT,
       });
@@ -126,15 +151,19 @@ export class NotificationsRepository {
     const decoded = cursor ? decodeCursor(cursor) : undefined;
     const rows = await this.db.notification.findMany({
       where: {
-        recipientUserId,
-        ...(decoded
-          ? {
-              OR: [
-                { createdAt: { lt: decoded.createdAt } },
-                { createdAt: decoded.createdAt, id: { lt: decoded.id } },
-              ],
-            }
-          : {}),
+        AND: [
+          visibleToRecipient(recipientUserId),
+          ...(decoded
+            ? [
+                {
+                  OR: [
+                    { createdAt: { lt: decoded.createdAt } },
+                    { createdAt: decoded.createdAt, id: { lt: decoded.id } },
+                  ],
+                } satisfies Prisma.NotificationWhereInput,
+              ]
+            : []),
+        ],
       },
       select: NOTIFICATION_SELECT,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -154,7 +183,7 @@ export class NotificationsRepository {
 
   async unreadCount(recipientUserId: string): Promise<number> {
     return this.db.notification.count({
-      where: { recipientUserId, readAt: null },
+      where: { AND: [visibleToRecipient(recipientUserId), { readAt: null }] },
     });
   }
 
@@ -165,12 +194,14 @@ export class NotificationsRepository {
     id: string,
   ): Promise<NotificationRecord | "not_found"> {
     const updated = await this.db.notification.updateMany({
-      where: { id, recipientUserId, readAt: null },
+      where: {
+        AND: [visibleToRecipient(recipientUserId), { id, readAt: null }],
+      },
       data: { readAt: new Date() },
     });
     if (updated.count === 0) {
       const existing = await this.db.notification.findFirst({
-        where: { id, recipientUserId },
+        where: { AND: [visibleToRecipient(recipientUserId), { id }] },
         select: NOTIFICATION_SELECT,
       });
       return existing ?? "not_found";
@@ -221,6 +252,43 @@ export class NotificationsRepository {
       where: { id: taskId },
       select: { title: true, workspaceId: true },
     });
+  }
+
+  async getMeeting(
+    meetingId: string,
+  ): Promise<{ title: string; status: MeetingStatus } | null> {
+    return this.db.meeting.findUnique({
+      where: { id: meetingId },
+      select: { title: true, status: true },
+    });
+  }
+
+  async isMeetingParticipant(
+    meetingId: string,
+    userId: string,
+  ): Promise<boolean> {
+    return (
+      (await this.db.meetingParticipant.count({
+        where: { meetingId, userId },
+      })) === 1
+    );
+  }
+
+  async getMeetingReminderRecipientIds(meetingId: string): Promise<string[]> {
+    const rows = await this.db.meetingParticipant.findMany({
+      where: {
+        meetingId,
+        response: {
+          in: [
+            MeetingParticipantResponse.PENDING,
+            MeetingParticipantResponse.ACCEPTED,
+          ],
+        },
+        user: { status: UserAccountStatus.ACTIVE },
+      },
+      select: { userId: true },
+    });
+    return rows.map((row) => row.userId);
   }
 
   /** ADR 0003 §1/§2: a recipient must be an active user at creation time. */

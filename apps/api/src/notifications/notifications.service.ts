@@ -1,11 +1,15 @@
 import { Injectable } from "@nestjs/common";
 
-import { NotificationType } from "../generated/prisma/client.js";
+import { MeetingStatus, NotificationType } from "../generated/prisma/client.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import { roomName } from "../realtime/realtime.contracts.js";
 import { RealtimeService } from "../realtime/realtime.service.js";
-import type { ClaimedOutboxDelivery } from "../outbox/outbox.types.js";
+import type {
+  ClaimedOutboxDelivery,
+  MeetingParticipantInvitedEventPayload,
+  MeetingReminderEventPayload,
+} from "../outbox/outbox.types.js";
 import type { ListNotificationsQueryDto } from "./dto/list-notifications-query.dto.js";
 import {
   notificationNotFound,
@@ -23,6 +27,8 @@ import {
   isMutableNotificationType,
   MUTABLE_NOTIFICATION_TYPES,
   messageMentionContent,
+  meetingInvitationContent,
+  meetingReminderContent,
   newMessageContent,
   previewText,
   taskApprovedContent,
@@ -127,6 +133,12 @@ export class NotificationsService {
       case "discuss.message.created":
         await this.processMessageCreated(event);
         return;
+      case "meeting.participant.invited":
+        await this.processMeetingInvitation(event);
+        return;
+      case "meeting.reminder":
+        await this.processMeetingReminder(event);
+        return;
       case "task.due":
         await this.processScheduledTaskReminder(
           event,
@@ -168,6 +180,69 @@ export class NotificationsService {
       body: content.body,
       taskId: event.resourceId,
     });
+  }
+
+  private async processMeetingInvitation(
+    event: OutboxEventEnvelope,
+  ): Promise<void> {
+    const payload =
+      event.payload as Partial<MeetingParticipantInvitedEventPayload> | null;
+    const participantUserId = payload?.participantUserId;
+    if (!event.resourceId || !participantUserId) return;
+    if (participantUserId === event.actorUserId) return;
+    if (!(await this.repository.isUserActive(participantUserId))) return;
+    if (
+      !(await this.repository.isMeetingParticipant(
+        event.resourceId,
+        participantUserId,
+      ))
+    ) {
+      return;
+    }
+    const meeting = await this.repository.getMeeting(event.resourceId);
+    if (!meeting || meeting.status !== MeetingStatus.SCHEDULED) return;
+    const content = meetingInvitationContent(meeting.title);
+    await this.createAndPublish({
+      recipientUserId: participantUserId,
+      type: NotificationType.MEETING_INVITATION,
+      sourceEventId: event.id,
+      occurrenceKey: event.id,
+      title: content.title,
+      body: content.body,
+      meetingId: event.resourceId,
+    });
+  }
+
+  private async processMeetingReminder(
+    event: OutboxEventEnvelope,
+  ): Promise<void> {
+    const payload =
+      event.payload as Partial<MeetingReminderEventPayload> | null;
+    if (!event.resourceId || !payload?.occurrenceKey) return;
+    const meeting = await this.repository.getMeeting(event.resourceId);
+    if (!meeting || meeting.status !== MeetingStatus.SCHEDULED) return;
+    const recipientIds = await this.repository.getMeetingReminderRecipientIds(
+      event.resourceId,
+    );
+    const content = meetingReminderContent(meeting.title);
+    for (const recipientUserId of recipientIds) {
+      if (
+        await this.repository.isMuted(
+          recipientUserId,
+          NotificationType.MEETING_REMINDER,
+        )
+      )
+        continue;
+      await this.createAndPublish({
+        recipientUserId,
+        type: NotificationType.MEETING_REMINDER,
+        sourceEventId: event.id,
+        occurrenceKey: payload.occurrenceKey,
+        title: content.title,
+        body: content.body,
+        meetingId: event.resourceId,
+      });
+    }
   }
 
   /**
@@ -333,6 +408,7 @@ function toNotificationResponse(
     taskId: record.taskId,
     messageId: record.messageId,
     eventId: record.eventId,
+    meetingId: record.meetingId,
     createdAt: record.createdAt.toISOString(),
     readAt: record.readAt?.toISOString() ?? null,
   };

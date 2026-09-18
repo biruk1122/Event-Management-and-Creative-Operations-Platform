@@ -41,6 +41,7 @@ beforeEach(() => {
             createdAt: "2026-09-16T07:30:00.000Z",
             readAt: null,
             taskId: null,
+            meetingId: null,
             messageId: null,
             eventId: null,
           },
