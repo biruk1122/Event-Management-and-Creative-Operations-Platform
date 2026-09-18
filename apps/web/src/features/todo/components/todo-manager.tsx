@@ -1,6 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { Button } from "@/components/ui/button";
+import {
+  accessKey,
+  type CurrentAccess,
+} from "@/features/auth/api/access-queries";
+import {
+  useRealtimeConnection,
+  type ConnectRealtime,
+} from "@/features/realtime";
 
 import {
   TodoDialog,
@@ -9,12 +20,14 @@ import {
 } from "./todo-dialog";
 import { TodoList } from "./todo-list";
 import { TodoToolbar } from "./todo-toolbar";
-import { todayDateOnly } from "../lib/todo-date";
 import {
-  todoFixtures,
-  todoRelatedEventOptions,
-  todoRelatedProjectOptions,
-} from "../lib/todo-fixtures";
+  TodoRequestError,
+  listAssignableEvents,
+  listAssignableProjects,
+} from "../api/todo-gateway";
+import { todoKeys, useTodoMutations, useTodos } from "../api/todo-queries";
+import { todayDateOnly } from "../lib/todo-date";
+import type { DeleteTodoOutcome } from "../lib/todo-outcome";
 import type { TodoItem, TodoSmartView } from "../lib/todo-types";
 
 function isImportant(item: TodoItem): boolean {
@@ -48,42 +61,24 @@ function matchesView(
   }
 }
 
-function toItemFields(
-  values: TodoFormValues,
-): Omit<TodoItem, "id" | "createdAt" | "updatedAt"> {
-  return {
-    title: values.title.trim(),
-    description: values.description.trim() || null,
-    type: values.type,
-    priority: values.priority,
-    status: values.status,
-    dueDate: values.dueDate || null,
-    dueTime: values.dueDate && values.dueTime ? `${values.dueTime}:00` : null,
-    relatedEventId: values.relatedEventId || null,
-    relatedProjectId: values.relatedProjectId || null,
-    reminderEnabled: values.remindMe,
-    reminderAt:
-      values.remindMe && values.reminderAt
-        ? new Date(values.reminderAt).toISOString()
-        : null,
-  };
-}
-
 export interface TodoManagerProps {
-  /** Testing seam: the demo data and every "today" comparison a smart view
-   * makes are otherwise time-relative, which would make assertions on
-   * rendered content non-deterministic. */
-  initialItems?: TodoItem[];
+  access: CurrentAccess;
+  /** Testing seam, mirroring `CalendarManagerProps.connect`; defaults to the
+   * real `/realtime` handshake. */
+  connect?: ConnectRealtime;
+  /** Testing seam: the default is "today", which would make assertions on
+   * which smart view shows an item non-deterministic. */
   initialToday?: string;
 }
 
 export function TodoManager({
-  initialItems,
+  access,
+  connect,
   initialToday,
-}: TodoManagerProps = {}) {
-  const [items, setItems] = useState<TodoItem[]>(
-    () => initialItems ?? todoFixtures(),
-  );
+}: TodoManagerProps) {
+  const client = useQueryClient();
+  const keys = todoKeys(access);
+
   const [view, setView] = useState<TodoSmartView>("MY_DAY");
   const [editingItem, setEditingItem] = useState<TodoItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -93,9 +88,61 @@ export function TodoManager({
   const [dialogInstanceKey, setDialogInstanceKey] = useState(0);
   const today = initialToday ?? todayDateOnly();
 
-  const eventOptions = useMemo(() => todoRelatedEventOptions(), []);
-  const projectOptions = useMemo(() => todoRelatedProjectOptions(), []);
+  const reconcile = useCallback(() => {
+    void client.invalidateQueries({ queryKey: keys.all });
+  }, [client, keys.all]);
 
+  // The backend has no to-do-specific live event today (only
+  // `notification.invalidated` exists anywhere in this app), so there is no
+  // frame worth matching here - only a reconnect's own REST refetch below is
+  // authoritative for "something may have changed while disconnected."
+  const connection = useRealtimeConnection(connect);
+
+  const everConnectedRef = useRef(false);
+  useEffect(() => {
+    if (connection.state.status === "connected") {
+      if (everConnectedRef.current) reconcile();
+      everConnectedRef.current = true;
+    }
+  }, [connection.state.status, reconcile]);
+
+  const feed = useTodos(access);
+  const mutations = useTodoMutations(access);
+
+  useEffect(() => {
+    if (
+      feed.error instanceof TodoRequestError &&
+      (feed.error.status === 401 || feed.error.status === 403)
+    ) {
+      void client.invalidateQueries({ queryKey: accessKey });
+    }
+  }, [feed.error, client]);
+
+  // Related-item pickers degrade to an empty list (rather than blocking the
+  // page) when the caller cannot read events/projects or the read fails -
+  // matching `listAssignableEvents`'s own resolves-to-`[]` contract.
+  const eventOptionsQuery = useQuery({
+    queryKey: keys.events,
+    queryFn: ({ signal }) => listAssignableEvents(signal),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const projectOptionsQuery = useQuery({
+    queryKey: keys.projects,
+    queryFn: ({ signal }) => listAssignableProjects(signal),
+    retry: false,
+    staleTime: 60_000,
+  });
+  const eventOptions = useMemo(
+    () => eventOptionsQuery.data ?? [],
+    [eventOptionsQuery.data],
+  );
+  const projectOptions = useMemo(
+    () => projectOptionsQuery.data ?? [],
+    [projectOptionsQuery.data],
+  );
+
+  const items = useMemo(() => feed.data ?? [], [feed.data]);
   const visibleItems = useMemo(() => {
     return items
       .filter((item) => matchesView(item, view, today))
@@ -125,49 +172,51 @@ export function TodoManager({
   function toggleStatus(item: TodoItem) {
     const nextStatus =
       item.status === "COMPLETED" ? "NOT_STARTED" : "COMPLETED";
-    setItems((current) =>
-      current.map((existing) =>
-        existing.id === item.id
-          ? {
-              ...existing,
-              status: nextStatus,
-              updatedAt: new Date().toISOString(),
-            }
-          : existing,
-      ),
-    );
+    mutations.toggleStatus.mutate({ id: item.id, status: nextStatus });
   }
 
   async function submitTodo(values: TodoFormValues): Promise<TodoFormOutcome> {
-    const updatedAt = new Date().toISOString();
     if (editingItem) {
-      const updated: TodoItem = {
-        ...editingItem,
-        ...toItemFields(values),
-        updatedAt,
-      };
-      setItems((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      );
-      return { status: "success", item: updated };
+      return mutations.update.mutateAsync({ id: editingItem.id, values });
     }
-
-    const created: TodoItem = {
-      id: `local-${crypto.randomUUID()}`,
-      ...toItemFields(values),
-      createdAt: updatedAt,
-      updatedAt,
-    };
-    setItems((current) => [...current, created]);
-    return { status: "success", item: created };
+    return mutations.create.mutateAsync(values);
   }
 
-  async function deleteTodo(id: string): Promise<void> {
-    setItems((current) => current.filter((item) => item.id !== id));
+  async function deleteTodo(id: string): Promise<DeleteTodoOutcome> {
+    return mutations.remove.mutateAsync(id);
+  }
+
+  if (feed.isPending) {
+    return <p role="status">Loading your to-dos…</p>;
+  }
+
+  if (feed.isError) {
+    return (
+      <div role="alert" className="space-y-2">
+        <p>
+          {feed.error instanceof TodoRequestError
+            ? feed.error.message
+            : "We could not load your to-dos. Try again."}
+        </p>
+        <Button variant="outline" onClick={() => void feed.refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
+      {connection.state.status === "denied" ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          Live updates are unavailable. Refresh to see changes made elsewhere.
+        </p>
+      ) : connection.state.status === "reconnecting" ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          Reconnecting…
+        </p>
+      ) : null}
+
       <TodoToolbar view={view} onChangeView={setView} onCreate={openCreate} />
       <TodoList
         items={visibleItems}

@@ -136,7 +136,7 @@ describe("TodoDialog", () => {
 
   it("pre-fills the form and offers delete when editing an existing item", async () => {
     const user = userEvent.setup();
-    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue({ status: "success" });
     render(
       <TodoDialog
         open

@@ -3,13 +3,28 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
+import type { ConnectRealtime } from "@/features/realtime";
 
 import { TodoScreen } from "./todo-screen";
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock("@/lib/api/browser", () => ({ browserApi: { GET: get } }));
+vi.mock("@/env/client", () => ({
+  clientEnvironment: {
+    NEXT_PUBLIC_WS_URL: "http://localhost:4000",
+    NEXT_PUBLIC_API_URL: "http://localhost:4000/api/v1",
+  },
+}));
+
+const noopConnect: ConnectRealtime = () => () => {};
 
 let currentAccess: CurrentAccess | null;
+
+const DEFAULT_ROUTES: Record<string, unknown> = {
+  "/api/v1/todos": { items: [] },
+  "/api/v1/events": { items: [] },
+  "/api/v1/projects": { items: [] },
+};
 
 beforeEach(() => {
   currentAccess = { userId: "account-1", grants: [] };
@@ -20,7 +35,10 @@ beforeEach(() => {
         response: { status: currentAccess ? 200 : 401 },
       });
     }
-    return Promise.resolve({ data: null, response: { status: 404 } });
+    return Promise.resolve({
+      data: DEFAULT_ROUTES[path],
+      response: { ok: true, status: 200 },
+    });
   });
 });
 
@@ -30,7 +48,7 @@ function setup() {
   });
   render(
     <QueryClientProvider client={client}>
-      <TodoScreen />
+      <TodoScreen connect={noopConnect} />
     </QueryClientProvider>,
   );
 }

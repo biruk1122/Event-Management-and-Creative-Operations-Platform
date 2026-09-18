@@ -24,6 +24,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import type {
+  CreateTodoOutcome,
+  DeleteTodoOutcome,
+  TodoFormValues,
+  UpdateTodoOutcome,
+} from "../lib/todo-outcome";
 import {
   TODO_PRIORITIES,
   TODO_PRIORITY_LABELS,
@@ -40,34 +46,20 @@ import {
 
 const NONE = "NONE";
 
-export interface TodoFormValues {
-  title: string;
-  description: string;
-  type: TodoType;
-  priority: TodoPriority;
-  status: TodoStatus;
-  /** "YYYY-MM-DD", or empty for none. */
-  dueDate: string;
-  /** "HH:mm", or empty for none. Never meaningful without `dueDate`. */
-  dueTime: string;
-  /** A `RelatedOption.id`, or empty for none. */
-  relatedEventId: string;
-  /** A `RelatedOption.id`, or empty for none. */
-  relatedProjectId: string;
-  remindMe: boolean;
-  /** `datetime-local` value, required when `remindMe` is true. */
-  reminderAt: string;
-}
+export type { TodoFormValues } from "../lib/todo-outcome";
 
-export type TodoFormOutcome =
-  | { status: "success"; item: TodoItem }
-  | {
-      status: "field_errors";
-      fieldErrors: Partial<Record<keyof TodoFormValues, string>>;
-    }
-  | { status: "unexpected" };
+export type TodoFormOutcome = CreateTodoOutcome | UpdateTodoOutcome;
 
 const FORM_ERRORS: Record<string, string> = {
+  schedule_invalid: "A due time requires a due date.",
+  related_event_not_found:
+    "That related event no longer exists. Refresh and pick another, or leave it blank.",
+  related_project_not_found:
+    "That related project no longer exists. Refresh and pick another, or leave it blank.",
+  not_found:
+    "This to-do no longer exists. It may already have been changed or removed elsewhere.",
+  permission_denied:
+    "You don't have permission to do that. Refresh and try again.",
   unexpected: "We could not save this to-do. Try again.",
 };
 
@@ -117,7 +109,7 @@ export interface TodoDialogProps {
   eventOptions: readonly RelatedOption[];
   projectOptions: readonly RelatedOption[];
   onSubmit: (values: TodoFormValues) => Promise<TodoFormOutcome>;
-  onDelete?: (id: string) => Promise<void>;
+  onDelete?: (id: string) => Promise<DeleteTodoOutcome>;
 }
 
 /** The form's own state only initializes once per mount, not on every
@@ -197,16 +189,20 @@ export function TodoDialog({
         setFieldErrors(outcome.fieldErrors);
         return;
       default:
-        setFormError(FORM_ERRORS.unexpected!);
+        setFormError(FORM_ERRORS[outcome.status] ?? FORM_ERRORS.unexpected!);
     }
   }
 
   async function handleDelete() {
     if (!item || !onDelete) return;
     setDeleting(true);
-    await onDelete(item.id);
+    const outcome = await onDelete(item.id);
     setDeleting(false);
-    onOpenChange(false);
+    if (outcome.status === "success") {
+      onOpenChange(false);
+      return;
+    }
+    setFormError(FORM_ERRORS[outcome.status] ?? FORM_ERRORS.unexpected!);
   }
 
   const busy = submitting || deleting;

@@ -1,4 +1,4 @@
-export { TodoScreen } from "./components/todo-screen";
+export { TodoScreen, type TodoScreenProps } from "./components/todo-screen";
 export { TodoNavigation } from "./components/todo-navigation";
 export type {
   TodoItem,
