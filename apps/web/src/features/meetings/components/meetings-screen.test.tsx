@@ -17,7 +17,9 @@ describe("MeetingsScreen", () => {
   it("provides an understandable empty state and disabled scheduling recovery guidance", () => {
     render(<MeetingsScreen />);
     expect(screen.getByText("No meetings to show")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Schedule meeting" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Schedule meeting" }),
+    ).toBeDisabled();
     expect(screen.getByText(/Scheduling will be available/)).toBeInTheDocument();
   });
 });
