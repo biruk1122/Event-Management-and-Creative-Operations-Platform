@@ -27,6 +27,8 @@ function matchesView(
   today: string,
 ): boolean {
   switch (view) {
+    case "ALL":
+      return true;
     case "MY_DAY":
       return item.dueDate === today;
     case "IMPORTANT":
