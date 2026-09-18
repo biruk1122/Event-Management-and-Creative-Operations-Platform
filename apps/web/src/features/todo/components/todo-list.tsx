@@ -8,6 +8,7 @@ import {
 } from "../lib/todo-types";
 
 const EMPTY_MESSAGES: Record<TodoSmartView, string> = {
+  ALL: "You don't have any to-dos yet.",
   MY_DAY: "Nothing due today.",
   IMPORTANT: "No high-priority items right now.",
   UPCOMING: "Nothing coming up.",

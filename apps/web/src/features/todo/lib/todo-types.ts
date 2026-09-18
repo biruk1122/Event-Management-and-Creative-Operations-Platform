@@ -65,10 +65,15 @@ export interface RelatedOption {
   name: string;
 }
 
-/** SRS 5.15's "To-Do Categories". `MY_DAY` and `IMPORTANT`/`UPCOMING` are
- * computed from `dueDate`/`priority`/`status`, not stored fields - the same
- * "smart views are derived, not persisted" decision TODO-01's schema made. */
+/** SRS 5.15's "To-Do Categories" (`MY_DAY` through `COMPLETED`), plus `ALL` -
+ * without it, an item that is none of Work/Personal, not high/urgent
+ * priority, not due today or later, and not completed (e.g. an undated
+ * Reminder, Quick Note, or Follow-Up) would have no view that ever shows it.
+ * `MY_DAY`/`IMPORTANT`/`UPCOMING` are computed from `dueDate`/`priority`/
+ * `status`, not stored fields - the same "smart views are derived, not
+ * persisted" decision TODO-01's schema made. */
 export const TODO_SMART_VIEWS = [
+  "ALL",
   "MY_DAY",
   "IMPORTANT",
   "UPCOMING",
@@ -78,6 +83,7 @@ export const TODO_SMART_VIEWS = [
 ] as const;
 export type TodoSmartView = (typeof TODO_SMART_VIEWS)[number];
 export const TODO_SMART_VIEW_LABELS: Record<TodoSmartView, string> = {
+  ALL: "All",
   MY_DAY: "My Day",
   IMPORTANT: "Important",
   UPCOMING: "Upcoming",

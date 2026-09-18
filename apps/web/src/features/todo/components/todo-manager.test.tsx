@@ -41,6 +41,22 @@ function items(): TodoItem[] {
       createdAt: "2026-09-01T00:00:00.000Z",
       updatedAt: "2026-09-01T00:00:00.000Z",
     },
+    {
+      id: "todo-3",
+      title: "Follow up with sponsor",
+      description: null,
+      type: "FOLLOW_UP",
+      priority: "MEDIUM",
+      status: "NOT_STARTED",
+      dueDate: null,
+      dueTime: null,
+      relatedEventId: null,
+      relatedProjectId: null,
+      reminderEnabled: false,
+      reminderAt: null,
+      createdAt: "2026-09-01T00:00:00.000Z",
+      updatedAt: "2026-09-01T00:00:00.000Z",
+    },
   ];
 }
 
@@ -75,6 +91,31 @@ describe("TodoManager", () => {
 
     expect(screen.getByText("Confirm venue availability")).toBeVisible();
     expect(screen.queryByText("Buy anniversary gift")).not.toBeInTheDocument();
+  });
+
+  it("shows an undated, non-Work/Personal, non-important item only under All", async () => {
+    const user = setup();
+
+    // None of the six curated views ever show it - not due today or later,
+    // not high/urgent priority, not Work or Personal, not completed.
+    expect(
+      screen.queryByText("Follow up with sponsor"),
+    ).not.toBeInTheDocument();
+    for (const view of [
+      "Upcoming",
+      "Important",
+      "Work",
+      "Personal",
+      "Completed",
+    ]) {
+      await user.click(screen.getByRole("button", { name: view }));
+      expect(
+        screen.queryByText("Follow up with sponsor"),
+      ).not.toBeInTheDocument();
+    }
+
+    await user.click(screen.getByRole("button", { name: "All" }));
+    expect(screen.getByText("Follow up with sponsor")).toBeVisible();
   });
 
   it("shows an empty state when a view has nothing to show", async () => {
