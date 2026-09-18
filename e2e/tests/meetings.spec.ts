@@ -71,7 +71,7 @@ test.describe("Meeting participant responses — end to end", () => {
       });
       await participantPage.goto("/meetings");
       await expect(
-        participantPage.getByText(title, { exact: true }),
+        participantPage.getByRole("heading", { name: title, exact: true }),
       ).toBeVisible();
       await participantPage.getByRole("button", { name: "Accept" }).click();
       await expect(participantPage.getByRole("status")).toHaveText(
