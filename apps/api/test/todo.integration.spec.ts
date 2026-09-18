@@ -311,4 +311,91 @@ describe("personal to-do and reminders API", () => {
     expect(afterEventRemoval.status).toBe(200);
     expect((afterEventRemoval.body as TodoBody).relatedEventId).toBeNull();
   });
+
+  it("keeps another user's to-dos out of the list view, not just direct access", async () => {
+    // The earlier privacy test only proves a foreign-owned id is refused;
+    // list scoping is a separate code path (TodoRepository.list's own
+    // `userId` filter) and deserves its own direct proof.
+    const mine = await prisma.todo.create({
+      data: { userId: owner.userId, title: "Mine", type: "PERSONAL" },
+    });
+    const theirs = await prisma.todo.create({
+      data: { userId: other.userId, title: "Theirs", type: "PERSONAL" },
+    });
+
+    const list = await as(owner, "get", "/api/v1/todos?type=PERSONAL");
+    expect(list.status).toBe(200);
+    const ids = (list.body as { items: TodoBody[] }).items.map(({ id }) => id);
+    expect(ids).toContain(mine.id);
+    expect(ids).not.toContain(theirs.id);
+  });
+
+  describe("transaction atomicity", () => {
+    async function withForcedReminderFailure<T>(
+      run: () => Promise<T>,
+    ): Promise<T> {
+      await db.query(`
+        CREATE FUNCTION force_todo_reminder_failure() RETURNS trigger AS $$
+        BEGIN
+          RAISE EXCEPTION 'forced todo reminder failure';
+        END;
+        $$ LANGUAGE plpgsql;
+      `);
+      await db.query(`
+        CREATE TRIGGER force_todo_reminder_failure
+        BEFORE INSERT ON todo_reminders
+        FOR EACH ROW EXECUTE FUNCTION force_todo_reminder_failure();
+      `);
+      try {
+        return await run();
+      } finally {
+        await db.query(
+          "DROP TRIGGER force_todo_reminder_failure ON todo_reminders",
+        );
+        await db.query("DROP FUNCTION force_todo_reminder_failure()");
+      }
+    }
+
+    it("rolls back to-do creation when its reminder cannot be persisted", async () => {
+      await withForcedReminderFailure(async () => {
+        const response = await as(owner, "post", "/api/v1/todos").send({
+          title: "Should not persist",
+          reminderAt: "2026-05-01T09:00:00.000Z",
+        });
+        expect(response.status).toBe(500);
+        expect(response.body).toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+
+        const rows = await db.query(`SELECT id FROM todos WHERE title = $1`, [
+          "Should not persist",
+        ]);
+        expect(rows).toHaveLength(0);
+      });
+    });
+
+    it("rolls back a to-do update when its replacement reminder cannot be persisted", async () => {
+      const todo = await prisma.todo.create({
+        data: { userId: owner.userId, title: "Original title" },
+      });
+
+      await withForcedReminderFailure(async () => {
+        const response = await as(
+          owner,
+          "patch",
+          `/api/v1/todos/${todo.id}`,
+        ).send({
+          title: "Should not stick",
+          reminderAt: "2026-05-01T09:00:00.000Z",
+        });
+        expect(response.status).toBe(500);
+
+        // The title change from the same request must not survive either -
+        // the whole transaction, not just the reminder half, rolls back.
+        const reloaded = await prisma.todo.findUniqueOrThrow({
+          where: { id: todo.id },
+        });
+        expect(reloaded.title).toBe("Original title");
+        expect(reloaded.reminderEnabled).toBe(false);
+      });
+    });
+  });
 });
