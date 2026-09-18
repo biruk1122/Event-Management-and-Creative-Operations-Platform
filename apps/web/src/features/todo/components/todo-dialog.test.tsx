@@ -136,7 +136,7 @@ describe("TodoDialog", () => {
 
   it("pre-fills the form and offers delete when editing an existing item", async () => {
     const user = userEvent.setup();
-    const onDelete = vi.fn().mockResolvedValue(undefined);
+    const onDelete = vi.fn().mockResolvedValue({ status: "success" });
     render(
       <TodoDialog
         open
@@ -178,4 +178,42 @@ describe("TodoDialog", () => {
       await screen.findByText("We could not save this to-do. Try again."),
     ).toBeVisible();
   });
+
+  it.each([
+    ["schedule_invalid", "A due time requires a due date."],
+    [
+      "related_event_not_found",
+      "That related event no longer exists. Refresh and pick another, or leave it blank.",
+    ],
+    [
+      "related_project_not_found",
+      "That related project no longer exists. Refresh and pick another, or leave it blank.",
+    ],
+    [
+      "permission_denied",
+      "You don't have permission to do that. Refresh and try again.",
+    ],
+  ] as const)(
+    "shows the mapped message for a %s save outcome",
+    async (status, message) => {
+      const user = userEvent.setup();
+      const onSubmit = vi
+        .fn()
+        .mockResolvedValue({ status } satisfies TodoFormOutcome);
+      render(
+        <TodoDialog
+          open
+          onOpenChange={() => {}}
+          eventOptions={EVENT_OPTIONS}
+          projectOptions={PROJECT_OPTIONS}
+          onSubmit={onSubmit}
+        />,
+      );
+
+      await user.type(screen.getByLabelText("Title"), "Follow up");
+      await user.click(screen.getByRole("button", { name: "Create to-do" }));
+
+      expect(await screen.findByText(message)).toBeVisible();
+    },
+  );
 });

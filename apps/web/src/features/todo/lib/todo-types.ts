@@ -1,7 +1,5 @@
-/** Mirrors `TodoResponse` (apps/api/src/todo/todo.contracts.ts). Hand-rolled
- * for now - TODO-05 replaces this with types aliased from the generated
- * OpenAPI schema once the UI is wired to the real API, matching how every
- * other feature in this repo made that same transition. */
+import type { components } from "@event-platform/api-client";
+
 export const TODO_TYPES = [
   "PERSONAL",
   "WORK",
@@ -39,25 +37,8 @@ export const TODO_STATUS_LABELS: Record<TodoStatus, string> = {
   COMPLETED: "Completed",
 };
 
-export interface TodoItem {
-  id: string;
-  title: string;
-  description: string | null;
-  type: TodoType;
-  priority: TodoPriority;
-  status: TodoStatus;
-  /** "YYYY-MM-DD", or null if no due date is set. */
-  dueDate: string | null;
-  /** "HH:mm:ss", paired with `dueDate` - never set without it. */
-  dueTime: string | null;
-  relatedEventId: string | null;
-  relatedProjectId: string | null;
-  reminderEnabled: boolean;
-  /** ISO 8601 UTC, or null when no reminder is scheduled. */
-  reminderAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+export type TodoItem = components["schemas"]["TodoResponse"];
+export type TodoFeedResponse = components["schemas"]["TodoFeedResponse"];
 
 /** A selectable option for the "related event"/"related project" pickers. */
 export interface RelatedOption {

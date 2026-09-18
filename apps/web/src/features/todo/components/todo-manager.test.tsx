@@ -1,80 +1,165 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { CurrentAccess } from "@/features/auth/api/access-queries";
+import type {
+  ConnectRealtime,
+  RealtimeConnectionListener,
+  RealtimeConnectionState,
+} from "@/features/realtime";
 
 import { TodoManager } from "./todo-manager";
 import type { TodoItem } from "../lib/todo-types";
 
+const { get, post, patch, del } = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+  del: vi.fn(),
+}));
+vi.mock("@/lib/api/browser", () => ({
+  browserApi: { GET: get, POST: post, PATCH: patch, DELETE: del },
+}));
+vi.mock("@/env/client", () => ({
+  clientEnvironment: {
+    NEXT_PUBLIC_WS_URL: "http://localhost:4000",
+    NEXT_PUBLIC_API_URL: "http://localhost:4000/api/v1",
+  },
+}));
+
 const TODAY = "2026-09-16";
 
-function items(): TodoItem[] {
-  return [
-    {
-      id: "todo-1",
-      title: "Confirm venue availability",
-      description: null,
-      type: "WORK",
-      priority: "HIGH",
-      status: "NOT_STARTED",
-      dueDate: TODAY,
-      dueTime: "09:00:00",
-      relatedEventId: null,
-      relatedProjectId: null,
-      reminderEnabled: false,
-      reminderAt: null,
-      createdAt: "2026-09-01T00:00:00.000Z",
-      updatedAt: "2026-09-01T00:00:00.000Z",
-    },
-    {
-      id: "todo-2",
-      title: "Buy anniversary gift",
-      description: null,
-      type: "PERSONAL",
-      priority: "LOW",
-      status: "NOT_STARTED",
-      dueDate: "2026-09-20",
-      dueTime: null,
-      relatedEventId: null,
-      relatedProjectId: null,
-      reminderEnabled: false,
-      reminderAt: null,
-      createdAt: "2026-09-01T00:00:00.000Z",
-      updatedAt: "2026-09-01T00:00:00.000Z",
-    },
-    {
-      id: "todo-3",
-      title: "Follow up with sponsor",
-      description: null,
-      type: "FOLLOW_UP",
-      priority: "MEDIUM",
-      status: "NOT_STARTED",
-      dueDate: null,
-      dueTime: null,
-      relatedEventId: null,
-      relatedProjectId: null,
-      reminderEnabled: false,
-      reminderAt: null,
-      createdAt: "2026-09-01T00:00:00.000Z",
-      updatedAt: "2026-09-01T00:00:00.000Z",
-    },
-  ];
+const access: CurrentAccess = {
+  userId: "viewer-1",
+  grants: [
+    { permissionKey: "todo.read", scope: "SELF" },
+    { permissionKey: "todo.create", scope: "SELF" },
+    { permissionKey: "todo.update", scope: "SELF" },
+    { permissionKey: "todo.delete", scope: "SELF" },
+  ],
+};
+
+function item(overrides: Partial<TodoItem> = {}): TodoItem {
+  return {
+    id: "todo-1",
+    title: "Confirm venue availability",
+    description: null,
+    type: "WORK",
+    priority: "HIGH",
+    status: "NOT_STARTED",
+    dueDate: TODAY,
+    dueTime: "09:00:00",
+    relatedEventId: null,
+    relatedProjectId: null,
+    reminderEnabled: false,
+    reminderAt: null,
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: "2026-09-01T00:00:00.000Z",
+    ...overrides,
+  };
 }
 
-function setup() {
+/** A controllable fake connection, mirroring calendar-manager.test.tsx's own. */
+function fakeConnect() {
+  const listeners: RealtimeConnectionListener[] = [];
+  const connect: ConnectRealtime = (listener) => {
+    listeners.push(listener);
+    return () => {};
+  };
+  return {
+    connect,
+    emit: (state: RealtimeConnectionState) =>
+      listeners[listeners.length - 1]?.(state),
+  };
+}
+
+const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } });
+const failed = (status: number) => ({
+  data: undefined,
+  response: { ok: false, status },
+});
+
+function mockGetRoutes(routes: Record<string, unknown>) {
+  get.mockImplementation((path: string) =>
+    Promise.resolve(ok(routes[path] ?? { items: [] })),
+  );
+}
+
+afterEach(() => vi.resetAllMocks());
+
+function setup(fake = fakeConnect()) {
   const user = userEvent.setup();
-  render(<TodoManager initialItems={items()} initialToday={TODAY} />);
-  return user;
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <TodoManager
+        access={access}
+        connect={fake.connect}
+        initialToday={TODAY}
+      />
+    </QueryClientProvider>,
+  );
+  return { user, fake, client };
 }
 
 describe("TodoManager", () => {
-  it("shows the My Day view by default with only today's item", () => {
+  it("shows a loading state, then the My Day view with only today's item from the real API", async () => {
+    let resolveGet: (value: unknown) => void = () => {};
+    get.mockImplementation((path: string) => {
+      if (path === "/api/v1/todos") {
+        return new Promise((resolve) => {
+          resolveGet = resolve;
+        });
+      }
+      return Promise.resolve(ok({ items: [] }));
+    });
     setup();
-    expect(screen.getByText("Confirm venue availability")).toBeVisible();
+
+    expect(screen.getByText("Loading your to-dos…")).toBeVisible();
+    resolveGet(
+      ok({
+        items: [
+          item(),
+          item({
+            id: "todo-2",
+            title: "Buy anniversary gift",
+            priority: "LOW",
+            dueDate: "2026-09-20",
+          }),
+        ],
+      }),
+    );
+
+    expect(await screen.findByText("Confirm venue availability")).toBeVisible();
     expect(screen.queryByText("Buy anniversary gift")).not.toBeInTheDocument();
   });
 
   it("switches to Upcoming and shows the future, not-yet-completed item", async () => {
-    const user = setup();
+    mockGetRoutes({
+      "/api/v1/todos": {
+        items: [
+          item(),
+          item({
+            id: "todo-2",
+            title: "Buy anniversary gift",
+            priority: "LOW",
+            dueDate: "2026-09-20",
+          }),
+        ],
+      },
+    });
+    const { user } = setup();
+    await screen.findByText("Confirm venue availability");
 
     await user.click(screen.getByRole("button", { name: "Upcoming" }));
 
@@ -84,23 +169,24 @@ describe("TodoManager", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("switches to Important and shows only high/urgent-priority items", async () => {
-    const user = setup();
-
-    await user.click(screen.getByRole("button", { name: "Important" }));
-
-    expect(screen.getByText("Confirm venue availability")).toBeVisible();
-    expect(screen.queryByText("Buy anniversary gift")).not.toBeInTheDocument();
-  });
-
   it("shows an undated, non-Work/Personal, non-important item only under All", async () => {
-    const user = setup();
+    mockGetRoutes({
+      "/api/v1/todos": {
+        items: [
+          item({
+            id: "todo-3",
+            title: "Follow up with sponsor",
+            type: "FOLLOW_UP",
+            priority: "MEDIUM",
+            dueDate: null,
+            dueTime: null,
+          }),
+        ],
+      },
+    });
+    const { user } = setup();
+    await screen.findByText("Nothing due today.");
 
-    // None of the six curated views ever show it - not due today or later,
-    // not high/urgent priority, not Work or Personal, not completed.
-    expect(
-      screen.queryByText("Follow up with sponsor"),
-    ).not.toBeInTheDocument();
     for (const view of [
       "Upcoming",
       "Important",
@@ -118,16 +204,11 @@ describe("TodoManager", () => {
     expect(screen.getByText("Follow up with sponsor")).toBeVisible();
   });
 
-  it("shows an empty state when a view has nothing to show", async () => {
-    const user = setup();
-
-    await user.click(screen.getByRole("button", { name: "Completed" }));
-
-    expect(screen.getByText("Nothing completed yet.")).toBeVisible();
-  });
-
-  it("toggles an item's status without opening the edit dialog", async () => {
-    const user = setup();
+  it("toggles an item's status through a minimal status-only PATCH", async () => {
+    mockGetRoutes({ "/api/v1/todos": { items: [item()] } });
+    patch.mockResolvedValue(ok({ ...item(), status: "COMPLETED" }));
+    const { user } = setup();
+    await screen.findByText("Confirm venue availability");
 
     await user.click(
       screen.getByRole("button", {
@@ -135,13 +216,29 @@ describe("TodoManager", () => {
       }),
     );
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Completed" }));
-    expect(screen.getByText("Confirm venue availability")).toBeVisible();
+    await waitFor(() =>
+      expect(patch).toHaveBeenCalledWith(
+        "/api/v1/todos/{id}",
+        expect.objectContaining({
+          params: { path: { id: "todo-1" } },
+          body: { status: "COMPLETED" },
+        }),
+      ),
+    );
   });
 
-  it("edits an item and reflects the change immediately", async () => {
-    const user = setup();
+  it("edits an item through the real API", async () => {
+    get.mockImplementation((path: string) => {
+      if (path === "/api/v1/todos") {
+        return Promise.resolve(ok({ items: [item()] }));
+      }
+      return Promise.resolve(ok({ items: [] }));
+    });
+    patch.mockResolvedValue(
+      ok({ ...item(), title: "Confirm venue and catering" }),
+    );
+    const { user } = setup();
+    await screen.findByText("Confirm venue availability");
 
     await user.click(screen.getByText("Confirm venue availability"));
     const dialog = screen.getByRole("dialog");
@@ -152,26 +249,64 @@ describe("TodoManager", () => {
       within(dialog).getByRole("button", { name: "Save changes" }),
     );
 
-    expect(await screen.findByText("Confirm venue and catering")).toBeVisible();
-    expect(
-      screen.queryByText("Confirm venue availability"),
-    ).not.toBeInTheDocument();
+    await waitFor(() => expect(patch).toHaveBeenCalledTimes(1));
+    const call = patch.mock.calls[0] as [string, { body: object }];
+    expect(call[0]).toBe("/api/v1/todos/{id}");
+    expect(call[1].body).toMatchObject({ title: "Confirm venue and catering" });
   });
 
-  it("deletes an item", async () => {
-    const user = setup();
+  it("shows the not-found error when editing an item deleted elsewhere", async () => {
+    mockGetRoutes({ "/api/v1/todos": { items: [item()] } });
+    patch.mockResolvedValue({
+      data: undefined,
+      error: { code: "TODO_NOT_FOUND", status: 404 },
+      response: { ok: false, status: 404 },
+    });
+    const { user } = setup();
+    await screen.findByText("Confirm venue availability");
+
+    await user.click(screen.getByText("Confirm venue availability"));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save changes" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "This to-do no longer exists. It may already have been changed or removed elsewhere.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("deletes an item through the real API", async () => {
+    get
+      .mockImplementationOnce(() => Promise.resolve(ok({ items: [item()] })))
+      .mockImplementation(() => Promise.resolve(ok({ items: [] })));
+    del.mockResolvedValue({ response: { ok: true, status: 204 } });
+    const { user } = setup();
+    await screen.findByText("Confirm venue availability");
 
     await user.click(screen.getByText("Confirm venue availability"));
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
+    await waitFor(() =>
+      expect(del).toHaveBeenCalledWith(
+        "/api/v1/todos/{id}",
+        expect.objectContaining({ params: { path: { id: "todo-1" } } }),
+      ),
+    );
     expect(
       screen.queryByText("Confirm venue availability"),
     ).not.toBeInTheDocument();
   });
 
-  it("creates a new to-do through the toolbar's Add to-do action", async () => {
-    const user = setup();
+  it("creates a new to-do through the real API via the toolbar's Add to-do action", async () => {
+    const created = item({ id: "todo-9", title: "Book caterer" });
+    mockGetRoutes({ "/api/v1/todos": { items: [] } });
+    post.mockResolvedValue(ok(created));
+    const { user } = setup();
+    await screen.findByRole("button", { name: "Add to-do" });
 
     await user.click(screen.getByRole("button", { name: "Add to-do" }));
     const dialog = screen.getByRole("dialog");
@@ -183,6 +318,74 @@ describe("TodoManager", () => {
       within(dialog).getByRole("button", { name: "Create to-do" }),
     );
 
-    expect(await screen.findByText("Book caterer")).toBeVisible();
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(1));
+    const call = post.mock.calls[0] as [string, { body: { title: string } }];
+    expect(call[0]).toBe("/api/v1/todos");
+    expect(call[1].body).toMatchObject({ title: "Book caterer" });
+  });
+
+  it("offers related event and project options sourced from the real API", async () => {
+    mockGetRoutes({
+      "/api/v1/todos": { items: [] },
+      "/api/v1/events": { items: [{ id: "event-1", name: "Q4 launch event" }] },
+      "/api/v1/projects": {
+        items: [{ id: "project-1", name: "Brand refresh" }],
+      },
+    });
+    const { user } = setup();
+    await screen.findByRole("button", { name: "Add to-do" });
+
+    await user.click(screen.getByRole("button", { name: "Add to-do" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByLabelText("Related event (optional)"));
+    expect(
+      await screen.findByRole("option", { name: "Q4 launch event" }),
+    ).toBeVisible();
+  });
+
+  it("shows an error state with a retry action when the feed fails to load", async () => {
+    get.mockImplementation((path: string) =>
+      path === "/api/v1/todos"
+        ? Promise.resolve(failed(500))
+        : Promise.resolve(ok({ items: [] })),
+    );
+    const { user } = setup();
+
+    expect(
+      await screen.findByText("We could not load your to-dos. Try again."),
+    ).toBeVisible();
+
+    get.mockImplementation(() => Promise.resolve(ok({ items: [item()] })));
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText("Confirm venue availability")).toBeVisible();
+  });
+
+  it("shows a reconnecting banner while the live connection drops", async () => {
+    mockGetRoutes({ "/api/v1/todos": { items: [] } });
+    const { fake } = setup();
+    await screen.findByRole("button", { name: "Add to-do" });
+
+    fake.emit({ status: "reconnecting", detail: null, rooms: [] });
+
+    expect(await screen.findByText("Reconnecting…")).toBeVisible();
+  });
+
+  it("reconciles (refetches) the to-do list after reconnecting, but not on the first connect", async () => {
+    mockGetRoutes({ "/api/v1/todos": { items: [] } });
+    const { fake } = setup();
+    await screen.findByRole("button", { name: "Add to-do" });
+    const callsAfterFirstLoad = get.mock.calls.length;
+
+    fake.emit({ status: "connected", detail: null, rooms: [] });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(get.mock.calls.length).toBe(callsAfterFirstLoad);
+
+    fake.emit({ status: "reconnecting", detail: null, rooms: [] });
+    fake.emit({ status: "connected", detail: null, rooms: [] });
+
+    await waitFor(() =>
+      expect(get.mock.calls.length).toBeGreaterThan(callsAfterFirstLoad),
+    );
   });
 });

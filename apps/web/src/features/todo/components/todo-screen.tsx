@@ -4,10 +4,16 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { useCurrentAccess } from "@/features/auth/api/access-queries";
+import type { ConnectRealtime } from "@/features/realtime";
 
 import { TodoManager } from "./todo-manager";
 
-export function TodoScreen() {
+export interface TodoScreenProps {
+  /** Testing seam, forwarded to `TodoManager`. */
+  connect?: ConnectRealtime;
+}
+
+export function TodoScreen({ connect }: TodoScreenProps = {}) {
   const access = useCurrentAccess();
   const allowed =
     access.data?.grants.some((grant) => grant.permissionKey === "todo.read") ??
@@ -37,5 +43,11 @@ export function TodoScreen() {
     );
   if (!allowed)
     return <p role="alert">You do not have access to your to-do list.</p>;
-  return <TodoManager key={access.data.userId} />;
+  return (
+    <TodoManager
+      key={access.data.userId}
+      access={access.data}
+      {...(connect ? { connect } : {})}
+    />
+  );
 }
