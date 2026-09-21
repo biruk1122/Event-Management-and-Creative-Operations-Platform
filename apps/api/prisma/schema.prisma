@@ -111,6 +111,7 @@ model User {
   workspaceParticipations  WorkspaceParticipant[]
   createdEvents            Event[]                   @relation("EventCreatedBy")
   createdProjects          Project[]                 @relation("ProjectCreatedBy")
+  createdCampaigns         Campaign[]                @relation("CampaignCreatedBy")
   initiatedManagedFiles    ManagedFile[]             @relation("ManagedFileInitiator")
   workspaceFileAttachments WorkspaceFileAttachment[] @relation("WorkspaceFileAttachedBy")
   createdTasks             Task[]                    @relation("TaskCreatedBy")
@@ -450,10 +451,11 @@ model Workspace {
   /// from being replayed against another workspace.
   fileUploadIntents ManagedFile[]             @relation("ManagedFileIntentWorkspace")
   /// The one module record that owns this workspace, when its `kind` is
-  /// `EVENT` or `PROJECT`. Later epics add the equivalent inverse for
-  /// production and campaign.
+  /// `EVENT`, `PROJECT`, or `CAMPAIGN`. A later epic adds the equivalent
+  /// inverse for production.
   event             Event?
   project           Project?
+  campaign          Campaign?
   tasks             Task[]
   meetings          Meeting[]
   conversations     Conversation[]
@@ -899,6 +901,9 @@ model Event {
   /// unbounded cross-reference between peers, not ownership - deleting the
   /// event clears it on each project rather than being blocked.
   projects          Project[]
+  /// Campaigns that optionally relate to this event (CAM-01), with the same
+  /// soft cross-reference semantics as `projects`.
+  campaigns         Campaign[]
   calendarEntries   CalendarEntry[]
   notifications     Notification[]
   todos             Todo[]
@@ -1120,6 +1125,149 @@ model Project {
   @@index([startAt])
   @@index([createdById])
   @@map("projects")
+}
+
+/// The ownership classification of a campaign (product vocabulary "Campaign
+/// type"): Marketing or Promotion. The SRS labels Advertising and Social Media
+/// are promotion channels, not separate owning modules, so they are not values
+/// here; channels belong to Promotion Management (PRO-01).
+enum CampaignType {
+  MARKETING
+  PROMOTION
+
+  @@map("campaign_type")
+}
+
+/// The common campaign lifecycle for marketing and promotion campaigns.
+/// `PLANNED` is the initial state; `COMPLETED` and `CANCELLED` are terminal.
+/// The approved transition graph is `Planned -> Active | Cancelled`, `Active ->
+/// Completed | Cancelled`. Entry criteria, transition authority, and reopening
+/// are open in OD-03 and enforced by CAM-02 in the domain layer - a CHECK
+/// cannot express a state machine.
+enum CampaignStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+
+  @@map("campaign_status")
+}
+
+/// The state of one planned campaign activity. The product vocabulary defines
+/// an activity as a planned unit of work but publishes no lifecycle for it, so
+/// this is the minimal work-item vocabulary needed to derive campaign progress
+/// (OD-13); it does not duplicate `TaskStatus`, because an activity is not
+/// automatically a task.
+enum CampaignActivityStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@map("campaign_activity_status")
+}
+
+/// One campaign shared by Marketing and Promotion Management (SRS 5.8, 5.9;
+/// product vocabulary "Campaign"). Marketing- and promotion-specific data
+/// (strategies, channels, promotion activities) is owned by MKT and PRO and
+/// references this model rather than duplicating it.
+///
+/// The shared operational context - the campaign manager, the assigned teams,
+/// and the assigned employees - lives on the campaign's connected `Workspace`
+/// (WSP-01), not here: `workspace.manager_id` is the campaign manager,
+/// `workspace_teams` the assigned teams, and `workspace_participants` the
+/// assigned employees. Tasks, meetings, discussions, and files attach to that
+/// same workspace through their own explicit relations, so this model needs no
+/// per-capability columns.
+///
+/// `workspace_id` is required and unique: every campaign owns exactly one
+/// workspace, created with it and always of `kind = CAMPAIGN` (CAM-02 sets
+/// that pairing; a plain foreign key cannot cross-check the discriminator).
+/// The FK is `ON DELETE RESTRICT` so a workspace a campaign still owns cannot
+/// be dropped out from under it; CAM-02's delete path removes the campaign and
+/// then its workspace in one transaction.
+///
+/// The SRS "Related Event / Product" subject is modelled without an unchecked
+/// polymorphic pair: `event_id` is a real foreign key (`ON DELETE SET NULL`,
+/// a soft cross-reference between peers, not ownership) and `product_name` is
+/// free text, because the SRS does not define Product as an independently
+/// managed module. A CHECK allows at most one of the two, so a campaign has
+/// one related subject or none.
+///
+/// Progress is deliberately **not** a stored column: OD-13 leaves how it is
+/// calculated open, and it is derived from authoritative work (campaign
+/// activities and connected tasks) rather than held as redundant,
+/// staleness-prone data - the same decision `Project` made. Talent
+/// assignments are added by the talent/promotion slices that own them, and
+/// calendar projection by the calendar-integration slice.
+model Campaign {
+  id             String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  workspaceId    String         @unique @map("workspace_id") @db.Uuid
+  name           String
+  campaignType   CampaignType   @map("campaign_type")
+  description    String?
+  /// The target audience described in the SRS; free text pending a structured
+  /// audience decision.
+  audience       String?
+  /// UTC start / end of the campaign. Nullable: a `PLANNED` campaign may not
+  /// be scheduled yet. A CHECK keeps `end_at` at or after `start_at` when both
+  /// are set. Display time zones and all-day handling are open in OD-15;
+  /// storage stays UTC.
+  startAt        DateTime?      @map("start_at") @db.Timestamptz(6)
+  endAt          DateTime?      @map("end_at") @db.Timestamptz(6)
+  status         CampaignStatus @default(PLANNED)
+  eventId        String?        @map("event_id") @db.Uuid
+  productName    String?        @map("product_name")
+  /// Optional budget. A CHECK requires the amount and the ISO-4217 currency
+  /// code to be set together, the amount to be non-negative, and the code to
+  /// be three upper-case letters (OD-14 owns the supported set and rounding).
+  budgetAmount   Decimal?       @map("budget_amount") @db.Decimal(14, 2)
+  budgetCurrency String?        @map("budget_currency") @db.Char(3)
+  /// The user who created the campaign; cleared, not cascaded, if that user
+  /// row is removed.
+  createdById    String?        @map("created_by_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace  Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  event      Event?             @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy  User?              @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  activities CampaignActivity[]
+
+  // Administration and the connected-workspace overview filter campaigns by
+  // owning module, lifecycle state, related event, schedule, and author.
+  @@index([campaignType, status])
+  @@index([status])
+  @@index([eventId])
+  @@index([startAt])
+  @@index([createdById])
+  @@map("campaigns")
+}
+
+/// A planned unit of work owned by one campaign (product vocabulary "Campaign
+/// activity"). It may relate to tasks through the campaign's workspace but is
+/// not itself a task. Activities are pure child data, so they cascade with the
+/// campaign.
+model CampaignActivity {
+  id          String                 @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  campaignId  String                 @map("campaign_id") @db.Uuid
+  name        String
+  description String?
+  /// UTC start / end of the activity; a CHECK keeps `end_at` at or after
+  /// `start_at` when both are set.
+  startAt     DateTime?              @map("start_at") @db.Timestamptz(6)
+  endAt       DateTime?              @map("end_at") @db.Timestamptz(6)
+  status      CampaignActivityStatus @default(PLANNED)
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  // A campaign's activity list is read by lifecycle state (progress) and by
+  // schedule.
+  @@index([campaignId, status])
+  @@index([campaignId, startAt])
+  @@map("campaign_activities")
 }
 
 /// The approved meeting-type vocabulary used by the meeting domain and API.
