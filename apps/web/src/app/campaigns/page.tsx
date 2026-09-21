@@ -4,21 +4,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
-import {
-  CampaignsManager,
-  listAssignableEvents,
-  listAssignableTeams,
-  listAssignableUsers,
-  listCampaigns,
-} from "@/features/campaigns";
+import { CampaignsScreen } from "@/features/campaigns";
 
 export const metadata: Metadata = { title: "Campaigns" };
 
 /**
  * Reading campaigns is gated by `campaign.read` at organization scope - the
- * same rule `CampaignsService` enforces. CAM-05 moves the data fetching to real
- * API calls; this slice checks the grant and renders the fixture-backed
- * management surface.
+ * same rule `CampaignsService` enforces. This server check is the first gate;
+ * the client `CampaignsScreen` re-checks and keeps the grant fresh.
  */
 const READ_KEY = "campaign.read";
 
@@ -33,13 +26,6 @@ export default async function CampaignsPage() {
     (grant) =>
       grant.permissionKey === READ_KEY && grant.scope === "ORGANIZATION",
   );
-
-  const [firstPage, users, teams, events] = await Promise.all([
-    listCampaigns({ page: 1 }),
-    listAssignableUsers(),
-    listAssignableTeams(),
-    listAssignableEvents(),
-  ]);
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
@@ -58,12 +44,7 @@ export default async function CampaignsPage() {
             budget.
           </p>
           <div className="mt-6">
-            <CampaignsManager
-              initialPage={firstPage}
-              assignableUsers={users}
-              assignableTeams={teams}
-              assignableEvents={events}
-            />
+            <CampaignsScreen />
           </div>
         </>
       ) : (

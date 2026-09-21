@@ -45,6 +45,7 @@ function setup(
     deleteActivity: vi.fn((): Promise<DeleteCampaignActivityOutcome> =>
       Promise.resolve({ status: "success" }),
     ),
+    canManage: true,
     onProgressChange: vi.fn(),
     ...overrides,
   };
@@ -588,6 +589,42 @@ describe("CampaignActivities", () => {
       ).toBeVisible();
       expect(screen.getByText("Radio spots")).toBeVisible();
       expect(props.onProgressChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("without the manage ability", () => {
+    it("lists the activities with their status and no editing controls", async () => {
+      setup({ canManage: false });
+      await loaded();
+
+      expect(screen.getAllByRole("listitem")).toHaveLength(3);
+      expect(screen.getAllByText("Completed").length).toBeGreaterThan(0);
+      expect(
+        screen.queryByRole("button", { name: "Add activity" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Edit Radio spots" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Remove Radio spots" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    });
+
+    it("still shows the derived progress", async () => {
+      setup({ canManage: false });
+      await loaded();
+
+      expect(
+        screen.getByRole("progressbar", { name: "Progress from activities" }),
+      ).toHaveAttribute("aria-valuenow", "50");
+    });
+
+    it("does not tell a read-only user to add the first activity", async () => {
+      setup({ canManage: false }, []);
+
+      expect(await screen.findByText("No activities yet.")).toBeVisible();
+      expect(screen.queryByText(/Add the first/)).not.toBeInTheDocument();
     });
   });
 });
