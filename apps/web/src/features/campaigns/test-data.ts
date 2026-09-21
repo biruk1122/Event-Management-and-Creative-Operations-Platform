@@ -1,3 +1,4 @@
+import type { CampaignAbilities } from "./lib/campaign-access";
 import type {
   AssignableEvent,
   AssignableTeam,
@@ -87,3 +88,15 @@ export function makeActivity(
 export function page(items: Campaign[]): PaginatedCampaigns {
   return { items, page: 1, pageSize: 25, total: items.length };
 }
+
+/** Every ability granted; tests override the ones they want to take away. */
+export const ALL_ABILITIES: CampaignAbilities = {
+  canCreate: true,
+  canUpdate: true,
+  canTransition: true,
+  canAssign: true,
+  canReadBudget: true,
+  canUpdateBudget: true,
+  canManageActivities: true,
+  canDelete: true,
+};

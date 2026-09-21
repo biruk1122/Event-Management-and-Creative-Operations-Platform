@@ -23,11 +23,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getCampaign as defaultGetCampaign } from "../api/get-campaign";
-import { getCampaignBudget as defaultGetCampaignBudget } from "../api/get-campaign-budget";
+import {
+  getCampaign as defaultGetCampaign,
+  getCampaignBudget as defaultGetCampaignBudget,
+} from "../api/campaigns-gateway";
 import { CampaignActivities } from "./campaign-activities";
 import { CampaignFields } from "./campaign-fields";
 import { CampaignStatusBadge } from "./status-badges";
+import type { CampaignAbilities } from "../lib/campaign-access";
 import {
   fieldsFromCampaign,
   toFormValues,
@@ -96,6 +99,8 @@ interface CampaignDetailDialogProps {
   users: readonly AssignableUser[];
   teams: readonly AssignableTeam[];
   events: readonly AssignableEvent[];
+  /** What the caller may do; controls are hidden or read-only without the matching grant. */
+  abilities: CampaignAbilities;
   getCampaign?: GetCampaign;
   getBudget?: GetCampaignBudget;
   listActivities: ListCampaignActivities;
@@ -150,6 +155,7 @@ function CampaignDetailBody({
   users,
   teams,
   events,
+  abilities,
   getCampaign = defaultGetCampaign,
   getBudget = defaultGetCampaignBudget,
   listActivities,
@@ -179,7 +185,7 @@ function CampaignDetailBody({
   );
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [budget, setBudget] = useState<CampaignBudget | null>(null);
-  const [budgetReadable, setBudgetReadable] = useState(true);
+  const [budgetReadable, setBudgetReadable] = useState(abilities.canReadBudget);
 
   const [fields, setFields] = useState<CampaignFieldValues | null>(null);
   const [fieldErrors, setFieldErrors] = useState<CampaignFieldErrors>({});
@@ -213,7 +219,10 @@ function CampaignDetailBody({
 
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([getCampaign(campaignId), getBudget(campaignId)])
+    const budgetPromise = abilities.canReadBudget
+      ? getBudget(campaignId)
+      : Promise.resolve(null);
+    void Promise.all([getCampaign(campaignId), budgetPromise])
       .then(([loaded, loadedBudget]) => {
         if (cancelled) return;
         if (!loaded) {
@@ -223,7 +232,7 @@ function CampaignDetailBody({
         setCampaign(loaded);
         setFields(fieldsFromCampaign(loaded));
         setBudget(loadedBudget);
-        setBudgetReadable(loadedBudget !== null);
+        setBudgetReadable(abilities.canReadBudget && loadedBudget !== null);
         setAmount(loadedBudget?.amount ?? "");
         setCurrency(loadedBudget?.currency ?? "");
         setStatus("loaded");
@@ -234,7 +243,7 @@ function CampaignDetailBody({
     return () => {
       cancelled = true;
     };
-  }, [campaignId, getCampaign, getBudget]);
+  }, [campaignId, getCampaign, getBudget, abilities.canReadBudget]);
 
   useEffect(() => {
     if (confirmingDelete) confirmRef.current?.focus();
@@ -267,7 +276,7 @@ function CampaignDetailBody({
   }
 
   async function saveDetails() {
-    if (!campaign || !fields) return;
+    if (!campaign || !fields || !abilities.canUpdate) return;
     const localErrors = validateFields(fields);
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors);
@@ -461,7 +470,7 @@ function CampaignDetailBody({
         <CampaignFields
           values={fields}
           errors={fieldErrors}
-          disabled={detailsBusy}
+          disabled={detailsBusy || !abilities.canUpdate}
           events={events}
           onChange={setField}
         />
@@ -470,14 +479,20 @@ function CampaignDetailBody({
             {detailsError}
           </p>
         ) : null}
-        <Button
-          type="submit"
-          size="sm"
-          disabled={detailsBusy}
-          aria-busy={detailsBusy}
-        >
-          {detailsBusy ? "Saving…" : "Save details"}
-        </Button>
+        {abilities.canUpdate ? (
+          <Button
+            type="submit"
+            size="sm"
+            disabled={detailsBusy}
+            aria-busy={detailsBusy}
+          >
+            {detailsBusy ? "Saving…" : "Save details"}
+          </Button>
+        ) : (
+          <p className="text-muted-foreground text-xs">
+            You have read-only access to this campaign&rsquo;s details.
+          </p>
+        )}
       </form>
 
       {/* Lifecycle */}
@@ -488,7 +503,11 @@ function CampaignDetailBody({
         <p id={`${ids.status}-heading`} className="text-sm font-medium">
           Lifecycle
         </p>
-        {moves.length === 0 ? (
+        {!abilities.canTransition ? (
+          <p className="text-muted-foreground text-sm">
+            Current status: {campaignStatusLabel(campaign.status)}.
+          </p>
+        ) : moves.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             {campaignStatusLabel(campaign.status)} is a final state.
           </p>
@@ -528,6 +547,7 @@ function CampaignDetailBody({
         createActivity={onCreateActivity}
         updateActivity={onUpdateActivity}
         deleteActivity={onDeleteActivity}
+        canManage={abilities.canManageActivities}
         onProgressChange={applyProgress}
       />
 
@@ -544,7 +564,7 @@ function CampaignDetailBody({
           <Label htmlFor={ids.manager}>Manager</Label>
           <Select
             value={campaign.manager?.id ?? NO_MANAGER}
-            disabled={managerBusy}
+            disabled={managerBusy || !abilities.canAssign}
             onValueChange={(value) => void changeManager(value)}
           >
             <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
@@ -578,21 +598,23 @@ function CampaignDetailBody({
                   className="flex items-center justify-between gap-2 text-sm"
                 >
                   <span>{team.name}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={teamBusy}
-                    aria-label={`Unassign ${team.name}`}
-                    onClick={() => void removeTeam(team.id)}
-                  >
-                    <X aria-hidden="true" className="size-4" />
-                  </Button>
+                  {abilities.canAssign ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={teamBusy}
+                      aria-label={`Unassign ${team.name}`}
+                      onClick={() => void removeTeam(team.id)}
+                    >
+                      <X aria-hidden="true" className="size-4" />
+                    </Button>
+                  ) : null}
                 </li>
               ))}
             </ul>
           )}
-          {addableTeams.length > 0 ? (
+          {abilities.canAssign && addableTeams.length > 0 ? (
             <div className="space-y-1">
               <Label htmlFor={ids.team}>Assign a team</Label>
               <Select
@@ -657,105 +679,111 @@ function CampaignDetailBody({
             <p className="text-muted-foreground text-sm">
               Current: {budgetSummary(budget)}
             </p>
-            <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
-              <div className="space-y-1">
-                <Label htmlFor={ids.amount}>Amount</Label>
-                <Input
-                  id={ids.amount}
-                  inputMode="decimal"
-                  value={amount}
-                  disabled={budgetBusy}
-                  onChange={(changeEvent) =>
-                    setAmount(changeEvent.target.value)
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor={ids.currency}>Currency</Label>
-                <Input
-                  id={ids.currency}
-                  value={currency}
-                  maxLength={3}
-                  placeholder="USD"
-                  disabled={budgetBusy}
-                  onChange={(changeEvent) =>
-                    setCurrency(changeEvent.target.value)
-                  }
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={budgetBusy}
-                  onClick={() => void saveBudget(false)}
-                >
-                  Save
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={budgetBusy}
-                  onClick={() => void saveBudget(true)}
-                >
-                  Clear
-                </Button>
-              </div>
-            </div>
-            {budgetError ? (
-              <p className="text-destructive text-sm" role="alert">
-                {budgetError}
-              </p>
+            {abilities.canUpdateBudget ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
+                  <div className="space-y-1">
+                    <Label htmlFor={ids.amount}>Amount</Label>
+                    <Input
+                      id={ids.amount}
+                      inputMode="decimal"
+                      value={amount}
+                      disabled={budgetBusy}
+                      onChange={(changeEvent) =>
+                        setAmount(changeEvent.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={ids.currency}>Currency</Label>
+                    <Input
+                      id={ids.currency}
+                      value={currency}
+                      maxLength={3}
+                      placeholder="USD"
+                      disabled={budgetBusy}
+                      onChange={(changeEvent) =>
+                        setCurrency(changeEvent.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={budgetBusy}
+                      onClick={() => void saveBudget(false)}
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={budgetBusy}
+                      onClick={() => void saveBudget(true)}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+                {budgetError ? (
+                  <p className="text-destructive text-sm" role="alert">
+                    {budgetError}
+                  </p>
+                ) : null}
+              </>
             ) : null}
           </>
         )}
       </section>
 
       {/* Danger zone */}
-      <div className="border-border space-y-2 border-t pt-4">
-        {confirmingDelete ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm">
-              Permanently delete this campaign and its activities?
-            </span>
+      {abilities.canDelete ? (
+        <div className="border-border space-y-2 border-t pt-4">
+          {confirmingDelete ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm">
+                Permanently delete this campaign and its activities?
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={deleteBusy}
+                onClick={() => setConfirmingDelete(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                ref={confirmRef}
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={deleteBusy}
+                aria-busy={deleteBusy}
+                onClick={() => void runDelete()}
+              >
+                {deleteBusy ? "Working…" : "Confirm delete"}
+              </Button>
+            </div>
+          ) : (
             <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={deleteBusy}
-              onClick={() => setConfirmingDelete(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              ref={confirmRef}
               type="button"
               variant="destructive"
               size="sm"
-              disabled={deleteBusy}
-              aria-busy={deleteBusy}
-              onClick={() => void runDelete()}
+              onClick={() => setConfirmingDelete(true)}
             >
-              {deleteBusy ? "Working…" : "Confirm delete"}
+              Delete campaign
             </Button>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => setConfirmingDelete(true)}
-          >
-            Delete campaign
-          </Button>
-        )}
-        {deleteError ? (
-          <Alert variant="destructive" aria-live="assertive">
-            <AlertTitle>{deleteError}</AlertTitle>
-          </Alert>
-        ) : null}
-      </div>
+          )}
+          {deleteError ? (
+            <Alert variant="destructive" aria-live="assertive">
+              <AlertTitle>{deleteError}</AlertTitle>
+            </Alert>
+          ) : null}
+        </div>
+      ) : null}
 
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}

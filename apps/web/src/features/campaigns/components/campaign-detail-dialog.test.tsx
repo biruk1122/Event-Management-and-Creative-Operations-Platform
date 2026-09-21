@@ -2,7 +2,20 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { EVENTS, TEAMS, USERS, makeActivity, makeCampaign } from "../test-data";
+// The dialog default-imports read helpers from the gateway, which pulls in the
+// real browser API client and validates public env vars at import time. Every
+// test here injects its own readers, so a stub client keeps that import chain
+// from throwing.
+vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
+
+import {
+  ALL_ABILITIES,
+  EVENTS,
+  TEAMS,
+  USERS,
+  makeActivity,
+  makeCampaign,
+} from "../test-data";
 import { CampaignDetailDialog } from "./campaign-detail-dialog";
 import type {
   DeleteCampaignOutcome,
@@ -25,6 +38,7 @@ function renderDialog(
     users: USERS,
     teams: TEAMS,
     events: EVENTS,
+    abilities: ALL_ABILITIES,
     getCampaign: vi.fn((): Promise<Campaign | null> =>
       Promise.resolve(makeCampaign()),
     ),
@@ -816,5 +830,138 @@ describe("CampaignDetailDialog", () => {
         ).toBeVisible();
       },
     );
+  });
+
+  describe("permission-aware controls", () => {
+    const NONE = {
+      canCreate: false,
+      canUpdate: false,
+      canTransition: false,
+      canAssign: false,
+      canReadBudget: false,
+      canUpdateBudget: false,
+      canManageActivities: false,
+      canDelete: false,
+    };
+
+    it("shows read-only details with no save button and a note", async () => {
+      renderDialog({ abilities: NONE });
+      await waitForLoaded();
+
+      expect(screen.getByLabelText("Name")).toBeDisabled();
+      expect(screen.getByLabelText("Target audience")).toBeDisabled();
+      expect(
+        screen.queryByRole("button", { name: "Save details" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByText(/read-only access to this campaign/),
+      ).toBeVisible();
+    });
+
+    it("never calls the update API without the update ability", async () => {
+      const props = renderDialog({ abilities: NONE });
+      await waitForLoaded();
+
+      // The form has no submit button, but a keyboard submit must still be inert.
+      const form = screen.getByRole("form", { name: "Edit campaign details" });
+      form.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+
+      expect(props.onUpdate).not.toHaveBeenCalled();
+    });
+
+    it("shows the current status instead of the transition control", async () => {
+      renderDialog({ abilities: NONE });
+      await waitForLoaded();
+
+      expect(screen.getByText("Current status: Planned.")).toBeVisible();
+      expect(
+        screen.queryByRole("combobox", { name: "Move to" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("locks the manager and hides team assignment without the assign ability", async () => {
+      renderDialog({ abilities: NONE });
+      await waitForLoaded();
+
+      expect(screen.getByRole("combobox", { name: "Manager" })).toBeDisabled();
+      expect(screen.getByText("Marketing Team")).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Unassign Marketing Team" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("combobox", { name: "Assign a team" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides the delete action without the delete ability", async () => {
+      renderDialog({ abilities: NONE });
+      await waitForLoaded();
+
+      expect(
+        screen.queryByRole("button", { name: "Delete campaign" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("does not request the budget without the read ability and says so", async () => {
+      const props = renderDialog({ abilities: NONE });
+      await waitForLoaded();
+
+      expect(props.getBudget).not.toHaveBeenCalled();
+      expect(
+        screen.getByText("You do not have permission to view the budget."),
+      ).toBeVisible();
+    });
+
+    it("shows the budget read-only when the caller may read but not update it", async () => {
+      renderDialog({
+        abilities: { ...NONE, canReadBudget: true },
+        getBudget: vi.fn(() =>
+          Promise.resolve({ amount: "25000.00", currency: "USD" }),
+        ),
+      });
+      await waitForLoaded();
+
+      expect(screen.getByText("Current: 25000.00 USD")).toBeVisible();
+      expect(screen.queryByLabelText("Amount")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Save" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides the budget when the API refuses it even though the grant looked present", async () => {
+      renderDialog({
+        abilities: { ...NONE, canReadBudget: true, canUpdateBudget: true },
+        getBudget: vi.fn(() => Promise.resolve(null)),
+      });
+      await waitForLoaded();
+
+      expect(
+        screen.getByText("You do not have permission to view the budget."),
+      ).toBeVisible();
+      expect(screen.queryByLabelText("Amount")).not.toBeInTheDocument();
+    });
+
+    it("lists the activities read-only without the manage ability", async () => {
+      renderDialog({
+        abilities: NONE,
+        listActivities: vi.fn(() =>
+          Promise.resolve([makeActivity({ id: "a1", name: "Teaser video" })]),
+        ),
+      });
+      await waitForLoaded();
+
+      expect(await screen.findByText("Teaser video")).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Add activity" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Edit Teaser video" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("combobox", { name: "Status of Teaser video" }),
+      ).not.toBeInTheDocument();
+    });
   });
 });

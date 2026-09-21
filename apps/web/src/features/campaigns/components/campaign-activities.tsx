@@ -75,6 +75,8 @@ interface CampaignActivitiesProps {
   createActivity: CreateCampaignActivity;
   updateActivity: UpdateCampaignActivity;
   deleteActivity: DeleteCampaignActivity;
+  /** Whether the caller may add, edit, change the status of, and remove activities. */
+  canManage: boolean;
   /** Called with the derived progress whenever the activity set changes. */
   onProgressChange: (progress: Progress) => void;
 }
@@ -90,6 +92,7 @@ export function CampaignActivities({
   createActivity,
   updateActivity,
   deleteActivity,
+  canManage,
   onProgressChange,
 }: CampaignActivitiesProps) {
   const headingId = useId();
@@ -215,7 +218,7 @@ export function CampaignActivities({
         <p id={headingId} className="text-sm font-medium">
           Activities
         </p>
-        {state === "loaded" && editing === null ? (
+        {state === "loaded" && editing === null && canManage ? (
           <Button
             type="button"
             size="sm"
@@ -279,7 +282,9 @@ export function CampaignActivities({
 
           {activities.length === 0 && editing !== "new" ? (
             <p className="text-muted-foreground text-sm">
-              No activities yet. Add the first planned unit of work.
+              {canManage
+                ? "No activities yet. Add the first planned unit of work."
+                : "No activities yet."}
             </p>
           ) : null}
 
@@ -317,68 +322,70 @@ export function CampaignActivities({
                     </p>
                   ) : null}
 
-                  <div className="flex flex-wrap items-end gap-2">
-                    <div className="w-full space-y-1 sm:w-64">
-                      <ActivityStatusSelect
-                        activity={activity}
+                  {canManage ? (
+                    <div className="flex flex-wrap items-end gap-2">
+                      <div className="w-full space-y-1 sm:w-64">
+                        <ActivityStatusSelect
+                          activity={activity}
+                          disabled={busyId === activity.id}
+                          onChange={(status) =>
+                            void changeStatus(activity, status)
+                          }
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
                         disabled={busyId === activity.id}
-                        onChange={(status) =>
-                          void changeStatus(activity, status)
-                        }
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={busyId === activity.id}
-                      aria-label={`Edit ${activity.name}`}
-                      onClick={() => {
-                        setConfirmingId(null);
-                        setEditing(activity.id);
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    {confirmingId === activity.id ? (
-                      <>
-                        <span className="text-sm">Remove this activity?</span>
+                        aria-label={`Edit ${activity.name}`}
+                        onClick={() => {
+                          setConfirmingId(null);
+                          setEditing(activity.id);
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      {confirmingId === activity.id ? (
+                        <>
+                          <span className="text-sm">Remove this activity?</span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            disabled={busyId === activity.id}
+                            onClick={() => setConfirmingId(null)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            ref={confirmRef}
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={busyId === activity.id}
+                            aria-busy={busyId === activity.id}
+                            onClick={() => void remove(activity)}
+                          >
+                            {busyId === activity.id
+                              ? "Working…"
+                              : `Confirm remove ${activity.name}`}
+                          </Button>
+                        </>
+                      ) : (
                         <Button
                           type="button"
                           size="sm"
                           variant="ghost"
                           disabled={busyId === activity.id}
-                          onClick={() => setConfirmingId(null)}
+                          aria-label={`Remove ${activity.name}`}
+                          onClick={() => setConfirmingId(activity.id)}
                         >
-                          Cancel
+                          Remove
                         </Button>
-                        <Button
-                          ref={confirmRef}
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          disabled={busyId === activity.id}
-                          aria-busy={busyId === activity.id}
-                          onClick={() => void remove(activity)}
-                        >
-                          {busyId === activity.id
-                            ? "Working…"
-                            : `Confirm remove ${activity.name}`}
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={busyId === activity.id}
-                        aria-label={`Remove ${activity.name}`}
-                        onClick={() => setConfirmingId(activity.id)}
-                      >
-                        Remove
-                      </Button>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  ) : null}
                   {rowError?.id === activity.id ? (
                     <p className="text-destructive text-sm" role="alert">
                       {rowError.message}

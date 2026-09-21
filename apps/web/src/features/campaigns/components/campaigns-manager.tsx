@@ -1,100 +1,50 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  accessKey,
+  type CurrentAccess,
+} from "@/features/auth/api/access-queries";
 
-import { assignCampaignManager as defaultAssignManager } from "../api/assign-campaign-manager";
-import { assignCampaignTeam as defaultAssignTeam } from "../api/assign-campaign-team";
-import { createCampaign as defaultCreateCampaign } from "../api/create-campaign";
-import { createCampaignActivity as defaultCreateActivity } from "../api/create-campaign-activity";
-import { deleteCampaign as defaultDeleteCampaign } from "../api/delete-campaign";
-import { deleteCampaignActivity as defaultDeleteActivity } from "../api/delete-campaign-activity";
-import { getCampaign as defaultGetCampaign } from "../api/get-campaign";
-import { getCampaignBudget as defaultGetBudget } from "../api/get-campaign-budget";
-import { listCampaignActivities as defaultListActivities } from "../api/list-campaign-activities";
-import { removeCampaignTeam as defaultRemoveTeam } from "../api/remove-campaign-team";
-import { setCampaignBudget as defaultSetBudget } from "../api/set-campaign-budget";
-import { transitionCampaign as defaultTransition } from "../api/transition-campaign";
-import { updateCampaign as defaultUpdateCampaign } from "../api/update-campaign";
-import { updateCampaignActivity as defaultUpdateActivity } from "../api/update-campaign-activity";
+import {
+  CampaignsRequestError,
+  getCampaign,
+  getCampaignBudget,
+  listAssignableEvents,
+  listAssignableTeams,
+  listAssignableUsers,
+  listCampaignActivities,
+  listCampaigns,
+} from "../api/campaigns-gateway";
+import { campaignKeys, useCampaignsMutations } from "../api/campaigns-queries";
+import { campaignAbilities } from "../lib/campaign-access";
+import type { CampaignStatus, CampaignType } from "../lib/campaigns-types";
 import { CampaignDetailDialog } from "./campaign-detail-dialog";
 import { CampaignFilters } from "./campaign-filters";
 import { CampaignsTable } from "./campaigns-table";
 import { CreateCampaignDialog } from "./create-campaign-dialog";
-import type {
-  AssignCampaignManager,
-  AssignCampaignTeam,
-  CreateCampaign,
-  CreateCampaignActivity,
-  DeleteCampaign,
-  DeleteCampaignActivity,
-  GetCampaign,
-  GetCampaignBudget,
-  ListCampaignActivities,
-  RemoveCampaignTeam,
-  SetCampaignBudget,
-  TransitionCampaign,
-  UpdateCampaign,
-  UpdateCampaignActivity,
-} from "../lib/campaigns-outcome";
-import {
-  type AssignableEvent,
-  type AssignableTeam,
-  type AssignableUser,
-  type Campaign,
-  type CampaignStatus,
-  type CampaignType,
-  type PaginatedCampaigns,
-} from "../lib/campaigns-types";
 
 const PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 300;
 
-interface CampaignsManagerProps {
-  initialPage: PaginatedCampaigns;
-  assignableUsers: readonly AssignableUser[];
-  assignableTeams: readonly AssignableTeam[];
-  assignableEvents: readonly AssignableEvent[];
-  createCampaign?: CreateCampaign;
-  updateCampaign?: UpdateCampaign;
-  transitionCampaign?: TransitionCampaign;
-  assignManager?: AssignCampaignManager;
-  assignTeam?: AssignCampaignTeam;
-  removeTeam?: RemoveCampaignTeam;
-  setBudget?: SetCampaignBudget;
-  deleteCampaign?: DeleteCampaign;
-  getCampaign?: GetCampaign;
-  getBudget?: GetCampaignBudget;
-  listActivities?: ListCampaignActivities;
-  createActivity?: CreateCampaignActivity;
-  updateActivity?: UpdateCampaignActivity;
-  deleteActivity?: DeleteCampaignActivity;
+function useDebounced<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
 }
 
-export function CampaignsManager({
-  initialPage,
-  assignableUsers,
-  assignableTeams,
-  assignableEvents,
-  createCampaign = defaultCreateCampaign,
-  updateCampaign = defaultUpdateCampaign,
-  transitionCampaign = defaultTransition,
-  assignManager = defaultAssignManager,
-  assignTeam = defaultAssignTeam,
-  removeTeam = defaultRemoveTeam,
-  setBudget = defaultSetBudget,
-  deleteCampaign = defaultDeleteCampaign,
-  getCampaign = defaultGetCampaign,
-  getBudget = defaultGetBudget,
-  listActivities = defaultListActivities,
-  createActivity = defaultCreateActivity,
-  updateActivity = defaultUpdateActivity,
-  deleteActivity = defaultDeleteActivity,
-}: CampaignsManagerProps) {
-  const [campaigns, setCampaigns] = useState<Campaign[]>([
-    ...initialPage.items,
-  ]);
+export function CampaignsManager({ access }: { access: CurrentAccess }) {
+  const keys = campaignKeys(access);
+  const client = useQueryClient();
+  const abilities = campaignAbilities(access);
+
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | null>(null);
   const [typeFilter, setTypeFilter] = useState<CampaignType | null>(null);
   const [search, setSearch] = useState("");
@@ -103,124 +53,205 @@ export function CampaignsManager({
   const [createOpen, setCreateOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return campaigns.filter((campaign) => {
-      if (statusFilter && campaign.status !== statusFilter) return false;
-      if (typeFilter && campaign.campaignType !== typeFilter) return false;
-      if (term === "") return true;
-      return campaign.name.toLowerCase().includes(term);
-    });
-  }, [campaigns, statusFilter, typeFilter, search]);
+  const debouncedSearch = useDebounced(search, SEARCH_DEBOUNCE_MS);
+  const listParams = {
+    status: statusFilter,
+    campaignType: typeFilter,
+    search: debouncedSearch.trim() || null,
+    page,
+    pageSize: PAGE_SIZE,
+  };
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const listQuery = useQuery({
+    queryKey: keys.list(listParams),
+    queryFn: ({ signal }) => listCampaigns(listParams, signal),
+    retry: false,
+    placeholderData: (previous) => previous,
+    refetchOnWindowFocus: true,
+  });
+
+  const assignmentNeeded =
+    abilities.canCreate || abilities.canUpdate || abilities.canAssign;
+
+  const usersQuery = useQuery({
+    queryKey: keys.users,
+    queryFn: ({ signal }) => listAssignableUsers(signal),
+    retry: false,
+    staleTime: 60_000,
+    enabled: assignmentNeeded,
+  });
+
+  const teamsQuery = useQuery({
+    queryKey: keys.teams,
+    queryFn: ({ signal }) => listAssignableTeams(signal),
+    retry: false,
+    staleTime: 60_000,
+    enabled: abilities.canAssign,
+  });
+
+  // The related-event picker is needed to create or edit a campaign, and to
+  // name the event of an existing campaign in its detail view.
+  const eventsQuery = useQuery({
+    queryKey: keys.events,
+    queryFn: ({ signal }) => listAssignableEvents(signal),
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const mutations = useCampaignsMutations(access);
+
+  // A 401/403 on the list means the caller's authority changed under them;
+  // re-check access so the screen can drop to its denied/expired state.
+  useEffect(() => {
+    const error = listQuery.error;
+    if (
+      error instanceof CampaignsRequestError &&
+      (error.status === 401 || error.status === 403)
+    ) {
+      void client.invalidateQueries({ queryKey: accessKey });
+    }
+  }, [listQuery.error, client]);
+
+  const data = listQuery.data;
+  const total = data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const visible = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
+  const rows = data?.items ?? [];
   const filtersActive =
     statusFilter !== null || typeFilter !== null || search.trim() !== "";
 
-  function upsert(next: Campaign) {
-    setCampaigns((current) => {
-      const index = current.findIndex((item) => item.id === next.id);
-      if (index === -1) return [next, ...current];
-      const copy = [...current];
-      copy[index] = next;
-      return copy;
-    });
-  }
-
-  function remove(id: string) {
-    setCampaigns((current) => current.filter((item) => item.id !== id));
-    setSelectedId(null);
-    setAnnouncement("Campaign deleted.");
-  }
+  const users = usersQuery.data ?? [];
+  const teams = teamsQuery.data ?? [];
+  const events = eventsQuery.data ?? [];
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-muted-foreground text-sm">
-          {filtered.length} campaign{filtered.length === 1 ? "" : "s"}
-          {filtersActive ? " match these filters" : ""}
-        </p>
-        <Button type="button" onClick={() => setCreateOpen(true)}>
-          <Plus aria-hidden="true" data-icon="inline-start" />
-          New campaign
-        </Button>
-      </div>
+      {listQuery.isError ? (
+        <div role="alert" className="space-y-2">
+          <p>{(listQuery.error as Error).message}</p>
+          <Button variant="outline" onClick={() => void listQuery.refetch()}>
+            Try again
+          </Button>
+        </div>
+      ) : null}
 
-      <CampaignFilters
-        status={statusFilter}
-        campaignType={typeFilter}
-        search={search}
-        onStatusChange={(value) => {
-          setStatusFilter(value);
-          setPage(1);
-        }}
-        onTypeChange={(value) => {
-          setTypeFilter(value);
-          setPage(1);
-        }}
-        onSearchChange={(value) => {
-          setSearch(value);
-          setPage(1);
-        }}
-      />
+      {listQuery.isPending ? (
+        <p role="status">Loading campaigns…</p>
+      ) : listQuery.isError ? null : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-muted-foreground text-sm">
+              {filtersActive
+                ? `${total} matching campaign${total === 1 ? "" : "s"}`
+                : `${total} campaign${total === 1 ? "" : "s"}`}
+            </p>
+            {abilities.canCreate ? (
+              <Button type="button" onClick={() => setCreateOpen(true)}>
+                <Plus aria-hidden="true" data-icon="inline-start" />
+                New campaign
+              </Button>
+            ) : null}
+          </div>
 
-      <CampaignsTable
-        campaigns={visible}
-        onSelect={setSelectedId}
-        page={currentPage}
-        pageCount={pageCount}
-        onPageChange={setPage}
-        filtered={filtersActive}
-      />
+          <CampaignFilters
+            status={statusFilter}
+            campaignType={typeFilter}
+            search={search}
+            onStatusChange={(value) => {
+              setStatusFilter(value);
+              setPage(1);
+            }}
+            onTypeChange={(value) => {
+              setTypeFilter(value);
+              setPage(1);
+            }}
+            onSearchChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+          />
+
+          <CampaignsTable
+            campaigns={rows}
+            onSelect={setSelectedId}
+            page={currentPage}
+            pageCount={pageCount}
+            onPageChange={setPage}
+            filtered={filtersActive}
+          />
+        </>
+      )}
 
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}
       </p>
 
-      <CreateCampaignDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        managers={assignableUsers}
-        events={assignableEvents}
-        onCreate={createCampaign}
-        onCreated={(campaign) => {
-          upsert(campaign);
-          setStatusFilter(null);
-          setTypeFilter(null);
-          setSearch("");
-          setPage(1);
-          setAnnouncement("Campaign created.");
-        }}
-      />
+      {abilities.canCreate ? (
+        <CreateCampaignDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          managers={users}
+          events={events}
+          onCreate={mutations.create.mutateAsync}
+          onCreated={() => {
+            setSearch("");
+            setStatusFilter(null);
+            setTypeFilter(null);
+            setPage(1);
+            setAnnouncement("Campaign created.");
+            void listQuery.refetch();
+          }}
+        />
+      ) : null}
 
       <CampaignDetailDialog
         campaignId={selectedId}
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
         }}
-        users={assignableUsers}
-        teams={assignableTeams}
-        events={assignableEvents}
+        users={users}
+        teams={teams}
+        events={events}
+        abilities={abilities}
         getCampaign={getCampaign}
-        getBudget={getBudget}
-        listActivities={listActivities}
-        onCreateActivity={createActivity}
-        onUpdateActivity={updateActivity}
-        onDeleteActivity={deleteActivity}
-        onUpdate={updateCampaign}
-        onTransition={transitionCampaign}
-        onAssignManager={assignManager}
-        onAssignTeam={assignTeam}
-        onRemoveTeam={removeTeam}
-        onSetBudget={setBudget}
-        onDelete={deleteCampaign}
-        onChanged={upsert}
-        onDeleted={remove}
+        getBudget={getCampaignBudget}
+        listActivities={listCampaignActivities}
+        onCreateActivity={(campaignId, values) =>
+          mutations.createActivity.mutateAsync({ campaignId, values })
+        }
+        onUpdateActivity={(campaignId, activityId, values) =>
+          mutations.updateActivity.mutateAsync({
+            campaignId,
+            activityId,
+            values,
+          })
+        }
+        onDeleteActivity={(campaignId, activityId) =>
+          mutations.removeActivity.mutateAsync({ campaignId, activityId })
+        }
+        onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
+        onTransition={(id, status) =>
+          mutations.transition.mutateAsync({ id, status })
+        }
+        onAssignManager={(id, managerId) =>
+          mutations.assignManager.mutateAsync({ id, managerId })
+        }
+        onAssignTeam={(id, teamId) =>
+          mutations.assignTeam.mutateAsync({ id, teamId })
+        }
+        onRemoveTeam={(id, teamId) =>
+          mutations.removeTeam.mutateAsync({ id, teamId })
+        }
+        onSetBudget={(id, amount, currency) =>
+          mutations.setBudget.mutateAsync({ id, amount, currency })
+        }
+        onDelete={mutations.remove.mutateAsync}
+        onChanged={() => void listQuery.refetch()}
+        onDeleted={() => {
+          setSelectedId(null);
+          setAnnouncement("Campaign deleted.");
+          void listQuery.refetch();
+        }}
       />
     </div>
   );

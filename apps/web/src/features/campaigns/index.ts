@@ -1,8 +1,5 @@
-export { listCampaigns } from "./api/list-campaigns";
-export { listAssignableUsers } from "./api/list-assignable-users";
-export { listAssignableTeams } from "./api/list-assignable-teams";
-export { listAssignableEvents } from "./api/list-assignable-events";
-export { CampaignsManager } from "./components/campaigns-manager";
+export { CampaignsScreen } from "./components/campaigns-screen";
+export { CampaignsNavigation } from "./components/campaigns-navigation";
 export type {
   AssignableEvent,
   AssignableTeam,
