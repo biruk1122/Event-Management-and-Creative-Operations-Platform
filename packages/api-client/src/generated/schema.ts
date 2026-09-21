@@ -1002,6 +1002,168 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/talents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List talent profiles */
+    get: operations["Talent_list_v1"];
+    put?: never;
+    post: operations["Talent_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a talent profile, schedule, and event assignments */
+    get: operations["Talent_get_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch: operations["Talent_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/talents/{id}/event-assignments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["Talent_assign_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{id}/event-assignments/{assignmentId}/transition": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["Talent_assignmentTransition_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{id}/manager": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put: operations["Talent_manager_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{id}/schedules": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["Talent_schedule_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{id}/schedules/{scheduleId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["Talent_removeSchedule_v1"];
+    options?: never;
+    head?: never;
+    patch: operations["Talent_updateSchedule_v1"];
+    trace?: never;
+  };
+  "/api/v1/talents/{id}/social-links": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["Talent_social_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{id}/social-links/{socialLinkId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["Talent_removeSocial_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{id}/transition": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["Talent_transition_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/tasks": {
     parameters: {
       query?: never;
@@ -1819,6 +1981,12 @@ export interface components {
        */
       startAt?: string;
     };
+    CreateEventTalentAssignmentDto: {
+      /** Format: uuid */
+      eventId: string;
+      /** @example Headliner */
+      role: string;
+    };
     CreateMeetingDto: {
       description?: string;
       /**
@@ -1884,6 +2052,41 @@ export interface components {
       description?: string;
       /** @example Regional Coordinator */
       name: string;
+    };
+    CreateTalentDto: {
+      /** @example Singer and live performer. */
+      biography?: string;
+      /** @example amina@example.com */
+      email?: string;
+      /** @example Amina Tesfaye */
+      fullName: string;
+      /** Format: uuid */
+      managerId?: string;
+      /** @example +251911000000 */
+      phone?: string;
+      /** @enum {string} */
+      type:
+        | "ARTIST"
+        | "INFLUENCER"
+        | "ACTOR"
+        | "MUSICIAN"
+        | "MODEL"
+        | "PRESENTER"
+        | "CONTENT_CREATOR";
+    };
+    CreateTalentScheduleDto: {
+      /** Format: date-time */
+      endAt: string;
+      /** Format: date-time */
+      startAt: string;
+      /** @example Dress rehearsal */
+      title: string;
+    };
+    CreateTalentSocialLinkDto: {
+      /** @example Instagram */
+      label: string;
+      /** @example https://instagram.com/amina */
+      url: string;
     };
     CreateTaskCommentDto: {
       content: string;
@@ -2448,6 +2651,15 @@ export interface components {
        */
       total: number;
     };
+    PaginatedTalentsResponse: {
+      items: components["schemas"]["TalentResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 7 */
+      total: number;
+    };
     PaginatedTaskActivitiesResponse: {
       items: components["schemas"]["TaskActivityResponse"][];
       page: number;
@@ -2714,6 +2926,86 @@ export interface components {
        */
       currency: string | null;
     };
+    SetTalentManagerDto: {
+      /** Format: uuid */
+      managerId: Record<string, never> | null;
+    };
+    TalentEventAssignmentResponse: {
+      /** Format: date-time */
+      assignedAt: string;
+      event: components["schemas"]["TalentEventSummary"];
+      /** Format: uuid */
+      id: string;
+      /** @example Headliner */
+      role: string;
+      /** @enum {string} */
+      status: "ASSIGNED" | "COMPLETED" | "CANCELLED";
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    TalentEventSummary: {
+      /** Format: uuid */
+      id: string;
+      /** @example Autumn Product Launch */
+      name: string;
+    };
+    TalentResponse: {
+      /** @enum {string} */
+      availability: "AVAILABLE" | "ASSIGNED" | "UNAVAILABLE" | "INACTIVE";
+      biography: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: email */
+      email: string | null;
+      eventAssignments: components["schemas"]["TalentEventAssignmentResponse"][];
+      /** @example Amina Tesfaye */
+      fullName: string;
+      /** Format: uuid */
+      id: string;
+      manager: components["schemas"]["TalentUserSummary"] | null;
+      phone: string | null;
+      /** Format: uuid */
+      profileImageId: Record<string, never> | null;
+      schedules: components["schemas"]["TalentScheduleResponse"][];
+      socialLinks: components["schemas"]["TalentSocialLinkResponse"][];
+      /** @enum {string} */
+      type:
+        | "ARTIST"
+        | "INFLUENCER"
+        | "ACTOR"
+        | "MUSICIAN"
+        | "MODEL"
+        | "PRESENTER"
+        | "CONTENT_CREATOR";
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    TalentScheduleResponse: {
+      /** Format: date-time */
+      endAt: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      startAt: string;
+      /** @example Dress rehearsal */
+      title: string;
+    };
+    TalentSocialLinkResponse: {
+      /** Format: uuid */
+      id: string;
+      /** @example Instagram */
+      label: string;
+      /** Format: uri */
+      url: string;
+    };
+    TalentUserSummary: {
+      /** Format: email */
+      email: string;
+      firstName: string | null;
+      /** Format: uuid */
+      id: string;
+      lastName: string | null;
+    };
     TaskActivityResponse: {
       actor: components["schemas"]["TaskPersonSummary"] | null;
       /** @description Structured before/after values for this activity type. */
@@ -2895,6 +3187,10 @@ export interface components {
        */
       status: "PLANNING" | "READY" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
     };
+    TransitionEventTalentAssignmentDto: {
+      /** @enum {string} */
+      status: "ASSIGNED" | "COMPLETED" | "CANCELLED";
+    };
     TransitionMeetingDto: {
       /** @enum {string} */
       status: "COMPLETED" | "CANCELLED";
@@ -2905,6 +3201,10 @@ export interface components {
        * @enum {string}
        */
       status: "PLANNED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+    };
+    TransitionTalentDto: {
+      /** @enum {string} */
+      availability: "AVAILABLE" | "ASSIGNED" | "UNAVAILABLE" | "INACTIVE";
     };
     TransitionTaskDto: {
       /** @enum {string} */
@@ -2994,6 +3294,33 @@ export interface components {
       description?: string;
       /** @example Regional Coordinator */
       name?: string;
+    };
+    UpdateTalentDto: {
+      /** @example Singer and live performer. */
+      biography?: string;
+      /** @example amina@example.com */
+      email?: string;
+      /** @example Amina Tesfaye */
+      fullName?: string;
+      /** @example +251911000000 */
+      phone?: string;
+      /** @enum {string} */
+      type?:
+        | "ARTIST"
+        | "INFLUENCER"
+        | "ACTOR"
+        | "MUSICIAN"
+        | "MODEL"
+        | "PRESENTER"
+        | "CONTENT_CREATOR";
+    };
+    UpdateTalentScheduleDto: {
+      /** Format: date-time */
+      endAt?: string;
+      /** Format: date-time */
+      startAt?: string;
+      /** @example Dress rehearsal */
+      title?: string;
     };
     UpdateTaskDto: {
       description?: string | null;
@@ -7811,6 +8138,525 @@ export interface operations {
       };
       /** @description Role or grant not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_list_v1: {
+    parameters: {
+      query?: {
+        type?:
+          | "ARTIST"
+          | "INFLUENCER"
+          | "ACTOR"
+          | "MUSICIAN"
+          | "MODEL"
+          | "PRESENTER"
+          | "CONTENT_CREATOR";
+        availability?: "AVAILABLE" | "ASSIGNED" | "UNAVAILABLE" | "INACTIVE";
+        managerId?: string;
+        search?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedTalentsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTalentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTalentDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_assign_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateEventTalentAssignmentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_assignmentTransition_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        assignmentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TransitionEventTalentAssignmentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_manager_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetTalentManagerDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_schedule_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTalentScheduleDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_removeSchedule_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        scheduleId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_updateSchedule_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        scheduleId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTalentScheduleDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_social_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTalentSocialLinkDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_removeSocial_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        socialLinkId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_transition_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TransitionTalentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
         headers: {
           [name: string]: unknown;
         };
