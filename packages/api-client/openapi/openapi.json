@@ -514,6 +514,22 @@
         "required": ["name", "eventType"],
         "type": "object"
       },
+      "CreateEventTalentAssignmentDto": {
+        "properties": {
+          "eventId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "role": {
+            "example": "Headliner",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["eventId", "role"],
+        "type": "object"
+      },
       "CreateMeetingDto": {
         "properties": {
           "description": {
@@ -642,6 +658,84 @@
           }
         },
         "required": ["name"],
+        "type": "object"
+      },
+      "CreateTalentDto": {
+        "properties": {
+          "biography": {
+            "example": "Singer and live performer.",
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "email": {
+            "example": "amina@example.com",
+            "type": "string"
+          },
+          "fullName": {
+            "example": "Amina Tesfaye",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "managerId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "phone": {
+            "example": "+251911000000",
+            "maxLength": 50,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "ARTIST",
+              "INFLUENCER",
+              "ACTOR",
+              "MUSICIAN",
+              "MODEL",
+              "PRESENTER",
+              "CONTENT_CREATOR"
+            ],
+            "type": "string"
+          }
+        },
+        "required": ["fullName", "type"],
+        "type": "object"
+      },
+      "CreateTalentScheduleDto": {
+        "properties": {
+          "endAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "example": "Dress rehearsal",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["title", "startAt", "endAt"],
+        "type": "object"
+      },
+      "CreateTalentSocialLinkDto": {
+        "properties": {
+          "label": {
+            "example": "Instagram",
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "url": {
+            "example": "https://instagram.com/amina",
+            "type": "string"
+          }
+        },
+        "required": ["label", "url"],
         "type": "object"
       },
       "CreateTaskCommentDto": {
@@ -1881,6 +1975,30 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedTalentsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TalentResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 7,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
       "PaginatedTaskActivitiesResponse": {
         "properties": {
           "items": {
@@ -2443,6 +2561,227 @@
         "required": ["amount", "currency"],
         "type": "object"
       },
+      "SetTalentManagerDto": {
+        "properties": {
+          "managerId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": ["managerId"],
+        "type": "object"
+      },
+      "TalentEventAssignmentResponse": {
+        "properties": {
+          "assignedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "event": {
+            "$ref": "#/components/schemas/TalentEventSummary"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "role": {
+            "example": "Headliner",
+            "type": "string"
+          },
+          "status": {
+            "enum": ["ASSIGNED", "COMPLETED", "CANCELLED"],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "event",
+          "role",
+          "status",
+          "assignedAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "TalentEventSummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "example": "Autumn Product Launch",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
+        "type": "object"
+      },
+      "TalentResponse": {
+        "properties": {
+          "availability": {
+            "enum": ["AVAILABLE", "ASSIGNED", "UNAVAILABLE", "INACTIVE"],
+            "type": "string"
+          },
+          "biography": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "nullable": true,
+            "type": "string"
+          },
+          "eventAssignments": {
+            "items": {
+              "$ref": "#/components/schemas/TalentEventAssignmentResponse"
+            },
+            "type": "array"
+          },
+          "fullName": {
+            "example": "Amina Tesfaye",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "manager": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TalentUserSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "profileImageId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "object"
+          },
+          "schedules": {
+            "items": {
+              "$ref": "#/components/schemas/TalentScheduleResponse"
+            },
+            "type": "array"
+          },
+          "socialLinks": {
+            "items": {
+              "$ref": "#/components/schemas/TalentSocialLinkResponse"
+            },
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "ARTIST",
+              "INFLUENCER",
+              "ACTOR",
+              "MUSICIAN",
+              "MODEL",
+              "PRESENTER",
+              "CONTENT_CREATOR"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "fullName",
+          "type",
+          "profileImageId",
+          "email",
+          "phone",
+          "biography",
+          "availability",
+          "manager",
+          "socialLinks",
+          "schedules",
+          "eventAssignments",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "TalentScheduleResponse": {
+        "properties": {
+          "endAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "example": "Dress rehearsal",
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "startAt", "endAt"],
+        "type": "object"
+      },
+      "TalentSocialLinkResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "label": {
+            "example": "Instagram",
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["id", "label", "url"],
+        "type": "object"
+      },
+      "TalentUserSummary": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "firstName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["id", "email", "firstName", "lastName"],
+        "type": "object"
+      },
       "TaskActivityResponse": {
         "properties": {
           "actor": {
@@ -2918,6 +3257,16 @@
         "required": ["status"],
         "type": "object"
       },
+      "TransitionEventTalentAssignmentDto": {
+        "properties": {
+          "status": {
+            "enum": ["ASSIGNED", "COMPLETED", "CANCELLED"],
+            "type": "string"
+          }
+        },
+        "required": ["status"],
+        "type": "object"
+      },
       "TransitionMeetingDto": {
         "properties": {
           "status": {
@@ -2937,6 +3286,16 @@
           }
         },
         "required": ["status"],
+        "type": "object"
+      },
+      "TransitionTalentDto": {
+        "properties": {
+          "availability": {
+            "enum": ["AVAILABLE", "ASSIGNED", "UNAVAILABLE", "INACTIVE"],
+            "type": "string"
+          }
+        },
+        "required": ["availability"],
         "type": "object"
       },
       "TransitionTaskDto": {
@@ -3169,6 +3528,62 @@
           "name": {
             "example": "Regional Coordinator",
             "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateTalentDto": {
+        "properties": {
+          "biography": {
+            "example": "Singer and live performer.",
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "email": {
+            "example": "amina@example.com",
+            "type": "string"
+          },
+          "fullName": {
+            "example": "Amina Tesfaye",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "phone": {
+            "example": "+251911000000",
+            "maxLength": 50,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "ARTIST",
+              "INFLUENCER",
+              "ACTOR",
+              "MUSICIAN",
+              "MODEL",
+              "PRESENTER",
+              "CONTENT_CREATOR"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateTalentScheduleDto": {
+        "properties": {
+          "endAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "example": "Dress rehearsal",
+            "maxLength": 200,
             "minLength": 1,
             "type": "string"
           }
@@ -10335,6 +10750,860 @@
         ],
         "summary": "Remove a permission grant from a role",
         "tags": ["Roles and permissions"]
+      }
+    },
+    "/api/v1/talents": {
+      "get": {
+        "operationId": "Talent_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "enum": [
+                "ARTIST",
+                "INFLUENCER",
+                "ACTOR",
+                "MUSICIAN",
+                "MODEL",
+                "PRESENTER",
+                "CONTENT_CREATOR"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "availability",
+            "required": false,
+            "schema": {
+              "enum": ["AVAILABLE", "ASSIGNED", "UNAVAILABLE", "INACTIVE"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "managerId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedTalentsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List talent profiles",
+        "tags": ["Talent management"]
+      },
+      "post": {
+        "operationId": "Talent_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTalentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{id}": {
+      "get": {
+        "operationId": "Talent_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get a talent profile, schedule, and event assignments",
+        "tags": ["Talent management"]
+      },
+      "patch": {
+        "operationId": "Talent_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTalentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{id}/event-assignments": {
+      "post": {
+        "operationId": "Talent_assign_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventTalentAssignmentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{id}/event-assignments/{assignmentId}/transition": {
+      "post": {
+        "operationId": "Talent_assignmentTransition_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "assignmentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionEventTalentAssignmentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{id}/manager": {
+      "put": {
+        "operationId": "Talent_manager_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTalentManagerDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{id}/schedules": {
+      "post": {
+        "operationId": "Talent_schedule_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTalentScheduleDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{id}/schedules/{scheduleId}": {
+      "delete": {
+        "operationId": "Talent_removeSchedule_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scheduleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      },
+      "patch": {
+        "operationId": "Talent_updateSchedule_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "scheduleId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTalentScheduleDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{id}/social-links": {
+      "post": {
+        "operationId": "Talent_social_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTalentSocialLinkDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{id}/social-links/{socialLinkId}": {
+      "delete": {
+        "operationId": "Talent_removeSocial_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "socialLinkId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{id}/transition": {
+      "post": {
+        "operationId": "Talent_transition_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionTalentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "tags": ["Talent management"]
       }
     },
     "/api/v1/tasks": {
