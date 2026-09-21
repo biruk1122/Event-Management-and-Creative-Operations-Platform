@@ -19,6 +19,7 @@ import { ProjectsModule } from "./projects/projects.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
 import { TeamsModule } from "./teams/teams.module.js";
+import { TalentModule } from "./talent/talent.module.js";
 import { TasksModule } from "./tasks/tasks.module.js";
 import { TodoModule } from "./todo/todo.module.js";
 import { UsersModule } from "./users/users.module.js";
@@ -63,6 +64,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     TasksModule,
     WorkspacesModule,
     EventsModule,
+    TalentModule,
     ProjectsModule,
     DiscussModule,
     FileManagementModule,
