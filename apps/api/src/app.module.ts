@@ -5,6 +5,7 @@ import { LoggerModule } from "nestjs-pino";
 
 import { AuthModule } from "./auth/auth.module.js";
 import { CalendarModule } from "./calendar/calendar.module.js";
+import { CampaignsModule } from "./campaigns/campaigns.module.js";
 import { environment } from "./config/environment.js";
 import { EnvironmentModule } from "./config/environment.module.js";
 import { DatabaseModule } from "./database/database.module.js";
@@ -64,6 +65,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     WorkspacesModule,
     EventsModule,
     ProjectsModule,
+    CampaignsModule,
     DiscussModule,
     FileManagementModule,
     RealtimeModule,
