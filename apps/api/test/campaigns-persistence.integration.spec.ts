@@ -377,18 +377,69 @@ describe("campaign platform persistence", () => {
     it.each(EVERY_STATUS)("stores %s", async (status) => {
       const campaign = await create();
 
-      expect(await repository.updateStatus(campaign.id, status)).toMatchObject({
+      expect(
+        await repository.updateStatus(campaign.id, "PLANNED", status),
+      ).toMatchObject({
         status,
       });
     });
 
     it("reports not_found for an unknown or malformed id", async () => {
-      expect(await repository.updateStatus(MISSING_UUID, "ACTIVE")).toBe(
-        "not_found",
+      expect(
+        await repository.updateStatus(MISSING_UUID, "PLANNED", "ACTIVE"),
+      ).toBe("not_found");
+      expect(
+        await repository.updateStatus("not-a-uuid", "PLANNED", "ACTIVE"),
+      ).toBe("not_found");
+    });
+  });
+
+  describe("status changes are compare-and-swap", () => {
+    it("refuses a stale expected status and leaves the campaign as it is", async () => {
+      const campaign = await create();
+      await repository.updateStatus(campaign.id, "PLANNED", "CANCELLED");
+
+      const result = await repository.updateStatus(
+        campaign.id,
+        "PLANNED",
+        "ACTIVE",
       );
-      expect(await repository.updateStatus("not-a-uuid", "ACTIVE")).toBe(
-        "not_found",
+
+      expect(result).toBe("status_changed");
+      expect((await repository.findById(campaign.id))?.status).toBe(
+        "CANCELLED",
       );
+    });
+
+    it("applies only when the expected status still matches", async () => {
+      const campaign = await create();
+      await repository.updateStatus(campaign.id, "PLANNED", "ACTIVE");
+
+      expect(
+        await repository.updateStatus(campaign.id, "ACTIVE", "COMPLETED"),
+      ).toMatchObject({ status: "COMPLETED" });
+    });
+
+    it("lets exactly one of two racing transitions win", async () => {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const campaign = await create();
+
+        const results = await Promise.all([
+          repository.updateStatus(campaign.id, "PLANNED", "CANCELLED"),
+          repository.updateStatus(campaign.id, "PLANNED", "ACTIVE"),
+        ]);
+
+        const winners = results.filter((result) => typeof result !== "string");
+        expect(winners).toHaveLength(1);
+        expect(
+          results.filter((result) => result === "status_changed"),
+        ).toHaveLength(1);
+        // The stored status is the winner's target, never overwritten.
+        const winner = winners[0] as CampaignRecord;
+        expect((await repository.findById(campaign.id))?.status).toBe(
+          winner.status,
+        );
+      }
     });
   });
 
@@ -724,7 +775,7 @@ describe("campaign platform persistence", () => {
         managerId,
         startAt: new Date("2027-03-15T00:00:00.000Z"),
       });
-      await repository.updateStatus(target.id, "ACTIVE");
+      await repository.updateStatus(target.id, "PLANNED", "ACTIVE");
       await create({
         name: "filter-decoy-type",
         campaignType: "MARKETING",
@@ -893,6 +944,458 @@ describe("campaign platform persistence", () => {
         (await repository.listActivities(campaign.id, { page: 1, pageSize: 5 }))
           .total,
       ).toBe(1);
+    });
+  });
+
+  describe("create is atomic across the workspace and the campaign", () => {
+    it.each([
+      [
+        "both an event and a product subject",
+        async () => ({ eventId: await makeEvent(), productName: "Widget" }),
+      ],
+      [
+        "a reversed schedule",
+        () =>
+          Promise.resolve({
+            startAt: new Date("2026-10-02T00:00:00.000Z"),
+            endAt: new Date("2026-10-01T00:00:00.000Z"),
+          }),
+      ],
+      ["a blank name", () => Promise.resolve({ name: "   " })],
+      ["a blank audience", () => Promise.resolve({ audience: "  " })],
+    ])(
+      "rolls the workspace back when a database CHECK rejects %s",
+      async (_label, overrides) => {
+        // Resolve the overrides first: building a fixture (an event) adds its
+        // own workspace, which must not count toward the rollback baseline.
+        const fields = await overrides();
+        const campaigns = await prisma.campaign.count();
+        const workspaces = await prisma.workspace.count();
+
+        await expect(
+          repository.create({
+            name: "Rejected",
+            campaignType: "MARKETING",
+            createdById: actorId,
+            ...fields,
+          }),
+        ).rejects.toThrow();
+
+        expect(await prisma.campaign.count()).toBe(campaigns);
+        expect(await prisma.workspace.count()).toBe(workspaces);
+      },
+    );
+
+    it("applies the optional manager to the workspace, not the campaign row", async () => {
+      const managerId = await makeUser();
+      const campaign = await create({ managerId });
+
+      const workspace = await prisma.workspace.findUniqueOrThrow({
+        where: { id: campaign.workspaceId },
+      });
+      const row = await prisma.campaign.findUniqueOrThrow({
+        where: { id: campaign.id },
+      });
+
+      expect(workspace.managerId).toBe(managerId);
+      expect(row).not.toHaveProperty("managerId");
+    });
+
+    it("stores the author on the campaign and clears it if the user is deleted", async () => {
+      const author = await makeUser("Temp", "Author");
+      const campaign = await create({ createdById: author });
+      expect(campaign.createdBy?.id).toBe(author);
+
+      await prisma.user.delete({ where: { id: author } });
+
+      const after = await repository.findById(campaign.id);
+      expect(after).not.toBeNull();
+      expect(after?.createdBy).toBeNull();
+    });
+  });
+
+  describe("check constraints back the service validation on update", () => {
+    it("rejects an out-of-order schedule pair", async () => {
+      const campaign = await create();
+
+      await expect(
+        repository.update(campaign.id, {
+          startAt: new Date("2026-10-02T00:00:00.000Z"),
+          endAt: new Date("2026-10-01T00:00:00.000Z"),
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("rejects a blank name, description, audience, and product name", async () => {
+      const campaign = await create();
+
+      for (const fields of [
+        { name: "  " },
+        { description: " " },
+        { audience: " " },
+        { productName: " " },
+      ]) {
+        await expect(repository.update(campaign.id, fields)).rejects.toThrow();
+      }
+      expect((await repository.findById(campaign.id))?.name).toBe(
+        campaign.name,
+      );
+    });
+
+    it("rejects a blank activity name and a reversed activity schedule", async () => {
+      const campaign = await create();
+      const created = await activity(campaign.id);
+
+      await expect(
+        repository.updateActivity(campaign.id, created.id, { name: " " }),
+      ).rejects.toThrow();
+      await expect(
+        repository.updateActivity(campaign.id, created.id, {
+          startAt: new Date("2026-10-02T00:00:00.000Z"),
+          endAt: new Date("2026-10-01T00:00:00.000Z"),
+        }),
+      ).rejects.toThrow();
+    });
+
+    it("accepts the numeric(14,2) budget ceiling and rejects an overflow", async () => {
+      const campaign = await create();
+
+      expect(
+        await repository.setBudget(campaign.id, "999999999999.99", "USD"),
+      ).toMatchObject({ budgetAmount: "999999999999.99" });
+      await expect(
+        repository.setBudget(campaign.id, "1000000000000.00", "USD"),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("updated_at advances on every write", () => {
+    async function updatedAt(id: string): Promise<number> {
+      const row = await prisma.campaign.findUniqueOrThrow({ where: { id } });
+      return row.updatedAt.getTime();
+    }
+
+    it("advances on update, status change, and budget change", async () => {
+      const campaign = await create();
+
+      const initial = await updatedAt(campaign.id);
+      await repository.update(campaign.id, { name: "Advance 1" });
+      const afterUpdate = await updatedAt(campaign.id);
+      await repository.updateStatus(campaign.id, "PLANNED", "ACTIVE");
+      const afterStatus = await updatedAt(campaign.id);
+      await repository.setBudget(campaign.id, "1.00", "USD");
+      const afterBudget = await updatedAt(campaign.id);
+
+      expect(afterUpdate).toBeGreaterThan(initial);
+      expect(afterStatus).toBeGreaterThan(afterUpdate);
+      expect(afterBudget).toBeGreaterThan(afterStatus);
+    });
+
+    it("advances on an activity update", async () => {
+      const campaign = await create();
+      const created = await activity(campaign.id);
+
+      const updated = await repository.updateActivity(campaign.id, created.id, {
+        status: "COMPLETED",
+      });
+
+      expect(updated).not.toBe("not_found");
+      if (updated !== "not_found") {
+        expect(updated.updatedAt.getTime()).toBeGreaterThan(
+          created.updatedAt.getTime(),
+        );
+      }
+    });
+  });
+
+  describe("delete leaves everything it does not own", () => {
+    it("spares the event, team, and users, dropping only the join rows", async () => {
+      const eventId = await makeEvent();
+      const teamId = await makeTeam();
+      const managerId = await makeUser();
+      const participantId = await makeUser();
+      const campaign = await create({ eventId, managerId });
+      await prisma.workspaceTeam.create({
+        data: { workspaceId: campaign.workspaceId, teamId },
+      });
+      await prisma.workspaceParticipant.create({
+        data: { workspaceId: campaign.workspaceId, userId: participantId },
+      });
+
+      expect(await repository.delete(campaign.id)).toBe("deleted");
+
+      expect(
+        await prisma.event.findUnique({ where: { id: eventId } }),
+      ).not.toBeNull();
+      expect(
+        await prisma.team.findUnique({ where: { id: teamId } }),
+      ).not.toBeNull();
+      expect(
+        await prisma.user.findUnique({ where: { id: managerId } }),
+      ).not.toBeNull();
+      expect(
+        await prisma.user.findUnique({ where: { id: participantId } }),
+      ).not.toBeNull();
+      expect(
+        await prisma.workspaceTeam.count({
+          where: { workspaceId: campaign.workspaceId },
+        }),
+      ).toBe(0);
+      expect(
+        await prisma.workspaceParticipant.count({
+          where: { workspaceId: campaign.workspaceId },
+        }),
+      ).toBe(0);
+    });
+
+    it("cannot be short-circuited: the RESTRICT FK blocks deleting the workspace first", async () => {
+      const campaign = await create();
+
+      await expect(
+        prisma.workspace.delete({ where: { id: campaign.workspaceId } }),
+      ).rejects.toThrow();
+      expect(await repository.findById(campaign.id)).not.toBeNull();
+    });
+
+    it("rolls back completely when a file blocks the workspace delete", async () => {
+      const teamId = await makeTeam();
+      const campaign = await create();
+      await prisma.workspaceTeam.create({
+        data: { workspaceId: campaign.workspaceId, teamId },
+      });
+      await activity(campaign.id);
+      await prisma.$transaction(async (tx) => {
+        const managedFile = await tx.managedFile.create({
+          data: {
+            storageKey: `rollback-${campaign.id}`,
+            originalFilename: "brief.pdf",
+            declaredMediaType: "application/pdf",
+            declaredSizeBytes: 2048,
+            state: "AVAILABLE",
+            intentExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+            uploadedAt: new Date("2026-06-01T00:00:00.000Z"),
+            availableAt: new Date("2026-06-01T00:00:01.000Z"),
+            verifiedMediaType: "application/pdf",
+            verifiedSizeBytes: 2048,
+          },
+        });
+        await tx.workspaceFileAttachment.create({
+          data: {
+            workspaceId: campaign.workspaceId,
+            managedFileId: managedFile.id,
+          },
+        });
+      });
+
+      expect(await repository.delete(campaign.id)).toBe("has_managed_files");
+
+      // The campaign, its activity, and its team assignment all survive: the
+      // failed workspace delete rolled back the campaign delete too.
+      const survivor = await repository.findById(campaign.id);
+      expect(survivor?.teams.map((team) => team.id)).toEqual([teamId]);
+      expect(
+        (await repository.listActivities(campaign.id, { page: 1, pageSize: 5 }))
+          .total,
+      ).toBe(1);
+    });
+
+    it("lets exactly one of two concurrent deletes win", async () => {
+      const campaign = await create();
+
+      const results = await Promise.all([
+        repository.delete(campaign.id),
+        repository.delete(campaign.id),
+      ]);
+
+      expect([...results].sort()).toEqual(["deleted", "not_found"]);
+      expect(await repository.findById(campaign.id)).toBeNull();
+    });
+  });
+
+  describe("list pagination is deterministic", () => {
+    it("walks equal-timestamp rows once each, with a stable total and an empty tail", async () => {
+      const ids: string[] = [];
+      for (let index = 0; index < 5; index += 1) {
+        ids.push((await create({ name: `tie-${index}` })).id);
+      }
+      await prisma.$executeRawUnsafe(
+        `UPDATE campaigns SET created_at = '2026-01-01T00:00:00Z'
+         WHERE id = ANY($1::uuid[])`,
+        ids,
+      );
+
+      const seen: string[] = [];
+      for (const page of [1, 2, 3]) {
+        const result = await repository.list({
+          search: "tie-",
+          page,
+          pageSize: 2,
+        });
+        expect(result.total).toBe(5);
+        seen.push(...result.items.map((item) => item.id));
+      }
+      const tail = await repository.list({
+        search: "tie-",
+        page: 4,
+        pageSize: 2,
+      });
+
+      expect(tail.items).toEqual([]);
+      expect(tail.total).toBe(5);
+      expect(seen).toHaveLength(5);
+      expect(new Set(seen).size).toBe(5);
+      // Ties fall back to the uuidv7 id, which is time-ordered.
+      expect(seen).toEqual([...ids].sort());
+    });
+
+    it("orders by created_at then id", async () => {
+      const older = await create({ name: "order-older" });
+      const newer = await create({ name: "order-newer" });
+      await prisma.campaign.update({
+        where: { id: newer.id },
+        data: { createdAt: new Date("2020-01-01T00:00:00.000Z") },
+      });
+
+      const { items } = await repository.list({
+        search: "order-",
+        page: 1,
+        pageSize: 10,
+      });
+
+      expect(items.map((item) => item.id)).toEqual([newer.id, older.id]);
+    });
+
+    it("matches the name case-insensitively and treats % as a literal", async () => {
+      await create({ name: "Case-Match Launch" });
+      await create({ name: "100% Literal" });
+
+      const insensitive = await repository.list({
+        search: "case-match launch",
+        page: 1,
+        pageSize: 10,
+      });
+      const literal = await repository.list({
+        search: "100%",
+        page: 1,
+        pageSize: 10,
+      });
+
+      expect(insensitive.total).toBe(1);
+      expect(literal.items.map((item) => item.name)).toEqual(["100% Literal"]);
+    });
+  });
+
+  describe("concurrent activity writes stay consistent", () => {
+    it("creates every activity and reports a consistent progress", async () => {
+      const campaign = await create();
+
+      await Promise.all(
+        Array.from({ length: 8 }, (_, index) =>
+          activity(campaign.id, {
+            name: `parallel-${index}`,
+            status: index % 2 === 0 ? "COMPLETED" : "PLANNED",
+          }),
+        ),
+      );
+
+      const read = await repository.findById(campaign.id);
+      expect(read?.progress).toEqual({
+        completedActivities: 4,
+        totalActivities: 8,
+        percent: 50,
+      });
+      expect(
+        (
+          await repository.listActivities(campaign.id, {
+            page: 1,
+            pageSize: 20,
+          })
+        ).total,
+      ).toBe(8);
+    });
+  });
+
+  describe("indexes serve the documented access patterns", () => {
+    /** Plans a query with sequential scans disabled, so the planner must use an
+     * index whenever one can serve the predicate. That checks the index is
+     * usable for the filter and order, independent of table size. */
+    async function plan(sql: string): Promise<string> {
+      return prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe("SET LOCAL enable_seqscan = off");
+        const rows = await tx.$queryRawUnsafe<{ "QUERY PLAN": string }[]>(
+          `EXPLAIN ${sql}`,
+        );
+        return rows.map((row) => row["QUERY PLAN"]).join("\n");
+      });
+    }
+
+    it.each([
+      [
+        "type (the composite's leading column)",
+        "SELECT id FROM campaigns WHERE campaign_type = 'PROMOTION'",
+        "campaigns_campaign_type_status_idx",
+      ],
+      [
+        "status",
+        "SELECT id FROM campaigns WHERE status = 'ACTIVE'",
+        "campaigns_status_idx",
+      ],
+      [
+        "related event",
+        `SELECT id FROM campaigns WHERE event_id = '${MISSING_UUID}'`,
+        "campaigns_event_id_idx",
+      ],
+      [
+        "start window",
+        "SELECT id FROM campaigns WHERE start_at >= '2026-01-01' AND start_at <= '2026-12-31'",
+        "campaigns_start_at_idx",
+      ],
+      [
+        "author",
+        `SELECT id FROM campaigns WHERE created_by_id = '${MISSING_UUID}'`,
+        "campaigns_created_by_id_idx",
+      ],
+      [
+        "owning workspace",
+        `SELECT id FROM campaigns WHERE workspace_id = '${MISSING_UUID}'`,
+        "campaigns_workspace_id_key",
+      ],
+      [
+        "activities by status",
+        `SELECT id FROM campaign_activities WHERE campaign_id = '${MISSING_UUID}' AND status = 'COMPLETED'`,
+        "campaign_activities_campaign_id_status_idx",
+      ],
+      [
+        "activities in schedule order",
+        `SELECT id FROM campaign_activities WHERE campaign_id = '${MISSING_UUID}' ORDER BY start_at ASC NULLS LAST`,
+        "campaign_activities_campaign_id_start_at_idx",
+      ],
+    ])("uses an index for %s", async (_label, sql, indexName) => {
+      expect(await plan(sql)).toContain(indexName);
+    });
+
+    it("keeps the index column order the queries rely on", async () => {
+      const rows = await prisma.$queryRawUnsafe<
+        { indexname: string; indexdef: string }[]
+      >(
+        `SELECT indexname, indexdef FROM pg_indexes
+         WHERE schemaname = current_schema()
+           AND tablename IN ('campaigns', 'campaign_activities')`,
+      );
+      const definitions = new Map(
+        rows.map((row) => [row.indexname, row.indexdef]),
+      );
+
+      expect(definitions.get("campaigns_campaign_type_status_idx")).toContain(
+        "(campaign_type, status)",
+      );
+      expect(
+        definitions.get("campaign_activities_campaign_id_status_idx"),
+      ).toContain("(campaign_id, status)");
+      expect(
+        definitions.get("campaign_activities_campaign_id_start_at_idx"),
+      ).toContain("(campaign_id, start_at)");
+      expect(definitions.get("campaigns_workspace_id_key")).toContain("UNIQUE");
     });
   });
 });

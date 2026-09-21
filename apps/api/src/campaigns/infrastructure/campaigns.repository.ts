@@ -501,26 +501,31 @@ export class CampaignsRepository {
     }
   }
 
+  /**
+   * Moves the campaign from `expectedStatus` to `status` atomically: the write
+   * only applies while the row still has the status the caller validated the
+   * transition against. Without that guard two concurrent transitions both
+   * pass the lifecycle check on the same stale read and the later write wins,
+   * for example a Cancelled campaign reactivated by a racing request. Returns
+   * `"status_changed"` when another request moved the campaign first.
+   */
   async updateStatus(
     id: string,
+    expectedStatus: CampaignStatus,
     status: CampaignStatus,
-  ): Promise<CampaignRecord | "not_found"> {
+  ): Promise<CampaignRecord | "not_found" | "status_changed"> {
     if (!isUuid(id)) {
       return "not_found";
     }
-    try {
-      const updated = await this.db.campaign.update({
-        where: { id },
-        data: { status },
-        select: CAMPAIGN_SELECT,
-      });
-      return await this.readRecord(updated);
-    } catch (error) {
-      if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
-        return "not_found";
-      }
-      throw error;
+    const { count } = await this.db.campaign.updateMany({
+      where: { id, status: expectedStatus },
+      data: { status },
+    });
+    const record = await this.findById(id);
+    if (!record) {
+      return "not_found";
     }
+    return count === 0 ? "status_changed" : record;
   }
 
   async setBudget(

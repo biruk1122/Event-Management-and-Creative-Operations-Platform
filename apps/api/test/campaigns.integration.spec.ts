@@ -133,6 +133,7 @@ describe("campaign platform API", () => {
   let superAdmin: Principal;
   let management: Principal;
   let plainUser: Principal;
+  let readOnly: Principal;
   let credentialHash: string;
 
   let departmentId: string;
@@ -210,6 +211,20 @@ describe("campaign platform API", () => {
 
     await seedUser("plain@campaigns.test");
     plainUser = await loginAs("plain@campaigns.test");
+
+    const readOnlyRole = await prisma.role.create({
+      data: {
+        name: "Campaign Read Only",
+        rolePermissions: {
+          create: [{ permissionKey: "campaign.read", scope: "ORGANIZATION" }],
+        },
+      },
+    });
+    const readOnlyId = await seedUser("read-only@campaigns.test");
+    await prisma.userRoleAssignment.create({
+      data: { userId: readOnlyId, roleId: readOnlyRole.id },
+    });
+    readOnly = await loginAs("read-only@campaigns.test");
 
     const department = await prisma.department.create({
       data: { name: "Marketing" },
@@ -690,6 +705,33 @@ describe("campaign platform API", () => {
       expect(body<ProblemBody>(reopened).code).toBe(
         "CAMPAIGN_INVALID_TRANSITION",
       );
+    });
+
+    it("lets exactly one of two racing transitions win and never reopens a cancelled campaign", async () => {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const created = await createCampaign();
+
+        const responses = await Promise.all([
+          transition(created.id, "CANCELLED"),
+          transition(created.id, "ACTIVE"),
+        ]);
+
+        const statuses = responses.map((response) => response.status).sort();
+        expect(statuses).toEqual([200, 409]);
+        const loser = responses.find((response) => response.status === 409);
+        expect(body<ProblemBody>(loser!).code).toBe(
+          "CAMPAIGN_INVALID_TRANSITION",
+        );
+        const winner = responses.find((response) => response.status === 200);
+        const read = await as(
+          superAdmin,
+          "get",
+          `/api/v1/campaigns/${created.id}`,
+        );
+        expect(body<CampaignBody>(read).status).toBe(
+          body<CampaignBody>(winner!).status,
+        );
+      }
     });
 
     it("rejects an unknown status and a missing body", async () => {
@@ -1209,6 +1251,561 @@ describe("campaign platform API", () => {
       expect(body<ProblemBody>(response).code).toBe(
         "CAMPAIGN_ACTIVITY_NOT_FOUND",
       );
+    });
+  });
+
+  describe("every route enforces authentication and CSRF", () => {
+    const CAMPAIGN_ID = UUID;
+    const routes: [
+      "get" | "post" | "put" | "patch" | "delete",
+      string,
+      Record<string, unknown>?,
+    ][] = [
+      ["get", "/api/v1/campaigns"],
+      ["post", "/api/v1/campaigns", { name: "x", campaignType: "MARKETING" }],
+      ["get", `/api/v1/campaigns/${CAMPAIGN_ID}`],
+      ["patch", `/api/v1/campaigns/${CAMPAIGN_ID}`, { name: "x" }],
+      ["delete", `/api/v1/campaigns/${CAMPAIGN_ID}`],
+      [
+        "post",
+        `/api/v1/campaigns/${CAMPAIGN_ID}/transition`,
+        { status: "ACTIVE" },
+      ],
+      ["put", `/api/v1/campaigns/${CAMPAIGN_ID}/manager`, { managerId: null }],
+      ["put", `/api/v1/campaigns/${CAMPAIGN_ID}/teams/${UUID}`],
+      ["delete", `/api/v1/campaigns/${CAMPAIGN_ID}/teams/${UUID}`],
+      ["get", `/api/v1/campaigns/${CAMPAIGN_ID}/budget`],
+      [
+        "put",
+        `/api/v1/campaigns/${CAMPAIGN_ID}/budget`,
+        { amount: null, currency: null },
+      ],
+      ["get", `/api/v1/campaigns/${CAMPAIGN_ID}/activities`],
+      ["post", `/api/v1/campaigns/${CAMPAIGN_ID}/activities`, { name: "x" }],
+      [
+        "patch",
+        `/api/v1/campaigns/${CAMPAIGN_ID}/activities/${UUID}`,
+        { name: "x" },
+      ],
+      ["delete", `/api/v1/campaigns/${CAMPAIGN_ID}/activities/${UUID}`],
+    ];
+
+    it.each(routes)("401s an unauthenticated %s %s", async (method, path) => {
+      const response = await request(http)[method](path).send({});
+      expect(response.status).toBe(401);
+    });
+
+    it.each(routes.filter(([method]) => method !== "get"))(
+      "403s %s %s without a CSRF token",
+      async (method, path, payload) => {
+        const withoutCsrf = request(http)[method](path);
+        const response = await withoutCsrf
+          .set("Cookie", superAdmin.cookies)
+          .send(payload ?? {});
+        expect(response.status).toBe(403);
+      },
+    );
+
+    it.each(routes)(
+      "403s %s %s for a user with no campaign permissions",
+      async (method, path, payload) => {
+        const response = await as(plainUser, method, path).send(payload ?? {});
+        expect(response.status).toBe(403);
+        expect(body<ProblemBody>(response).code).toBe("PERMISSION_DENIED");
+      },
+    );
+  });
+
+  describe("a read-only role", () => {
+    it("reads campaigns and activities but cannot write, transition, assign, or see the budget", async () => {
+      const campaign = await createCampaign();
+      const activity = await createActivity(campaign.id);
+      const teamId = await createTeam();
+
+      const reads = [
+        "/api/v1/campaigns",
+        `/api/v1/campaigns/${campaign.id}`,
+        `/api/v1/campaigns/${campaign.id}/activities`,
+      ];
+      for (const path of reads) {
+        expect((await as(readOnly, "get", path)).status, path).toBe(200);
+      }
+
+      const writes: [
+        "post" | "put" | "patch" | "delete",
+        string,
+        Record<string, unknown>?,
+      ][] = [
+        ["post", "/api/v1/campaigns", { name: "x", campaignType: "MARKETING" }],
+        ["patch", `/api/v1/campaigns/${campaign.id}`, { name: "x" }],
+        [
+          "post",
+          `/api/v1/campaigns/${campaign.id}/transition`,
+          { status: "ACTIVE" },
+        ],
+        [
+          "put",
+          `/api/v1/campaigns/${campaign.id}/manager`,
+          { managerId: null },
+        ],
+        ["put", `/api/v1/campaigns/${campaign.id}/teams/${teamId}`],
+        ["delete", `/api/v1/campaigns/${campaign.id}/teams/${teamId}`],
+        ["post", `/api/v1/campaigns/${campaign.id}/activities`, { name: "x" }],
+        [
+          "patch",
+          `/api/v1/campaigns/${campaign.id}/activities/${activity.id}`,
+          { name: "x" },
+        ],
+        [
+          "delete",
+          `/api/v1/campaigns/${campaign.id}/activities/${activity.id}`,
+        ],
+        ["delete", `/api/v1/campaigns/${campaign.id}`],
+      ];
+      for (const [method, path, payload] of writes) {
+        const response = await as(readOnly, method, path).send(payload ?? {});
+        expect(response.status, `${method} ${path}`).toBe(403);
+      }
+
+      const budgetPath = `/api/v1/campaigns/${campaign.id}/budget`;
+      expect((await as(readOnly, "get", budgetPath)).status).toBe(403);
+      expect(
+        (
+          await as(readOnly, "put", budgetPath).send({
+            amount: 1,
+            currency: "USD",
+          })
+        ).status,
+      ).toBe(403);
+
+      // Nothing the denied writes attempted took effect.
+      const after = await as(
+        superAdmin,
+        "get",
+        `/api/v1/campaigns/${campaign.id}`,
+      );
+      expect(body<CampaignBody>(after)).toMatchObject({
+        name: campaign.name,
+        status: "PLANNED",
+        teams: [],
+      });
+    });
+  });
+
+  describe("transport contract", () => {
+    it("returns a full Problem Details body and echoes x-request-id", async () => {
+      const response = await as(
+        superAdmin,
+        "get",
+        `/api/v1/campaigns/${UUID}`,
+      ).set("x-request-id", "campaigns-error-id");
+
+      expect(response.status).toBe(404);
+      expect(response.headers["content-type"]).toContain(
+        "application/problem+json",
+      );
+      expect(response.headers["x-request-id"]).toBe("campaigns-error-id");
+      const problem = response.body as Record<string, unknown>;
+      expect(problem).toMatchObject({
+        code: "CAMPAIGN_NOT_FOUND",
+        status: 404,
+        title: "Not Found",
+        instance: `/api/v1/campaigns/${UUID}`,
+      });
+      expect(typeof problem.type).toBe("string");
+      expect(typeof problem.detail).toBe("string");
+      expect(typeof problem.requestId).toBe("string");
+    });
+
+    it("keeps the same shape for validation, conflict, and permission errors", async () => {
+      const campaign = await createCampaign();
+      const cases: [request.Response, number, string][] = [
+        [
+          await as(superAdmin, "post", "/api/v1/campaigns").send({
+            campaignType: "MARKETING",
+          }),
+          400,
+          "Validation Failed",
+        ],
+        [
+          await as(
+            superAdmin,
+            "post",
+            `/api/v1/campaigns/${campaign.id}/transition`,
+          ).send({ status: "COMPLETED" }),
+          409,
+          "Conflict",
+        ],
+        [await as(plainUser, "get", "/api/v1/campaigns"), 403, "Forbidden"],
+      ];
+
+      for (const [response, status, title] of cases) {
+        expect(response.status).toBe(status);
+        expect(response.headers["content-type"]).toContain(
+          "application/problem+json",
+        );
+        expect(response.body).toMatchObject({ status, title });
+        expect(typeof (response.body as ProblemBody).code).toBe("string");
+      }
+    });
+
+    it("echoes x-request-id on a successful mutation", async () => {
+      const campaign = await createCampaign();
+
+      const response = await as(
+        superAdmin,
+        "patch",
+        `/api/v1/campaigns/${campaign.id}`,
+      )
+        .set("x-request-id", "campaigns-mutation-id")
+        .send({ name: "Echo" });
+
+      expect(response.headers["x-request-id"]).toBe("campaigns-mutation-id");
+    });
+
+    it("never leaks a stack trace or database detail", async () => {
+      const responses = [
+        await as(superAdmin, "get", "/api/v1/campaigns/NOT_A_UUID"),
+        await as(superAdmin, "post", "/api/v1/campaigns").send({
+          name: "x",
+          campaignType: "MARKETING",
+          managerId: UUID,
+        }),
+        await as(
+          superAdmin,
+          "put",
+          `/api/v1/campaigns/${UUID}/teams/NOT_A_UUID`,
+        ),
+      ];
+
+      for (const response of responses) {
+        const text = JSON.stringify(response.body);
+        expect(text).not.toMatch(
+          /prisma|postgres|SQLSTATE|violates|at \S+\.ts/i,
+        );
+      }
+    });
+  });
+
+  describe("teams and assignments", () => {
+    it("treats a non-uuid :teamId as not-found on assign and not-assigned on unassign", async () => {
+      const campaign = await createCampaign();
+
+      const assign = await as(
+        superAdmin,
+        "put",
+        `/api/v1/campaigns/${campaign.id}/teams/not-a-uuid`,
+      );
+      expect(assign.status).toBe(404);
+      expect(body<ProblemBody>(assign).code).toBe("CAMPAIGN_TEAM_NOT_FOUND");
+
+      const unassign = await as(
+        superAdmin,
+        "delete",
+        `/api/v1/campaigns/${campaign.id}/teams/not-a-uuid`,
+      );
+      expect(unassign.status).toBe(409);
+      expect(body<ProblemBody>(unassign).code).toBe(
+        "CAMPAIGN_TEAM_NOT_ASSIGNED",
+      );
+    });
+
+    it("keeps several teams sorted by name and unassigns only the one named", async () => {
+      const campaign = await createCampaign();
+      const first = await createTeam();
+      const second = await createTeam();
+      for (const teamId of [first, second]) {
+        await as(
+          superAdmin,
+          "put",
+          `/api/v1/campaigns/${campaign.id}/teams/${teamId}`,
+        );
+      }
+
+      const after = await as(
+        superAdmin,
+        "delete",
+        `/api/v1/campaigns/${campaign.id}/teams/${first}`,
+      );
+
+      expect(body<CampaignBody>(after).teams.map((team) => team.id)).toEqual([
+        second,
+      ]);
+    });
+
+    it("repeating the manager assignment is idempotent", async () => {
+      const campaign = await createCampaign();
+      const managerId = await createUser();
+      const path = `/api/v1/campaigns/${campaign.id}/manager`;
+
+      const first = await as(superAdmin, "put", path).send({ managerId });
+      const second = await as(superAdmin, "put", path).send({ managerId });
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(body<CampaignBody>(second).manager?.id).toBe(managerId);
+    });
+
+    it("shares its people with the generic workspace routes", async () => {
+      const campaign = await createCampaign();
+      const teamId = await createTeam();
+      const participantId = await createUser();
+      await as(
+        superAdmin,
+        "put",
+        `/api/v1/campaigns/${campaign.id}/teams/${teamId}`,
+      );
+
+      const participant = await as(
+        superAdmin,
+        "put",
+        `/api/v1/workspaces/${campaign.workspaceId}/participants/${participantId}`,
+      );
+      expect(participant.status).toBe(200);
+
+      const viaCampaign = await as(
+        superAdmin,
+        "get",
+        `/api/v1/campaigns/${campaign.id}`,
+      );
+      const viaWorkspace = await as(
+        superAdmin,
+        "get",
+        `/api/v1/workspaces/${campaign.workspaceId}`,
+      );
+      expect(
+        body<CampaignBody>(viaCampaign).participants.map((p) => p.id),
+      ).toEqual([participantId]);
+      expect(
+        (
+          viaWorkspace.body as {
+            kind: string;
+            teams: { id: string }[];
+          }
+        ).teams.map((team) => team.id),
+      ).toEqual([teamId]);
+      expect((viaWorkspace.body as { kind: string }).kind).toBe("CAMPAIGN");
+    });
+
+    it("guards the campaign workspace with the campaign keys on the generic routes", async () => {
+      const campaign = await createCampaign();
+
+      const denied = await as(
+        plainUser,
+        "get",
+        `/api/v1/workspaces/${campaign.workspaceId}`,
+      );
+      const readOnlyRead = await as(
+        readOnly,
+        "get",
+        `/api/v1/workspaces/${campaign.workspaceId}`,
+      );
+      const readOnlyWrite = await as(
+        readOnly,
+        "put",
+        `/api/v1/workspaces/${campaign.workspaceId}/manager`,
+      ).send({ managerId: null });
+
+      expect(denied.status).toBe(403);
+      expect(readOnlyRead.status).toBe(200);
+      expect(readOnlyWrite.status).toBe(403);
+    });
+  });
+
+  describe("deletion side effects", () => {
+    it("spares the team, users, and related event, dropping only the assignments", async () => {
+      const eventId = await createEvent();
+      const teamId = await createTeam();
+      const managerId = await createUser();
+      const campaign = await createCampaign(superAdmin, {
+        eventId,
+        managerId,
+      });
+      await as(
+        superAdmin,
+        "put",
+        `/api/v1/campaigns/${campaign.id}/teams/${teamId}`,
+      );
+
+      const removed = await as(
+        superAdmin,
+        "delete",
+        `/api/v1/campaigns/${campaign.id}`,
+      );
+
+      expect(removed.status).toBe(204);
+      expect(
+        await prisma.event.findUnique({ where: { id: eventId } }),
+      ).not.toBeNull();
+      expect(
+        await prisma.team.findUnique({ where: { id: teamId } }),
+      ).not.toBeNull();
+      expect(
+        await prisma.user.findUnique({ where: { id: managerId } }),
+      ).not.toBeNull();
+      expect(
+        await prisma.workspaceTeam.count({
+          where: { workspaceId: campaign.workspaceId },
+        }),
+      ).toBe(0);
+    });
+
+    it("keeps the campaign when its related event is deleted first", async () => {
+      const eventId = await createEvent();
+      const campaign = await createCampaign(superAdmin, { eventId });
+
+      const removed = await as(
+        superAdmin,
+        "delete",
+        `/api/v1/events/${eventId}`,
+      );
+      expect(removed.status).toBe(204);
+
+      const read = await as(
+        superAdmin,
+        "get",
+        `/api/v1/campaigns/${campaign.id}`,
+      );
+      expect(read.status).toBe(200);
+      expect(body<CampaignBody>(read).eventId).toBeNull();
+    });
+
+    it("keeps the campaign, with no author, when its author is deleted", async () => {
+      const author = await prisma.user.create({
+        data: { email: "temp-author@campaigns.test" },
+      });
+      const workspace = await prisma.workspace.create({
+        data: { kind: "CAMPAIGN" },
+      });
+      const campaign = await prisma.campaign.create({
+        data: {
+          workspaceId: workspace.id,
+          name: "Authored elsewhere",
+          campaignType: "MARKETING",
+          createdById: author.id,
+        },
+      });
+      const before = await as(
+        superAdmin,
+        "get",
+        `/api/v1/campaigns/${campaign.id}`,
+      );
+      expect(body<CampaignBody>(before).createdBy?.id).toBe(author.id);
+
+      await prisma.user.delete({ where: { id: author.id } });
+
+      const after = await as(
+        superAdmin,
+        "get",
+        `/api/v1/campaigns/${campaign.id}`,
+      );
+      expect(after.status).toBe(200);
+      expect(body<CampaignBody>(after).createdBy).toBeNull();
+    });
+  });
+
+  describe("budget boundaries", () => {
+    it("accepts the numeric(14,2) ceiling and zero, and rejects anything above", async () => {
+      const campaign = await createCampaign();
+      const path = `/api/v1/campaigns/${campaign.id}/budget`;
+
+      const ceiling = await as(superAdmin, "put", path).send({
+        amount: 999999999999.99,
+        currency: "USD",
+      });
+      expect(ceiling.status).toBe(200);
+      expect(ceiling.body).toEqual({
+        amount: "999999999999.99",
+        currency: "USD",
+      });
+
+      const zero = await as(superAdmin, "put", path).send({
+        amount: 0,
+        currency: "USD",
+      });
+      expect(zero.body).toEqual({ amount: "0.00", currency: "USD" });
+
+      const over = await as(superAdmin, "put", path).send({
+        amount: 1000000000000,
+        currency: "USD",
+      });
+      expect(over.status).toBe(400);
+      // A rejected update leaves the previous budget intact.
+      expect((await as(superAdmin, "get", path)).body).toEqual({
+        amount: "0.00",
+        currency: "USD",
+      });
+    });
+  });
+
+  describe("concurrent requests stay consistent", () => {
+    it("creates distinct campaigns and workspaces in parallel", async () => {
+      const results = await Promise.all(
+        Array.from({ length: 8 }, () => createCampaign()),
+      );
+
+      expect(new Set(results.map((item) => item.id)).size).toBe(8);
+      expect(new Set(results.map((item) => item.workspaceId)).size).toBe(8);
+    });
+
+    it("assigns the same team in parallel without duplicating it", async () => {
+      const campaign = await createCampaign();
+      const teamId = await createTeam();
+
+      const responses = await Promise.all(
+        Array.from({ length: 4 }, () =>
+          as(
+            superAdmin,
+            "put",
+            `/api/v1/campaigns/${campaign.id}/teams/${teamId}`,
+          ),
+        ),
+      );
+
+      expect(responses.map((response) => response.status)).toEqual([
+        200, 200, 200, 200,
+      ]);
+      expect(
+        await prisma.workspaceTeam.count({
+          where: { workspaceId: campaign.workspaceId },
+        }),
+      ).toBe(1);
+    });
+
+    it("counts every parallel activity toward progress", async () => {
+      const campaign = await createCampaign();
+
+      await Promise.all(
+        Array.from({ length: 6 }, (_, index) =>
+          createActivity(campaign.id, {
+            status: index < 3 ? "COMPLETED" : "PLANNED",
+          }),
+        ),
+      );
+
+      const read = await as(
+        superAdmin,
+        "get",
+        `/api/v1/campaigns/${campaign.id}`,
+      );
+      expect(body<CampaignBody>(read).progress).toEqual({
+        completedActivities: 3,
+        totalActivities: 6,
+        percent: 50,
+      });
+    });
+
+    it("lets exactly one of two parallel deletes succeed", async () => {
+      const campaign = await createCampaign();
+
+      const responses = await Promise.all([
+        as(superAdmin, "delete", `/api/v1/campaigns/${campaign.id}`),
+        as(superAdmin, "delete", `/api/v1/campaigns/${campaign.id}`),
+      ]);
+
+      expect(responses.map((response) => response.status).sort()).toEqual([
+        204, 404,
+      ]);
     });
   });
 });

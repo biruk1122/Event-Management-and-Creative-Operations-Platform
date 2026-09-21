@@ -238,9 +238,19 @@ export class CampaignsService {
       throw campaignInvalidTransition(campaign.status, target);
     }
 
-    const result = await this.repository.updateStatus(id, target);
+    const result = await this.repository.updateStatus(
+      id,
+      campaign.status,
+      target,
+    );
     if (result === "not_found") {
       throw campaignNotFound();
+    }
+    if (result === "status_changed") {
+      // Another request moved the campaign after we read it. Report the move
+      // that is no longer legal against the status it now has.
+      const current = await this.loadOrThrow(id);
+      throw campaignInvalidTransition(current.status, target);
     }
     return toCampaignResponse(result);
   }

@@ -418,7 +418,7 @@ describe("CampaignsService", () => {
 
       await service.transition(ACTOR, "cmp-1", to);
 
-      expect(repository.updateStatus).toHaveBeenCalledWith("cmp-1", to);
+      expect(repository.updateStatus).toHaveBeenCalledWith("cmp-1", from, to);
     });
 
     it.each([
@@ -437,6 +437,37 @@ describe("CampaignsService", () => {
         "CAMPAIGN_INVALID_TRANSITION",
       );
       expect(repository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("409s with the status it now has when another request moved it first", async () => {
+      repository.findById
+        .mockResolvedValueOnce(makeCampaign({ status: "PLANNED" }))
+        .mockResolvedValueOnce(makeCampaign({ status: "CANCELLED" }));
+      repository.updateStatus.mockResolvedValueOnce("status_changed");
+
+      const promise = service.transition(ACTOR, "cmp-1", "ACTIVE");
+
+      await expectCode(promise, "CAMPAIGN_INVALID_TRANSITION");
+      await promise.catch((error: unknown) => {
+        const detail = (error as HttpException).getResponse() as {
+          detail: string;
+        };
+        expect(detail.detail).toBe(
+          "A campaign in CANCELLED cannot move to ACTIVE.",
+        );
+      });
+    });
+
+    it("404s when the campaign is deleted while the transition races", async () => {
+      repository.updateStatus.mockResolvedValueOnce("status_changed");
+      repository.findById
+        .mockResolvedValueOnce(makeCampaign())
+        .mockResolvedValueOnce(null);
+
+      await expectCode(
+        service.transition(ACTOR, "cmp-1", "ACTIVE"),
+        "CAMPAIGN_NOT_FOUND",
+      );
     });
 
     it("404s when the campaign disappears between load and update", async () => {
