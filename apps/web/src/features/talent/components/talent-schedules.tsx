@@ -58,6 +58,12 @@ interface TalentSchedulesProps {
   onUpdate: UpdateSchedule;
   onRemove: RemoveSchedule;
   onChanged: (talent: Talent) => void;
+  /**
+   * Called after a successful removal, since `DELETE .../schedules/:id`
+   * returns no body (unlike add/update, which return the full talent) - the
+   * caller has nothing to `onChanged` with, so it must update its own state.
+   */
+  onRemoved: (scheduleId: string) => void;
 }
 
 /**
@@ -73,6 +79,7 @@ export function TalentSchedules({
   onUpdate,
   onRemove,
   onChanged,
+  onRemoved,
 }: TalentSchedulesProps) {
   const headingId = useId();
 
@@ -98,6 +105,7 @@ export function TalentSchedules({
     setBusyId(null);
     setConfirmingId(null);
     if (outcome.status === "success") {
+      onRemoved(schedule.id);
       setAnnouncement(`${schedule.title} removed.`);
       return;
     }
