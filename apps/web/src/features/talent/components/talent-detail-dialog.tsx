@@ -418,6 +418,14 @@ function TalentDetailBody({
         onUpdate={onUpdateSchedule}
         onRemove={onRemoveSchedule}
         onChanged={apply}
+        onRemoved={(scheduleId) =>
+          apply({
+            ...talent,
+            schedules: talent.schedules.filter(
+              (item) => item.id !== scheduleId,
+            ),
+          })
+        }
       />
 
       <TalentSocialLinks
@@ -427,6 +435,14 @@ function TalentDetailBody({
         onAdd={onAddSocialLink}
         onRemove={onRemoveSocialLink}
         onChanged={apply}
+        onRemoved={(socialLinkId) =>
+          apply({
+            ...talent,
+            socialLinks: talent.socialLinks.filter(
+              (item) => item.id !== socialLinkId,
+            ),
+          })
+        }
       />
 
       <TalentEventAssignments

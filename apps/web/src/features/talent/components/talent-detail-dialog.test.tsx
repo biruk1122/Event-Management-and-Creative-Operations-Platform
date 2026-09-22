@@ -309,6 +309,46 @@ describe("TalentDetailDialog", () => {
       await waitFor(() => expect(onAddSchedule).toHaveBeenCalled());
       expect(await screen.findByText("Sound check")).toBeVisible();
     });
+
+    // DELETE .../schedules/:id returns no body, so the row must be dropped
+    // from the already-loaded talent locally rather than via `onChanged`.
+    it("removes a schedule entry and drops it from the list", async () => {
+      const user = userEvent.setup();
+      const onRemoveSchedule = vi.fn(() =>
+        Promise.resolve({ status: "success" as const }),
+      );
+      renderDialog({
+        getTalent: vi.fn(() =>
+          Promise.resolve(
+            makeTalent({
+              schedules: [
+                {
+                  id: "sch1",
+                  title: "Sound check",
+                  startAt: "2026-06-01T10:00:00.000Z",
+                  endAt: "2026-06-01T11:00:00.000Z",
+                },
+              ],
+            }),
+          ),
+        ),
+        onRemoveSchedule,
+      });
+      await waitForLoaded();
+      expect(screen.getByText("Sound check")).toBeVisible();
+
+      await user.click(
+        screen.getByRole("button", { name: "Remove Sound check" }),
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Confirm remove Sound check" }),
+      );
+
+      await waitFor(() =>
+        expect(onRemoveSchedule).toHaveBeenCalledWith("tal-1", "sch1"),
+      );
+      expect(screen.queryByText("Sound check")).not.toBeInTheDocument();
+    });
   });
 
   describe("social links", () => {
@@ -330,6 +370,42 @@ describe("TalentDetailDialog", () => {
           "That URL is already recorded for this talent.",
         ),
       ).toBeVisible();
+    });
+
+    // DELETE .../social-links/:id returns no body, so the row must be dropped
+    // from the already-loaded talent locally rather than via `onChanged`.
+    it("removes a social link and drops it from the list", async () => {
+      const user = userEvent.setup();
+      const onRemoveSocialLink = vi.fn(() =>
+        Promise.resolve({ status: "success" as const }),
+      );
+      renderDialog({
+        getTalent: vi.fn(() =>
+          Promise.resolve(
+            makeTalent({
+              socialLinks: [
+                {
+                  id: "sl1",
+                  label: "Instagram",
+                  url: "https://instagram.com/a",
+                },
+              ],
+            }),
+          ),
+        ),
+        onRemoveSocialLink,
+      });
+      await waitForLoaded();
+      expect(screen.getByText("Instagram")).toBeVisible();
+
+      await user.click(
+        screen.getByRole("button", { name: "Remove Instagram" }),
+      );
+
+      await waitFor(() =>
+        expect(onRemoveSocialLink).toHaveBeenCalledWith("tal-1", "sl1"),
+      );
+      expect(screen.queryByText("Instagram")).not.toBeInTheDocument();
     });
   });
 

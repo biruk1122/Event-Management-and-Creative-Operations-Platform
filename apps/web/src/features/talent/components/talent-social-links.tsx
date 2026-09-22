@@ -35,6 +35,12 @@ interface TalentSocialLinksProps {
   onAdd: AddSocialLink;
   onRemove: RemoveSocialLink;
   onChanged: (talent: Talent) => void;
+  /**
+   * Called after a successful removal, since `DELETE .../social-links/:id`
+   * returns no body (unlike add, which returns the full talent) - the caller
+   * has nothing to `onChanged` with, so it must update its own state.
+   */
+  onRemoved: (socialLinkId: string) => void;
 }
 
 /**
@@ -48,6 +54,7 @@ export function TalentSocialLinks({
   onAdd,
   onRemove,
   onChanged,
+  onRemoved,
 }: TalentSocialLinksProps) {
   const headingId = useId();
   const ids = { label: useId(), url: useId() };
@@ -117,6 +124,7 @@ export function TalentSocialLinks({
     const outcome = await onRemove(talentId, link.id);
     setBusyId(null);
     if (outcome.status === "success") {
+      onRemoved(link.id);
       setAnnouncement(`${link.label} removed.`);
       return;
     }
