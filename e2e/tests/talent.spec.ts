@@ -404,10 +404,13 @@ test.describe("Talent management — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    // A Team Member holds no talent.* grants at all, and neither does
-    // Management/Administrator - Talent's surface is fully denied to every
-    // role except Super Admin and the dedicated Talent Manager role.
-    test.use({ storageState: authStatePath("member") });
+    // Management/Administrator holds no talent.* grants at all - Talent's
+    // surface is fully denied to every role except Super Admin and the
+    // dedicated Talent Manager role, so this account works as well as
+    // `member` would for proving denial. `member`'s saved session is
+    // invalidated by `auth-session.spec.ts` (runs earlier), so the denied
+    // journey uses an account no other spec signs out.
+    test.use({ storageState: authStatePath("manager") });
 
     test("a caller without talent grants cannot see, open, or drive talent management", async ({
       page,
