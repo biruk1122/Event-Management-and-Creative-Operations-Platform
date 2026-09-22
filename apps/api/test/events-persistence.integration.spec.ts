@@ -301,7 +301,11 @@ describe("event management persistence", () => {
     it("persists each lifecycle state", async () => {
       for (const status of EVERY_STATUS) {
         const event = await create();
-        const updated = await repository.updateStatus(event.id, status);
+        const updated = await repository.updateStatus(
+          event.id,
+          "PLANNING",
+          status,
+        );
         if (typeof updated === "string") throw new Error(updated);
         expect(updated.status).toBe(status);
         expect((await repository.findById(event.id))?.status).toBe(status);
@@ -309,12 +313,59 @@ describe("event management persistence", () => {
     });
 
     it("returns not_found for an unknown id and a non-uuid string", async () => {
-      expect(await repository.updateStatus(MISSING_UUID, "READY")).toBe(
-        "not_found",
+      expect(
+        await repository.updateStatus(MISSING_UUID, "PLANNING", "READY"),
+      ).toBe("not_found");
+      expect(
+        await repository.updateStatus("not-a-uuid", "PLANNING", "READY"),
+      ).toBe("not_found");
+    });
+  });
+
+  describe("status changes are compare-and-swap", () => {
+    it("refuses a stale expected status and leaves the event as it is", async () => {
+      const event = await create();
+      await repository.updateStatus(event.id, "PLANNING", "CANCELLED");
+
+      const result = await repository.updateStatus(
+        event.id,
+        "PLANNING",
+        "READY",
       );
-      expect(await repository.updateStatus("not-a-uuid", "READY")).toBe(
-        "not_found",
-      );
+
+      expect(result).toBe("status_changed");
+      expect((await repository.findById(event.id))?.status).toBe("CANCELLED");
+    });
+
+    it("applies only when the expected status still matches", async () => {
+      const event = await create();
+      await repository.updateStatus(event.id, "PLANNING", "READY");
+
+      expect(
+        await repository.updateStatus(event.id, "READY", "IN_PROGRESS"),
+      ).toMatchObject({ status: "IN_PROGRESS" });
+    });
+
+    it("lets exactly one of two racing transitions win", async () => {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const event = await create();
+
+        const results = await Promise.all([
+          repository.updateStatus(event.id, "PLANNING", "CANCELLED"),
+          repository.updateStatus(event.id, "PLANNING", "READY"),
+        ]);
+
+        const winners = results.filter((result) => typeof result !== "string");
+        expect(winners).toHaveLength(1);
+        expect(
+          results.filter((result) => result === "status_changed"),
+        ).toHaveLength(1);
+        // The stored status is the winner's target, never overwritten.
+        const winner = winners[0] as EventRecord;
+        expect((await repository.findById(event.id))?.status).toBe(
+          winner.status,
+        );
+      }
     });
   });
 
@@ -444,7 +495,7 @@ describe("event management persistence", () => {
         managerId,
         startAt: new Date("2028-06-15T00:00:00.000Z"),
       });
-      await repository.updateStatus(tagged.id, "READY");
+      await repository.updateStatus(tagged.id, "PLANNING", "READY");
       await create({ name: "Unrelated", eventType: "CONCERT" });
 
       const byType = await repository.list({

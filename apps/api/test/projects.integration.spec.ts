@@ -611,6 +611,41 @@ describe("general project management API", () => {
       expect(ghost.status).toBe(404);
       expect(body<ProblemBody>(ghost).code).toBe("PROJECT_NOT_FOUND");
     });
+
+    it("lets exactly one of two racing transitions win and never reopens a cancelled project", async () => {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const created = await createProject();
+
+        const responses = await Promise.all([
+          as(
+            superAdmin,
+            "post",
+            `/api/v1/projects/${created.id}/transition`,
+          ).send({ status: "CANCELLED" }),
+          as(
+            superAdmin,
+            "post",
+            `/api/v1/projects/${created.id}/transition`,
+          ).send({ status: "ACTIVE" }),
+        ]);
+
+        const statuses = responses.map((response) => response.status).sort();
+        expect(statuses).toEqual([200, 409]);
+        const loser = responses.find((response) => response.status === 409);
+        expect(body<ProblemBody>(loser!).code).toBe(
+          "PROJECT_INVALID_TRANSITION",
+        );
+        const winner = responses.find((response) => response.status === 200);
+        const read = await as(
+          superAdmin,
+          "get",
+          `/api/v1/projects/${created.id}`,
+        );
+        expect(body<ProjectBody>(read).status).toBe(
+          body<ProjectBody>(winner!).status,
+        );
+      }
+    });
   });
 
   describe("manager and teams", () => {

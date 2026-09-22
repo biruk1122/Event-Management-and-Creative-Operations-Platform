@@ -320,26 +320,33 @@ export class EventsRepository {
     }
   }
 
+  /**
+   * A compare-and-swap: the write only applies when the row's status still
+   * matches `expectedStatus` (the status the caller validated the move
+   * against). Two concurrent transitions read the same stale status and
+   * would otherwise both pass validation and both write, so an unconditional
+   * update lets the later write silently win - including reopening a
+   * terminal (Completed/Cancelled) record. `"status_changed"` tells the
+   * caller its check is stale so it can re-validate against the status the
+   * row now actually has.
+   */
   async updateStatus(
     id: string,
+    expectedStatus: EventStatus,
     status: EventStatus,
-  ): Promise<EventRecord | "not_found"> {
+  ): Promise<EventRecord | "not_found" | "status_changed"> {
     if (!isUuid(id)) {
       return "not_found";
     }
-    try {
-      const updated = await this.db.event.update({
-        where: { id },
-        data: { status },
-        select: EVENT_SELECT,
-      });
-      return toRecord(updated);
-    } catch (error) {
-      if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
-        return "not_found";
-      }
-      throw error;
+    const { count } = await this.db.event.updateMany({
+      where: { id, status: expectedStatus },
+      data: { status },
+    });
+    const record = await this.findById(id);
+    if (!record) {
+      return "not_found";
     }
+    return count === 0 ? "status_changed" : record;
   }
 
   async setBudget(
