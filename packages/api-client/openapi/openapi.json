@@ -12925,7 +12925,7 @@
           "required": true
         },
         "responses": {
-          "201": {
+          "200": {
             "description": ""
           },
           "401": {
@@ -13354,7 +13354,7 @@
           "required": true
         },
         "responses": {
-          "201": {
+          "200": {
             "description": ""
           },
           "401": {
