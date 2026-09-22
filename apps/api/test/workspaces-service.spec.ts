@@ -404,6 +404,11 @@ describe("WorkspacesService", () => {
       await expectCode(service.remove(ACTOR, "ws-1"), "WORKSPACE_NOT_FOUND");
     });
 
+    it("remove maps repository 'in_use' to WORKSPACE_IN_USE, not a 500", async () => {
+      repository.delete.mockResolvedValue("in_use");
+      await expectCode(service.remove(ACTOR, "ws-1"), "WORKSPACE_IN_USE");
+    });
+
     it.each([
       [
         "setManager",

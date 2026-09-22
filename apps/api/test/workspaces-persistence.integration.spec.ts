@@ -216,6 +216,65 @@ describe("connected workspace ownership persistence", () => {
         await prisma.user.findUnique({ where: { id: userId } }),
       ).not.toBeNull();
     });
+
+    it("refuses to delete a workspace still owned by an event, reporting 'in_use' instead of throwing", async () => {
+      const created = await repository.create({
+        kind: "EVENT",
+        managerId: null,
+      });
+      if (created === "manager_not_found") throw new Error("unexpected");
+      await prisma.event.create({
+        data: {
+          workspaceId: created.id,
+          name: "Owning Event",
+          eventType: "OTHER",
+        },
+      });
+
+      expect(await repository.delete(created.id)).toBe("in_use");
+
+      expect(
+        await prisma.workspace.findUnique({ where: { id: created.id } }),
+      ).not.toBeNull();
+    });
+
+    it("refuses to delete a workspace still owned by a project", async () => {
+      const created = await repository.create({
+        kind: "PROJECT",
+        managerId: null,
+      });
+      if (created === "manager_not_found") throw new Error("unexpected");
+      await prisma.project.create({
+        data: { workspaceId: created.id, name: "Owning Project" },
+      });
+
+      expect(await repository.delete(created.id)).toBe("in_use");
+
+      expect(
+        await prisma.workspace.findUnique({ where: { id: created.id } }),
+      ).not.toBeNull();
+    });
+
+    it("refuses to delete a workspace still owned by a campaign", async () => {
+      const created = await repository.create({
+        kind: "CAMPAIGN",
+        managerId: null,
+      });
+      if (created === "manager_not_found") throw new Error("unexpected");
+      await prisma.campaign.create({
+        data: {
+          workspaceId: created.id,
+          name: "Owning Campaign",
+          campaignType: "MARKETING",
+        },
+      });
+
+      expect(await repository.delete(created.id)).toBe("in_use");
+
+      expect(
+        await prisma.workspace.findUnique({ where: { id: created.id } }),
+      ).not.toBeNull();
+    });
   });
 
   describe("list", () => {

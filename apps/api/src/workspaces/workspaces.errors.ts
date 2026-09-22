@@ -10,6 +10,7 @@ export const WORKSPACE_ERROR = {
   workspaceTeamNotFound: "WORKSPACE_TEAM_NOT_FOUND",
   workspaceTeamNotAssigned: "WORKSPACE_TEAM_NOT_ASSIGNED",
   workspaceParticipantNotFound: "WORKSPACE_PARTICIPANT_NOT_FOUND",
+  workspaceInUse: "WORKSPACE_IN_USE",
   /** The same code the user, department, and team surfaces use. */
   userNotFound: "USER_NOT_FOUND",
 } as const;
@@ -51,5 +52,14 @@ export function workspaceParticipantNotFound(): HttpException {
     code: WORKSPACE_ERROR.workspaceParticipantNotFound,
     error: "Conflict",
     detail: "That user is not a participant in this workspace.",
+  });
+}
+
+export function workspaceInUse(): HttpException {
+  return new ConflictException({
+    code: WORKSPACE_ERROR.workspaceInUse,
+    error: "Conflict",
+    detail:
+      "This workspace is still owned by an event, project, campaign, task, meeting, or conversation. Remove that record through its own route first.",
   });
 }

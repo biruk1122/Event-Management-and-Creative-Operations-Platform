@@ -201,14 +201,24 @@ export class WorkspacesRepository {
     }
   }
 
-  /** Removes the root. Its team and participant rows cascade. */
-  async delete(id: string): Promise<"not_found" | "deleted"> {
+  /**
+   * Removes the root. Its team and participant rows cascade, but an event,
+   * project, campaign, task, meeting, or conversation may still reference
+   * this workspace through an `ON DELETE RESTRICT` foreign key - deleting
+   * those happens through their own routes, not this one, so a restrict
+   * violation here is reported as `"in_use"` rather than left to surface as
+   * an unhandled database error.
+   */
+  async delete(id: string): Promise<"not_found" | "deleted" | "in_use"> {
     try {
       await this.db.workspace.delete({ where: { id } });
       return "deleted";
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
         return "not_found";
+      }
+      if (isPrismaError(error, PRISMA_ERROR.foreignKeyViolation)) {
+        return "in_use";
       }
       throw error;
     }

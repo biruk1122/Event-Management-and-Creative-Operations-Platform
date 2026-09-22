@@ -16989,6 +16989,16 @@
               }
             },
             "description": "Workspace not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The workspace is still owned by an event, project, campaign, task, meeting, or conversation"
           }
         },
         "security": [
