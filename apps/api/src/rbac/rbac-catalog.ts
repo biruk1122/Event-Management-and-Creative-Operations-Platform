@@ -487,6 +487,12 @@ const TALENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "talent.assign", scope: "ORGANIZATION" },
   { permissionKey: "talent.manage_activities", scope: "ORGANIZATION" },
   { permissionKey: "calendar.read", scope: "ORGANIZATION" },
+  // The talent UI's manager and event-assignment pickers list users and
+  // events (GET /users, GET /events), which need their own read grants -
+  // without these, the one role dedicated to this module could not
+  // populate either picker.
+  { permissionKey: "user.read", scope: "ORGANIZATION" },
+  { permissionKey: "event.read", scope: "ORGANIZATION" },
 ];
 
 /**

@@ -18,7 +18,8 @@ export interface TestUser {
     | "Super Admin"
     | "Management/Administrator"
     | "Department Manager"
-    | "Team Member";
+    | "Team Member"
+    | "Talent Manager";
   readonly firstName: string;
   readonly lastName: string;
 }
@@ -57,6 +58,14 @@ export const TEST_USERS: readonly TestUser[] = [
     role: "Department Manager",
     firstName: "Dana",
     lastName: "Okafor",
+  },
+  {
+    key: "talentManager",
+    email: "talent-manager@e2e.test",
+    password: TEST_USER_PASSWORD,
+    role: "Talent Manager",
+    firstName: "Taylor",
+    lastName: "Cast",
   },
 ] as const;
 
