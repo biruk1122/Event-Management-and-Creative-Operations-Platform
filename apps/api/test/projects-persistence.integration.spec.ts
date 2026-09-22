@@ -340,7 +340,11 @@ describe("general project management persistence", () => {
     it("persists each lifecycle state", async () => {
       for (const status of EVERY_STATUS) {
         const project = await create();
-        const updated = await repository.updateStatus(project.id, status);
+        const updated = await repository.updateStatus(
+          project.id,
+          "PLANNED",
+          status,
+        );
         if (typeof updated === "string") throw new Error(updated);
         expect(updated.status).toBe(status);
         expect((await repository.findById(project.id))?.status).toBe(status);
@@ -348,12 +352,59 @@ describe("general project management persistence", () => {
     });
 
     it("returns not_found for an unknown id and a non-uuid string", async () => {
-      expect(await repository.updateStatus(MISSING_UUID, "ACTIVE")).toBe(
-        "not_found",
+      expect(
+        await repository.updateStatus(MISSING_UUID, "PLANNED", "ACTIVE"),
+      ).toBe("not_found");
+      expect(
+        await repository.updateStatus("not-a-uuid", "PLANNED", "ACTIVE"),
+      ).toBe("not_found");
+    });
+  });
+
+  describe("status changes are compare-and-swap", () => {
+    it("refuses a stale expected status and leaves the project as it is", async () => {
+      const project = await create();
+      await repository.updateStatus(project.id, "PLANNED", "CANCELLED");
+
+      const result = await repository.updateStatus(
+        project.id,
+        "PLANNED",
+        "ACTIVE",
       );
-      expect(await repository.updateStatus("not-a-uuid", "ACTIVE")).toBe(
-        "not_found",
-      );
+
+      expect(result).toBe("status_changed");
+      expect((await repository.findById(project.id))?.status).toBe("CANCELLED");
+    });
+
+    it("applies only when the expected status still matches", async () => {
+      const project = await create();
+      await repository.updateStatus(project.id, "PLANNED", "ACTIVE");
+
+      expect(
+        await repository.updateStatus(project.id, "ACTIVE", "COMPLETED"),
+      ).toMatchObject({ status: "COMPLETED" });
+    });
+
+    it("lets exactly one of two racing transitions win", async () => {
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        const project = await create();
+
+        const results = await Promise.all([
+          repository.updateStatus(project.id, "PLANNED", "CANCELLED"),
+          repository.updateStatus(project.id, "PLANNED", "ACTIVE"),
+        ]);
+
+        const winners = results.filter((result) => typeof result !== "string");
+        expect(winners).toHaveLength(1);
+        expect(
+          results.filter((result) => result === "status_changed"),
+        ).toHaveLength(1);
+        // The stored status is the winner's target, never overwritten.
+        const winner = winners[0] as ProjectRecord;
+        expect((await repository.findById(project.id))?.status).toBe(
+          winner.status,
+        );
+      }
     });
   });
 
@@ -493,7 +544,7 @@ describe("general project management persistence", () => {
         eventId,
         startAt: new Date("2028-06-15T00:00:00.000Z"),
       });
-      await repository.updateStatus(tagged.id, "ACTIVE");
+      await repository.updateStatus(tagged.id, "PLANNED", "ACTIVE");
       await create({ name: "Unrelated" });
 
       const byEvent = await repository.list({

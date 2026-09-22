@@ -236,6 +236,7 @@ describe("EventsService", () => {
         await expect(
           service.transition(ACTOR, "evt-1", to),
         ).resolves.toMatchObject({ status: to });
+        expect(repository.updateStatus).toHaveBeenCalledWith("evt-1", from, to);
       } else {
         await expectCode(
           service.transition(ACTOR, "evt-1", to),
@@ -243,6 +244,48 @@ describe("EventsService", () => {
         );
         expect(repository.updateStatus).not.toHaveBeenCalled();
       }
+    });
+
+    it("409s with the status it now has when another request moved it first", async () => {
+      grantOnly(["event.transition_status", "ORGANIZATION"]);
+      repository.findById
+        .mockResolvedValueOnce(makeEvent({ status: "PLANNING" }))
+        .mockResolvedValueOnce(makeEvent({ status: "CANCELLED" }));
+      repository.updateStatus.mockResolvedValueOnce("status_changed");
+
+      const promise = service.transition(ACTOR, "evt-1", "READY");
+
+      await expectCode(promise, "EVENT_INVALID_TRANSITION");
+      await promise.catch((error: unknown) => {
+        const detail = (error as HttpException).getResponse() as {
+          detail: string;
+        };
+        expect(detail.detail).toBe(
+          "An event in CANCELLED cannot move to READY.",
+        );
+      });
+    });
+
+    it("404s when the event is deleted while the transition races", async () => {
+      grantOnly(["event.transition_status", "ORGANIZATION"]);
+      repository.updateStatus.mockResolvedValueOnce("status_changed");
+      repository.findById
+        .mockResolvedValueOnce(makeEvent())
+        .mockResolvedValueOnce(null);
+
+      await expectCode(
+        service.transition(ACTOR, "evt-1", "READY"),
+        "EVENT_NOT_FOUND",
+      );
+    });
+
+    it("404s when the event disappears between load and update", async () => {
+      grantOnly(["event.transition_status", "ORGANIZATION"]);
+      repository.updateStatus.mockResolvedValueOnce("not_found");
+      await expectCode(
+        service.transition(ACTOR, "evt-1", "READY"),
+        "EVENT_NOT_FOUND",
+      );
     });
   });
 

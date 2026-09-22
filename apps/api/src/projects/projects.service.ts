@@ -200,9 +200,19 @@ export class ProjectsService {
       throw projectInvalidTransition(project.status, target);
     }
 
-    const result = await this.repository.updateStatus(id, target);
+    const result = await this.repository.updateStatus(
+      id,
+      project.status,
+      target,
+    );
     if (result === "not_found") {
       throw projectNotFound();
+    }
+    if (result === "status_changed") {
+      // Another request moved the project after we read it. Report the move
+      // that is no longer legal against the status it now has.
+      const current = await this.loadOrThrow(id);
+      throw projectInvalidTransition(current.status, target);
     }
     return toProjectResponse(result);
   }

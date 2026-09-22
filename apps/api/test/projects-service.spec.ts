@@ -210,6 +210,7 @@ describe("ProjectsService", () => {
         await expect(
           service.transition(ACTOR, "prj-1", to),
         ).resolves.toMatchObject({ status: to });
+        expect(repository.updateStatus).toHaveBeenCalledWith("prj-1", from, to);
       } else {
         await expectCode(
           service.transition(ACTOR, "prj-1", to),
@@ -217,6 +218,48 @@ describe("ProjectsService", () => {
         );
         expect(repository.updateStatus).not.toHaveBeenCalled();
       }
+    });
+
+    it("409s with the status it now has when another request moved it first", async () => {
+      grantOnly(["project.transition_status", "ORGANIZATION"]);
+      repository.findById
+        .mockResolvedValueOnce(makeProject({ status: "PLANNED" }))
+        .mockResolvedValueOnce(makeProject({ status: "CANCELLED" }));
+      repository.updateStatus.mockResolvedValueOnce("status_changed");
+
+      const promise = service.transition(ACTOR, "prj-1", "ACTIVE");
+
+      await expectCode(promise, "PROJECT_INVALID_TRANSITION");
+      await promise.catch((error: unknown) => {
+        const detail = (error as HttpException).getResponse() as {
+          detail: string;
+        };
+        expect(detail.detail).toBe(
+          "A project in CANCELLED cannot move to ACTIVE.",
+        );
+      });
+    });
+
+    it("404s when the project is deleted while the transition races", async () => {
+      grantOnly(["project.transition_status", "ORGANIZATION"]);
+      repository.updateStatus.mockResolvedValueOnce("status_changed");
+      repository.findById
+        .mockResolvedValueOnce(makeProject())
+        .mockResolvedValueOnce(null);
+
+      await expectCode(
+        service.transition(ACTOR, "prj-1", "ACTIVE"),
+        "PROJECT_NOT_FOUND",
+      );
+    });
+
+    it("404s when the project disappears between load and update", async () => {
+      grantOnly(["project.transition_status", "ORGANIZATION"]);
+      repository.updateStatus.mockResolvedValueOnce("not_found");
+      await expectCode(
+        service.transition(ACTOR, "prj-1", "ACTIVE"),
+        "PROJECT_NOT_FOUND",
+      );
     });
   });
 

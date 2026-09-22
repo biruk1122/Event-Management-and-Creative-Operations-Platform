@@ -209,9 +209,15 @@ export class EventsService {
       throw eventInvalidTransition(event.status, target);
     }
 
-    const result = await this.repository.updateStatus(id, target);
+    const result = await this.repository.updateStatus(id, event.status, target);
     if (result === "not_found") {
       throw eventNotFound();
+    }
+    if (result === "status_changed") {
+      // Another request moved the event after we read it. Report the move
+      // that is no longer legal against the status it now has.
+      const current = await this.loadOrThrow(id);
+      throw eventInvalidTransition(current.status, target);
     }
     return toEventResponse(result);
   }

@@ -571,6 +571,39 @@ describe("event management API", () => {
       expect(ghost.status).toBe(404);
       expect(body<ProblemBody>(ghost).code).toBe("EVENT_NOT_FOUND");
     });
+
+    it("lets exactly one of two racing transitions win and never reopens a cancelled event", async () => {
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const created = await createEvent();
+
+        const responses = await Promise.all([
+          as(
+            superAdmin,
+            "post",
+            `/api/v1/events/${created.id}/transition`,
+          ).send({ status: "CANCELLED" }),
+          as(
+            superAdmin,
+            "post",
+            `/api/v1/events/${created.id}/transition`,
+          ).send({ status: "READY" }),
+        ]);
+
+        const statuses = responses.map((response) => response.status).sort();
+        expect(statuses).toEqual([200, 409]);
+        const loser = responses.find((response) => response.status === 409);
+        expect(body<ProblemBody>(loser!).code).toBe("EVENT_INVALID_TRANSITION");
+        const winner = responses.find((response) => response.status === 200);
+        const read = await as(
+          superAdmin,
+          "get",
+          `/api/v1/events/${created.id}`,
+        );
+        expect(body<EventBody>(read).status).toBe(
+          body<EventBody>(winner!).status,
+        );
+      }
+    });
   });
 
   describe("manager and teams", () => {
