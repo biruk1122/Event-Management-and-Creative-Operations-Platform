@@ -12373,6 +12373,15 @@ export interface operations {
           "application/json": components["schemas"]["ProblemDetails"];
         };
       };
+      /** @description The workspace is still owned by an event, project, campaign, task, meeting, or conversation */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
     };
   };
   Workspaces_setManager_v1: {

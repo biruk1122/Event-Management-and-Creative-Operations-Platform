@@ -540,6 +540,50 @@ describe("connected workspace ownership API", () => {
       expect(response.status).toBe(404);
       expect(body<ProblemBody>(response).code).toBe("WORKSPACE_NOT_FOUND");
     });
+
+    it("409s, never 500s, deleting a workspace still owned by an event, project, or campaign", async () => {
+      const event = await as(superAdmin, "post", "/api/v1/events").send({
+        name: "Owning Event",
+        eventType: "OTHER",
+      });
+      expect(event.status).toBe(201);
+      const eventWorkspaceId = body<{ workspaceId: string }>(event).workspaceId;
+
+      const project = await as(superAdmin, "post", "/api/v1/projects").send({
+        name: "Owning Project",
+      });
+      expect(project.status).toBe(201);
+      const projectWorkspaceId = body<{ workspaceId: string }>(
+        project,
+      ).workspaceId;
+
+      const campaign = await as(superAdmin, "post", "/api/v1/campaigns").send({
+        name: "Owning Campaign",
+        campaignType: "MARKETING",
+      });
+      expect(campaign.status).toBe(201);
+      const campaignWorkspaceId = body<{ workspaceId: string }>(
+        campaign,
+      ).workspaceId;
+
+      for (const workspaceId of [
+        eventWorkspaceId,
+        projectWorkspaceId,
+        campaignWorkspaceId,
+      ]) {
+        const response = await as(
+          superAdmin,
+          "delete",
+          `/api/v1/workspaces/${workspaceId}`,
+        );
+        expect(response.status).toBe(409);
+        expect(body<ProblemBody>(response).code).toBe("WORKSPACE_IN_USE");
+        // The record is preserved, not silently deleted alongside a 500.
+        expect(
+          await prisma.workspace.findUnique({ where: { id: workspaceId } }),
+        ).not.toBeNull();
+      }
+    });
   });
 
   describe("request validation and transport", () => {

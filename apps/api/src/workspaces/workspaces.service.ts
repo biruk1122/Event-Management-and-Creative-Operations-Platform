@@ -9,6 +9,7 @@ import type {
 } from "./workspaces.contracts.js";
 import { permissionsForKind } from "./workspaces.authz.js";
 import {
+  workspaceInUse,
   workspaceNotFound,
   workspaceParticipantNotFound,
   workspaceTeamNotAssigned,
@@ -139,6 +140,9 @@ export class WorkspacesService {
     const result = await this.repository.delete(id);
     if (result === "not_found") {
       throw workspaceNotFound();
+    }
+    if (result === "in_use") {
+      throw workspaceInUse();
     }
   }
 

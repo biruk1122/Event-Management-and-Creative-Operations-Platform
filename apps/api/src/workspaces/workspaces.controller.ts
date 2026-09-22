@@ -236,6 +236,11 @@ export class WorkspacesController {
     type: ProblemDetails,
     description: "Workspace not found",
   })
+  @ApiConflictResponse({
+    type: ProblemDetails,
+    description:
+      "The workspace is still owned by an event, project, campaign, task, meeting, or conversation",
+  })
   async remove(
     @Req() request: RequestWithContext,
     @Param("id") id: string,
