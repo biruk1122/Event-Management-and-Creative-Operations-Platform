@@ -106,6 +106,7 @@ export class TalentController {
     return this.talent.setManager(actor(r), id, b);
   }
   @Post(":id/transition")
+  @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("talent.transition_status")
@@ -191,6 +192,7 @@ export class TalentController {
     return this.talent.assignEvent(actor(r), id, b);
   }
   @Post(":id/event-assignments/:assignmentId/transition")
+  @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("talent.assign")

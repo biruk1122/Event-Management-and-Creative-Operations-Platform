@@ -215,9 +215,18 @@ export class TalentRepository {
     endAt: Date,
   ): Promise<TalentRecord | null> {
     if (!UUID.test(talentId)) return null;
-    await this.db.talentSchedule.create({
-      data: { talentId, title, startAt, endAt },
-    });
+    try {
+      await this.db.talentSchedule.create({
+        data: { talentId, title, startAt, endAt },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2003"
+      )
+        return null;
+      throw error;
+    }
     return this.findById(talentId);
   }
   async updateSchedule(
