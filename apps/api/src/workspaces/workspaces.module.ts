@@ -10,8 +10,9 @@ import { WorkspacesRepository } from "./infrastructure/workspaces.repository.js"
   imports: [AuthModule, PermissionsModule],
   controllers: [WorkspacesController],
   providers: [WorkspacesService, WorkspacesRepository],
-  // The events module reuses the repository for manager and team composition on
-  // an event's connected workspace; the composition logic stays owned here.
-  exports: [WorkspacesRepository],
+  // Owning modules use the application service for authorized composition.
+  // The repository remains exported for existing event/project/campaign callers
+  // until those modules are migrated in their own scoped changes.
+  exports: [WorkspacesService, WorkspacesRepository],
 })
 export class WorkspacesModule {}

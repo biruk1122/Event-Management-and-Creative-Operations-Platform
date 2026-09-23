@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ProductionRecord } from "../src/productions/infrastructure/productions.repository.js";
 import { ProductionsService } from "../src/productions/productions.service.js";
+import {
+  workspaceNotFound,
+  workspaceParticipantNotFound,
+  workspaceTeamNotAssigned,
+  workspaceTeamNotFound,
+  workspaceUserNotFound,
+} from "../src/workspaces/workspaces.errors.js";
 
 const ACTOR = "actor-1";
 const record = (
@@ -159,9 +166,54 @@ describe("ProductionsService", () => {
     );
   });
 
-  it("delegates manager changes to the workspace repository", async () => {
+  it("delegates manager changes with the actor to the workspace application service", async () => {
     await service.setManager(ACTOR, "production-1", null);
-    expect(workspaces.setManager).toHaveBeenCalledWith("workspace-1", null);
+    expect(workspaces.setManager).toHaveBeenCalledWith(
+      ACTOR,
+      "workspace-1",
+      null,
+    );
+  });
+
+  it.each([
+    ["setManager", "setManager", workspaceUserNotFound, "USER_NOT_FOUND"],
+    ["assignTeam", "assignTeam", workspaceTeamNotFound, "TEAM_NOT_FOUND"],
+    [
+      "unassignTeam",
+      "unassignTeam",
+      workspaceTeamNotAssigned,
+      "PRODUCTION_TEAM_NOT_ASSIGNED",
+    ],
+    [
+      "addParticipant",
+      "addParticipant",
+      workspaceUserNotFound,
+      "USER_NOT_FOUND",
+    ],
+    [
+      "removeParticipant",
+      "removeParticipant",
+      workspaceParticipantNotFound,
+      "PRODUCTION_PARTICIPANT_NOT_ASSIGNED",
+    ],
+  ] as const)(
+    "%s preserves the production API error code",
+    async (method, mock, failure, code) => {
+      workspaces[mock].mockRejectedValue(failure());
+      const call =
+        method === "setManager"
+          ? service.setManager(ACTOR, "production-1", null)
+          : service[method](ACTOR, "production-1", "member-1");
+      await expectCode(call, code);
+    },
+  );
+
+  it("maps a raced-away workspace to production not found", async () => {
+    workspaces.assignTeam.mockRejectedValue(workspaceNotFound());
+    await expectCode(
+      service.assignTeam(ACTOR, "production-1", "team-1"),
+      "PRODUCTION_NOT_FOUND",
+    );
   });
 
   it("reports duplicate talent assignment as a conflict", async () => {

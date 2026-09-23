@@ -1,8 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, Injectable } from "@nestjs/common";
 import type { ProductionStatus } from "../generated/prisma/client.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
-import { WorkspacesRepository } from "../workspaces/infrastructure/workspaces.repository.js";
+import { WorkspacesService } from "../workspaces/workspaces.service.js";
+import { WORKSPACE_ERROR } from "../workspaces/workspaces.errors.js";
 import { canTransition } from "./productions.lifecycle.js";
 import {
   productionConflict,
@@ -49,7 +50,7 @@ function response(record: ProductionRecord) {
 export class ProductionsService {
   constructor(
     private readonly repository: ProductionsRepository,
-    private readonly workspaces: WorkspacesRepository,
+    private readonly workspaces: WorkspacesService,
     private readonly permissions: PermissionsService,
   ) {}
   private async grant(userId: string, key: string) {
@@ -63,6 +64,35 @@ export class ProductionsService {
   }
   private async reload(id: string) {
     return response(await this.load(id));
+  }
+  /** Keep the production API's established error codes at this module boundary. */
+  private async composeWorkspace(
+    action: () => Promise<unknown>,
+  ): Promise<void> {
+    try {
+      await action();
+    } catch (error) {
+      if (error instanceof HttpException) {
+        const body = error.getResponse();
+        const code =
+          typeof body === "object" && body !== null && "code" in body
+            ? body.code
+            : undefined;
+        switch (code) {
+          case WORKSPACE_ERROR.workspaceNotFound:
+            throw productionNotFound();
+          case WORKSPACE_ERROR.userNotFound:
+            throw productionUserNotFound();
+          case WORKSPACE_ERROR.workspaceTeamNotFound:
+            throw productionTeamNotFound();
+          case WORKSPACE_ERROR.workspaceTeamNotAssigned:
+            throw productionConflict("PRODUCTION_TEAM_NOT_ASSIGNED");
+          case WORKSPACE_ERROR.workspaceParticipantNotFound:
+            throw productionConflict("PRODUCTION_PARTICIPANT_NOT_ASSIGNED");
+        }
+      }
+      throw error;
+    }
   }
   async list(userId: string, query: ListProductionsQueryDto) {
     await this.grant(userId, "project.read");
@@ -153,58 +183,49 @@ export class ProductionsService {
   async setManager(userId: string, id: string, managerId: string | null) {
     const current = await this.load(id);
     await this.grant(userId, "project.assign");
-    const result = await this.workspaces.setManager(
-      current.workspaceId,
-      managerId,
+    await this.composeWorkspace(() =>
+      this.workspaces.setManager(userId, current.workspaceId, managerId),
     );
-    if (result === "not_found") throw productionNotFound();
-    if (result === "manager_not_found") throw productionUserNotFound();
     return this.reload(id);
   }
   async assignTeam(userId: string, id: string, teamId: string) {
     const current = await this.load(id);
     await this.grant(userId, "project.assign");
-    const result = await this.workspaces.assignTeam(
-      current.workspaceId,
-      teamId,
+    await this.composeWorkspace(() =>
+      this.workspaces.assignTeam(userId, current.workspaceId, teamId),
     );
-    if (result === "workspace_not_found") throw productionNotFound();
-    if (result === "team_not_found") throw productionTeamNotFound();
     return this.reload(id);
   }
   async unassignTeam(userId: string, id: string, teamId: string) {
     const current = await this.load(id);
     await this.grant(userId, "project.assign");
-    const result = await this.workspaces.unassignTeam(
-      current.workspaceId,
-      teamId,
+    await this.composeWorkspace(() =>
+      this.workspaces.unassignTeam(userId, current.workspaceId, teamId),
     );
-    if (result === "workspace_not_found") throw productionNotFound();
-    if (result === "not_assigned")
-      throw productionConflict("PRODUCTION_TEAM_NOT_ASSIGNED");
     return this.reload(id);
   }
   async addParticipant(userId: string, id: string, participantId: string) {
     const current = await this.load(id);
     await this.grant(userId, "project.assign");
-    const result = await this.workspaces.addParticipant(
-      current.workspaceId,
-      participantId,
+    await this.composeWorkspace(() =>
+      this.workspaces.addParticipant(
+        userId,
+        current.workspaceId,
+        participantId,
+      ),
     );
-    if (result === "workspace_not_found") throw productionNotFound();
-    if (result === "user_not_found") throw productionUserNotFound();
     return this.reload(id);
   }
   async removeParticipant(userId: string, id: string, participantId: string) {
     const current = await this.load(id);
     await this.grant(userId, "project.assign");
-    const result = await this.workspaces.removeParticipant(
-      current.workspaceId,
-      participantId,
+    await this.composeWorkspace(() =>
+      this.workspaces.removeParticipant(
+        userId,
+        current.workspaceId,
+        participantId,
+      ),
     );
-    if (result === "workspace_not_found") throw productionNotFound();
-    if (result === "not_a_participant")
-      throw productionConflict("PRODUCTION_PARTICIPANT_NOT_ASSIGNED");
     return this.reload(id);
   }
   async assignTalent(
