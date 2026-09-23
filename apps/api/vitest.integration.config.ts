@@ -25,11 +25,11 @@ export default defineConfig({
     hookTimeout: 120_000,
     testTimeout: 30_000,
     include: ["test/**/*.integration.spec.ts"],
-    // Each suite changes DATABASE_URL to its own schema, so use process
-    // isolation as well as the unique schema provided by
-    // `test/support/database.ts` before enabling concurrent files.
+    // Each suite gets its own schema and fork, but Prisma's migration advisory
+    // lock is database-wide. Parallel file startup can exhaust its fixed 10s
+    // wait (even with retries), so provision one isolated schema at a time.
     pool: "forks",
-    fileParallelism: true,
+    fileParallelism: false,
     restoreMocks: true,
   },
 });
