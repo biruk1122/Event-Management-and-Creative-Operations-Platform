@@ -17,6 +17,7 @@ import { HealthModule } from "./health/health.module.js";
 import { MeetingsModule } from "./meetings/meetings.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
+import { ProductionsModule } from "./productions/productions.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
 import { TeamsModule } from "./teams/teams.module.js";
@@ -67,6 +68,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     EventsModule,
     TalentModule,
     ProjectsModule,
+    ProductionsModule,
     CampaignsModule,
     DiscussModule,
     FileManagementModule,
