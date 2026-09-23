@@ -41,6 +41,12 @@ export default async function ProjectsPage() {
             Review projects, create one, edit its details, move it through its
             lifecycle, assign a manager and teams, and relate it to an event.
           </p>
+          <Link
+            href="/projects/production"
+            className="mt-3 inline-block text-sm underline underline-offset-4"
+          >
+            View production projects
+          </Link>
           <div className="mt-6">
             <ProjectsScreen />
           </div>

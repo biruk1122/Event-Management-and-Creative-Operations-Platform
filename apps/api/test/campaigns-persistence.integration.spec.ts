@@ -1094,6 +1094,13 @@ describe("campaign platform persistence", () => {
     it("advances on an activity update", async () => {
       const campaign = await create();
       const created = await activity(campaign.id);
+      // A create and update can land in the same JS millisecond. Establish a
+      // known older persisted value so this tests the write, not clock timing.
+      const before = await prisma.campaignActivity.update({
+        where: { id: created.id },
+        data: { updatedAt: new Date("2000-01-01T00:00:00.000Z") },
+        select: { updatedAt: true },
+      });
 
       const updated = await repository.updateActivity(campaign.id, created.id, {
         status: "COMPLETED",
@@ -1102,8 +1109,9 @@ describe("campaign platform persistence", () => {
       expect(updated).not.toBe("not_found");
       if (updated !== "not_found") {
         expect(updated.updatedAt.getTime()).toBeGreaterThan(
-          created.updatedAt.getTime(),
+          before.updatedAt.getTime(),
         );
+        expect(updated.status).toBe("COMPLETED");
       }
     });
   });
