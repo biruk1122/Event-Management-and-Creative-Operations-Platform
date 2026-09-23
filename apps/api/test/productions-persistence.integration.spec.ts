@@ -9,6 +9,7 @@ import {
 } from "./support/database.js";
 
 describe("production management persistence", () => {
+  const MISSING_ID = "00000000-0000-0000-0000-000000000000";
   let db: IsolatedDatabase;
   let prisma: PrismaClient;
   let repository: ProductionsRepository;
@@ -101,5 +102,131 @@ describe("production management persistence", () => {
       await repository.updateStatus(created.id, "PLANNED", "CANCELLED"),
     ).toBe("status_changed");
     expect((await repository.findById(created.id))?.status).toBe("ACTIVE");
+  });
+
+  it("rolls back both writes when manager or production data is invalid", async () => {
+    const before = {
+      productions: await prisma.production.count(),
+      workspaces: await prisma.workspace.count(),
+    };
+    expect(
+      await repository.create({
+        name: "Ghost manager",
+        productionType: "Video",
+        createdById: actorId,
+        managerId: MISSING_ID,
+      }),
+    ).toBe("manager_not_found");
+    await expect(
+      repository.create({
+        name: "Invalid type",
+        productionType: "   ",
+        createdById: actorId,
+      }),
+    ).rejects.toThrow();
+    await expect(
+      repository.create({
+        name: "Invalid dates",
+        productionType: "Video",
+        createdById: actorId,
+        startAt: new Date("2026-10-02T00:00:00.000Z"),
+        endAt: new Date("2026-10-01T00:00:00.000Z"),
+      }),
+    ).rejects.toThrow();
+    expect(await prisma.production.count()).toBe(before.productions);
+    expect(await prisma.workspace.count()).toBe(before.workspaces);
+  });
+
+  it("enforces talent foreign keys and role checks without partial assignments", async () => {
+    const created = await repository.create({
+      name: "Relation checks",
+      productionType: "Video",
+      createdById: actorId,
+    });
+    if (typeof created === "string") throw new Error(created);
+    const talent = await prisma.talent.create({
+      data: { fullName: "Relation Artist", type: "ARTIST" },
+    });
+    expect(await repository.assignTalent(created.id, MISSING_ID, "Lead")).toBe(
+      "talent_not_found",
+    );
+    await expect(
+      repository.assignTalent(created.id, talent.id, "  "),
+    ).rejects.toThrow();
+    expect(
+      await prisma.productionTalent.count({
+        where: { productionId: created.id },
+      }),
+    ).toBe(0);
+    expect(await repository.assignTalent(created.id, talent.id, "Lead")).toBe(
+      "assigned",
+    );
+    await prisma.talent.delete({ where: { id: talent.id } });
+    expect(
+      await prisma.productionTalent.count({
+        where: { productionId: created.id },
+      }),
+    ).toBe(0);
+  });
+
+  it("keeps the production and workspace when a connected task blocks deletion", async () => {
+    const created = await repository.create({
+      name: "In use",
+      productionType: "Stage",
+      createdById: actorId,
+    });
+    if (typeof created === "string") throw new Error(created);
+    const task = await prisma.task.create({
+      data: { title: "Prepare set", workspaceId: created.workspaceId },
+    });
+    expect(await repository.delete(created.id)).toBe("in_use");
+    expect(
+      await prisma.production.findUnique({ where: { id: created.id } }),
+    ).not.toBeNull();
+    expect(
+      await prisma.workspace.findUnique({ where: { id: created.workspaceId } }),
+    ).not.toBeNull();
+    await prisma.task.delete({ where: { id: task.id } });
+    expect(await repository.delete(created.id)).toBe("deleted");
+  });
+
+  it("permits exactly one concurrent lifecycle update", async () => {
+    const created = await repository.create({
+      name: "Race",
+      productionType: "Film",
+      createdById: actorId,
+    });
+    if (typeof created === "string") throw new Error(created);
+    const results = await Promise.all([
+      repository.updateStatus(created.id, "PLANNED", "ACTIVE"),
+      repository.updateStatus(created.id, "PLANNED", "CANCELLED"),
+    ]);
+    expect(
+      results.filter((result) => result === "status_changed"),
+    ).toHaveLength(1);
+    const winner = results.find((result) => typeof result !== "string");
+    expect(winner).toBeDefined();
+    expect((await repository.findById(created.id))?.status).toBe(
+      typeof winner === "string" ? undefined : winner?.status,
+    );
+  });
+
+  it("installs production access-pattern indexes in the isolated schema", async () => {
+    const indexes = await db.query<{ indexname: string; indexdef: string }>(
+      "SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = $1 AND tablename IN ('productions', 'production_talents')",
+      [db.schema],
+    );
+    const names = indexes.map((index) => index.indexname);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        "productions_workspace_id_key",
+        "productions_status_idx",
+        "productions_production_type_status_idx",
+        "productions_deadline_at_idx",
+        "productions_created_by_id_idx",
+        "production_talents_production_id_talent_id_key",
+        "production_talents_talent_id_idx",
+      ]),
+    );
   });
 });

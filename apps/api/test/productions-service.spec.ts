@@ -85,6 +85,7 @@ describe("ProductionsService", () => {
       "project.read",
       () => service.list(ACTOR, { page: 1, pageSize: 25 }),
     ],
+    ["get", "project.read", () => service.get(ACTOR, "production-1")],
     [
       "create",
       "project.create",
@@ -106,9 +107,34 @@ describe("ProductionsService", () => {
       () => service.setManager(ACTOR, "production-1", null),
     ],
     [
+      "team",
+      "project.assign",
+      () => service.assignTeam(ACTOR, "production-1", "team-1"),
+    ],
+    [
+      "unassign team",
+      "project.assign",
+      () => service.unassignTeam(ACTOR, "production-1", "team-1"),
+    ],
+    [
+      "participant",
+      "project.assign",
+      () => service.addParticipant(ACTOR, "production-1", "user-1"),
+    ],
+    [
+      "remove participant",
+      "project.assign",
+      () => service.removeParticipant(ACTOR, "production-1", "user-1"),
+    ],
+    [
       "talent",
       "project.assign",
       () => service.assignTalent(ACTOR, "production-1", "talent-1", "Lead"),
+    ],
+    [
+      "unassign talent",
+      "project.assign",
+      () => service.unassignTalent(ACTOR, "production-1", "talent-1"),
     ],
     ["delete", "project.delete", () => service.remove(ACTOR, "production-1")],
   ])("%s requires %s at organization scope", async (_label, key, call) => {
@@ -134,10 +160,40 @@ describe("ProductionsService", () => {
     expect(repository.create).not.toHaveBeenCalled();
   });
 
+  it("rejects a reversed patch schedule without writing", async () => {
+    repository.findById.mockResolvedValue(
+      record({
+        startAt: new Date("2026-02-02T00:00:00.000Z"),
+      }),
+    );
+    await expectCode(
+      service.update(ACTOR, "production-1", {
+        endAt: "2026-02-01T00:00:00.000Z",
+      }),
+      "PRODUCTION_SCHEDULE_INVALID",
+    );
+    expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  it("clears nullable fields and leaves omitted fields untouched", async () => {
+    await service.update(ACTOR, "production-1", {
+      description: null,
+      endAt: null,
+    });
+    expect(repository.update).toHaveBeenCalledWith("production-1", {
+      description: null,
+      endAt: null,
+    });
+  });
+
   it.each([
     ["PLANNED", "ACTIVE", true],
+    ["PLANNED", "CANCELLED", true],
     ["PLANNED", "COMPLETED", false],
+    ["PLANNED", "PLANNED", false],
     ["ACTIVE", "COMPLETED", true],
+    ["ACTIVE", "CANCELLED", true],
+    ["ACTIVE", "PLANNED", false],
     ["COMPLETED", "ACTIVE", false],
     ["CANCELLED", "PLANNED", false],
   ] as const)("transition %s to %s allowed=%s", async (from, to, allowed) => {
@@ -213,6 +269,23 @@ describe("ProductionsService", () => {
     await expectCode(
       service.assignTeam(ACTOR, "production-1", "team-1"),
       "PRODUCTION_NOT_FOUND",
+    );
+  });
+
+  it("reports a missing production before touching another module", async () => {
+    repository.findById.mockResolvedValue(null);
+    await expectCode(
+      service.assignTeam(ACTOR, "missing", "team-1"),
+      "PRODUCTION_NOT_FOUND",
+    );
+    expect(workspaces.assignTeam).not.toHaveBeenCalled();
+  });
+
+  it("maps an in-use workspace deletion to a production conflict", async () => {
+    repository.delete.mockResolvedValue("in_use");
+    await expectCode(
+      service.remove(ACTOR, "production-1"),
+      "PRODUCTION_WORKSPACE_IN_USE",
     );
   });
 
