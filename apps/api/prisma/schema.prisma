@@ -112,6 +112,7 @@ model User {
   createdEvents            Event[]                   @relation("EventCreatedBy")
   createdProjects          Project[]                 @relation("ProjectCreatedBy")
   createdCampaigns         Campaign[]                @relation("CampaignCreatedBy")
+  createdProductions       Production[]              @relation("ProductionCreatedBy")
   initiatedManagedFiles    ManagedFile[]             @relation("ManagedFileInitiator")
   workspaceFileAttachments WorkspaceFileAttachment[] @relation("WorkspaceFileAttachedBy")
   createdTasks             Task[]                    @relation("TaskCreatedBy")
@@ -456,6 +457,7 @@ model Workspace {
   event             Event?
   project           Project?
   campaign          Campaign?
+  production        Production?
   tasks             Task[]
   meetings          Meeting[]
   conversations     Conversation[]
@@ -979,6 +981,7 @@ model Talent {
   socialLinks       TalentSocialLink[]
   schedules         TalentSchedule[]
   eventAssignments  EventTalent[]
+  productionAssignments ProductionTalent[]
   fileUploadIntents ManagedFile[]      @relation("ManagedFileIntentTalent")
 
   // Talent directories filter by type/state and manager; name and email
@@ -1043,6 +1046,59 @@ model EventTalent {
   @@index([eventId, status])
   @@index([talentId, status])
   @@map("event_talents")
+}
+
+enum ProductionStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+
+  @@map("production_status")
+}
+
+/// A specialized production project. Its manager, members, tasks, calendar,
+/// discussions, meetings and files are owned by its `PRODUCTION` workspace.
+/// `production_type` is free text because no controlled vocabulary is approved.
+model Production {
+  id             String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  workspaceId    String           @unique @map("workspace_id") @db.Uuid
+  name           String
+  productionType String           @map("production_type")
+  description    String?
+  startAt        DateTime?        @map("start_at") @db.Timestamptz(6)
+  endAt          DateTime?        @map("end_at") @db.Timestamptz(6)
+  deadlineAt     DateTime?        @map("deadline_at") @db.Timestamptz(6)
+  status         ProductionStatus @default(PLANNED)
+  createdById    String?          @map("created_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  createdBy User?              @relation("ProductionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  talents   ProductionTalent[]
+
+  @@index([status])
+  @@index([productionType, status])
+  @@index([deadlineAt])
+  @@index([createdById])
+  @@map("productions")
+}
+
+model ProductionTalent {
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  productionId String   @map("production_id") @db.Uuid
+  talentId     String   @map("talent_id") @db.Uuid
+  role         String
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  production Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  talent     Talent     @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@unique([productionId, talentId])
+  @@index([talentId])
+  @@map("production_talents")
 }
 
 /// The general-project lifecycle state (SRS 9; product vocabulary "General
