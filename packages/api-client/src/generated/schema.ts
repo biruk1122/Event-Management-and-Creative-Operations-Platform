@@ -1199,6 +1199,77 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/promotion/campaigns/{campaignId}/activities": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List promotion activities in a promotion campaign */
+    get: operations["Promotion_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a promotion activity with channel and talent assignments */
+    get: operations["Promotion_get_v1"];
+    put?: never;
+    /** Attach promotion channel and optional talents to an existing campaign activity */
+    post: operations["Promotion_attach_v1"];
+    /** Remove promotion detail and talent links, retaining the shared activity */
+    delete: operations["Promotion_remove_v1"];
+    options?: never;
+    head?: never;
+    /** Change a promotion activity's delivery channel */
+    patch: operations["Promotion_updateChannel_v1"];
+    trace?: never;
+  };
+  "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/talents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Assign one talent to a promotion activity */
+    post: operations["Promotion_assignTalent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/talents/{talentId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Unassign one talent from a promotion activity */
+    delete: operations["Promotion_unassignTalent_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/roles": {
     parameters: {
       query?: never;
@@ -2070,6 +2141,12 @@ export interface components {
        */
       managerId: string | null;
     };
+    AssignPromotionTalentDto: {
+      /** @example Presenter */
+      role: string;
+      /** Format: uuid */
+      talentId: string;
+    };
     AssignTeamManagerDto: {
       /**
        * Format: uuid
@@ -2093,6 +2170,18 @@ export interface components {
        * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
        */
       managerId: string | null;
+    };
+    AttachPromotionActivityDto: {
+      /** @enum {string} */
+      channel:
+        | "CONTENT_CREATION"
+        | "SOCIAL_MEDIA"
+        | "INFLUENCER_MARKETING"
+        | "RADIO_PROMOTION"
+        | "TELEVISION"
+        | "SCREENS_DIGITAL_MEDIA"
+        | "ADVERTISING";
+      talents?: components["schemas"]["PromotionTalentDto"][];
     };
     AuthenticatedUserResponse: {
       /**
@@ -3189,6 +3278,15 @@ export interface components {
        */
       total: number;
     };
+    PaginatedPromotionActivitiesResponse: {
+      items: components["schemas"]["PromotionActivityResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 4 */
+      total: number;
+    };
     PaginatedTalentsResponse: {
       items: components["schemas"]["TalentResponse"][];
       /** @example 1 */
@@ -3414,6 +3512,34 @@ export interface components {
       id: string;
       /** @example Production Team */
       name: string;
+    };
+    PromotionActivityResponse: {
+      activity: components["schemas"]["CampaignActivityResponse"];
+      /** @enum {string} */
+      channel:
+        | "CONTENT_CREATION"
+        | "SOCIAL_MEDIA"
+        | "INFLUENCER_MARKETING"
+        | "RADIO_PROMOTION"
+        | "TELEVISION"
+        | "SCREENS_DIGITAL_MEDIA"
+        | "ADVERTISING";
+      talents: components["schemas"]["PromotionTalentResponse"][];
+    };
+    PromotionTalentDto: {
+      /** @example Presenter */
+      role: string;
+      /** Format: uuid */
+      talentId: string;
+    };
+    PromotionTalentResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      id: string;
+      role: string;
+      /** Format: uuid */
+      talentId: string;
     };
     ReadinessChecks: {
       /**
@@ -3928,6 +4054,17 @@ export interface components {
       name?: string;
       /** Format: date-time */
       startAt?: string | null;
+    };
+    UpdatePromotionChannelDto: {
+      /** @enum {string} */
+      channel:
+        | "CONTENT_CREATION"
+        | "SOCIAL_MEDIA"
+        | "INFLUENCER_MARKETING"
+        | "RADIO_PROMOTION"
+        | "TELEVISION"
+        | "SCREENS_DIGITAL_MEDIA"
+        | "ADVERTISING";
     };
     UpdateReadCursorDto: {
       /**
@@ -9980,6 +10117,366 @@ export interface operations {
       };
       /** @description That transition is not allowed from the current state */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Promotion_list_v1: {
+    parameters: {
+      query?: {
+        status?: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path: {
+        campaignId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedPromotionActivitiesResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Promotion_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        activityId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Promotion_attach_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        activityId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AttachPromotionActivityDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Promotion_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        activityId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Promotion_updateChannel_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        activityId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdatePromotionChannelDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Promotion_assignTalent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        activityId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignPromotionTalentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Promotion_unassignTalent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        activityId: string;
+        talentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
         headers: {
           [name: string]: unknown;
         };

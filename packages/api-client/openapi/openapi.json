@@ -97,6 +97,21 @@
         "required": ["managerId"],
         "type": "object"
       },
+      "AssignPromotionTalentDto": {
+        "properties": {
+          "role": {
+            "example": "Presenter",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "talentId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["talentId", "role"],
+        "type": "object"
+      },
       "AssignTeamManagerDto": {
         "properties": {
           "managerId": {
@@ -134,6 +149,31 @@
           }
         },
         "required": ["managerId"],
+        "type": "object"
+      },
+      "AttachPromotionActivityDto": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "CONTENT_CREATION",
+              "SOCIAL_MEDIA",
+              "INFLUENCER_MARKETING",
+              "RADIO_PROMOTION",
+              "TELEVISION",
+              "SCREENS_DIGITAL_MEDIA",
+              "ADVERTISING"
+            ],
+            "type": "string"
+          },
+          "talents": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionTalentDto"
+            },
+            "maxItems": 50,
+            "type": "array"
+          }
+        },
+        "required": ["channel"],
         "type": "object"
       },
       "AuthenticatedUserResponse": {
@@ -2475,6 +2515,30 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedPromotionActivitiesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionActivityResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 4,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
       "PaginatedTalentsResponse": {
         "properties": {
           "items": {
@@ -3039,6 +3103,69 @@
           }
         },
         "required": ["id", "name"],
+        "type": "object"
+      },
+      "PromotionActivityResponse": {
+        "properties": {
+          "activity": {
+            "$ref": "#/components/schemas/CampaignActivityResponse"
+          },
+          "channel": {
+            "enum": [
+              "CONTENT_CREATION",
+              "SOCIAL_MEDIA",
+              "INFLUENCER_MARKETING",
+              "RADIO_PROMOTION",
+              "TELEVISION",
+              "SCREENS_DIGITAL_MEDIA",
+              "ADVERTISING"
+            ],
+            "type": "string"
+          },
+          "talents": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionTalentResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["activity", "channel", "talents"],
+        "type": "object"
+      },
+      "PromotionTalentDto": {
+        "properties": {
+          "role": {
+            "example": "Presenter",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "talentId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["talentId", "role"],
+        "type": "object"
+      },
+      "PromotionTalentResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "talentId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["id", "talentId", "role", "createdAt"],
         "type": "object"
       },
       "ReadinessChecks": {
@@ -4327,6 +4454,24 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UpdatePromotionChannelDto": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "CONTENT_CREATION",
+              "SOCIAL_MEDIA",
+              "INFLUENCER_MARKETING",
+              "RADIO_PROMOTION",
+              "TELEVISION",
+              "SCREENS_DIGITAL_MEDIA",
+              "ADVERTISING"
+            ],
+            "type": "string"
+          }
+        },
+        "required": ["channel"],
         "type": "object"
       },
       "UpdateReadCursorDto": {
@@ -13449,6 +13594,610 @@
         ],
         "summary": "Move a project to another lifecycle state",
         "tags": ["General project management"]
+      }
+    },
+    "/api/v1/promotion/campaigns/{campaignId}/activities": {
+      "get": {
+        "operationId": "Promotion_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedPromotionActivitiesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List promotion activities in a promotion campaign",
+        "tags": ["Promotion operations"]
+      }
+    },
+    "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}": {
+      "delete": {
+        "operationId": "Promotion_remove_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activityId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Remove promotion detail and talent links, retaining the shared activity",
+        "tags": ["Promotion operations"]
+      },
+      "get": {
+        "operationId": "Promotion_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activityId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionActivityResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get a promotion activity with channel and talent assignments",
+        "tags": ["Promotion operations"]
+      },
+      "patch": {
+        "operationId": "Promotion_updateChannel_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activityId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePromotionChannelDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionActivityResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Change a promotion activity's delivery channel",
+        "tags": ["Promotion operations"]
+      },
+      "post": {
+        "operationId": "Promotion_attach_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activityId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachPromotionActivityDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionActivityResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Attach promotion channel and optional talents to an existing campaign activity",
+        "tags": ["Promotion operations"]
+      }
+    },
+    "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/talents": {
+      "post": {
+        "operationId": "Promotion_assignTalent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activityId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignPromotionTalentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionActivityResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Assign one talent to a promotion activity",
+        "tags": ["Promotion operations"]
+      }
+    },
+    "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/talents/{talentId}": {
+      "delete": {
+        "operationId": "Promotion_unassignTalent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activityId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionActivityResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Unassign one talent from a promotion activity",
+        "tags": ["Promotion operations"]
       }
     },
     "/api/v1/roles": {

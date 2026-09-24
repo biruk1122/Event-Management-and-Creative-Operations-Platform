@@ -10,7 +10,7 @@ import { CampaignsRepository } from "./infrastructure/campaigns.repository.js";
 @Module({
   imports: [AuthModule, PermissionsModule, WorkspacesModule],
   controllers: [CampaignsController],
-  exports: [CampaignsRepository],
+  exports: [CampaignsService],
   providers: [CampaignsService, CampaignsRepository],
 })
 export class CampaignsModule {}
