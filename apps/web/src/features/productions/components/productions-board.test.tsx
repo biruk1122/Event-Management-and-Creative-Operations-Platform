@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProductionsBoard } from "./productions-board";
+import { ProductionMutationError } from "../lib/production-errors";
 import type { Production } from "../lib/production-types";
 
 const now = "2026-09-01T09:00:00.000Z";
@@ -43,9 +44,14 @@ describe("ProductionsBoard", () => {
     const details = screen.getByRole("region", { name: "Production details" });
     expect(within(details).getByText("Creative")).toBeVisible();
     expect(within(details).getByText("Ari Bek")).toBeVisible();
+    await user.click(within(details).getByRole("tab", { name: "Tasks" }));
+    expect(within(details).getByRole("tab", { name: "Tasks" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
     expect(
-      within(details).getByRole("button", { name: "Tasks" }),
-    ).toBeDisabled();
+      within(details).getByRole("link", { name: "Open Tasks" }),
+    ).toHaveAttribute("href", "/tasks");
   });
 
   it("validates required fields before creating", async () => {
@@ -135,5 +141,38 @@ describe("ProductionsBoard", () => {
     expect(screen.getByLabelText("Add member")).toBeDisabled();
     await user.selectOptions(screen.getByLabelText("Assign manager"), "");
     expect(onAssignManager).toHaveBeenCalledWith("p1", null);
+  });
+
+  it("preserves form values and displays API validation errors", async () => {
+    const user = userEvent.setup();
+    const onCreate = vi.fn().mockRejectedValue(
+      new ProductionMutationError(400, {
+        code: "VALIDATION_ERROR",
+        status: 400,
+        errors: { productionType: ["Choose a supported type."] },
+      }),
+    );
+    render(
+      <ProductionsBoard
+        state="ready"
+        productions={[]}
+        canCreate
+        onCreate={onCreate}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "New production" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Name"), "Launch film");
+    await user.type(within(dialog).getByLabelText("Production type"), "Video");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save production" }),
+    );
+    expect(
+      await within(dialog).findByText("Choose a supported type."),
+    ).toBeVisible();
+    expect(within(dialog).getByLabelText("Name")).toHaveValue("Launch film");
+    expect(within(dialog).getByLabelText("Production type")).toHaveValue(
+      "Video",
+    );
   });
 });

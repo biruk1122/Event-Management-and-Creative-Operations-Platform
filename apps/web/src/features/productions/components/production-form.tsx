@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ProductionMutationError } from "../lib/production-errors";
 
 export interface ProductionValues {
   name: string;
@@ -76,8 +77,13 @@ export function ProductionForm({
       await onSave(values);
       onOpenChange(false);
       setValues(empty);
-    } catch {
-      setFailure("We could not save this production. Try again.");
+    } catch (error) {
+      if (error instanceof ProductionMutationError) {
+        setErrors(error.fieldErrors);
+        setFailure(error.message);
+      } else {
+        setFailure("We could not save this production. Try again.");
+      }
     } finally {
       setSaving(false);
     }

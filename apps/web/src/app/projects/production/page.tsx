@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
-import { ProductionsBoard } from "@/features/productions";
+import { ProductionsScreen } from "@/features/productions";
 
 export const metadata: Metadata = { title: "Production projects" };
 
@@ -15,10 +15,10 @@ export default async function ProductionProjectsPage() {
   });
   if (response.status === 401) redirect("/login?next=%2Fprojects%2Fproduction");
   if (!data) throw new Error("We could not check your permissions. Try again.");
-  const can = (key: string) =>
-    data.grants.some(
-      (grant) => grant.permissionKey === key && grant.scope === "ORGANIZATION",
-    );
+  const allowed = data.grants.some(
+    (grant) =>
+      grant.permissionKey === "project.read" && grant.scope === "ORGANIZATION",
+  );
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
@@ -39,15 +39,11 @@ export default async function ProductionProjectsPage() {
         activity.
       </p>
       <div className="mt-6">
-        <ProductionsBoard
-          productions={[]}
-          state={can("project.read") ? "ready" : "denied"}
-          canCreate={can("project.create")}
-          canUpdate={can("project.update")}
-          canTransition={can("project.transition_status")}
-          canAssign={can("project.assign")}
-          canDelete={can("project.delete")}
-        />
+        {allowed ? (
+          <ProductionsScreen />
+        ) : (
+          <p role="alert">You do not have access to this area.</p>
+        )}
       </div>
     </main>
   );
