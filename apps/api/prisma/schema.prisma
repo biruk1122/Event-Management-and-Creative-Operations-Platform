@@ -976,13 +976,14 @@ model Talent {
   createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  profileImage      ManagedFile?       @relation("TalentProfileImage", fields: [profileImageId], references: [id], onDelete: Restrict)
-  manager           User?              @relation("TalentManager", fields: [managerId], references: [id], onDelete: SetNull)
-  socialLinks       TalentSocialLink[]
-  schedules         TalentSchedule[]
-  eventAssignments  EventTalent[]
+  profileImage          ManagedFile?              @relation("TalentProfileImage", fields: [profileImageId], references: [id], onDelete: Restrict)
+  manager               User?                     @relation("TalentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  socialLinks           TalentSocialLink[]
+  schedules             TalentSchedule[]
+  eventAssignments      EventTalent[]
   productionAssignments ProductionTalent[]
-  fileUploadIntents ManagedFile[]      @relation("ManagedFileIntentTalent")
+  promotionAssignments  PromotionActivityTalent[]
+  fileUploadIntents     ManagedFile[]             @relation("ManagedFileIntentTalent")
 
   // Talent directories filter by type/state and manager; name and email
   // support deterministic administration lookups.
@@ -1285,11 +1286,14 @@ model Campaign {
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace  Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  event      Event?             @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  createdBy  User?              @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  activities CampaignActivity[]
+  workspace           Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  event               Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  createdBy           User?               @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  activities          CampaignActivity[]
+  promotionActivities PromotionActivity[]
 
+  // Supports a composite FK that fixes promotion detail ownership to PROMOTION.
+  @@unique([id, campaignType])
   // Administration and the connected-workspace overview filter campaigns by
   // owning module, lifecycle state, related event, schedule, and author.
   @@index([campaignType, status])
@@ -1317,13 +1321,66 @@ model CampaignActivity {
   createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign  Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  promotion PromotionActivity?
 
+  // The promotion extension must belong to this activity's campaign.
+  @@unique([id, campaignId])
   // A campaign's activity list is read by lifecycle state (progress) and by
   // schedule.
   @@index([campaignId, status])
   @@index([campaignId, startAt])
   @@map("campaign_activities")
+}
+
+/// Approved promotion delivery channels (SRS 5.8). These classify promotion
+/// activities, not the shared CampaignType ownership field.
+enum PromotionChannel {
+  CONTENT_CREATION
+  SOCIAL_MEDIA
+  INFLUENCER_MARKETING
+  RADIO_PROMOTION
+  TELEVISION
+  SCREENS_DIGITAL_MEDIA
+  ADVERTISING
+
+  @@map("promotion_channel")
+}
+
+/// Promotion-specific details for an existing campaign activity. The two
+/// composite FKs ensure the activity belongs to this campaign and that the
+/// campaign is of PROMOTION type. Shared schedule/status/progress inputs stay
+/// on CampaignActivity; tasks, teams, calendar, discuss and reports connect
+/// through the campaign's workspace rather than duplicate relationships here.
+model PromotionActivity {
+  campaignActivityId String                    @id @map("campaign_activity_id") @db.Uuid
+  campaignId         String                    @map("campaign_id") @db.Uuid
+  campaignType       CampaignType              @default(PROMOTION) @map("campaign_type")
+  channel            PromotionChannel
+  activity           CampaignActivity          @relation(fields: [campaignActivityId, campaignId], references: [id, campaignId], onDelete: Cascade)
+  campaign           Campaign                  @relation(fields: [campaignId, campaignType], references: [id, campaignType], onDelete: Cascade)
+  talents            PromotionActivityTalent[]
+
+  @@unique([campaignActivityId, campaignId])
+  @@index([campaignId, channel])
+  @@map("promotion_activities")
+}
+
+/// Explicit talent engagements in a promotion activity. A talent can fill
+/// one role in an activity; other activities may assign that talent again.
+model PromotionActivityTalent {
+  id                 String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  campaignActivityId String   @map("campaign_activity_id") @db.Uuid
+  talentId           String   @map("talent_id") @db.Uuid
+  role               String
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  promotionActivity PromotionActivity @relation(fields: [campaignActivityId], references: [campaignActivityId], onDelete: Cascade)
+  talent            Talent            @relation(fields: [talentId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignActivityId, talentId])
+  @@index([talentId])
+  @@map("promotion_activity_talents")
 }
 
 /// The approved meeting-type vocabulary used by the meeting domain and API.
