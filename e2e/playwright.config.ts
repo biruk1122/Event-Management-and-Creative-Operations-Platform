@@ -89,7 +89,8 @@ export default defineConfig({
       env: apiEnv,
     },
     {
-      command: `pnpm --filter @event-platform/web build && pnpm --filter @event-platform/web exec next start --hostname 127.0.0.1 --port ${webPort}`,
+      // Webpack also supports linked dependencies in isolated Windows worktrees.
+      command: `pnpm --filter @event-platform/web exec next build --webpack && pnpm --filter @event-platform/web exec next start --hostname 127.0.0.1 --port ${webPort}`,
       url: webBaseUrl,
       cwd: "..",
       timeout: 180_000,
