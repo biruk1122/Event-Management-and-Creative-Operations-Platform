@@ -233,20 +233,6 @@ jobs:
       # run; application-level rate-limit behavior remains covered in API tests.
       AUTH_LOGIN_RATE_LIMIT_MAX: 10000
     services:
-      minio:
-        image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-        env:
-          MINIO_API_CORS_ALLOW_ORIGIN: "*"
-          MINIO_ROOT_PASSWORD: minioadmin
-          MINIO_ROOT_USER: minioadmin
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd "curl -f http://localhost:9000/minio/health/live"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-        command: server /data
       postgres:
         image: postgres:18-bookworm
         env:
@@ -284,13 +270,19 @@ jobs:
 
       - name: Initialize private file bucket
         run: |
-          docker run --rm --network host \
-            -e "MC_HOST_local=http://$FILE_STORAGE_ACCESS_KEY:$FILE_STORAGE_SECRET_KEY@127.0.0.1:9000" \
-            quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z \
-            mb --ignore-existing "local/$FILE_STORAGE_BUCKET"
+          docker compose up --build --detach --wait minio
+          docker compose run --rm minio-init
 
       - name: Run end-to-end smoke journey
         run: pnpm e2e
+
+      - name: Print MinIO logs on failure
+        if: failure()
+        run: docker compose logs --no-color minio minio-init
+
+      - name: Stop MinIO
+        if: always()
+        run: docker compose down --volumes --remove-orphans
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
