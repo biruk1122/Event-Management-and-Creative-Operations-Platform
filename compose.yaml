@@ -22,12 +22,14 @@ services:
     stop_grace_period: 30s
 
   minio:
-    # MinIO's images were removed from Docker Hub; the quay.io mirror keeps
-    # the same tags.
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    build:
+      context: .
+      dockerfile: docker/minio.Dockerfile
+    image: event-platform-minio:RELEASE.2025-09-07T16-13-09Z
     command: server /data --console-address ":9001"
     restart: unless-stopped
     environment:
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
       MINIO_ROOT_USER: ${FILE_STORAGE_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${FILE_STORAGE_SECRET_KEY:-minioadmin}
     ports:
@@ -36,24 +38,32 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://localhost:9000/minio/health/live",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
       start_period: 10s
 
   minio-init:
-    # See the `minio` service comment: Docker Hub no longer hosts this image.
-    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    image: amazon/aws-cli:2.31.27
     restart: "no"
     entrypoint: ["/bin/sh", "-c"]
     environment:
-      FILE_STORAGE_ACCESS_KEY: ${FILE_STORAGE_ACCESS_KEY:-minioadmin}
+      AWS_ACCESS_KEY_ID: ${FILE_STORAGE_ACCESS_KEY:-minioadmin}
+      AWS_DEFAULT_REGION: ${FILE_STORAGE_REGION:-us-east-1}
+      AWS_SECRET_ACCESS_KEY: ${FILE_STORAGE_SECRET_KEY:-minioadmin}
       FILE_STORAGE_BUCKET: ${FILE_STORAGE_BUCKET:-event-platform-files}
-      FILE_STORAGE_SECRET_KEY: ${FILE_STORAGE_SECRET_KEY:-minioadmin}
     command:
       [
-        'mc alias set local http://minio:9000 "$$FILE_STORAGE_ACCESS_KEY" "$$FILE_STORAGE_SECRET_KEY" && mc mb --ignore-existing local/"$$FILE_STORAGE_BUCKET"',
+        'aws --endpoint-url http://minio:9000 s3api head-bucket --bucket "$$FILE_STORAGE_BUCKET" || aws --endpoint-url http://minio:9000 s3api create-bucket --bucket "$$FILE_STORAGE_BUCKET"',
       ]
     depends_on:
       minio:

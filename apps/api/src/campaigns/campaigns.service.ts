@@ -381,6 +381,19 @@ export class CampaignsService {
     };
   }
 
+  /** Exported application query for modules extending a shared activity. */
+  async getActivity(
+    actingUserId: string,
+    campaignId: string,
+    activityId: string,
+  ): Promise<CampaignActivityResponse> {
+    await this.loadOrThrow(campaignId);
+    await this.requireGrant(actingUserId, "campaign.read");
+    const activity = await this.repository.findActivity(campaignId, activityId);
+    if (!activity) throw campaignActivityNotFound();
+    return toActivityResponse(activity);
+  }
+
   async createActivity(
     actingUserId: string,
     id: string,
