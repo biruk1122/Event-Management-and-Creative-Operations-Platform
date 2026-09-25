@@ -152,4 +152,81 @@ describe("PromotionService", () => {
     );
     expect(repository.unassign).not.toHaveBeenCalled();
   });
+
+  it("requires talent.assign before writing an initial talent assignment", async () => {
+    permissions.hasGrant.mockImplementation((_actor: string, key: string) =>
+      Promise.resolve(key !== "talent.assign"),
+    );
+    await expectCode(
+      service.attach(ACTOR, CAMPAIGN, ACTIVITY, {
+        channel: "SOCIAL_MEDIA",
+        talents: [{ talentId: TALENT, role: "Host" }],
+      }),
+      "PERMISSION_DENIED",
+    );
+    expect(repository.attach).not.toHaveBeenCalled();
+  });
+
+  it("does not query details when campaign activity ownership fails", async () => {
+    campaigns.getActivity.mockRejectedValue(
+      new HttpException({ code: "CAMPAIGN_ACTIVITY_NOT_FOUND" }, 404),
+    );
+    await expectCode(
+      service.get(ACTOR, CAMPAIGN, ACTIVITY),
+      "CAMPAIGN_ACTIVITY_NOT_FOUND",
+    );
+    expect(repository.find).not.toHaveBeenCalled();
+  });
+
+  it("maps failed channel changes and removals to stable not-found errors", async () => {
+    repository.updateChannel.mockResolvedValue(null);
+    repository.remove.mockResolvedValue(false);
+    await expectCode(
+      service.updateChannel(ACTOR, CAMPAIGN, ACTIVITY, {
+        channel: "SOCIAL_MEDIA",
+      }),
+      "PROMOTION_ACTIVITY_NOT_FOUND",
+    );
+    await expectCode(
+      service.remove(ACTOR, CAMPAIGN, ACTIVITY),
+      "PROMOTION_ACTIVITY_NOT_FOUND",
+    );
+  });
+
+  it("maps missing and duplicate talents without swallowing unrelated failures", async () => {
+    repository.assign
+      .mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("missing", {
+          code: "P2003",
+          clientVersion: "7.10.0",
+        }),
+      )
+      .mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("duplicate", {
+          code: "P2002",
+          clientVersion: "7.10.0",
+        }),
+      )
+      .mockRejectedValueOnce(new Error("database unavailable"));
+    await expectCode(
+      service.assignTalent(ACTOR, CAMPAIGN, ACTIVITY, {
+        talentId: TALENT,
+        role: "Host",
+      }),
+      "TALENT_NOT_FOUND",
+    );
+    await expectCode(
+      service.assignTalent(ACTOR, CAMPAIGN, ACTIVITY, {
+        talentId: TALENT,
+        role: "Host",
+      }),
+      "PROMOTION_ASSIGNMENT_CONFLICT",
+    );
+    await expect(
+      service.assignTalent(ACTOR, CAMPAIGN, ACTIVITY, {
+        talentId: TALENT,
+        role: "Host",
+      }),
+    ).rejects.toThrow("database unavailable");
+  });
 });

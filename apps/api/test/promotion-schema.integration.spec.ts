@@ -37,6 +37,28 @@ describe("promotion operations schema", () => {
     expect(output).toContain("Database schema is up to date");
   });
 
+  it("keeps the promotion lookup and talent-assignment indexes in the migrated database", async () => {
+    const indexes = await db.query<{ indexname: string; indexdef: string }>(
+      `SELECT indexname, indexdef FROM pg_indexes
+       WHERE schemaname = $1 AND tablename IN ('promotion_activities', 'promotion_activity_talents')`,
+      [db.schema],
+    );
+    const byName = new Map(
+      indexes.map((index) => [index.indexname, index.indexdef]),
+    );
+    expect(
+      byName.get("promotion_activities_campaign_id_channel_idx"),
+    ).toContain("(campaign_id, channel)");
+    expect(
+      byName.get(
+        "promotion_activity_talents_campaign_activity_id_talent_id_key",
+      ),
+    ).toContain("(campaign_activity_id, talent_id)");
+    expect(byName.get("promotion_activity_talents_talent_id_idx")).toContain(
+      "(talent_id)",
+    );
+  });
+
   async function campaign(
     type = "PROMOTION",
     columns: Record<string, unknown> = {},
