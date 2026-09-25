@@ -4,6 +4,7 @@ import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { PrismaClient } from "../src/generated/prisma/client.js";
+import { PasswordHasher } from "../src/auth/domain/password-hasher.js";
 import { seedRbac } from "../src/rbac/seed-rbac.js";
 import {
   createIsolatedDatabase,
@@ -11,6 +12,7 @@ import {
 } from "./support/database.js";
 
 const PASSWORD = "correct horse battery staple";
+const MISSING_TALENT = "00000000-0000-4000-8000-000000000001";
 
 interface IdBody {
   id: string;
@@ -53,17 +55,12 @@ describe("promotion operations API smoke", () => {
       ),
     });
     await seedRbac(prisma);
-    const [
-      { Test },
-      { AppModule },
-      { configureApplication },
-      { PasswordHasher },
-    ] = await Promise.all([
-      import("@nestjs/testing"),
-      import("../src/app.module.js"),
-      import("../src/app.setup.js"),
-      import("../src/auth/domain/password-hasher.js"),
-    ]);
+    const [{ Test }, { AppModule }, { configureApplication }] =
+      await Promise.all([
+        import("@nestjs/testing"),
+        import("../src/app.module.js"),
+        import("../src/app.setup.js"),
+      ]);
     const role = await prisma.role.findUniqueOrThrow({
       where: { name: "Super Admin" },
     });
@@ -106,6 +103,157 @@ describe("promotion operations API smoke", () => {
       .set("Cookie", cookies)
       .set("x-csrf-token", csrfToken);
   }
+
+  async function createActivity(campaignType = "PROMOTION") {
+    const campaign = await post("/api/v1/campaigns").send({
+      name: `Promotion verification ${campaignType}`,
+      campaignType,
+    });
+    expect(campaign.status).toBe(201);
+    const campaignId = body<IdBody>(campaign).id;
+    const activity = await post(
+      `/api/v1/campaigns/${campaignId}/activities`,
+    ).send({ name: "Verification activity" });
+    expect(activity.status).toBe(201);
+    const activityId = body<IdBody>(activity).id;
+    return {
+      campaignId,
+      activityId,
+      path: `/api/v1/promotion/campaigns/${campaignId}/activities/${activityId}`,
+    };
+  }
+
+  it("rejects invalid transport input without writing promotion details", async () => {
+    const { activityId, path } = await createActivity();
+    const validTalent = await prisma.talent.create({
+      data: { fullName: "Validation artist", type: "ARTIST" },
+    });
+    for (const payload of [
+      { channel: "UNKNOWN" },
+      {
+        channel: "SOCIAL_MEDIA",
+        talents: [{ talentId: "invalid", role: "Host" }],
+      },
+      {
+        channel: "SOCIAL_MEDIA",
+        talents: [{ talentId: validTalent.id, role: "  " }],
+      },
+      {
+        channel: "SOCIAL_MEDIA",
+        talents: Array.from({ length: 51 }, () => ({
+          talentId: validTalent.id,
+          role: "Host",
+        })),
+      },
+    ]) {
+      const result = await post(path).send(payload);
+      expect(result.status).toBe(400);
+      expect(result.headers["content-type"]).toContain(
+        "application/problem+json",
+      );
+      expect(body<ProblemBody>(result).code).toBe("VALIDATION_ERROR");
+    }
+    const duplicate = await post(path).send({
+      channel: "SOCIAL_MEDIA",
+      talents: [
+        { talentId: validTalent.id, role: "Host" },
+        { talentId: validTalent.id, role: "Guest" },
+      ],
+    });
+    expect(duplicate.status).toBe(400);
+    expect(body<ProblemBody>(duplicate).code).toBe(
+      "PROMOTION_DUPLICATE_TALENT",
+    );
+    expect(
+      await prisma.promotionActivity.count({
+        where: { campaignActivityId: activityId },
+      }),
+    ).toBe(0);
+  });
+
+  it("rolls back detail and valid assignments when one initial talent is missing, then permits retry", async () => {
+    const { activityId, path } = await createActivity();
+    const talent = await prisma.talent.create({
+      data: { fullName: "Rollback artist", type: "ARTIST" },
+    });
+    const failed = await post(path).send({
+      channel: "RADIO_PROMOTION",
+      talents: [
+        { talentId: talent.id, role: "Presenter" },
+        { talentId: MISSING_TALENT, role: "Guest" },
+      ],
+    });
+    expect(failed.status).toBe(404);
+    expect(body<ProblemBody>(failed).code).toBe("TALENT_NOT_FOUND");
+    expect(
+      await prisma.promotionActivity.count({
+        where: { campaignActivityId: activityId },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.promotionActivityTalent.count({
+        where: { campaignActivityId: activityId },
+      }),
+    ).toBe(0);
+    const retried = await post(path).send({
+      channel: "RADIO_PROMOTION",
+      talents: [{ talentId: talent.id, role: "Presenter" }],
+    });
+    expect(retried.status).toBe(201);
+    expect(body<PromotionBody>(retried).talents).toHaveLength(1);
+  });
+
+  it("enforces read-only permissions and hides another campaign's activity", async () => {
+    const { path, activityId } = await createActivity();
+    const other = await createActivity();
+    const role = await prisma.role.create({
+      data: {
+        name: "Promotion read only",
+        rolePermissions: {
+          create: [{ permissionKey: "campaign.read", scope: "ORGANIZATION" }],
+        },
+      },
+    });
+    await prisma.user.create({
+      data: {
+        email: "promotion-reader@example.test",
+        credential: {
+          create: { passwordHash: await new PasswordHasher().hash(PASSWORD) },
+        },
+        roleAssignment: { create: { roleId: role.id } },
+      },
+    });
+    const login = await request(app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({
+        email: "promotion-reader@example.test",
+        password: PASSWORD,
+      });
+    expect(login.status).toBe(200);
+    const readerCookies = login.headers["set-cookie"] as unknown as string[];
+    const readerCsrf = readerCookies
+      .find((cookie) => cookie.startsWith("csrf_token="))!
+      .split(";")[0]!
+      .split("=")[1]!;
+    const denied = await request(app.getHttpServer())
+      .post(path)
+      .set("Cookie", readerCookies)
+      .set("x-csrf-token", readerCsrf)
+      .send({ channel: "SOCIAL_MEDIA" });
+    expect(denied.status).toBe(403);
+    expect(body<ProblemBody>(denied).code).toBe("PERMISSION_DENIED");
+    const hidden = await request(app.getHttpServer())
+      .get(
+        `/api/v1/promotion/campaigns/${other.campaignId}/activities/${activityId}`,
+      )
+      .set("Cookie", cookies);
+    expect(hidden.status).toBe(404);
+    expect(
+      await prisma.promotionActivity.count({
+        where: { campaignActivityId: other.activityId },
+      }),
+    ).toBe(0);
+  });
 
   it("attaches a channel and talent to a promotion activity, then lists it and reports stable errors", async () => {
     const campaign = await post("/api/v1/campaigns").send({
