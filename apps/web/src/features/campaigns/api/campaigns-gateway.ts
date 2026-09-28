@@ -418,7 +418,8 @@ export async function listCampaignActivities(
       return activities;
     }
   }
-  return activities;
+  // Do not present a truncated set as a complete campaign activity list.
+  return null;
 }
 
 /**

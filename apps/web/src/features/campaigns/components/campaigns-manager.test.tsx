@@ -120,6 +120,8 @@ beforeEach(() => {
           pageSize: 100,
           total: activities.length,
         });
+      case "/api/v1/promotion/campaigns/{campaignId}/activities":
+        return ok({ items: [], page: 1, pageSize: 100, total: 0 });
       case "/api/v1/users":
         return ok({
           items: [
@@ -167,6 +169,48 @@ async function openCampaign(name: string) {
 }
 
 describe("CampaignsManager API integration", () => {
+  it("opens the live promotion section only for a promotion campaign", async () => {
+    activities = [
+      makeActivity({
+        id: "promo-act",
+        campaignId: "c1",
+        name: "Social teaser",
+      }),
+    ];
+    renderManager();
+    const { user, dialog } = await openCampaign("Aurora Awareness");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Promotion operations" }),
+    );
+    expect(
+      await within(dialog).findByRole("button", { name: /Social teaser/ }),
+    ).toBeVisible();
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/promotion/campaigns/{campaignId}/activities",
+      expect.objectContaining({
+        params: {
+          path: { campaignId: "c1" },
+          query: { page: 1, pageSize: 100 },
+        },
+      }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Overview and activities" }),
+    );
+    expect(within(dialog).getByText("Activities")).toBeVisible();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    const marketing = await openCampaign("Orbit Launch");
+    expect(
+      within(marketing.dialog).queryByRole("button", {
+        name: "Promotion operations",
+      }),
+    ).not.toBeInTheDocument();
+  });
+
   describe("list", () => {
     it("announces loading, then shows the count and the campaigns the API returned", async () => {
       renderManager();

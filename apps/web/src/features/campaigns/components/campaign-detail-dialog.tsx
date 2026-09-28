@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { CurrentAccess } from "@/features/auth/api/access-queries";
+import { PromotionOperationsPanel } from "@/features/promotion/components/promotion-operations-panel";
 import {
   Select,
   SelectContent,
@@ -95,6 +97,7 @@ function actionError(key: string): string {
 
 interface CampaignDetailDialogProps {
   campaignId: string | null;
+  promotionAccess?: CurrentAccess;
   onOpenChange: (open: boolean) => void;
   users: readonly AssignableUser[];
   teams: readonly AssignableTeam[];
@@ -130,7 +133,7 @@ export function CampaignDetailDialog({
         if (!open) onOpenChange(false);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
         {campaignId !== null ? (
           <CampaignDetailBody
             key={campaignId}
@@ -152,6 +155,7 @@ type BodyProps = Omit<
 
 function CampaignDetailBody({
   campaignId,
+  promotionAccess,
   users,
   teams,
   events,
@@ -183,6 +187,7 @@ function CampaignDetailBody({
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     "loading",
   );
+  const [view, setView] = useState<"overview" | "promotion">("overview");
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [budget, setBudget] = useState<CampaignBudget | null>(null);
   const [budgetReadable, setBudgetReadable] = useState(abilities.canReadBudget);
@@ -457,337 +462,379 @@ function CampaignDetailBody({
         </DialogDescription>
       </DialogHeader>
 
-      {/* Details */}
-      <form
-        aria-label="Edit campaign details"
-        className="space-y-4"
-        noValidate
-        onSubmit={(submitEvent) => {
-          submitEvent.preventDefault();
-          void saveDetails();
-        }}
-      >
-        <CampaignFields
-          values={fields}
-          errors={fieldErrors}
-          disabled={detailsBusy || !abilities.canUpdate}
-          events={events}
-          onChange={setField}
-        />
-        {detailsError ? (
-          <p className="text-destructive text-sm" role="alert">
-            {detailsError}
-          </p>
-        ) : null}
-        {abilities.canUpdate ? (
+      {campaign.campaignType === "PROMOTION" && promotionAccess ? (
+        <nav
+          aria-label="Campaign workspace sections"
+          className="flex flex-wrap gap-2 border-b pb-3"
+        >
           <Button
-            type="submit"
+            type="button"
             size="sm"
-            disabled={detailsBusy}
-            aria-busy={detailsBusy}
+            variant={view === "overview" ? "default" : "outline"}
+            aria-current={view === "overview" ? "page" : undefined}
+            onClick={() => setView("overview")}
           >
-            {detailsBusy ? "Saving…" : "Save details"}
+            Overview and activities
           </Button>
-        ) : (
-          <p className="text-muted-foreground text-xs">
-            You have read-only access to this campaign&rsquo;s details.
-          </p>
-        )}
-      </form>
-
-      {/* Lifecycle */}
-      <section
-        aria-labelledby={`${ids.status}-heading`}
-        className="border-border space-y-2 border-t pt-4"
-      >
-        <p id={`${ids.status}-heading`} className="text-sm font-medium">
-          Lifecycle
-        </p>
-        {!abilities.canTransition ? (
-          <p className="text-muted-foreground text-sm">
-            Current status: {campaignStatusLabel(campaign.status)}.
-          </p>
-        ) : moves.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {campaignStatusLabel(campaign.status)} is a final state.
-          </p>
-        ) : (
-          <div className="space-y-1">
-            <Label htmlFor={ids.status}>Move to</Label>
-            <Select
-              value={PICK_STATUS}
-              disabled={statusBusy}
-              onValueChange={(value) => void moveTo(value)}
-            >
-              <SelectTrigger id={ids.status} aria-busy={statusBusy}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={PICK_STATUS}>Choose a status…</SelectItem>
-                {moves.map((next) => (
-                  <SelectItem key={next} value={next}>
-                    {campaignStatusLabel(next)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        {statusError ? (
-          <p className="text-destructive text-sm" role="alert">
-            {statusError}
-          </p>
-        ) : null}
-      </section>
-
-      {/* Progress and activities */}
-      <CampaignActivities
-        campaignId={campaign.id}
-        listActivities={listActivities}
-        createActivity={onCreateActivity}
-        updateActivity={onUpdateActivity}
-        deleteActivity={onDeleteActivity}
-        canManage={abilities.canManageActivities}
-        onProgressChange={applyProgress}
-      />
-
-      {/* Connected workspace: manager, teams, participants */}
-      <section
-        aria-labelledby={`${ids.manager}-heading`}
-        className="border-border space-y-3 border-t pt-4"
-      >
-        <p id={`${ids.manager}-heading`} className="text-sm font-medium">
-          Connected workspace
-        </p>
-
-        <div className="space-y-1">
-          <Label htmlFor={ids.manager}>Manager</Label>
-          <Select
-            value={campaign.manager?.id ?? NO_MANAGER}
-            disabled={managerBusy || !abilities.canAssign}
-            onValueChange={(value) => void changeManager(value)}
+          <Button
+            type="button"
+            size="sm"
+            variant={view === "promotion" ? "default" : "outline"}
+            aria-current={view === "promotion" ? "page" : undefined}
+            onClick={() => setView("promotion")}
           >
-            <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_MANAGER}>No manager</SelectItem>
-              {users.map((user) => (
-                <SelectItem key={user.id} value={user.id}>
-                  {personName(user)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {managerError ? (
-            <p className="text-destructive text-sm" role="alert">
-              {managerError}
-            </p>
-          ) : null}
-        </div>
+            Promotion operations
+          </Button>
+        </nav>
+      ) : null}
 
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Teams</p>
-          {campaign.teams.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No teams assigned.</p>
-          ) : (
-            <ul className="space-y-1">
-              {campaign.teams.map((team) => (
-                <li
-                  key={team.id}
-                  className="flex items-center justify-between gap-2 text-sm"
-                >
-                  <span>{team.name}</span>
-                  {abilities.canAssign ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={teamBusy}
-                      aria-label={`Unassign ${team.name}`}
-                      onClick={() => void removeTeam(team.id)}
-                    >
-                      <X aria-hidden="true" className="size-4" />
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-          {abilities.canAssign && addableTeams.length > 0 ? (
-            <div className="space-y-1">
-              <Label htmlFor={ids.team}>Assign a team</Label>
-              <Select
-                value={PICK_TEAM}
-                disabled={teamBusy}
-                onValueChange={(value) => void addTeam(value)}
+      {view === "promotion" &&
+      promotionAccess &&
+      campaign.campaignType === "PROMOTION" ? (
+        <PromotionOperationsPanel
+          campaignId={campaign.id}
+          campaignName={campaign.name}
+          access={promotionAccess}
+        />
+      ) : (
+        <div className="space-y-4">
+          {/* Details */}
+          <form
+            aria-label="Edit campaign details"
+            className="space-y-4"
+            noValidate
+            onSubmit={(submitEvent) => {
+              submitEvent.preventDefault();
+              void saveDetails();
+            }}
+          >
+            <CampaignFields
+              values={fields}
+              errors={fieldErrors}
+              disabled={detailsBusy || !abilities.canUpdate}
+              events={events}
+              onChange={setField}
+            />
+            {detailsError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {detailsError}
+              </p>
+            ) : null}
+            {abilities.canUpdate ? (
+              <Button
+                type="submit"
+                size="sm"
+                disabled={detailsBusy}
+                aria-busy={detailsBusy}
               >
-                <SelectTrigger id={ids.team} aria-busy={teamBusy}>
+                {detailsBusy ? "Saving…" : "Save details"}
+              </Button>
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                You have read-only access to this campaign&rsquo;s details.
+              </p>
+            )}
+          </form>
+
+          {/* Lifecycle */}
+          <section
+            aria-labelledby={`${ids.status}-heading`}
+            className="border-border space-y-2 border-t pt-4"
+          >
+            <p id={`${ids.status}-heading`} className="text-sm font-medium">
+              Lifecycle
+            </p>
+            {!abilities.canTransition ? (
+              <p className="text-muted-foreground text-sm">
+                Current status: {campaignStatusLabel(campaign.status)}.
+              </p>
+            ) : moves.length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                {campaignStatusLabel(campaign.status)} is a final state.
+              </p>
+            ) : (
+              <div className="space-y-1">
+                <Label htmlFor={ids.status}>Move to</Label>
+                <Select
+                  value={PICK_STATUS}
+                  disabled={statusBusy}
+                  onValueChange={(value) => void moveTo(value)}
+                >
+                  <SelectTrigger id={ids.status} aria-busy={statusBusy}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={PICK_STATUS}>
+                      Choose a status…
+                    </SelectItem>
+                    {moves.map((next) => (
+                      <SelectItem key={next} value={next}>
+                        {campaignStatusLabel(next)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {statusError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {statusError}
+              </p>
+            ) : null}
+          </section>
+
+          {/* Progress and activities */}
+          <CampaignActivities
+            campaignId={campaign.id}
+            listActivities={listActivities}
+            createActivity={onCreateActivity}
+            updateActivity={onUpdateActivity}
+            deleteActivity={onDeleteActivity}
+            canManage={abilities.canManageActivities}
+            onProgressChange={applyProgress}
+          />
+
+          {/* Connected workspace: manager, teams, participants */}
+          <section
+            aria-labelledby={`${ids.manager}-heading`}
+            className="border-border space-y-3 border-t pt-4"
+          >
+            <p id={`${ids.manager}-heading`} className="text-sm font-medium">
+              Connected workspace
+            </p>
+
+            <div className="space-y-1">
+              <Label htmlFor={ids.manager}>Manager</Label>
+              <Select
+                value={campaign.manager?.id ?? NO_MANAGER}
+                disabled={managerBusy || !abilities.canAssign}
+                onValueChange={(value) => void changeManager(value)}
+              >
+                <SelectTrigger id={ids.manager} aria-busy={managerBusy}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={PICK_TEAM}>Choose a team…</SelectItem>
-                  {addableTeams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
+                  <SelectItem value={NO_MANAGER}>No manager</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {personName(user)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {managerError ? (
+                <p className="text-destructive text-sm" role="alert">
+                  {managerError}
+                </p>
+              ) : null}
             </div>
-          ) : null}
-          {teamError ? (
-            <p className="text-destructive text-sm" role="alert">
-              {teamError}
-            </p>
-          ) : null}
-        </div>
 
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Employees</p>
-          {campaign.participants.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
-              No employees assigned.
-            </p>
-          ) : (
-            <ul className="text-muted-foreground space-y-1 text-sm">
-              {campaign.participants.map((person) => (
-                <li key={person.id}>{personName(person)}</li>
-              ))}
-            </ul>
-          )}
-          <p className="text-muted-foreground text-xs">
-            Employee assignment is managed from the connected workspace.
-          </p>
-        </div>
-      </section>
-
-      {/* Budget */}
-      <section
-        aria-labelledby={`${ids.amount}-heading`}
-        className="border-border space-y-2 border-t pt-4"
-      >
-        <p id={`${ids.amount}-heading`} className="text-sm font-medium">
-          Budget
-        </p>
-        {!budgetReadable ? (
-          <p className="text-muted-foreground text-sm">
-            You do not have permission to view the budget.
-          </p>
-        ) : (
-          <>
-            <p className="text-muted-foreground text-sm">
-              Current: {budgetSummary(budget)}
-            </p>
-            {abilities.canUpdateBudget ? (
-              <>
-                <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
-                  <div className="space-y-1">
-                    <Label htmlFor={ids.amount}>Amount</Label>
-                    <Input
-                      id={ids.amount}
-                      inputMode="decimal"
-                      value={amount}
-                      disabled={budgetBusy}
-                      onChange={(changeEvent) =>
-                        setAmount(changeEvent.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor={ids.currency}>Currency</Label>
-                    <Input
-                      id={ids.currency}
-                      value={currency}
-                      maxLength={3}
-                      placeholder="USD"
-                      disabled={budgetBusy}
-                      onChange={(changeEvent) =>
-                        setCurrency(changeEvent.target.value)
-                      }
-                    />
-                  </div>
-                  <div className="flex items-end gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={budgetBusy}
-                      onClick={() => void saveBudget(false)}
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Teams</p>
+              {campaign.teams.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  No teams assigned.
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {campaign.teams.map((team) => (
+                    <li
+                      key={team.id}
+                      className="flex items-center justify-between gap-2 text-sm"
                     >
-                      Save
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      disabled={budgetBusy}
-                      onClick={() => void saveBudget(true)}
-                    >
-                      Clear
-                    </Button>
-                  </div>
+                      <span>{team.name}</span>
+                      {abilities.canAssign ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={teamBusy}
+                          aria-label={`Unassign ${team.name}`}
+                          onClick={() => void removeTeam(team.id)}
+                        >
+                          <X aria-hidden="true" className="size-4" />
+                        </Button>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {abilities.canAssign && addableTeams.length > 0 ? (
+                <div className="space-y-1">
+                  <Label htmlFor={ids.team}>Assign a team</Label>
+                  <Select
+                    value={PICK_TEAM}
+                    disabled={teamBusy}
+                    onValueChange={(value) => void addTeam(value)}
+                  >
+                    <SelectTrigger id={ids.team} aria-busy={teamBusy}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={PICK_TEAM}>Choose a team…</SelectItem>
+                      {addableTeams.map((team) => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                {budgetError ? (
-                  <p className="text-destructive text-sm" role="alert">
-                    {budgetError}
-                  </p>
+              ) : null}
+              {teamError ? (
+                <p className="text-destructive text-sm" role="alert">
+                  {teamError}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Employees</p>
+              {campaign.participants.length === 0 ? (
+                <p className="text-muted-foreground text-sm">
+                  No employees assigned.
+                </p>
+              ) : (
+                <ul className="text-muted-foreground space-y-1 text-sm">
+                  {campaign.participants.map((person) => (
+                    <li key={person.id}>{personName(person)}</li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-muted-foreground text-xs">
+                Employee assignment is managed from the connected workspace.
+              </p>
+            </div>
+          </section>
+
+          {/* Budget */}
+          <section
+            aria-labelledby={`${ids.amount}-heading`}
+            className="border-border space-y-2 border-t pt-4"
+          >
+            <p id={`${ids.amount}-heading`} className="text-sm font-medium">
+              Budget
+            </p>
+            {!budgetReadable ? (
+              <p className="text-muted-foreground text-sm">
+                You do not have permission to view the budget.
+              </p>
+            ) : (
+              <>
+                <p className="text-muted-foreground text-sm">
+                  Current: {budgetSummary(budget)}
+                </p>
+                {abilities.canUpdateBudget ? (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-[1fr_8rem_auto]">
+                      <div className="space-y-1">
+                        <Label htmlFor={ids.amount}>Amount</Label>
+                        <Input
+                          id={ids.amount}
+                          inputMode="decimal"
+                          value={amount}
+                          disabled={budgetBusy}
+                          onChange={(changeEvent) =>
+                            setAmount(changeEvent.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={ids.currency}>Currency</Label>
+                        <Input
+                          id={ids.currency}
+                          value={currency}
+                          maxLength={3}
+                          placeholder="USD"
+                          disabled={budgetBusy}
+                          onChange={(changeEvent) =>
+                            setCurrency(changeEvent.target.value)
+                          }
+                        />
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={budgetBusy}
+                          onClick={() => void saveBudget(false)}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={budgetBusy}
+                          onClick={() => void saveBudget(true)}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+                    {budgetError ? (
+                      <p className="text-destructive text-sm" role="alert">
+                        {budgetError}
+                      </p>
+                    ) : null}
+                  </>
                 ) : null}
               </>
-            ) : null}
-          </>
-        )}
-      </section>
+            )}
+          </section>
 
-      {/* Danger zone */}
-      {abilities.canDelete ? (
-        <div className="border-border space-y-2 border-t pt-4">
-          {confirmingDelete ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm">
-                Permanently delete this campaign and its activities?
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={deleteBusy}
-                onClick={() => setConfirmingDelete(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                ref={confirmRef}
-                type="button"
-                variant="destructive"
-                size="sm"
-                disabled={deleteBusy}
-                aria-busy={deleteBusy}
-                onClick={() => void runDelete()}
-              >
-                {deleteBusy ? "Working…" : "Confirm delete"}
-              </Button>
+          {/* Danger zone */}
+          {abilities.canDelete ? (
+            <div className="border-border space-y-2 border-t pt-4">
+              {confirmingDelete ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm">
+                    Permanently delete this campaign and its activities?
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={deleteBusy}
+                    onClick={() => setConfirmingDelete(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    ref={confirmRef}
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    disabled={deleteBusy}
+                    aria-busy={deleteBusy}
+                    onClick={() => void runDelete()}
+                  >
+                    {deleteBusy ? "Working…" : "Confirm delete"}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  Delete campaign
+                </Button>
+              )}
+              {deleteError ? (
+                <Alert variant="destructive" aria-live="assertive">
+                  <AlertTitle>{deleteError}</AlertTitle>
+                </Alert>
+              ) : null}
             </div>
-          ) : (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => setConfirmingDelete(true)}
-            >
-              Delete campaign
-            </Button>
-          )}
-          {deleteError ? (
-            <Alert variant="destructive" aria-live="assertive">
-              <AlertTitle>{deleteError}</AlertTitle>
-            </Alert>
           ) : null}
-        </div>
-      ) : null}
 
-      <p role="status" aria-live="polite" className="sr-only">
-        {announcement}
-      </p>
+          <p role="status" aria-live="polite" className="sr-only">
+            {announcement}
+          </p>
+        </div>
+      )}
     </>
   );
 }

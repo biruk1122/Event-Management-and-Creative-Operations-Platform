@@ -37,18 +37,18 @@ export interface PromotionOperationsBoardProps {
   canAssignTalent?: boolean;
   availableTalents?: readonly { id: string; name: string }[];
   talentsUnavailable?: boolean;
-  onAttach?: (activityId: string, channel: PromotionChannel) => Promise<void>;
-  onChangeChannel?: (
-    activityId: string,
-    channel: PromotionChannel,
-  ) => Promise<void>;
-  onRemove?: (activityId: string) => Promise<void>;
-  onAssignTalent?: (
-    activityId: string,
-    talentId: string,
-    role: string,
-  ) => Promise<void>;
-  onUnassignTalent?: (activityId: string, talentId: string) => Promise<void>;
+  onAttach?:
+    | ((activityId: string, channel: PromotionChannel) => Promise<void>)
+    | undefined;
+  onChangeChannel?:
+    | ((activityId: string, channel: PromotionChannel) => Promise<void>)
+    | undefined;
+  onRemove?: ((activityId: string) => Promise<void>) | undefined;
+  onAssignTalent?:
+    | ((activityId: string, talentId: string, role: string) => Promise<void>)
+    | undefined;
+  onUnassignTalent?:
+    ((activityId: string, talentId: string) => Promise<void>) | undefined;
 }
 
 const CONTROL_CLASS =
@@ -118,8 +118,12 @@ export function PromotionOperationsBoard({
       await work();
       setAnnouncement(message);
       setConfirming(false);
-    } catch {
-      setError("We could not save that change. Try again.");
+    } catch (cause) {
+      setError(
+        cause instanceof Error && cause.name === "PromotionRequestError"
+          ? cause.message
+          : "We could not save that change. Try again.",
+      );
     } finally {
       setBusy(false);
     }

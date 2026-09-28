@@ -206,6 +206,7 @@ export function CampaignsManager({ access }: { access: CurrentAccess }) {
 
       <CampaignDetailDialog
         campaignId={selectedId}
+        promotionAccess={access}
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
         }}
