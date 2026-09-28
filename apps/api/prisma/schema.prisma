@@ -1290,6 +1290,7 @@ model Campaign {
   event               Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
   createdBy           User?               @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   activities          CampaignActivity[]
+  marketing           MarketingCampaign?
   promotionActivities PromotionActivity[]
 
   // Supports a composite FK that fixes promotion detail ownership to PROMOTION.
@@ -1331,6 +1332,24 @@ model CampaignActivity {
   @@index([campaignId, status])
   @@index([campaignId, startAt])
   @@map("campaign_activities")
+}
+
+/// Marketing-specific strategy for a shared MARKETING campaign. The strategy
+/// is content of this campaign, not a separate lifecycle or duplicate campaign
+/// record. Goals, audience, budget, status, activities, team assignments and
+/// tasks remain on Campaign and its connected workspace. The composite FK and
+/// constant type prevent attaching marketing content to a promotion campaign.
+model MarketingCampaign {
+  campaignId   String       @id @map("campaign_id") @db.Uuid
+  campaignType CampaignType @default(MARKETING) @map("campaign_type")
+  strategy     String
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  campaign Campaign @relation(fields: [campaignId, campaignType], references: [id, campaignType], onDelete: Cascade)
+
+  @@unique([campaignId, campaignType])
+  @@map("marketing_campaigns")
 }
 
 /// Approved promotion delivery channels (SRS 5.8). These classify promotion
