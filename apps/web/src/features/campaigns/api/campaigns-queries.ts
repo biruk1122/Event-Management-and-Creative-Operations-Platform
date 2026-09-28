@@ -34,6 +34,7 @@ export function campaignKeys(access: CurrentAccess) {
     teams: [...all, "assignable-teams"] as const,
     events: [...all, "assignable-events"] as const,
     detail: (id: string) => [...all, "campaign", id] as const,
+    activities: (id: string) => [...all, "campaign", id, "activities"] as const,
   };
 }
 
