@@ -11,6 +11,7 @@ export const CAMPAIGN_ERROR = {
   campaignTeamNotFound: "CAMPAIGN_TEAM_NOT_FOUND",
   campaignTeamNotAssigned: "CAMPAIGN_TEAM_NOT_ASSIGNED",
   campaignInvalidTransition: "CAMPAIGN_INVALID_TRANSITION",
+  campaignTypeConflict: "CAMPAIGN_TYPE_CONFLICT",
   campaignScheduleInvalid: "CAMPAIGN_SCHEDULE_INVALID",
   campaignBudgetIncomplete: "CAMPAIGN_BUDGET_INCOMPLETE",
   campaignRelatedSubjectConflict: "CAMPAIGN_RELATED_SUBJECT_CONFLICT",
@@ -79,6 +80,14 @@ export function campaignInvalidTransition(
     code: CAMPAIGN_ERROR.campaignInvalidTransition,
     error: "Conflict",
     detail: `A campaign in ${from} cannot move to ${to}.`,
+  });
+}
+
+export function campaignTypeConflict(): HttpException {
+  return new ConflictException({
+    code: CAMPAIGN_ERROR.campaignTypeConflict,
+    error: "Conflict",
+    detail: "Remove type-specific campaign details before changing its type.",
   });
 }
 

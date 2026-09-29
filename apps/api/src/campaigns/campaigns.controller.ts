@@ -156,6 +156,10 @@ export class CampaignsController {
     type: ProblemDetails,
     description: "The campaign or the related event does not exist",
   })
+  @ApiConflictResponse({
+    type: ProblemDetails,
+    description: "Type-specific details prevent changing the campaign type",
+  })
   async update(
     @Req() request: RequestWithContext,
     @Param("id") id: string,

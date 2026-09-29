@@ -15,6 +15,7 @@ import { EventsModule } from "./events/events.module.js";
 import { FileManagementModule } from "./file-management/file-management.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { MeetingsModule } from "./meetings/meetings.module.js";
+import { MarketingModule } from "./marketing/marketing.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
 import { PromotionModule } from "./promotion/promotion.module.js";
@@ -71,6 +72,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     ProjectsModule,
     ProductionsModule,
     CampaignsModule,
+    MarketingModule,
     PromotionModule,
     DiscussModule,
     FileManagementModule,
