@@ -8,11 +8,16 @@ import { Button } from "@/components/ui/button";
 import { useCurrentAccess } from "@/features/auth/api/access-queries";
 
 import { canReadCampaigns } from "../lib/campaign-access";
+import type { CampaignType } from "../lib/campaigns-types";
 import { CampaignsManager } from "./campaigns-manager";
 
 const LOGIN_HREF = "/login?next=%2Fcampaigns";
 
-export function CampaignsScreen() {
+export function CampaignsScreen({
+  initialType = null,
+}: {
+  initialType?: CampaignType | null;
+}) {
   const access = useCurrentAccess();
   const client = useQueryClient();
   const allowed = access.data ? canReadCampaigns(access.data) : false;
@@ -64,5 +69,11 @@ export function CampaignsScreen() {
     return <p role="alert">You do not have access to this area.</p>;
   }
 
-  return <CampaignsManager key={access.data.userId} access={access.data} />;
+  return (
+    <CampaignsManager
+      key={`${access.data.userId}:${initialType ?? "ALL"}`}
+      access={access.data}
+      initialType={initialType}
+    />
+  );
 }

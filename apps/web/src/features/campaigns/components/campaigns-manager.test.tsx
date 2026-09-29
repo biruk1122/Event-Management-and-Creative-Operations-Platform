@@ -122,6 +122,12 @@ beforeEach(() => {
         });
       case "/api/v1/promotion/campaigns/{campaignId}/activities":
         return ok({ items: [], page: 1, pageSize: 100, total: 0 });
+      case "/api/v1/marketing/campaigns/{campaignId}/strategy":
+        return {
+          data: undefined,
+          error: { status: 404, code: "MARKETING_STRATEGY_NOT_FOUND" },
+          response: { status: 404 },
+        };
       case "/api/v1/users":
         return ok({
           items: [
@@ -143,14 +149,17 @@ beforeEach(() => {
   });
 });
 
-function renderManager(current: CurrentAccess = access(...ALL_WRITES)) {
+function renderManager(
+  current: CurrentAccess = access(...ALL_WRITES),
+  initialType: "MARKETING" | null = null,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
   const invalidate = vi.spyOn(client, "invalidateQueries");
   render(
     <QueryClientProvider client={client}>
-      <CampaignsManager access={current} />
+      <CampaignsManager access={current} initialType={initialType} />
     </QueryClientProvider>,
   );
   return { client, invalidate };
@@ -211,6 +220,29 @@ describe("CampaignsManager API integration", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("opens the marketing-only strategy tab using the live strategy endpoint", async () => {
+    renderManager();
+    const { user, dialog } = await openCampaign("Orbit Launch");
+    expect(
+      within(dialog).queryByRole("button", { name: "Promotion operations" }),
+    ).toBeNull();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Marketing strategy" }),
+    );
+    expect(await within(dialog).findByText("No strategy yet")).toBeVisible();
+    expect(get).toHaveBeenCalledWith(
+      "/api/v1/marketing/campaigns/{campaignId}/strategy",
+      expect.objectContaining({
+        params: { path: { campaignId: "c2" } },
+        cache: "no-store",
+      }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Overview and activities" }),
+    );
+    expect(within(dialog).getByText("Activities")).toBeVisible();
+  });
+
   describe("list", () => {
     it("announces loading, then shows the count and the campaigns the API returned", async () => {
       renderManager();
@@ -231,6 +263,16 @@ describe("CampaignsManager API integration", () => {
       await screen.findByText("2 campaigns");
 
       expect(lastListQuery()).toEqual({ page: 1, pageSize: 10 });
+    });
+
+    it("starts a marketing entry on a server-filtered first page", async () => {
+      renderManager(access(...ALL_WRITES), "MARKETING");
+      await screen.findByText("2 matching campaigns");
+      expect(lastListQuery()).toEqual({
+        page: 1,
+        pageSize: 10,
+        campaignType: "MARKETING",
+      });
     });
 
     it("shows a recoverable error and reloads on retry", async () => {

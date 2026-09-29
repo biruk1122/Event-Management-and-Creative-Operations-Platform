@@ -39,6 +39,9 @@ describe("CampaignsNavigation", () => {
       await screen.findByRole("link", { name: "Campaigns" }),
     ).toHaveAttribute("href", "/campaigns");
     expect(
+      screen.getByRole("link", { name: "Marketing campaigns" }),
+    ).toHaveAttribute("href", "/campaigns?type=MARKETING");
+    expect(
       screen.getByRole("navigation", { name: "Campaign platform" }),
     ).toBeVisible();
   });
@@ -53,6 +56,9 @@ describe("CampaignsNavigation", () => {
     await waitFor(() => expect(get).toHaveBeenCalled());
     expect(
       screen.queryByRole("link", { name: "Campaigns" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Marketing campaigns" }),
     ).not.toBeInTheDocument();
   });
 

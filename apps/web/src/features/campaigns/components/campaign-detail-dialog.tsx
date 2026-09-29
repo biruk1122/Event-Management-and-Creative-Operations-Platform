@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
+import { MarketingStrategyPanel } from "@/features/marketing/components/marketing-strategy-panel";
 import { PromotionOperationsPanel } from "@/features/promotion/components/promotion-operations-panel";
 import {
   Select,
@@ -98,6 +99,7 @@ function actionError(key: string): string {
 interface CampaignDetailDialogProps {
   campaignId: string | null;
   promotionAccess?: CurrentAccess;
+  marketingAccess?: CurrentAccess;
   onOpenChange: (open: boolean) => void;
   users: readonly AssignableUser[];
   teams: readonly AssignableTeam[];
@@ -156,6 +158,7 @@ type BodyProps = Omit<
 function CampaignDetailBody({
   campaignId,
   promotionAccess,
+  marketingAccess,
   users,
   teams,
   events,
@@ -187,7 +190,9 @@ function CampaignDetailBody({
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     "loading",
   );
-  const [view, setView] = useState<"overview" | "promotion">("overview");
+  const [view, setView] = useState<"overview" | "promotion" | "marketing">(
+    "overview",
+  );
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [budget, setBudget] = useState<CampaignBudget | null>(null);
   const [budgetReadable, setBudgetReadable] = useState(abilities.canReadBudget);
@@ -462,7 +467,8 @@ function CampaignDetailBody({
         </DialogDescription>
       </DialogHeader>
 
-      {campaign.campaignType === "PROMOTION" && promotionAccess ? (
+      {(campaign.campaignType === "PROMOTION" && promotionAccess) ||
+      (campaign.campaignType === "MARKETING" && marketingAccess) ? (
         <nav
           aria-label="Campaign workspace sections"
           className="flex flex-wrap gap-2 border-b pb-3"
@@ -476,15 +482,27 @@ function CampaignDetailBody({
           >
             Overview and activities
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={view === "promotion" ? "default" : "outline"}
-            aria-current={view === "promotion" ? "page" : undefined}
-            onClick={() => setView("promotion")}
-          >
-            Promotion operations
-          </Button>
+          {campaign.campaignType === "PROMOTION" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant={view === "promotion" ? "default" : "outline"}
+              aria-current={view === "promotion" ? "page" : undefined}
+              onClick={() => setView("promotion")}
+            >
+              Promotion operations
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant={view === "marketing" ? "default" : "outline"}
+              aria-current={view === "marketing" ? "page" : undefined}
+              onClick={() => setView("marketing")}
+            >
+              Marketing strategy
+            </Button>
+          )}
         </nav>
       ) : null}
 
@@ -496,6 +514,10 @@ function CampaignDetailBody({
           campaignName={campaign.name}
           access={promotionAccess}
         />
+      ) : view === "marketing" &&
+        marketingAccess &&
+        campaign.campaignType === "MARKETING" ? (
+        <MarketingStrategyPanel campaign={campaign} access={marketingAccess} />
       ) : (
         <div className="space-y-4">
           {/* Details */}

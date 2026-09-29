@@ -40,13 +40,21 @@ function useDebounced<T>(value: T, delay: number): T {
   return debounced;
 }
 
-export function CampaignsManager({ access }: { access: CurrentAccess }) {
+export function CampaignsManager({
+  access,
+  initialType = null,
+}: {
+  access: CurrentAccess;
+  initialType?: CampaignType | null;
+}) {
   const keys = campaignKeys(access);
   const client = useQueryClient();
   const abilities = campaignAbilities(access);
 
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | null>(null);
-  const [typeFilter, setTypeFilter] = useState<CampaignType | null>(null);
+  const [typeFilter, setTypeFilter] = useState<CampaignType | null>(
+    initialType,
+  );
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -207,6 +215,7 @@ export function CampaignsManager({ access }: { access: CurrentAccess }) {
       <CampaignDetailDialog
         campaignId={selectedId}
         promotionAccess={access}
+        marketingAccess={access}
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
         }}
