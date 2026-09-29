@@ -15,7 +15,13 @@ export const metadata: Metadata = { title: "Campaigns" };
  */
 const READ_KEY = "campaign.read";
 
-export default async function CampaignsPage() {
+export default async function CampaignsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string | string[] }>;
+}) {
+  const { type } = await searchParams;
+  const initialType = type === "MARKETING" ? "MARKETING" : null;
   const api = createServerApi({ cookie: (await cookies()).toString() });
   const { data, response } = await api.GET("/api/v1/auth/me/permissions", {
     cache: "no-store",
@@ -44,7 +50,7 @@ export default async function CampaignsPage() {
             budget.
           </p>
           <div className="mt-6">
-            <CampaignsScreen />
+            <CampaignsScreen initialType={initialType} />
           </div>
         </>
       ) : (

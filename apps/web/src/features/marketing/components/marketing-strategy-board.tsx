@@ -29,6 +29,7 @@ export interface MarketingStrategyBoardProps {
   canManage?: boolean;
   onSave?: (text: string) => Promise<void>;
   onRemove?: () => Promise<void>;
+  formatError?: (cause: unknown) => string;
 }
 
 const MAX_STRATEGY_LENGTH = 2000;
@@ -42,6 +43,7 @@ export function MarketingStrategyBoard({
   canManage = false,
   onSave,
   onRemove,
+  formatError,
 }: MarketingStrategyBoardProps) {
   const fieldId = useId();
   const errorId = useId();
@@ -108,8 +110,10 @@ export function MarketingStrategyBoard({
       await onSave(text);
       setEditing(false);
       setAnnouncement(strategy ? "Strategy updated." : "Strategy created.");
-    } catch {
-      setError("We could not save the strategy. Try again.");
+    } catch (cause) {
+      setError(
+        formatError?.(cause) ?? "We could not save the strategy. Try again.",
+      );
       fieldRef.current?.focus();
     } finally {
       setBusy(false);
@@ -124,8 +128,10 @@ export function MarketingStrategyBoard({
       await onRemove();
       setConfirming(false);
       setAnnouncement("Strategy removed. The campaign remains available.");
-    } catch {
-      setError("We could not remove the strategy. Try again.");
+    } catch (cause) {
+      setError(
+        formatError?.(cause) ?? "We could not remove the strategy. Try again.",
+      );
       confirmRef.current?.focus();
     } finally {
       setBusy(false);
