@@ -1,6 +1,7 @@
 import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 
+import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -148,6 +149,64 @@ describe("marketing campaign schema", () => {
         "SELECT 1 FROM marketing_campaigns WHERE campaign_id = $1",
         [id],
       ),
+    ).toHaveLength(0);
+  });
+
+  it("retains the primary and composite foreign-key indexes", async () => {
+    const indexes = await db.query<{ indexname: string; indexdef: string }>(
+      `SELECT indexname, indexdef FROM pg_indexes
+       WHERE schemaname = $1 AND tablename = 'marketing_campaigns'`,
+      [db.schema],
+    );
+    expect(indexes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ indexname: "marketing_campaigns_pkey" }),
+        expect.objectContaining({
+          indexname: "marketing_campaigns_campaign_id_campaign_type_key",
+        }),
+      ]),
+    );
+    expect(
+      indexes.find(
+        (index) =>
+          index.indexname ===
+          "marketing_campaigns_campaign_id_campaign_type_key",
+      )?.indexdef,
+    ).toContain("(campaign_id, campaign_type)");
+  });
+
+  it("rolls back workspace, campaign, and strategy when strategy validation fails", async () => {
+    const client = new Client({ connectionString: db.url });
+    await client.connect();
+    let workspaceId = "";
+    try {
+      await client.query("BEGIN");
+      const workspace = await client.query<{ id: string }>(
+        "INSERT INTO workspaces (kind) VALUES ('CAMPAIGN') RETURNING id",
+      );
+      workspaceId = workspace.rows[0]!.id;
+      const campaign = await client.query<{ id: string }>(
+        `INSERT INTO campaigns (workspace_id, name, campaign_type)
+         VALUES ($1, 'Rollback verification', 'MARKETING') RETURNING id`,
+        [workspaceId],
+      );
+      await expect(
+        client.query(
+          "INSERT INTO marketing_campaigns (campaign_id, strategy) VALUES ($1, '  ')",
+          [campaign.rows[0]!.id],
+        ),
+      ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+    } finally {
+      await client.query("ROLLBACK");
+      await client.end();
+    }
+    expect(
+      await db.query("SELECT 1 FROM workspaces WHERE id = $1", [workspaceId]),
+    ).toHaveLength(0);
+    expect(
+      await db.query("SELECT 1 FROM campaigns WHERE workspace_id = $1", [
+        workspaceId,
+      ]),
     ).toHaveLength(0);
   });
 });

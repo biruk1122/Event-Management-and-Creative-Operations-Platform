@@ -12,12 +12,21 @@ import {
 } from "./support/database.js";
 
 const PASSWORD = "correct horse battery staple";
+const MISSING_UUID = "00000000-0000-0000-0000-000000000000";
 interface ProblemBody {
   code: string;
+  requestId?: string;
 }
 interface CampaignBody {
   id: string;
   status: string;
+  manager?: { id: string } | null;
+  teams?: { id: string }[];
+  progress?: {
+    completedActivities: number;
+    totalActivities: number;
+    percent: number | null;
+  };
 }
 interface StrategyBody {
   campaignId: string;
@@ -146,6 +155,16 @@ describe("marketing strategy API", () => {
       .send({ strategy: "  Radio and social  " });
     expect(updated.status).toBe(200);
     expect(body<StrategyBody>(updated).strategy).toBe("Radio and social");
+    const invalidTransition = await post(
+      `/api/v1/campaigns/${id}/transition`,
+    ).send({ status: "COMPLETED" });
+    expect(invalidTransition.status).toBe(409);
+    expect(body<ProblemBody>(invalidTransition).code).toBe(
+      "CAMPAIGN_INVALID_TRANSITION",
+    );
+    expect((await prisma.campaign.findUnique({ where: { id } }))?.status).toBe(
+      "PLANNED",
+    );
     const transitioned = await post(`/api/v1/campaigns/${id}/transition`).send({
       status: "ACTIVE",
     });
@@ -188,7 +207,11 @@ describe("marketing strategy API", () => {
     expect(body<ProblemBody>(wrongType).code).toBe(
       "MARKETING_CAMPAIGN_NOT_FOUND",
     );
-    expect(await prisma.marketingCampaign.count()).toBe(0);
+    expect(
+      await prisma.marketingCampaign.count({
+        where: { campaignId: { in: [marketingId, promotionId] } },
+      }),
+    ).toBe(0);
   });
 
   it("requires a scoped update grant and CSRF for mutations", async () => {
@@ -227,11 +250,147 @@ describe("marketing strategy API", () => {
       .send({ strategy: "Outreach" });
     expect(denied.status).toBe(403);
     expect(body<ProblemBody>(denied).code).toBe("PERMISSION_DENIED");
+    expect(body<ProblemBody>(denied).requestId).toBeTruthy();
     const noCsrf = await request(app.getHttpServer())
       .post(path)
       .set("Cookie", cookies)
       .send({ strategy: "Outreach" });
     expect(noCsrf.status).toBe(403);
-    expect(await prisma.marketingCampaign.count()).toBe(0);
+    expect(
+      await prisma.marketingCampaign.count({ where: { campaignId: id } }),
+    ).toBe(0);
+  });
+
+  it("allows read-only access but denies updates and deletes", async () => {
+    const id = await createCampaign();
+    const path = `/api/v1/marketing/campaigns/${id}/strategy`;
+    expect(
+      (await post(path).send({ strategy: "Partner outreach" })).status,
+    ).toBe(201);
+    const role = await prisma.role.create({
+      data: {
+        name: "Marketing strategy read only",
+        rolePermissions: {
+          create: [{ permissionKey: "campaign.read", scope: "ORGANIZATION" }],
+        },
+      },
+    });
+    await prisma.user.create({
+      data: {
+        email: "marketing-strategy-reader@example.test",
+        credential: {
+          create: { passwordHash: await new PasswordHasher().hash(PASSWORD) },
+        },
+        roleAssignment: { create: { roleId: role.id } },
+      },
+    });
+    const login = await request(app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({
+        email: "marketing-strategy-reader@example.test",
+        password: PASSWORD,
+      });
+    expect(login.status).toBe(200);
+    const readerCookies = login.headers["set-cookie"] as unknown as string[];
+    const readerCsrf = readerCookies
+      .find((cookie) => cookie.startsWith("csrf_token="))!
+      .split(";")[0]!
+      .split("=")[1]!;
+    const read = await request(app.getHttpServer())
+      .get(path)
+      .set("Cookie", readerCookies);
+    expect(read.status).toBe(200);
+    expect(body<StrategyBody>(read).strategy).toBe("Partner outreach");
+    for (const method of ["patch", "delete"] as const) {
+      const http = request(app.getHttpServer());
+      const denied = await http[method](path)
+        .set("Cookie", readerCookies)
+        .set("x-csrf-token", readerCsrf)
+        .send(method === "patch" ? { strategy: "Changed" } : {});
+      expect(denied.status).toBe(403);
+      expect(body<ProblemBody>(denied).code).toBe("PERMISSION_DENIED");
+    }
+    expect(
+      (await prisma.marketingCampaign.findUnique({ where: { campaignId: id } }))
+        ?.strategy,
+    ).toBe("Partner outreach");
+  });
+
+  it("returns stable errors for missing campaign and missing strategy", async () => {
+    const missingCampaign = await post(
+      `/api/v1/marketing/campaigns/${MISSING_UUID}/strategy`,
+    ).send({ strategy: "Outreach" });
+    expect(missingCampaign.status).toBe(404);
+    expect(body<ProblemBody>(missingCampaign).code).toBe("CAMPAIGN_NOT_FOUND");
+
+    const id = await createCampaign();
+    const path = `/api/v1/marketing/campaigns/${id}/strategy`;
+    for (const method of ["get", "patch", "delete"] as const) {
+      const http = request(app.getHttpServer());
+      const response = http[method](path).set("Cookie", cookies);
+      if (method !== "get") response.set("x-csrf-token", csrf);
+      if (method === "patch") response.send({ strategy: "Approach" });
+      const result = await response;
+      expect(result.status).toBe(404);
+      expect(body<ProblemBody>(result).code).toBe(
+        "MARKETING_STRATEGY_NOT_FOUND",
+      );
+    }
+  });
+
+  it("keeps strategy attached through shared assignments, activities, and progress", async () => {
+    const id = await createCampaign();
+    const path = `/api/v1/marketing/campaigns/${id}/strategy`;
+    expect(
+      (await post(path).send({ strategy: "Local partnerships" })).status,
+    ).toBe(201);
+    const manager = await prisma.user.create({
+      data: { email: "marketing-manager@example.test" },
+    });
+    const department = await prisma.department.create({
+      data: { name: "Marketing strategy verification" },
+    });
+    const team = await prisma.team.create({
+      data: { name: "Marketing campaign team", departmentId: department.id },
+    });
+    const managerResult = await request(app.getHttpServer())
+      .put(`/api/v1/campaigns/${id}/manager`)
+      .set("Cookie", cookies)
+      .set("x-csrf-token", csrf)
+      .send({ managerId: manager.id });
+    expect(managerResult.status).toBe(200);
+    expect(body<CampaignBody>(managerResult).manager?.id).toBe(manager.id);
+    const teamResult = await request(app.getHttpServer())
+      .put(`/api/v1/campaigns/${id}/teams/${team.id}`)
+      .set("Cookie", cookies)
+      .set("x-csrf-token", csrf);
+    expect(teamResult.status).toBe(200);
+    expect(
+      body<CampaignBody>(teamResult).teams?.map((item) => item.id),
+    ).toEqual([team.id]);
+    const activity = await post(`/api/v1/campaigns/${id}/activities`).send({
+      name: "Partner outreach",
+    });
+    expect(activity.status).toBe(201);
+    const activityId = body<{ id: string }>(activity).id;
+    const completed = await request(app.getHttpServer())
+      .patch(`/api/v1/campaigns/${id}/activities/${activityId}`)
+      .set("Cookie", cookies)
+      .set("x-csrf-token", csrf)
+      .send({ status: "COMPLETED" });
+    expect(completed.status).toBe(200);
+    const campaign = await request(app.getHttpServer())
+      .get(`/api/v1/campaigns/${id}`)
+      .set("Cookie", cookies);
+    expect(body<CampaignBody>(campaign).progress).toEqual({
+      completedActivities: 1,
+      totalActivities: 1,
+      percent: 100,
+    });
+    const strategy = await request(app.getHttpServer())
+      .get(path)
+      .set("Cookie", cookies);
+    expect(strategy.status).toBe(200);
+    expect(body<StrategyBody>(strategy).strategy).toBe("Local partnerships");
   });
 });
