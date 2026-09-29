@@ -66,6 +66,13 @@ describe("MarketingService", () => {
     expect(repository.find).not.toHaveBeenCalled();
   });
 
+  it("does not query strategy data when the shared campaign lookup denies access", async () => {
+    const denied = new HttpException({ code: "PERMISSION_DENIED" }, 403);
+    campaigns.get.mockRejectedValue(denied);
+    await expect(service.get("actor", "campaign-id")).rejects.toBe(denied);
+    expect(repository.find).not.toHaveBeenCalled();
+  });
+
   it("returns not-found when a campaign has no strategy", async () => {
     repository.find.mockResolvedValue(null);
     await expectCode(
@@ -86,6 +93,16 @@ describe("MarketingService", () => {
       "ORGANIZATION",
     );
     expect(repository.create).not.toHaveBeenCalled();
+    await expectCode(
+      service.update("actor", "campaign-id", "New approach"),
+      "PERMISSION_DENIED",
+    );
+    await expectCode(
+      service.remove("actor", "campaign-id"),
+      "PERMISSION_DENIED",
+    );
+    expect(repository.update).not.toHaveBeenCalled();
+    expect(repository.remove).not.toHaveBeenCalled();
   });
 
   it("trims strategy text and reports duplicate attachment as a conflict", async () => {
@@ -127,6 +144,14 @@ describe("MarketingService", () => {
       service.remove("actor", "campaign-id"),
       "MARKETING_STRATEGY_NOT_FOUND",
     );
+  });
+
+  it("does not disguise unexpected storage failures as conflicts", async () => {
+    const failure = new Error("storage unavailable");
+    repository.create.mockRejectedValue(failure);
+    await expect(
+      service.create("actor", "campaign-id", "Approach"),
+    ).rejects.toBe(failure);
   });
 
   it("updates and removes only the strategy extension", async () => {
