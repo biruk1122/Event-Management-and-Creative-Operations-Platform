@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "../generated/prisma/client.js";
 
 import type {
   CampaignStatus,
@@ -26,6 +27,7 @@ import {
   campaignScheduleInvalid,
   campaignTeamNotAssigned,
   campaignTeamNotFound,
+  campaignTypeConflict,
   campaignUserNotFound,
 } from "./campaigns.errors.js";
 import { canTransition } from "./campaigns.lifecycle.js";
@@ -188,34 +190,51 @@ export class CampaignsService {
       dto.productName === undefined ? campaign.productName : dto.productName,
     );
 
-    const result = await this.repository.update(id, {
-      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-      ...(dto.campaignType !== undefined
-        ? { campaignType: dto.campaignType }
-        : {}),
-      ...(dto.description !== undefined
-        ? {
-            description:
-              dto.description === null ? null : dto.description.trim(),
-          }
-        : {}),
-      ...(dto.audience !== undefined
-        ? { audience: dto.audience === null ? null : dto.audience.trim() }
-        : {}),
-      ...(dto.startAt !== undefined
-        ? { startAt: dto.startAt === null ? null : new Date(dto.startAt) }
-        : {}),
-      ...(dto.endAt !== undefined
-        ? { endAt: dto.endAt === null ? null : new Date(dto.endAt) }
-        : {}),
-      ...(dto.eventId !== undefined ? { eventId: dto.eventId } : {}),
-      ...(dto.productName !== undefined
-        ? {
-            productName:
-              dto.productName === null ? null : dto.productName.trim(),
-          }
-        : {}),
-    });
+    let result: Awaited<ReturnType<CampaignsRepository["update"]>>;
+    try {
+      result = await this.repository.update(id, {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.campaignType !== undefined
+          ? { campaignType: dto.campaignType }
+          : {}),
+        ...(dto.description !== undefined
+          ? {
+              description:
+                dto.description === null ? null : dto.description.trim(),
+            }
+          : {}),
+        ...(dto.audience !== undefined
+          ? { audience: dto.audience === null ? null : dto.audience.trim() }
+          : {}),
+        ...(dto.startAt !== undefined
+          ? { startAt: dto.startAt === null ? null : new Date(dto.startAt) }
+          : {}),
+        ...(dto.endAt !== undefined
+          ? { endAt: dto.endAt === null ? null : new Date(dto.endAt) }
+          : {}),
+        ...(dto.eventId !== undefined ? { eventId: dto.eventId } : {}),
+        ...(dto.productName !== undefined
+          ? {
+              productName:
+                dto.productName === null ? null : dto.productName.trim(),
+            }
+          : {}),
+      });
+    } catch (error) {
+      // Type-specific extensions use a constant-type composite FK. PostgreSQL
+      // rejects retyping an attached campaign (23514); expose a conflict, not
+      // an internal error, without querying another module's tables.
+      if (
+        dto.campaignType !== undefined &&
+        dto.campaignType !== campaign.campaignType &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2039" &&
+        isCheckViolation(error.meta?.driverAdapterError)
+      ) {
+        throw campaignTypeConflict();
+      }
+      throw error;
+    }
 
     if (result === "not_found") {
       throw campaignNotFound();
@@ -474,6 +493,23 @@ export class CampaignsService {
       throw campaignActivityNotFound();
     }
   }
+}
+
+function isCheckViolation(adapterError: unknown): boolean {
+  if (
+    !adapterError ||
+    typeof adapterError !== "object" ||
+    !("cause" in adapterError)
+  ) {
+    return false;
+  }
+  const cause = adapterError.cause;
+  return (
+    !!cause &&
+    typeof cause === "object" &&
+    "originalCode" in cause &&
+    cause.originalCode === "23514"
+  );
 }
 
 /** The effective instant of a field after a patch: the new value, or the current one. */
