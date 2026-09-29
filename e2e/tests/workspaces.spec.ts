@@ -36,6 +36,19 @@ async function userIdByEmail(page: Page, email: string): Promise<string> {
   return user!.id;
 }
 
+async function showNewestWorkspace(page: Page, total: number): Promise<void> {
+  const lastPage = Math.max(1, Math.ceil(total / 10));
+  const pagination = page.getByRole("navigation", {
+    name: "Workspaces pagination",
+  });
+  for (let current = 1; current < lastPage; current++) {
+    await pagination.getByRole("button", { name: "Next" }).click();
+    await expect(pagination).toContainText(
+      `Page ${current + 1} of ${lastPage}`,
+    );
+  }
+}
+
 interface Workspace {
   id: string;
   kind: string;
@@ -135,17 +148,27 @@ test.describe("Connected workspace ownership — end to end", () => {
           { exact: true },
         ),
       ).toBeVisible();
+      await showNewestWorkspace(page, baseline + 1);
       const row = page.getByRole("button", {
         name: `Event workspace managed by ${managerEmail}`,
       });
       await expect(row).toBeVisible();
 
       const afterCreate = await page.request.get(
-        `${apiBaseUrl}/api/v1/workspaces?kind=EVENT`,
+        `${apiBaseUrl}/api/v1/workspaces?kind=EVENT&managerId=${managerId}&pageSize=10`,
       );
+      expect(afterCreate.ok()).toBe(true);
+      const managerTotal = (await afterCreate.json()) as {
+        total: number;
+        items: Workspace[];
+      };
+      const newestForManager = await page.request.get(
+        `${apiBaseUrl}/api/v1/workspaces?kind=EVENT&managerId=${managerId}&pageSize=10&page=${Math.max(1, Math.ceil(managerTotal.total / 10))}`,
+      );
+      expect(newestForManager.ok()).toBe(true);
       const workspace = (
-        (await afterCreate.json()) as { items: Workspace[] }
-      ).items.find((candidate) => candidate.manager?.id === managerId);
+        (await newestForManager.json()) as { items: Workspace[] }
+      ).items.at(-1);
       expect(
         workspace,
         "created workspace should be readable from the API",
@@ -222,6 +245,13 @@ test.describe("Connected workspace ownership — end to end", () => {
 
       // AC: a fresh UI load reads the persisted root and its explicit joins.
       await page.reload();
+      await expect(
+        page.getByText(
+          `${baseline + 1} workspace${baseline + 1 === 1 ? "" : "s"}`,
+          { exact: true },
+        ),
+      ).toBeVisible();
+      await showNewestWorkspace(page, baseline + 1);
       const reloadedRow = page.getByRole("button", {
         name: `Event workspace managed by ${managerEmail}`,
       });

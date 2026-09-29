@@ -26,6 +26,19 @@ function workspaceCount(total: number): string {
   return `${total} workspace${total === 1 ? "" : "s"}`;
 }
 
+async function showNewestWorkspace(page: Page, total: number): Promise<void> {
+  const lastPage = Math.max(1, Math.ceil(total / 10));
+  const pagination = page.getByRole("navigation", {
+    name: "Workspaces pagination",
+  });
+  for (let current = 1; current < lastPage; current++) {
+    await pagination.getByRole("button", { name: "Next" }).click();
+    await expect(pagination).toContainText(
+      `Page ${current + 1} of ${lastPage}`,
+    );
+  }
+}
+
 async function csrfToken(page: Page): Promise<string> {
   const cookies = await page.context().cookies();
   const token = cookies.find((cookie) => cookie.name === "csrf_token")?.value;
@@ -142,14 +155,24 @@ test.describe("Connected workspace ownership — end to end", () => {
       await expect(
         page.getByText(workspaceCount(baseline + 1), { exact: true }),
       ).toBeVisible();
+      await showNewestWorkspace(page, baseline + 1);
 
       // Find the new workspace in the authoritative store.
       const listAfterCreate = await page.request.get(
-        `${apiBaseUrl}/api/v1/workspaces?kind=EVENT&managerId=${managerId}`,
+        `${apiBaseUrl}/api/v1/workspaces?kind=EVENT&managerId=${managerId}&pageSize=10`,
       );
+      expect(listAfterCreate.ok()).toBe(true);
+      const managerTotal = (await listAfterCreate.json()) as {
+        total: number;
+        items: ApiWorkspace[];
+      };
+      const newestForManager = await page.request.get(
+        `${apiBaseUrl}/api/v1/workspaces?kind=EVENT&managerId=${managerId}&pageSize=10&page=${Math.max(1, Math.ceil(managerTotal.total / 10))}`,
+      );
+      expect(newestForManager.ok()).toBe(true);
       const created = (
-        (await listAfterCreate.json()) as { items: ApiWorkspace[] }
-      ).items[0];
+        (await newestForManager.json()) as { items: ApiWorkspace[] }
+      ).items.at(-1);
       expect(created, "created workspace should be readable").toBeTruthy();
       const workspaceId = created!.id;
       expect(created).toMatchObject({
@@ -221,6 +244,7 @@ test.describe("Connected workspace ownership — end to end", () => {
       await expect(
         page.getByText(workspaceCount(baseline + 1), { exact: true }),
       ).toBeVisible();
+      await showNewestWorkspace(page, baseline + 1);
       await page
         .getByRole("button", {
           name: `Event workspace managed by ${managerEmail}`,

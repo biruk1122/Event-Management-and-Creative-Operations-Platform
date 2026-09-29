@@ -116,7 +116,10 @@ test.describe("Campaign platform — end to end", () => {
       // The account holds campaign.read at organization scope, so the nav
       // entry shows.
       await page.goto("/");
-      const navLink = page.getByRole("link", { name: "Campaigns" });
+      const navLink = page.getByRole("link", {
+        name: "Campaigns",
+        exact: true,
+      });
       await expect(navLink).toBeVisible();
       await navLink.click();
       await expect(page).toHaveURL("/campaigns");
