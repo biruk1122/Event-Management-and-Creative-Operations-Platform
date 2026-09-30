@@ -138,6 +138,9 @@ model User {
   organizedMeetings        Meeting[]                 @relation("MeetingOrganizer")
   meetingParticipations    MeetingParticipant[]
   managedTalents           Talent[]                  @relation("TalentManager")
+  authoredReports          Report[]                  @relation("ReportAuthor")
+  reviewedReports          Report[]                  @relation("ReportCurrentReviewer")
+  reportReviews            ReportReview[]            @relation("ReportReviewActor")
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -331,6 +334,7 @@ model Department {
   teams         Team[]
   tasks         Task[]
   conversations Conversation[]
+  reports       Report[]
 
   // Look up the departments a user manages, and list active departments.
   @@index([managerId])
@@ -461,6 +465,7 @@ model Workspace {
   tasks             Task[]
   meetings          Meeting[]
   conversations     Conversation[]
+  reportLinks       ReportWorkspace[]
 
   // "Workspaces of kind X" and "workspaces a user manages" are the two root
   // access patterns.
@@ -1967,4 +1972,109 @@ model NotificationPreference {
 
   @@id([userId, type])
   @@map("notification_preferences")
+}
+
+/// The three SRS reporting periods. Period boundaries are calendar dates;
+/// submission and review instants are UTC timestamptz values.
+enum ReportType {
+  DAILY
+  WEEKLY
+  MONTHLY
+
+  @@map("report_type")
+}
+
+/// Reviewed is the approved terminal state; it is not a separate approval
+/// workflow (product vocabulary, Report lifecycle).
+enum ReportStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  CHANGES_REQUESTED
+
+  @@map("report_status")
+}
+
+enum ReportReviewOutcome {
+  REVIEWED
+  CHANGES_REQUESTED
+
+  @@map("report_review_outcome")
+}
+
+/// One author's report for a period. Task/project counts and work progress
+/// remain authoritative in their owning modules, not copied into this row.
+/// Narrative sections preserve the SRS's type-specific human input; SQL
+/// constraints enforce period shape, applicable sections, and review state.
+/// Department is the report's explicit organizational context at creation,
+/// independent of a later employee transfer. Workspaces use a checked join,
+/// never a polymorphic entity-type/id reference.
+model Report {
+  id                    String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  type                  ReportType
+  title                 String
+  periodStart           DateTime     @map("period_start") @db.Date
+  periodEnd             DateTime     @map("period_end") @db.Date
+  authorId              String       @map("author_id") @db.Uuid
+  departmentId          String?      @map("department_id") @db.Uuid
+  status                ReportStatus @default(DRAFT)
+  problemsEncountered   String?      @map("problems_encountered")
+  nextDayPlan           String?      @map("next_day_plan")
+  departmentActivities  String?      @map("department_activities")
+  majorAchievements     String?      @map("major_achievements")
+  challenges            String?
+  nextWeekPlan          String?      @map("next_week_plan")
+  departmentPerformance String?      @map("department_performance")
+  employeePerformance   String?      @map("employee_performance")
+  submittedAt           DateTime?    @map("submitted_at") @db.Timestamptz(6)
+  reviewedAt            DateTime?    @map("reviewed_at") @db.Timestamptz(6)
+  reviewerId            String?      @map("reviewer_id") @db.Uuid
+  createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  author     User              @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  department Department?       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  reviewer   User?             @relation("ReportCurrentReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  reviews    ReportReview[]
+  workspaces ReportWorkspace[]
+
+  @@unique([authorId, type, periodStart])
+  @@index([authorId, type, periodStart, id])
+  @@index([departmentId, type, periodStart, id])
+  @@index([status, type, periodStart, id])
+  @@index([reviewerId, status])
+  @@map("reports")
+}
+
+/// A report may discuss several connected workspaces. Both foreign keys are
+/// concrete; access to each link is enforced in the reporting application.
+model ReportWorkspace {
+  reportId    String   @map("report_id") @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  linkedAt    DateTime @default(now()) @map("linked_at") @db.Timestamptz(6)
+
+  report    Report    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+
+  @@id([reportId, workspaceId])
+  @@index([workspaceId, reportId])
+  @@map("report_workspaces")
+}
+
+/// Immutable decision per review cycle; a changes-requested report can later
+/// be redrafted and reviewed again without losing the prior decision.
+model ReportReview {
+  id         String              @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  reportId   String              @map("report_id") @db.Uuid
+  reviewerId String              @map("reviewer_id") @db.Uuid
+  outcome    ReportReviewOutcome
+  note       String?
+  reviewedAt DateTime            @default(now()) @map("reviewed_at") @db.Timestamptz(6)
+
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reviewer User   @relation("ReportReviewActor", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([reportId, reviewedAt, id])
+  @@index([reviewerId, reviewedAt])
+  @@map("report_reviews")
 }
