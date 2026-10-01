@@ -10,6 +10,7 @@ import { TasksRepository } from "./infrastructure/tasks.repository.js";
 import { TasksSchedulerService } from "./tasks-scheduler.service.js";
 import { TasksController } from "./tasks.controller.js";
 import { TasksService } from "./tasks.service.js";
+import { TasksReportFactsQuery } from "./tasks-report-facts.query.js";
 
 @Module({
   imports: [AuditModule, AuthModule, OutboxModule, PermissionsModule],
@@ -17,6 +18,7 @@ import { TasksService } from "./tasks.service.js";
   providers: [
     TasksRepository,
     TasksService,
+    TasksReportFactsQuery,
     TasksSchedulerRepository,
     TasksSchedulerService,
     {
@@ -24,6 +26,10 @@ import { TasksService } from "./tasks.service.js";
       useExisting: TasksService,
     },
   ],
-  exports: [AUDIT_WORKSPACE_CONTEXT_RESOLVER, TasksService],
+  exports: [
+    AUDIT_WORKSPACE_CONTEXT_RESOLVER,
+    TasksService,
+    TasksReportFactsQuery,
+  ],
 })
 export class TasksModule {}

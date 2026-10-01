@@ -1111,6 +1111,75 @@
         "required": ["name"],
         "type": "object"
       },
+      "CreateReportDto": {
+        "properties": {
+          "challenges": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "departmentActivities": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "departmentId": {
+            "description": "Defaults to the caller's department; organization-scoped creators may choose another.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "departmentPerformance": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "employeePerformance": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "majorAchievements": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "nextDayPlan": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "nextWeekPlan": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "periodEnd": {
+            "example": "2026-09-30",
+            "format": "date",
+            "type": "string"
+          },
+          "periodStart": {
+            "example": "2026-09-01",
+            "format": "date",
+            "type": "string"
+          },
+          "problemsEncountered": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "type": {
+            "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+            "type": "string"
+          },
+          "workspaceIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
+        "required": ["type", "title", "periodStart", "periodEnd"],
+        "type": "object"
+      },
       "CreateRoleDto": {
         "properties": {
           "description": {
@@ -2572,6 +2641,27 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedReportsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReportResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
       "PaginatedTalentsResponse": {
         "properties": {
           "items": {
@@ -3231,6 +3321,339 @@
         "required": ["checks", "status", "timestamp"],
         "type": "object"
       },
+      "ReportDetailResponse": {
+        "properties": {
+          "authorId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "challenges": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "departmentActivities": {
+            "nullable": true,
+            "type": "string"
+          },
+          "departmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "departmentPerformance": {
+            "nullable": true,
+            "type": "string"
+          },
+          "employeePerformance": {
+            "nullable": true,
+            "type": "string"
+          },
+          "facts": {
+            "$ref": "#/components/schemas/ReportFactsResponse"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "majorAchievements": {
+            "nullable": true,
+            "type": "string"
+          },
+          "nextDayPlan": {
+            "nullable": true,
+            "type": "string"
+          },
+          "nextWeekPlan": {
+            "nullable": true,
+            "type": "string"
+          },
+          "periodEnd": {
+            "format": "date",
+            "type": "string"
+          },
+          "periodStart": {
+            "format": "date",
+            "type": "string"
+          },
+          "problemsEncountered": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewerId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ReportReviewResponse"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": ["DRAFT", "SUBMITTED", "REVIEWED", "CHANGES_REQUESTED"],
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "workspaceIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "periodStart",
+          "periodEnd",
+          "authorId",
+          "departmentId",
+          "status",
+          "problemsEncountered",
+          "nextDayPlan",
+          "departmentActivities",
+          "majorAchievements",
+          "challenges",
+          "nextWeekPlan",
+          "departmentPerformance",
+          "employeePerformance",
+          "submittedAt",
+          "reviewedAt",
+          "reviewerId",
+          "workspaceIds",
+          "reviews",
+          "createdAt",
+          "updatedAt",
+          "facts"
+        ],
+        "type": "object"
+      },
+      "ReportFactsResponse": {
+        "properties": {
+          "activeProjectsNow": {
+            "nullable": true,
+            "type": "number"
+          },
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "completedProjectsNow": {
+            "nullable": true,
+            "type": "number"
+          },
+          "completedTasksInPeriod": {
+            "type": "number"
+          },
+          "inProgressTasksNow": {
+            "type": "number"
+          },
+          "overdueTasksNow": {
+            "type": "number"
+          },
+          "pendingTasksNow": {
+            "type": "number"
+          },
+          "totalProjectsNow": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "asOf",
+          "completedTasksInPeriod",
+          "inProgressTasksNow",
+          "pendingTasksNow",
+          "overdueTasksNow",
+          "totalProjectsNow",
+          "completedProjectsNow",
+          "activeProjectsNow"
+        ],
+        "type": "object"
+      },
+      "ReportResponse": {
+        "properties": {
+          "authorId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "challenges": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "departmentActivities": {
+            "nullable": true,
+            "type": "string"
+          },
+          "departmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "departmentPerformance": {
+            "nullable": true,
+            "type": "string"
+          },
+          "employeePerformance": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "majorAchievements": {
+            "nullable": true,
+            "type": "string"
+          },
+          "nextDayPlan": {
+            "nullable": true,
+            "type": "string"
+          },
+          "nextWeekPlan": {
+            "nullable": true,
+            "type": "string"
+          },
+          "periodEnd": {
+            "format": "date",
+            "type": "string"
+          },
+          "periodStart": {
+            "format": "date",
+            "type": "string"
+          },
+          "problemsEncountered": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewerId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ReportReviewResponse"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": ["DRAFT", "SUBMITTED", "REVIEWED", "CHANGES_REQUESTED"],
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "workspaceIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "periodStart",
+          "periodEnd",
+          "authorId",
+          "departmentId",
+          "status",
+          "problemsEncountered",
+          "nextDayPlan",
+          "departmentActivities",
+          "majorAchievements",
+          "challenges",
+          "nextWeekPlan",
+          "departmentPerformance",
+          "employeePerformance",
+          "submittedAt",
+          "reviewedAt",
+          "reviewerId",
+          "workspaceIds",
+          "reviews",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ReportReviewResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": ["REVIEWED", "CHANGES_REQUESTED"],
+            "type": "string"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reviewerId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["id", "reviewerId", "outcome", "note", "reviewedAt"],
+        "type": "object"
+      },
       "RespondToMeetingDto": {
         "properties": {
           "response": {
@@ -3239,6 +3662,20 @@
           }
         },
         "required": ["response"],
+        "type": "object"
+      },
+      "ReviewReportDto": {
+        "properties": {
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": ["REVIEWED", "CHANGES_REQUESTED"],
+            "type": "string"
+          }
+        },
+        "required": ["outcome"],
         "type": "object"
       },
       "ReviewTaskDto": {
@@ -4516,6 +4953,74 @@
           }
         },
         "required": ["messageId"],
+        "type": "object"
+      },
+      "UpdateReportDto": {
+        "properties": {
+          "challenges": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "departmentActivities": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "departmentId": {
+            "description": "Defaults to the caller's department; organization-scoped creators may choose another.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "departmentPerformance": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "employeePerformance": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "majorAchievements": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "nextDayPlan": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "nextWeekPlan": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "periodEnd": {
+            "example": "2026-09-30",
+            "format": "date",
+            "type": "string"
+          },
+          "periodStart": {
+            "example": "2026-09-01",
+            "format": "date",
+            "type": "string"
+          },
+          "problemsEncountered": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "type": {
+            "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+            "type": "string"
+          },
+          "workspaceIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          }
+        },
         "type": "object"
       },
       "UpdateRoleDto": {
@@ -14543,6 +15048,600 @@
         ],
         "summary": "Unassign one talent from a promotion activity",
         "tags": ["Promotion operations"]
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "operationId": "Reports_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": ["DRAFT", "SUBMITTED", "REVIEWED", "CHANGES_REQUESTED"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "authorId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "departmentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workspaceId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive lower bound on period start; requires periodTo.",
+            "in": "query",
+            "name": "periodFrom",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Inclusive upper bound on period start; requires periodFrom and may be at most 366 days after it.",
+            "in": "query",
+            "name": "periodTo",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "maximum": 100000,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedReportsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List reports visible to the caller, with bounded filters",
+        "tags": ["Reports"]
+      },
+      "post": {
+        "operationId": "Reports_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReportDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a report draft for the acting author",
+        "tags": ["Reports"]
+      }
+    },
+    "/api/v1/reports/{id}": {
+      "get": {
+        "operationId": "Reports_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDetailResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get a report and its review history",
+        "tags": ["Reports"]
+      },
+      "patch": {
+        "operationId": "Reports_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReportDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Edit the author's draft or changes-requested report",
+        "tags": ["Reports"]
+      }
+    },
+    "/api/v1/reports/{id}/export": {
+      "get": {
+        "operationId": "Reports_export_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDetailResponse"
+                }
+              }
+            },
+            "description": "JSON report snapshot"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Export an authorized report snapshot as JSON",
+        "tags": ["Reports"]
+      }
+    },
+    "/api/v1/reports/{id}/reviews": {
+      "post": {
+        "operationId": "Reports_review_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewReportDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Review a submitted report or request changes",
+        "tags": ["Reports"]
+      }
+    },
+    "/api/v1/reports/{id}/submit": {
+      "post": {
+        "operationId": "Reports_submit_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Submit the author's complete report for review",
+        "tags": ["Reports"]
       }
     },
     "/api/v1/roles": {
