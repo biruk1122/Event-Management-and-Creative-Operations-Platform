@@ -13,6 +13,7 @@ import { NotificationsNavigation } from "@/features/notifications";
 import { TodoNavigation } from "@/features/todo";
 import { MeetingsNavigation } from "@/features/meetings";
 import { TalentNavigation } from "@/features/talent";
+import { ReportsNavigation } from "@/features/reports";
 
 import { RolesNavigation } from "@/features/rbac/components/roles-navigation";
 
@@ -34,6 +35,7 @@ export default function Home() {
       <TodoNavigation />
       <MeetingsNavigation />
       <TalentNavigation />
+      <ReportsNavigation />
       <FoundationOverview />
     </>
   );
