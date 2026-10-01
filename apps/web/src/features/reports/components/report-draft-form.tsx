@@ -24,6 +24,7 @@ export interface WorkspaceChoice {
 interface ReportDraftFormProps {
   initial?: ReportDetail | null;
   workspaces: readonly WorkspaceChoice[];
+  warning?: string | null | undefined;
   busy?: boolean;
   onCancel: () => void;
   onSave: (values: CreateReport) => void;
@@ -32,6 +33,7 @@ interface ReportDraftFormProps {
 export function ReportDraftForm({
   initial,
   workspaces,
+  warning,
   busy = false,
   onCancel,
   onSave,
@@ -145,6 +147,11 @@ export function ReportDraftForm({
       </p>
       <fieldset className="space-y-2" disabled={busy}>
         <legend className="text-sm font-medium">Related workspaces</legend>
+        {warning ? (
+          <p role="status" className="text-muted-foreground text-sm">
+            {warning}
+          </p>
+        ) : null}
         {workspaces.length === 0 ? (
           <p className="text-muted-foreground text-sm">
             No workspaces are available to link.

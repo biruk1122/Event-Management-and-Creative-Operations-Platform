@@ -8,6 +8,16 @@ export type ReportType = Report["type"];
 export type ReportStatus = Report["status"];
 export type ReviewOutcome = components["schemas"]["ReviewReportDto"]["outcome"];
 
+export interface ReportFilters {
+  type: ReportType | null;
+  status: ReportStatus | null;
+  periodFrom: string;
+  periodTo: string;
+  authorId?: string | null;
+  departmentId?: string | null;
+  workspaceId?: string | null;
+}
+
 export const REPORT_TYPES: readonly ReportType[] = [
   "DAILY",
   "WEEKLY",
