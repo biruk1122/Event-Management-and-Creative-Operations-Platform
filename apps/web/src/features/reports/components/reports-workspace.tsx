@@ -18,6 +18,7 @@ import {
   type CreateReport,
   type Report,
   type ReportDetail,
+  type ReportFilters,
   type ReportList,
   type ReportStatus,
   type ReportType,
@@ -25,36 +26,34 @@ import {
 } from "../lib/report-presentation";
 import { ReportDraftForm, type WorkspaceChoice } from "./report-draft-form";
 
-export interface ReportFilters {
-  type: ReportType | null;
-  status: ReportStatus | null;
-  periodFrom: string;
-  periodTo: string;
-}
-
 export interface ReportsWorkspaceProps {
   state: "unavailable" | "loading" | "error" | "denied" | "ready";
   audience: "employee" | "management";
   currentUserId: string;
   list?: ReportList | undefined;
   selectedId?: string | null;
-  detail?: ReportDetail | null;
+  detail?: ReportDetail | null | undefined;
   detailState?: "loading" | "error" | "ready";
   filters?: ReportFilters;
   workspaces?: readonly WorkspaceChoice[];
+  workspaceWarning?: string | null | undefined;
   authorNames?: Readonly<Record<string, string>>;
   departmentNames?: Readonly<Record<string, string>>;
   canCreate?: boolean;
   canReview?: boolean;
   busy?: boolean;
   notice?: { kind: "success" | "error"; message: string } | null;
+  errorMessage?: string | undefined;
   onRetry?: () => void;
   onFiltersChange?: (filters: ReportFilters) => void;
   onPageChange?: (page: number) => void;
   onSelect?: (id: string | null) => void;
-  onSaveDraft?: (values: CreateReport, reportId?: string) => void;
-  onSubmit?: (id: string) => void;
-  onReview?: (id: string, outcome: ReviewOutcome, note: string) => void;
+  onSaveDraft?:
+    | ((values: CreateReport, reportId?: string) => boolean | Promise<boolean>)
+    | undefined;
+  onSubmit?: ((id: string) => void) | undefined;
+  onReview?:
+    ((id: string, outcome: ReviewOutcome, note: string) => void) | undefined;
   onExport?: (id: string) => void;
 }
 
@@ -408,12 +407,14 @@ export function ReportsWorkspace({
   detailState = "ready",
   filters = EMPTY_FILTERS,
   workspaces = [],
+  workspaceWarning,
   authorNames = {},
   departmentNames = {},
   canCreate = false,
   canReview = false,
   busy = false,
   notice,
+  errorMessage,
   onRetry,
   onFiltersChange,
   onPageChange,
@@ -432,6 +433,14 @@ export function ReportsWorkspace({
     draftFilters.periodTo &&
     draftFilters.periodFrom > draftFilters.periodTo,
   );
+  const overlongRange = Boolean(
+    draftFilters.periodFrom &&
+    draftFilters.periodTo &&
+    (Date.parse(`${draftFilters.periodTo}T00:00:00Z`) -
+      Date.parse(`${draftFilters.periodFrom}T00:00:00Z`)) /
+      86_400_000 >
+      366,
+  );
   const pageCount = list
     ? Math.max(1, Math.ceil(list.total / list.pageSize))
     : 1;
@@ -442,7 +451,7 @@ export function ReportsWorkspace({
   if (state === "error")
     return (
       <div role="alert">
-        <p>We could not load reports.</p>
+        <p>{errorMessage ?? "We could not load reports."}</p>
         <Button variant="outline" onClick={onRetry}>
           Try again
         </Button>
@@ -480,9 +489,16 @@ export function ReportsWorkspace({
               : "Report list unavailable"}
           </p>
         </div>
-        {canCreate && onSaveDraft ? (
-          <Button onClick={() => setEditing("new")}>New report</Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {onRetry ? (
+            <Button variant="outline" onClick={onRetry}>
+              Refresh reports
+            </Button>
+          ) : null}
+          {canCreate && onSaveDraft ? (
+            <Button onClick={() => setEditing("new")}>New report</Button>
+          ) : null}
+        </div>
       </div>
 
       <section
@@ -535,6 +551,76 @@ export function ReportsWorkspace({
             ))}
           </select>
         </div>
+        {audience === "management" && Object.keys(authorNames).length > 0 ? (
+          <div className="space-y-1">
+            <Label htmlFor="report-filter-author">Author</Label>
+            <select
+              id="report-filter-author"
+              value={draftFilters.authorId ?? ""}
+              onChange={(event) =>
+                setDraftFilters({
+                  ...draftFilters,
+                  authorId: event.target.value || null,
+                })
+              }
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
+            >
+              <option value="">All authors</option>
+              {Object.entries(authorNames).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+        {audience === "management" &&
+        Object.keys(departmentNames).length > 0 ? (
+          <div className="space-y-1">
+            <Label htmlFor="report-filter-department">Department</Label>
+            <select
+              id="report-filter-department"
+              value={draftFilters.departmentId ?? ""}
+              onChange={(event) =>
+                setDraftFilters({
+                  ...draftFilters,
+                  departmentId: event.target.value || null,
+                })
+              }
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
+            >
+              <option value="">All departments</option>
+              {Object.entries(departmentNames).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+        {workspaces.length > 0 ? (
+          <div className="space-y-1">
+            <Label htmlFor="report-filter-workspace">Workspace</Label>
+            <select
+              id="report-filter-workspace"
+              value={draftFilters.workspaceId ?? ""}
+              onChange={(event) =>
+                setDraftFilters({
+                  ...draftFilters,
+                  workspaceId: event.target.value || null,
+                })
+              }
+              className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
+            >
+              <option value="">All workspaces</option>
+              {workspaces.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div className="space-y-1">
           <Label htmlFor="report-filter-from">Period from (UTC)</Label>
           <Input
@@ -562,7 +648,12 @@ export function ReportsWorkspace({
         </div>
         <div className="flex gap-2">
           <Button
-            disabled={incompleteRange || reversedRange || !onFiltersChange}
+            disabled={
+              incompleteRange ||
+              reversedRange ||
+              overlongRange ||
+              !onFiltersChange
+            }
             onClick={() => onFiltersChange?.(draftFilters)}
           >
             Apply
@@ -577,14 +668,16 @@ export function ReportsWorkspace({
             Clear
           </Button>
         </div>
-        {incompleteRange || reversedRange ? (
+        {incompleteRange || reversedRange || overlongRange ? (
           <p
             role="alert"
             className="text-destructive text-sm sm:col-span-2 lg:col-span-5"
           >
             {incompleteRange
               ? "Enter both period dates or leave both blank."
-              : "Period end must be on or after period start."}
+              : reversedRange
+                ? "Period end must be on or after period start."
+                : "Choose a range of at most 366 days."}
           </p>
         ) : null}
       </section>
@@ -683,11 +776,16 @@ export function ReportsWorkspace({
             key={editing === "new" ? "new" : editing.id}
             initial={editing === "new" ? null : editing}
             workspaces={workspaces}
+            warning={workspaceWarning}
             busy={busy}
             onCancel={() => setEditing(null)}
-            onSave={(values) =>
-              onSaveDraft(values, editing === "new" ? undefined : editing.id)
-            }
+            onSave={(values) => {
+              void Promise.resolve(
+                onSaveDraft(values, editing === "new" ? undefined : editing.id),
+              ).then((saved) => {
+                if (saved) setEditing(null);
+              });
+            }}
           />
         </section>
       ) : null}

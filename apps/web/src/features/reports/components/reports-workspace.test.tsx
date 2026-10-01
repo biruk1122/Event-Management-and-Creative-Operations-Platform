@@ -102,8 +102,8 @@ describe("ReportsWorkspace", () => {
     expect(
       screen.getByRole("columnheader", { name: "Owner / department" }),
     ).toBeVisible();
-    expect(screen.getAllByText(/Ada Lovelace/)).toHaveLength(2);
-    expect(screen.getAllByText(/Production/)).toHaveLength(2);
+    expect(screen.getAllByText(/Ada Lovelace/)).toHaveLength(3);
+    expect(screen.getAllByText(/Production/)).toHaveLength(3);
   });
 
   it("offers labelled filters, validates paired dates, and delegates pagination", async () => {
@@ -132,6 +132,52 @@ describe("ReportsWorkspace", () => {
     });
     await user.click(screen.getByRole("button", { name: "Next" }));
     expect(onPageChange).toHaveBeenCalledWith(2);
+  });
+
+  it("delegates owner, department, and workspace filters to the server query", async () => {
+    const user = userEvent.setup();
+    const onFiltersChange = vi.fn();
+    render(
+      <ReportsWorkspace
+        {...base}
+        audience="management"
+        authorNames={{ "author-1": "Ada Lovelace" }}
+        departmentNames={{ "department-1": "Production" }}
+        workspaces={[{ id: "workspace-1", name: "Production workspace" }]}
+        onFiltersChange={onFiltersChange}
+      />,
+    );
+    await user.selectOptions(screen.getByLabelText("Author"), "author-1");
+    await user.selectOptions(
+      screen.getByLabelText("Department"),
+      "department-1",
+    );
+    await user.selectOptions(screen.getByLabelText("Workspace"), "workspace-1");
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+    expect(onFiltersChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authorId: "author-1",
+        departmentId: "department-1",
+        workspaceId: "workspace-1",
+      }),
+    );
+  });
+
+  it("blocks a period filter wider than the API's 366-day maximum", () => {
+    render(
+      <ReportsWorkspace
+        {...base}
+        filters={{
+          type: null,
+          status: null,
+          periodFrom: "2024-01-01",
+          periodTo: "2025-02-01",
+        }}
+        onFiltersChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent("at most 366 days");
   });
 
   it("shows authoritative facts, narrative, links, and review history with scoped actions", async () => {

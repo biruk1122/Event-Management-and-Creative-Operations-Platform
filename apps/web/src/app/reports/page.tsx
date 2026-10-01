@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
-import { ReportsWorkspace } from "@/features/reports";
+import { ReportsScreen } from "@/features/reports";
 import { createServerApi } from "@/lib/api/server";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -19,11 +19,6 @@ export default async function ReportsPage() {
   const readGrants = data.grants.filter(
     (grant) => grant.permissionKey === "report.read",
   );
-  const audience = readGrants.some(
-    (grant) => grant.scope === "DEPARTMENT" || grant.scope === "ORGANIZATION",
-  )
-    ? "management"
-    : "employee";
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
@@ -35,11 +30,11 @@ export default async function ReportsPage() {
         Daily, weekly, and monthly work reports and review history.
       </p>
       <div className="mt-6">
-        <ReportsWorkspace
-          state={readGrants.length ? "unavailable" : "denied"}
-          audience={audience}
-          currentUserId={data.userId}
-        />
+        {readGrants.length ? (
+          <ReportsScreen />
+        ) : (
+          <p role="alert">You do not have access to reports.</p>
+        )}
       </div>
     </main>
   );
