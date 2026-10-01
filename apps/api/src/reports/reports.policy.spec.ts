@@ -43,4 +43,66 @@ describe("report period and content policy", () => {
     ).toThrow();
     expect(() => validateSections("WEEKLY", { challenges: "   " })).toThrow();
   });
+
+  it.each([
+    ["DAILY", "2024-02-29", "2024-02-29"],
+    ["WEEKLY", "2024-02-26", "2024-03-03"],
+    ["MONTHLY", "2024-02-01", "2024-02-29"],
+    ["MONTHLY", "2025-02-01", "2025-02-28"],
+  ] as const)("accepts %s UTC period %s through %s", (type, start, end) => {
+    expect(parsePeriod(type, start, end)).toEqual({
+      from: new Date(`${start}T00:00:00.000Z`),
+      to: new Date(`${end}T00:00:00.000Z`),
+    });
+  });
+
+  it.each([
+    ["DAILY", "2024-02-29", "2024-03-01"],
+    ["WEEKLY", "2024-02-26", "2024-03-04"],
+    ["MONTHLY", "2024-02-01", "2024-02-28"],
+    ["MONTHLY", "2024-02-02", "2024-02-29"],
+    ["DAILY", "2025-02-29", "2025-02-29"],
+    ["DAILY", "2024-13-01", "2024-13-01"],
+  ] as const)("rejects %s period %s through %s", (type, start, end) => {
+    expect(() => parsePeriod(type, start, end)).toThrow();
+  });
+
+  it("requires the four weekly and monthly narrative sections without accepting cross-type fields", () => {
+    expect(() =>
+      validateSubmission("WEEKLY", {
+        departmentActivities: "Production",
+        majorAchievements: "Launch",
+        challenges: "Rain",
+        nextWeekPlan: "Rehearse",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateSubmission("WEEKLY", {
+        departmentActivities: "Production",
+        majorAchievements: "Launch",
+        challenges: "Rain",
+      }),
+    ).toThrow();
+    expect(() =>
+      validateSubmission("MONTHLY", {
+        majorAchievements: "Launch",
+        challenges: "Rain",
+        departmentPerformance: "On plan",
+        employeePerformance: "On plan",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateSubmission("MONTHLY", {
+        majorAchievements: "Launch",
+        challenges: "Rain",
+        departmentPerformance: "On plan",
+      }),
+    ).toThrow();
+    expect(() =>
+      validateSections("MONTHLY", { nextWeekPlan: "Wrong type" }),
+    ).toThrow();
+    expect(() =>
+      validateSections("DAILY", { nextDayPlan: "x".repeat(5001) }),
+    ).toThrow();
+  });
 });
