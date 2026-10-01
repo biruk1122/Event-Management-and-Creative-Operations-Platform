@@ -1290,6 +1290,93 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/reports": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List reports visible to the caller, with bounded filters */
+    get: operations["Reports_list_v1"];
+    put?: never;
+    /** Create a report draft for the acting author */
+    post: operations["Reports_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a report and its review history */
+    get: operations["Reports_get_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Edit the author's draft or changes-requested report */
+    patch: operations["Reports_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/reports/{id}/export": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Export an authorized report snapshot as JSON */
+    get: operations["Reports_export_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{id}/reviews": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Review a submitted report or request changes */
+    post: operations["Reports_review_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{id}/submit": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Submit the author's complete report for review */
+    post: operations["Reports_submit_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/roles": {
     parameters: {
       query?: never;
@@ -2658,6 +2745,35 @@ export interface components {
        */
       startAt?: string;
     };
+    CreateReportDto: {
+      challenges?: string;
+      departmentActivities?: string;
+      /**
+       * Format: uuid
+       * @description Defaults to the caller's department; organization-scoped creators may choose another.
+       */
+      departmentId?: string;
+      departmentPerformance?: string;
+      employeePerformance?: string;
+      majorAchievements?: string;
+      nextDayPlan?: string;
+      nextWeekPlan?: string;
+      /**
+       * Format: date
+       * @example 2026-09-30
+       */
+      periodEnd: string;
+      /**
+       * Format: date
+       * @example 2026-09-01
+       */
+      periodStart: string;
+      problemsEncountered?: string;
+      title: string;
+      /** @enum {string} */
+      type: "DAILY" | "WEEKLY" | "MONTHLY";
+      workspaceIds?: string[];
+    };
     CreateRoleDto: {
       /** @example Coordinates activity across one region. */
       description?: string;
@@ -3321,6 +3437,12 @@ export interface components {
       /** @example 4 */
       total: number;
     };
+    PaginatedReportsResponse: {
+      items: components["schemas"]["ReportResponse"][];
+      page: number;
+      pageSize: number;
+      total: number;
+    };
     PaginatedTalentsResponse: {
       items: components["schemas"]["TalentResponse"][];
       /** @example 1 */
@@ -3595,9 +3717,111 @@ export interface components {
        */
       timestamp: string;
     };
+    ReportDetailResponse: {
+      /** Format: uuid */
+      authorId: string;
+      challenges: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      departmentActivities: string | null;
+      /** Format: uuid */
+      departmentId: string | null;
+      departmentPerformance: string | null;
+      employeePerformance: string | null;
+      facts: components["schemas"]["ReportFactsResponse"];
+      /** Format: uuid */
+      id: string;
+      majorAchievements: string | null;
+      nextDayPlan: string | null;
+      nextWeekPlan: string | null;
+      /** Format: date */
+      periodEnd: string;
+      /** Format: date */
+      periodStart: string;
+      problemsEncountered: string | null;
+      /** Format: date-time */
+      reviewedAt: string | null;
+      /** Format: uuid */
+      reviewerId: string | null;
+      reviews: components["schemas"]["ReportReviewResponse"][];
+      /** @enum {string} */
+      status: "DRAFT" | "SUBMITTED" | "REVIEWED" | "CHANGES_REQUESTED";
+      /** Format: date-time */
+      submittedAt: string | null;
+      title: string;
+      /** @enum {string} */
+      type: "DAILY" | "WEEKLY" | "MONTHLY";
+      /** Format: date-time */
+      updatedAt: string;
+      workspaceIds: string[];
+    };
+    ReportFactsResponse: {
+      activeProjectsNow: number | null;
+      /** Format: date-time */
+      asOf: string;
+      completedProjectsNow: number | null;
+      completedTasksInPeriod: number;
+      inProgressTasksNow: number;
+      overdueTasksNow: number;
+      pendingTasksNow: number;
+      totalProjectsNow: number | null;
+    };
+    ReportResponse: {
+      /** Format: uuid */
+      authorId: string;
+      challenges: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      departmentActivities: string | null;
+      /** Format: uuid */
+      departmentId: string | null;
+      departmentPerformance: string | null;
+      employeePerformance: string | null;
+      /** Format: uuid */
+      id: string;
+      majorAchievements: string | null;
+      nextDayPlan: string | null;
+      nextWeekPlan: string | null;
+      /** Format: date */
+      periodEnd: string;
+      /** Format: date */
+      periodStart: string;
+      problemsEncountered: string | null;
+      /** Format: date-time */
+      reviewedAt: string | null;
+      /** Format: uuid */
+      reviewerId: string | null;
+      reviews: components["schemas"]["ReportReviewResponse"][];
+      /** @enum {string} */
+      status: "DRAFT" | "SUBMITTED" | "REVIEWED" | "CHANGES_REQUESTED";
+      /** Format: date-time */
+      submittedAt: string | null;
+      title: string;
+      /** @enum {string} */
+      type: "DAILY" | "WEEKLY" | "MONTHLY";
+      /** Format: date-time */
+      updatedAt: string;
+      workspaceIds: string[];
+    };
+    ReportReviewResponse: {
+      /** Format: uuid */
+      id: string;
+      note: string | null;
+      /** @enum {string} */
+      outcome: "REVIEWED" | "CHANGES_REQUESTED";
+      /** Format: date-time */
+      reviewedAt: string;
+      /** Format: uuid */
+      reviewerId: string;
+    };
     RespondToMeetingDto: {
       /** @enum {string} */
       response: "ACCEPTED" | "DECLINED";
+    };
+    ReviewReportDto: {
+      note?: string;
+      /** @enum {string} */
+      outcome: "REVIEWED" | "CHANGES_REQUESTED";
     };
     ReviewTaskDto: {
       note?: string;
@@ -4106,6 +4330,35 @@ export interface components {
        * @description The most recent message the caller has read.
        */
       messageId: string;
+    };
+    UpdateReportDto: {
+      challenges?: string;
+      departmentActivities?: string;
+      /**
+       * Format: uuid
+       * @description Defaults to the caller's department; organization-scoped creators may choose another.
+       */
+      departmentId?: string;
+      departmentPerformance?: string;
+      employeePerformance?: string;
+      majorAchievements?: string;
+      nextDayPlan?: string;
+      nextWeekPlan?: string;
+      /**
+       * Format: date
+       * @example 2026-09-30
+       */
+      periodEnd?: string;
+      /**
+       * Format: date
+       * @example 2026-09-01
+       */
+      periodStart?: string;
+      problemsEncountered?: string;
+      title?: string;
+      /** @enum {string} */
+      type?: "DAILY" | "WEEKLY" | "MONTHLY";
+      workspaceIds?: string[];
     };
     UpdateRoleDto: {
       /** @example Coordinates activity across one region. */
@@ -10730,6 +10983,366 @@ export interface operations {
         };
       };
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Reports_list_v1: {
+    parameters: {
+      query?: {
+        type?: "DAILY" | "WEEKLY" | "MONTHLY";
+        status?: "DRAFT" | "SUBMITTED" | "REVIEWED" | "CHANGES_REQUESTED";
+        authorId?: string;
+        departmentId?: string;
+        workspaceId?: string;
+        /** @description Inclusive lower bound on period start; requires periodTo. */
+        periodFrom?: string;
+        /** @description Inclusive upper bound on period start; requires periodFrom and may be at most 366 days after it. */
+        periodTo?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedReportsResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Reports_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateReportDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Reports_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportDetailResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Reports_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateReportDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Reports_export_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description JSON report snapshot */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportDetailResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Reports_review_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReviewReportDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Reports_submit_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
         headers: {
           [name: string]: unknown;
         };
