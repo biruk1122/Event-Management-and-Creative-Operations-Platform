@@ -19,6 +19,8 @@ The permission keys and role-to-permission matrix are documented in
 [`docs/product/permission-catalog-and-role-matrix.md`](docs/product/permission-catalog-and-role-matrix.md).
 The role-aware navigation model and the route owner for every destination are documented in
 [`docs/product/navigation-and-information-architecture.md`](docs/product/navigation-and-information-architecture.md).
+Analytics formulas, permission scopes and measured read paths are documented in
+[`docs/product/analytics-read-models.md`](docs/product/analytics-read-models.md).
 Architecture decision records are kept in [`docs/decisions/`](docs/decisions/README.md).
 
 ## Frontend development

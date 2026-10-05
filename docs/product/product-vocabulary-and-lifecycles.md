@@ -225,6 +225,10 @@ restoration, or deletion state requires an approved product decision before impl
 
 ## SRS traceability
 
+EVE-171 defines the analytics measures covered by OD-13 in
+[`analytics-read-models.md`](analytics-read-models.md). This does not close OD-13
+for unrelated editable progress, scoring or historical snapshot requirements.
+
 | SRS area                                      | Catalog coverage                                                                                           |
 | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | 1-3 Introduction, overview, roles             | Purpose, naming rules, Organization and access                                                             |
