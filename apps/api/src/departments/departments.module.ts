@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { DepartmentsAnalyticsQuery } from "./departments-analytics.query.js";
 
 import { AuthModule } from "../auth/auth.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
@@ -9,6 +10,11 @@ import { DepartmentsRepository } from "./infrastructure/departments.repository.j
 @Module({
   imports: [AuthModule, PermissionsModule],
   controllers: [DepartmentsController],
-  providers: [DepartmentsService, DepartmentsRepository],
+  providers: [
+    DepartmentsService,
+    DepartmentsRepository,
+    DepartmentsAnalyticsQuery,
+  ],
+  exports: [DepartmentsAnalyticsQuery],
 })
 export class DepartmentsModule {}

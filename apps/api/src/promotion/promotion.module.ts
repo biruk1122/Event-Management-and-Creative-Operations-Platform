@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { PromotionAnalyticsQuery } from "./promotion-analytics.query.js";
 
 import { AuthModule } from "../auth/auth.module.js";
 import { CampaignsModule } from "../campaigns/campaigns.module.js";
@@ -10,6 +11,7 @@ import { PromotionService } from "./promotion.service.js";
 @Module({
   imports: [AuthModule, CampaignsModule, PermissionsModule],
   controllers: [PromotionController],
-  providers: [PromotionService, PromotionRepository],
+  providers: [PromotionService, PromotionRepository, PromotionAnalyticsQuery],
+  exports: [PromotionAnalyticsQuery],
 })
 export class PromotionModule {}
