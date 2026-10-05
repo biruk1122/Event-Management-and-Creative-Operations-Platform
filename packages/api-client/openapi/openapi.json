@@ -23,6 +23,34 @@
         "required": ["permissionKey", "scope"],
         "type": "object"
       },
+      "AnalyticsWorkCounts": {
+        "properties": {
+          "completed": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "overdue": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "pending": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "percent": {
+            "maximum": 100,
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["total", "completed", "percent", "pending", "overdue"],
+        "type": "object"
+      },
       "AssignCampaignManagerDto": {
         "properties": {
           "managerId": {
@@ -1669,6 +1697,69 @@
         "required": ["permissionKey", "scope"],
         "type": "object"
       },
+      "EntityProgress": {
+        "properties": {
+          "completed": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "percent": {
+            "maximum": 100,
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["total", "completed", "percent", "id"],
+        "type": "object"
+      },
+      "EntityWorkCounts": {
+        "properties": {
+          "completed": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "overdue": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "pending": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "percent": {
+            "maximum": 100,
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "completed",
+          "percent",
+          "pending",
+          "overdue",
+          "id"
+        ],
+        "type": "object"
+      },
       "EventBudgetResponse": {
         "properties": {
           "amount": {
@@ -2233,6 +2324,79 @@
           "createdAt",
           "updatedAt"
         ],
+        "type": "object"
+      },
+      "MonthlyAnalyticsItem": {
+        "properties": {
+          "campaignsCreated": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "eventsCreated": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "month": {
+            "example": "2026-09",
+            "type": "string"
+          },
+          "productionsCreated": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "projectsCreated": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "tasksCompleted": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "tasksCreated": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "month",
+          "tasksCreated",
+          "eventsCreated",
+          "projectsCreated",
+          "productionsCreated",
+          "campaignsCreated",
+          "tasksCompleted"
+        ],
+        "type": "object"
+      },
+      "MonthlyAnalyticsResponse": {
+        "properties": {
+          "asOf": {
+            "description": "Server refresh time, not a historical snapshot guarantee.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "freshness": {
+            "description": "Composed source reads may observe separate commits.",
+            "enum": ["live-current-state"],
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MonthlyAnalyticsItem"
+            },
+            "maxItems": 12,
+            "type": "array"
+          },
+          "toExclusive": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": ["asOf", "freshness", "from", "toExclusive", "items"],
         "type": "object"
       },
       "NotificationFeedResponse": {
@@ -3082,6 +3246,41 @@
         "required": ["id", "name"],
         "type": "object"
       },
+      "ProgressAnalyticsPageResponse": {
+        "properties": {
+          "asOf": {
+            "description": "Server refresh time, not a historical snapshot guarantee.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "freshness": {
+            "description": "Composed source reads may observe separate commits.",
+            "enum": ["live-current-state"],
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EntityProgress"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["asOf", "freshness", "total", "page", "pageSize", "items"],
+        "type": "object"
+      },
       "ProjectPersonSummary": {
         "properties": {
           "email": {
@@ -3253,6 +3452,65 @@
           }
         },
         "required": ["activity", "channel", "talents"],
+        "type": "object"
+      },
+      "PromotionAnalyticsResponse": {
+        "properties": {
+          "asOf": {
+            "description": "Server refresh time, not a historical snapshot guarantee.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "campaignId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "freshness": {
+            "description": "Composed source reads may observe separate commits.",
+            "enum": ["live-current-state"],
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionChannelProgress"
+            },
+            "maxItems": 7,
+            "type": "array"
+          }
+        },
+        "required": ["asOf", "freshness", "campaignId", "items"],
+        "type": "object"
+      },
+      "PromotionChannelProgress": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "CONTENT_CREATION",
+              "SOCIAL_MEDIA",
+              "INFLUENCER_MARKETING",
+              "RADIO_PROMOTION",
+              "TELEVISION",
+              "SCREENS_DIGITAL_MEDIA",
+              "ADVERTISING"
+            ],
+            "type": "string"
+          },
+          "completed": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "percent": {
+            "maximum": 100,
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["total", "completed", "percent", "channel"],
         "type": "object"
       },
       "PromotionTalentDto": {
@@ -4109,6 +4367,33 @@
           }
         },
         "required": ["id", "type", "actor", "details", "occurredAt"],
+        "type": "object"
+      },
+      "TaskAnalyticsResponse": {
+        "properties": {
+          "asOf": {
+            "description": "Server refresh time, not a historical snapshot guarantee.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/AnalyticsWorkCounts"
+          },
+          "freshness": {
+            "description": "Composed source reads may observe separate commits.",
+            "enum": ["live-current-state"],
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "toExclusive": {
+            "format": "date",
+            "type": "string"
+          }
+        },
+        "required": ["asOf", "freshness", "from", "toExclusive", "counts"],
         "type": "object"
       },
       "TaskAssigneeResponse": {
@@ -5419,6 +5704,58 @@
         "required": ["id", "name"],
         "type": "object"
       },
+      "WorkAnalyticsPageResponse": {
+        "properties": {
+          "asOf": {
+            "description": "Server refresh time, not a historical snapshot guarantee.",
+            "format": "date-time",
+            "type": "string"
+          },
+          "freshness": {
+            "description": "Composed source reads may observe separate commits.",
+            "enum": ["live-current-state"],
+            "type": "string"
+          },
+          "from": {
+            "format": "date",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EntityWorkCounts"
+            },
+            "type": "array"
+          },
+          "page": {
+            "minimum": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "number"
+          },
+          "toExclusive": {
+            "format": "date",
+            "type": "string"
+          },
+          "total": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "asOf",
+          "freshness",
+          "total",
+          "page",
+          "pageSize",
+          "from",
+          "toExclusive",
+          "items"
+        ],
+        "type": "object"
+      },
       "WorkspaceResponse": {
         "properties": {
           "createdAt": {
@@ -5540,6 +5877,702 @@
   },
   "openapi": "3.0.0",
   "paths": {
+    "/api/v1/analytics/campaigns": {
+      "get": {
+        "operationId": "Analytics_campaigns_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "maximum": 10001,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaignId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaignType",
+            "required": false,
+            "schema": {
+              "default": "MARKETING",
+              "enum": ["MARKETING", "PROMOTION"],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressAnalyticsPageResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Paginated current campaign activity progress; marketing by default",
+        "tags": ["Analytics"]
+      }
+    },
+    "/api/v1/analytics/departments": {
+      "get": {
+        "operationId": "Analytics_departments_v1",
+        "parameters": [
+          {
+            "description": "Inclusive UTC date (YYYY-MM-DD).",
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive UTC date, at most 366 days after from.",
+            "in": "query",
+            "name": "toExclusive",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "maximum": 10001,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "departmentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkAnalyticsPageResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Paginated task performance for permitted departments",
+        "tags": ["Analytics"]
+      }
+    },
+    "/api/v1/analytics/employees": {
+      "get": {
+        "operationId": "Analytics_employees_v1",
+        "parameters": [
+          {
+            "description": "Inclusive UTC date (YYYY-MM-DD).",
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive UTC date, at most 366 days after from.",
+            "in": "query",
+            "name": "toExclusive",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "maximum": 10001,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "employeeId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkAnalyticsPageResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Paginated employee assignment counts, not additive employee scores",
+        "tags": ["Analytics"]
+      }
+    },
+    "/api/v1/analytics/events": {
+      "get": {
+        "operationId": "Analytics_events_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "maximum": 10001,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "eventId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProgressAnalyticsPageResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Paginated current event-workspace task progress",
+        "tags": ["Analytics"]
+      }
+    },
+    "/api/v1/analytics/monthly-activity": {
+      "get": {
+        "operationId": "Analytics_monthly_v1",
+        "parameters": [
+          {
+            "description": "Inclusive UTC date (YYYY-MM-DD).",
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive UTC date, at most 366 days after from.",
+            "in": "query",
+            "name": "toExclusive",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyAnalyticsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Up to twelve UTC monthly creation buckets and task-completion throughput",
+        "tags": ["Analytics"]
+      }
+    },
+    "/api/v1/analytics/promotion": {
+      "get": {
+        "operationId": "Analytics_promotion_v1",
+        "parameters": [
+          {
+            "description": "One promotion campaign; results group by delivery channel.",
+            "in": "query",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionAnalyticsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Current delivery progress by channel for one promotion campaign",
+        "tags": ["Analytics"]
+      }
+    },
+    "/api/v1/analytics/task-completion": {
+      "get": {
+        "operationId": "Analytics_tasks_v1",
+        "parameters": [
+          {
+            "description": "Inclusive UTC date (YYYY-MM-DD).",
+            "in": "query",
+            "name": "from",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive UTC date, at most 366 days after from.",
+            "in": "query",
+            "name": "toExclusive",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskAnalyticsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Current task counts and completion rate for a UTC creation cohort",
+        "tags": ["Analytics"]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "Auth_login_v1",

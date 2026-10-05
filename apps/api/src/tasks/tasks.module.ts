@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { TasksAnalyticsQuery } from "./tasks-analytics.query.js";
 
 import { AuthModule } from "../auth/auth.module.js";
 import { AuditModule } from "../audit/audit.module.js";
@@ -16,6 +17,7 @@ import { TasksReportFactsQuery } from "./tasks-report-facts.query.js";
   imports: [AuditModule, AuthModule, OutboxModule, PermissionsModule],
   controllers: [TasksController],
   providers: [
+    TasksAnalyticsQuery,
     TasksRepository,
     TasksService,
     TasksReportFactsQuery,
@@ -27,6 +29,7 @@ import { TasksReportFactsQuery } from "./tasks-report-facts.query.js";
     },
   ],
   exports: [
+    TasksAnalyticsQuery,
     AUDIT_WORKSPACE_CONTEXT_RESOLVER,
     TasksService,
     TasksReportFactsQuery,

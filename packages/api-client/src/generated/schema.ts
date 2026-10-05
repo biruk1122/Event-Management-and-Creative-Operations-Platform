@@ -4,6 +4,125 @@
  */
 
 export interface paths {
+  "/api/v1/analytics/campaigns": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Paginated current campaign activity progress; marketing by default */
+    get: operations["Analytics_campaigns_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/departments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Paginated task performance for permitted departments */
+    get: operations["Analytics_departments_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/employees": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Paginated employee assignment counts, not additive employee scores */
+    get: operations["Analytics_employees_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Paginated current event-workspace task progress */
+    get: operations["Analytics_events_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/monthly-activity": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Up to twelve UTC monthly creation buckets and task-completion throughput */
+    get: operations["Analytics_monthly_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/promotion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Current delivery progress by channel for one promotion campaign */
+    get: operations["Analytics_promotion_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/analytics/task-completion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Current task counts and completion rate for a UTC creation cohort */
+    get: operations["Analytics_tasks_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/auth/login": {
     parameters: {
       query?: never;
@@ -2208,6 +2327,13 @@ export interface components {
         | "SELF"
         | "MANAGEMENT";
     };
+    AnalyticsWorkCounts: {
+      completed: number;
+      overdue: number;
+      pending: number;
+      percent: number | null;
+      total: number;
+    };
     AssignCampaignManagerDto: {
       /**
        * Format: uuid
@@ -3023,6 +3149,22 @@ export interface components {
         | "SELF"
         | "MANAGEMENT";
     };
+    EntityProgress: {
+      completed: number;
+      /** Format: uuid */
+      id: string;
+      percent: number | null;
+      total: number;
+    };
+    EntityWorkCounts: {
+      completed: number;
+      /** Format: uuid */
+      id: string;
+      overdue: number;
+      pending: number;
+      percent: number | null;
+      total: number;
+    };
     EventBudgetResponse: {
       /**
        * @description Decimal string with two fraction digits. Null when no budget is set.
@@ -3256,6 +3398,33 @@ export interface components {
       pinnedBy: components["schemas"]["DiscussPersonSummary"] | null;
       /** Format: date-time */
       updatedAt: string;
+    };
+    MonthlyAnalyticsItem: {
+      campaignsCreated: number;
+      eventsCreated: number;
+      /** @example 2026-09 */
+      month: string;
+      productionsCreated: number;
+      projectsCreated: number;
+      tasksCompleted: number;
+      tasksCreated: number;
+    };
+    MonthlyAnalyticsResponse: {
+      /**
+       * Format: date-time
+       * @description Server refresh time, not a historical snapshot guarantee.
+       */
+      asOf: string;
+      /**
+       * @description Composed source reads may observe separate commits.
+       * @enum {string}
+       */
+      freshness: "live-current-state";
+      /** Format: date */
+      from: string;
+      items: components["schemas"]["MonthlyAnalyticsItem"][];
+      /** Format: date */
+      toExclusive: string;
     };
     NotificationFeedResponse: {
       items: components["schemas"]["NotificationResponse"][];
@@ -3596,6 +3765,22 @@ export interface components {
       id: string;
       name: string;
     };
+    ProgressAnalyticsPageResponse: {
+      /**
+       * Format: date-time
+       * @description Server refresh time, not a historical snapshot guarantee.
+       */
+      asOf: string;
+      /**
+       * @description Composed source reads may observe separate commits.
+       * @enum {string}
+       */
+      freshness: "live-current-state";
+      items: components["schemas"]["EntityProgress"][];
+      page: number;
+      pageSize: number;
+      total: number;
+    };
     ProjectPersonSummary: {
       /**
        * Format: email
@@ -3681,6 +3866,35 @@ export interface components {
         | "SCREENS_DIGITAL_MEDIA"
         | "ADVERTISING";
       talents: components["schemas"]["PromotionTalentResponse"][];
+    };
+    PromotionAnalyticsResponse: {
+      /**
+       * Format: date-time
+       * @description Server refresh time, not a historical snapshot guarantee.
+       */
+      asOf: string;
+      /** Format: uuid */
+      campaignId: string;
+      /**
+       * @description Composed source reads may observe separate commits.
+       * @enum {string}
+       */
+      freshness: "live-current-state";
+      items: components["schemas"]["PromotionChannelProgress"][];
+    };
+    PromotionChannelProgress: {
+      /** @enum {string} */
+      channel:
+        | "CONTENT_CREATION"
+        | "SOCIAL_MEDIA"
+        | "INFLUENCER_MARKETING"
+        | "RADIO_PROMOTION"
+        | "TELEVISION"
+        | "SCREENS_DIGITAL_MEDIA"
+        | "ADVERTISING";
+      completed: number;
+      percent: number | null;
+      total: number;
     };
     PromotionTalentDto: {
       /** @example Presenter */
@@ -4012,6 +4226,23 @@ export interface components {
         | "COMMENT_ADDED"
         | "ATTACHMENT_ADDED"
         | "REVIEW_RECORDED";
+    };
+    TaskAnalyticsResponse: {
+      /**
+       * Format: date-time
+       * @description Server refresh time, not a historical snapshot guarantee.
+       */
+      asOf: string;
+      counts: components["schemas"]["AnalyticsWorkCounts"];
+      /**
+       * @description Composed source reads may observe separate commits.
+       * @enum {string}
+       */
+      freshness: "live-current-state";
+      /** Format: date */
+      from: string;
+      /** Format: date */
+      toExclusive: string;
     };
     TaskAssigneeResponse: {
       /** Format: date-time */
@@ -4531,6 +4762,26 @@ export interface components {
       /** @example Regional Coordinator */
       name: string;
     };
+    WorkAnalyticsPageResponse: {
+      /**
+       * Format: date-time
+       * @description Server refresh time, not a historical snapshot guarantee.
+       */
+      asOf: string;
+      /**
+       * @description Composed source reads may observe separate commits.
+       * @enum {string}
+       */
+      freshness: "live-current-state";
+      /** Format: date */
+      from: string;
+      items: components["schemas"]["EntityWorkCounts"][];
+      page: number;
+      pageSize: number;
+      /** Format: date */
+      toExclusive: string;
+      total: number;
+    };
     WorkspaceResponse: {
       /** Format: date-time */
       createdAt: string;
@@ -4587,6 +4838,409 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  Analytics_campaigns_v1: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+        campaignId?: string;
+        campaignType?: "MARKETING" | "PROMOTION";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProgressAnalyticsPageResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Analytics_departments_v1: {
+    parameters: {
+      query: {
+        /** @description Inclusive UTC date (YYYY-MM-DD). */
+        from: string;
+        /** @description Exclusive UTC date, at most 366 days after from. */
+        toExclusive: string;
+        page?: number;
+        pageSize?: number;
+        departmentId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkAnalyticsPageResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Analytics_employees_v1: {
+    parameters: {
+      query: {
+        /** @description Inclusive UTC date (YYYY-MM-DD). */
+        from: string;
+        /** @description Exclusive UTC date, at most 366 days after from. */
+        toExclusive: string;
+        page?: number;
+        pageSize?: number;
+        employeeId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["WorkAnalyticsPageResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Analytics_events_v1: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+        eventId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProgressAnalyticsPageResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Analytics_monthly_v1: {
+    parameters: {
+      query: {
+        /** @description Inclusive UTC date (YYYY-MM-DD). */
+        from: string;
+        /** @description Exclusive UTC date, at most 366 days after from. */
+        toExclusive: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MonthlyAnalyticsResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Analytics_promotion_v1: {
+    parameters: {
+      query: {
+        /** @description One promotion campaign; results group by delivery channel. */
+        campaignId: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionAnalyticsResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Analytics_tasks_v1: {
+    parameters: {
+      query: {
+        /** @description Inclusive UTC date (YYYY-MM-DD). */
+        from: string;
+        /** @description Exclusive UTC date, at most 366 days after from. */
+        toExclusive: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskAnalyticsResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Auth_login_v1: {
     parameters: {
       query?: never;
