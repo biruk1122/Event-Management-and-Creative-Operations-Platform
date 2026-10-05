@@ -458,8 +458,40 @@ test.describe("Reporting — end to end", () => {
       const workspaceId = (
         (await eventResponse.json()) as { workspaceId: string }
       ).workspaceId;
+      // UUIDv7 prefixes are time-based, so another event can share the visible
+      // short label. Exercise selection with more than one event workspace.
+      const otherEvent = await page.request.post(
+        `${apiBaseUrl}/api/v1/events`,
+        {
+          headers: { "x-csrf-token": csrf },
+          data: {
+            name: `E2E other report event ${randomUUID().slice(0, 8)}`,
+            eventType: "CORPORATE_EVENT",
+          },
+        },
+      );
+      expect(otherEvent.status()).toBe(201);
 
       await page.goto("/reports");
+      const workspaceFilter = page.getByLabel("Workspace", { exact: true });
+      await expect(
+        workspaceFilter.locator(`option[value="${workspaceId}"]`),
+      ).toHaveCount(1);
+      const workspaceLabel = `EVENT workspace ${workspaceId.slice(0, 8)}`;
+      // The filter and draft use the same ordered workspace choices. Resolve
+      // the full ID through the filter values rather than assuming short labels
+      // are unique or selecting the first matching checkbox.
+      const matchingIds = await workspaceFilter
+        .locator("option")
+        .evaluateAll(
+          (options, label) =>
+            options
+              .filter((option) => option.textContent === label)
+              .map((option) => (option as HTMLOptionElement).value),
+          workspaceLabel,
+        );
+      const workspaceIndex = matchingIds.indexOf(workspaceId);
+      expect(workspaceIndex).toBeGreaterThanOrEqual(0);
       await page.getByRole("button", { name: "New report" }).click();
       const form = page.getByRole("form", { name: "Report draft" });
       const title = `E2E linked report ${randomUUID().slice(0, 8)}`;
@@ -469,7 +501,8 @@ test.describe("Reporting — end to end", () => {
       await form.getByLabel("Problems encountered").fill("Linked fixture");
       await form.getByLabel("Next day's plan").fill("Check relation");
       await form
-        .getByLabel(`EVENT workspace ${workspaceId.slice(0, 8)}`)
+        .getByLabel(workspaceLabel, { exact: true })
+        .nth(workspaceIndex)
         .check();
       await form.getByRole("button", { name: "Save draft" }).click();
       await expect(form).toBeHidden();
