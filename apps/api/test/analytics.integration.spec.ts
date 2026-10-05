@@ -11,6 +11,7 @@ import { seedRbac } from "../src/rbac/seed-rbac.js";
 import type { TasksAnalyticsQuery } from "../src/tasks/tasks-analytics.query.js";
 import {
   createIsolatedDatabase,
+  PG_ERROR,
   type IsolatedDatabase,
 } from "./support/database.js";
 
@@ -47,7 +48,17 @@ interface Result {
 }
 const body = (response: request.Response) => response.body as Result;
 
-describe("EVE-172 management analytics API", () => {
+interface RuntimePlan {
+  Plan: {
+    "Actual Rows": number;
+    "Shared Hit Blocks": number;
+    "Shared Read Blocks": number;
+  };
+  "Planning Time": number;
+  "Execution Time": number;
+}
+
+describe("management analytics API (EVE-172 / EVE-173)", () => {
   let db: IsolatedDatabase;
   let prisma: PrismaClient;
   let app: NestExpressApplication;
@@ -96,7 +107,24 @@ describe("EVE-172 management analytics API", () => {
     ]);
     const password = "correct horse battery staple";
     const hash = await new PasswordHasher().hash(password);
+    const [
+      { TasksSchedulerService },
+      { MeetingsSchedulerService },
+      { NotificationsRelayService },
+    ] = await Promise.all([
+      import("../src/tasks/tasks-scheduler.service.js"),
+      import("../src/meetings/meetings-scheduler.service.js"),
+      import("../src/notifications/notifications-relay.service.js"),
+    ]);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      // Unrelated wall-clock jobs must not mutate the fixed benchmark fixture
+      // or write reminder/outbox records while a source query is being profiled.
+      .overrideProvider(TasksSchedulerService)
+      .useValue({})
+      .overrideProvider(MeetingsSchedulerService)
+      .useValue({})
+      .overrideProvider(NotificationsRelayService)
+      .useValue({})
       .overrideProvider(FILE_OBJECT_STORAGE)
       .useValue({})
       .overrideProvider(FILE_SCANNER)
@@ -106,6 +134,13 @@ describe("EVE-172 management analytics API", () => {
     configureApplication(app);
     await app.init();
     http = app.getHttpServer();
+    expect(
+      await app
+        .get(databaseToken)
+        .readModel<{ schema: string }>(
+          Prisma.sql`SELECT current_schema()::text AS schema`,
+        ),
+    ).toEqual([{ schema: db.schema }]);
     await db.query(
       `INSERT INTO departments (id, name) VALUES ($1, 'A'), ($2, 'B'), ($3, 'Empty')`,
       [id(1), id(2), id(3)],
@@ -444,6 +479,264 @@ describe("EVE-172 management analytics API", () => {
     expect(response.text).not.toContain("private SQL credentials");
     expect(response.text).not.toContain("counts");
   });
+  it.each([
+    ["analytics.management.read", "task-completion", "departments"],
+    ["analytics.department_performance.read", "departments", "employees"],
+    ["analytics.employee_performance.read", "employees", "task-completion"],
+  ])(
+    "authorizes custom %s grants independently and revokes access with the same cookie",
+    async (permissionKey, allowed, denied) => {
+      const assignment = await prisma.userRoleAssignment.findUniqueOrThrow({
+        where: { userId: manager.id },
+      });
+      const role = await prisma.role.create({
+        data: {
+          name: `Only ${permissionKey}`,
+          rolePermissions: { create: { permissionKey, scope: "ORGANIZATION" } },
+        },
+      });
+      try {
+        await prisma.userRoleAssignment.update({
+          where: { userId: manager.id },
+          data: { roleId: role.id },
+        });
+        expect((await get(allowed, period, manager)).status).toBe(200);
+        expect((await get(denied, period, manager)).status).toBe(403);
+        await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+        expect((await get(allowed, period, manager)).status).toBe(403);
+      } finally {
+        await prisma.userRoleAssignment.update({
+          where: { userId: manager.id },
+          data: { roleId: assignment.roleId },
+        });
+        await prisma.role.delete({ where: { id: role.id } });
+      }
+    },
+  );
+  it("resolves changed department membership from committed state, not stale token claims", async () => {
+    try {
+      await prisma.user.update({
+        where: { id: manager.id },
+        data: { departmentId: id(2) },
+      });
+      const response = await get("departments", period, manager);
+      expect(response.status).toBe(200);
+      expect(body(response).total).toBe(1);
+      expect(body(response).items).toEqual([
+        {
+          id: id(2),
+          total: 1,
+          completed: 0,
+          pending: 1,
+          overdue: 0,
+          percent: 0,
+        },
+      ]);
+      expect(
+        body(
+          await get("departments", { ...period, departmentId: id(1) }, manager),
+        ).items,
+      ).toEqual([]);
+    } finally {
+      await prisma.user.update({
+        where: { id: manager.id },
+        data: { departmentId: id(1) },
+      });
+    }
+  });
+  it("rejects invalid requests before any source projection runs, with exact stable codes", async () => {
+    const read = vi.spyOn(app.get(databaseToken), "readModel");
+    for (const [route, query, code] of [
+      [
+        "task-completion",
+        { ...period, from: "2026-02-30" },
+        "ANALYTICS_INVALID_RANGE",
+      ],
+      [
+        "monthly-activity",
+        { from: "2025-01-01", toExclusive: "2026-02-01" },
+        "ANALYTICS_INVALID_RANGE",
+      ],
+      ["events", { page: 102, pageSize: 100 }, "ANALYTICS_INVALID_PAGE"],
+      [
+        "employees",
+        { ...period, employeeId: "' OR true --" },
+        "VALIDATION_ERROR",
+      ],
+      [
+        "task-completion",
+        { ...period, asOf: "2000-01-01" },
+        "VALIDATION_ERROR",
+      ],
+    ] as const) {
+      const response = await get(route, query);
+      expect(response.status).toBe(400);
+      expect(response.body as unknown).toMatchObject({
+        code,
+        requestId: response.headers["x-request-id"],
+      });
+    }
+    expect(read).not.toHaveBeenCalled();
+  });
+  it("observes committed status, ownership and assignment changes but not rolled-back completion history", async () => {
+    try {
+      await prisma.$transaction([
+        prisma.task.update({
+          where: { id: id(42) },
+          data: { status: "COMPLETED" },
+        }),
+        prisma.task.update({
+          where: { id: id(41) },
+          data: { departmentId: id(2) },
+        }),
+        prisma.taskAssignment.delete({
+          where: { taskId_userId: { taskId: id(41), userId: manager.id } },
+        }),
+      ]);
+      expect(body(await get("task-completion", period)).counts).toEqual({
+        total: 3,
+        completed: 2,
+        pending: 1,
+        overdue: 0,
+        percent: 67,
+      });
+      expect(
+        body(await get("departments", { ...period, departmentId: id(2) }))
+          .items[0],
+      ).toMatchObject({ total: 2, completed: 1, percent: 50 });
+      expect(
+        body(await get("employees", { ...period, employeeId: manager.id }))
+          .items[0],
+      ).toMatchObject({ total: 1, completed: 1, percent: 100 });
+      await expect(
+        prisma.$transaction(async (tx) => {
+          await tx.task.update({
+            where: { id: id(42) },
+            data: { status: "CANCELLED" },
+          });
+          await tx.taskActivity.create({
+            data: {
+              taskId: id(42),
+              type: "STATUS_CHANGED",
+              details: { to: "COMPLETED" },
+              occurredAt: new Date("2026-09-05"),
+            },
+          });
+          throw new Error("intentional fixture rollback");
+        }),
+      ).rejects.toThrow("intentional fixture rollback");
+      expect(body(await get("task-completion", period)).counts.completed).toBe(
+        2,
+      );
+      expect(
+        body(await get("monthly-activity", period)).items[0]?.tasksCompleted,
+      ).toBe(2);
+    } finally {
+      await prisma.$transaction([
+        prisma.task.update({ where: { id: id(42) }, data: { status: "TODO" } }),
+        prisma.task.update({
+          where: { id: id(41) },
+          data: { departmentId: id(1) },
+        }),
+        prisma.taskAssignment.upsert({
+          where: { taskId_userId: { taskId: id(41), userId: manager.id } },
+          create: { taskId: id(41), userId: manager.id },
+          update: {},
+        }),
+      ]);
+    }
+  });
+  it("keeps metrics exact after source uniqueness and promotion ownership conflicts", async () => {
+    await expect(
+      db.query(
+        "INSERT INTO task_assignments (task_id, user_id) VALUES ($1, $2)",
+        [id(41), manager.id],
+      ),
+    ).rejects.toMatchObject({ code: PG_ERROR.uniqueViolation });
+    await expect(
+      db.query(
+        "INSERT INTO promotion_activities (campaign_activity_id, campaign_id, channel) VALUES ($1, $2, 'RADIO_PROMOTION')",
+        [id(51), id(34)],
+      ),
+    ).rejects.toMatchObject({ code: PG_ERROR.foreignKeyViolation });
+    expect(
+      body(await get("employees", { ...period, employeeId: manager.id }))
+        .items[0],
+    ).toMatchObject({ total: 2, completed: 1 });
+    expect(body(await get("promotion", { campaignId: id(34) })).items).toEqual([
+      { channel: "RADIO_PROMOTION", total: 1, completed: 1, percent: 100 },
+    ]);
+  });
+  it("respects microsecond UTC month boundaries, timezone offsets and repeated transitions across months", async () => {
+    try {
+      await db.query(
+        `INSERT INTO tasks (id, department_id, title, status, created_at) VALUES
+        ($1, $4, 'UTC before February', 'COMPLETED', '2024-01-31T23:59:59.999999Z'),
+        ($2, $4, 'Offset in February', 'TODO', '2024-01-31T23:00:00-02:00'),
+        ($3, $4, 'Exclusive March boundary', 'TODO', '2024-03-01T00:00:00Z')`,
+        [id(71), id(72), id(73), id(1)],
+      );
+      await db.query(
+        `INSERT INTO task_activities (task_id, type, details, occurred_at) VALUES
+        ($1, 'STATUS_CHANGED', '{"to":"COMPLETED"}', '2024-01-31T23:59:59.999999Z'),
+        ($1, 'STATUS_CHANGED', '{"to":"COMPLETED"}', '2024-01-31T23:59:59Z'),
+        ($1, 'STATUS_CHANGED', '{"to":"COMPLETED"}', '2024-02-01T00:00:00Z'),
+        ($2, 'PROGRESS_UPDATED', '{"to":"COMPLETED"}', '2024-02-01T00:00:00Z')`,
+        [id(71), id(72)],
+      );
+      const response = await get("monthly-activity", {
+        from: "2024-01-01",
+        toExclusive: "2024-03-01",
+      });
+      expect(response.status).toBe(200);
+      expect(body(response).items).toEqual(
+        ["2024-01", "2024-02"].map((month) => ({
+          month,
+          tasksCreated: 1,
+          tasksCompleted: 1,
+          eventsCreated: 0,
+          campaignsCreated: 0,
+          projectsCreated: 0,
+          productionsCreated: 0,
+        })),
+      );
+      const before = await db.query(
+        "SELECT id, status, created_at FROM tasks WHERE id IN ($1, $2, $3) ORDER BY id",
+        [id(71), id(72), id(73)],
+      );
+      expect(
+        body(
+          await get("task-completion", {
+            from: "2024-01-01",
+            toExclusive: "2024-03-01",
+          }),
+        ).counts,
+      ).toMatchObject({ total: 2, completed: 1, percent: 50 });
+      expect(
+        await db.query(
+          "SELECT id, status, created_at FROM tasks WHERE id IN ($1, $2, $3) ORDER BY id",
+          [id(71), id(72), id(73)],
+        ),
+      ).toEqual(before);
+    } finally {
+      await prisma.task.deleteMany({
+        where: { id: { in: [id(71), id(72), id(73)] } },
+      });
+    }
+  });
+  it("does not publish a partial monthly summary when a source projection fails", async () => {
+    vi.spyOn(app.get(databaseToken), "readModel").mockRejectedValueOnce(
+      new Error("source unavailable"),
+    );
+    const response = await get("monthly-activity", period);
+    expect(response.status).toBe(503);
+    expect(response.body as unknown).toMatchObject({
+      code: "ANALYTICS_UNAVAILABLE",
+      requestId: response.headers["x-request-id"],
+    });
+    expect(response.text).not.toContain("items");
+    expect(response.text).not.toContain("source unavailable");
+  });
   it("cancels slow projections and keeps the pool usable after rollback", async () => {
     const database = app.get(databaseToken);
     await expect(
@@ -467,6 +760,17 @@ describe("EVE-172 management analytics API", () => {
       // RFC UUIDs. Select one satisfying the public transport validator.
       "SELECT id FROM campaigns WHERE name = 'Campaign' AND campaign_type = 'PROMOTION' AND id::text ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab]' ORDER BY id LIMIT 1",
     );
+    // Capture actual source SQL used by the authenticated endpoints, not just
+    // the ANA-01 design specimens. Keep bindings and EXPLAIN them in this schema.
+    const statements = new Map<string, Prisma.Sql>();
+    const database = app.get(databaseToken);
+    const originalRead = database.readModel.bind(database);
+    const capture = vi
+      .spyOn(database, "readModel")
+      .mockImplementation(<T>(query: Prisma.Sql): Promise<T[]> => {
+        statements.set(query.text, query);
+        return originalRead<T>(query);
+      });
     for (const [route, query] of [
       ["task-completion", period],
       ["departments", { ...period, pageSize: 100 }],
@@ -494,6 +798,35 @@ describe("EVE-172 management analytics API", () => {
         `EVE-172 ${route}: warm p95 ${p95.toFixed(1)} ms / 20 requests`,
       );
       expect(p95).toBeLessThan(750);
+    }
+    capture.mockRestore();
+    expect(statements.size).toBeGreaterThanOrEqual(18);
+    for (const [text, query] of statements) {
+      const samples: number[] = [];
+      let plan: RuntimePlan | undefined;
+      for (let n = 0; n < 20; n++) {
+        const [row] = await db.query<{ "QUERY PLAN": RuntimePlan[] }>(
+          `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${text}`,
+          query.values,
+        );
+        plan = row!["QUERY PLAN"][0]!;
+        expect(plan.Plan["Actual Rows"]).toBeGreaterThanOrEqual(0);
+        expect(plan.Plan["Actual Rows"]).toBeLessThanOrEqual(100);
+        samples.push(plan["Planning Time"] + plan["Execution Time"]);
+      }
+      const p95 = samples.toSorted((a, b) => a - b)[18]!;
+      console.info(
+        JSON.stringify({
+          runtimeSql: text,
+          samples: 20,
+          p95Ms: p95,
+          rows: plan!.Plan["Actual Rows"],
+          sharedHitBlocks: plan!.Plan["Shared Hit Blocks"],
+          sharedReadBlocks: plan!.Plan["Shared Read Blocks"],
+        }),
+      );
+      expect(Number.isFinite(p95)).toBe(true);
+      expect(p95, text).toBeLessThanOrEqual(500);
     }
   }, 120_000);
 });

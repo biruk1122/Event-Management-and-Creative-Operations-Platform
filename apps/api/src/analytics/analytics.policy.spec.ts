@@ -8,6 +8,41 @@ import {
 
 describe("analytics policies", () => {
   const key = "analytics.management.read";
+  const departmentKey = "analytics.department_performance.read";
+  it.each(
+    Object.values(PermissionScope).flatMap((scope) =>
+      [key, departmentKey, "analytics.employee_performance.read"].map(
+        (permissionKey) => ({ scope, permissionKey }),
+      ),
+    ),
+  )(
+    "enforces the complete per-measure scope matrix: $permissionKey / $scope",
+    ({ scope, permissionKey }) => {
+      const resolve = () =>
+        analyticsScope(
+          [{ permissionKey, scope }],
+          permissionKey,
+          permissionKey === departmentKey,
+        );
+      if (scope === "ORGANIZATION" || scope === "MANAGEMENT")
+        expect(resolve()).toBe("organization");
+      else if (scope === "DEPARTMENT" && permissionKey === departmentKey)
+        expect(resolve()).toBe("department");
+      else expect(resolve).toThrow();
+    },
+  );
+  it("does not use an organization grant for another measure to broaden department scope", () => {
+    expect(
+      analyticsScope(
+        [
+          { permissionKey: departmentKey, scope: "DEPARTMENT" },
+          { permissionKey: key, scope: "ORGANIZATION" },
+        ],
+        departmentKey,
+        true,
+      ),
+    ).toBe("department");
+  });
   it.each([PermissionScope.ORGANIZATION, PermissionScope.MANAGEMENT])(
     "accepts an exact %s measure grant",
     (scope) => {
@@ -85,6 +120,19 @@ describe("analytics policies", () => {
       pageSize: 100,
     });
   });
+  it.each([
+    ["2024-02-29", "2024-03-01"],
+    ["2023-01-01", "2024-01-02"],
+    ["2024-01-01", "2025-01-01"],
+  ])(
+    "accepts valid calendar and exact 366-day boundaries %s to %s",
+    (from, toExclusive) => {
+      expect(analyticsPeriod({ from, toExclusive })).toEqual({
+        from: new Date(from),
+        toExclusive: new Date(toExclusive),
+      });
+    },
+  );
   it.each([
     { page: 0, pageSize: 25 },
     { page: 1, pageSize: 101 },
