@@ -14,10 +14,11 @@ and AA rules. Any violation fails the test, regardless of axe impact level.
 
 The critical-flow coverage currently includes:
 
-| Flow                                 | Automated checks                                                                                 |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| Sign in -> authenticated home        | WCAG axe scan before and after sign-in; submitting the form with Enter.                          |
-| Departments, teams, users, and roles | WCAG axe scan on the list surface and its create dialog during the real role-authorized journey. |
+| Flow                                 | Automated checks                                                                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| Sign in -> authenticated home        | WCAG axe scan before and after sign-in; submitting the form with Enter.                                                           |
+| Departments, teams, users, and roles | WCAG axe scan on the list surface and its create dialog during the real role-authorized journey.                                  |
+| Daily, weekly, and monthly reports   | WCAG axe scans on the employee list, draft forms, detail, management review, and mobile detail; mobile horizontal-overflow check. |
 
 Automation cannot determine every WCAG 2.2 AA condition. Before a release that
 changes a covered flow, verify the changed flow manually with keyboard only and
@@ -58,8 +59,9 @@ authenticated paginated read with five warm samples as a fast regression guard.
 | Page navigation on the baseline mobile profile       | LCP 2,500 ms; INP 200 ms | LCP 4,000 ms; INP 300 ms |
 | Page navigation on the constrained mobile profile    | LCP 4,000 ms; INP 300 ms | LCP 6,000 ms; INP 500 ms |
 
-Run the API guard with `pnpm e2e`; it fails when the warm p95 for
-`GET /api/v1/users?page=1&pageSize=25` exceeds 750 ms. For release sampling,
+Run the API guards with `pnpm e2e`; they fail when the warm p95 for
+`GET /api/v1/users?page=1&pageSize=25` or
+`GET /api/v1/reports?page=1&pageSize=25` exceeds 750 ms. For release sampling,
 use an authenticated account with equivalent role and data volume, discard the
 first sample, save all timings, and calculate the nearest-rank p95.
 

@@ -81,3 +81,26 @@ HTML report is written to `e2e/.runs/<run-id>/playwright-report/`; the launcher
 prints `<run-id>`. Set `E2E_RUN_ID` to that value before running
 `pnpm --filter @event-platform/e2e report`. CI uploads the run-scoped report
 and artifacts.
+
+## Report workflow coverage
+
+Run the report journeys with `pnpm --filter @event-platform/e2e e2e reports.spec.ts`
+after building the API and web targets. `tests/reports.spec.ts` uses the real
+services and fresh role-assigned authors so report-period uniqueness remains
+isolated across retries.
+
+The journeys cover daily, weekly, and monthly draft sections and persistence;
+task facts from an assigned overdue task; submission and management review;
+authorized JSON export; workspace relations; server-side type, author, and date
+filters; pagination; empty results; denied cross-author reads and exports; and
+the page-size and date-range boundaries. They run WCAG A/AA axe scans on the
+employee list, draft form, detail, management review, and 360 x 800 mobile view,
+and check the authenticated report-list read against the existing 750 ms warm
+p95 regression budget. Provisioning deploys all committed migrations into the
+disposable run schema before these checks.
+
+Reminder timing and reporting audiences remain open under ADR 0003 decisions
+NT-01 and NT-02. These journeys therefore do not claim scheduler coverage.
+Manual assistive-technology checks and the full network-profile release
+measurements remain governed by
+`docs/development/accessibility-and-performance-budgets.md`.
