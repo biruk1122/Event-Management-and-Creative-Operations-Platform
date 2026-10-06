@@ -1,5 +1,9 @@
 import { useSyncExternalStore } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  focusManager,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -259,6 +263,100 @@ describe("live analytics integration", () => {
     expect(
       client.getQueryCache().findAll({ queryKey: ["analytics"] }),
     ).toHaveLength(1);
+  });
+  it.each(["revalidation", "focus"])(
+    "preserves unapplied filters after %s without applying them",
+    async (trigger) => {
+      state.url = "measure=departments&from=2026-09-01&toExclusive=2026-10-01";
+      const client = setup();
+      await screen.findByText("Page 1 of 3 · 51 authorized subjects");
+      const subject = "11111111-1111-4111-8111-111111111111";
+      await userEvent.type(
+        screen.getByLabelText("Subject ID (optional)"),
+        subject,
+      );
+      await userEvent.clear(
+        screen.getByLabelText("Creation period start (UTC)"),
+      );
+      await userEvent.type(
+        screen.getByLabelText("Creation period start (UTC)"),
+        "2026-08-01",
+      );
+      await userEvent.selectOptions(
+        screen.getByLabelText("Rows per page"),
+        "50",
+      );
+      if (trigger === "focus") {
+        await act(async () => {
+          focusManager.setFocused(false);
+          focusManager.setFocused(true);
+        });
+        focusManager.setFocused(undefined);
+      } else {
+        await act(async () => {
+          await client.invalidateQueries({ queryKey: accessKey });
+        });
+      }
+      await waitFor(() => expect(metricCalls()).toHaveLength(2));
+      await waitFor(() =>
+        expect(screen.getByLabelText("Subject ID (optional)")).toHaveValue(
+          subject,
+        ),
+      );
+      expect(screen.getByLabelText("Creation period start (UTC)")).toHaveValue(
+        "2026-08-01",
+      );
+      expect(screen.getByLabelText("Rows per page")).toHaveValue("50");
+      expect(metricCalls().at(-1)?.[1].params.query).toMatchObject({
+        from: "2026-09-01",
+        pageSize: 25,
+      });
+      expect(
+        metricCalls().at(-1)?.[1].params.query.departmentId,
+      ).toBeUndefined();
+      expect(
+        client.getQueryCache().findAll({ queryKey: ["analytics"] }),
+      ).toHaveLength(1);
+    },
+  );
+  it("preserves drafts through an in-flight permission check but never across users", async () => {
+    state.url = "measure=departments&from=2026-09-01&toExclusive=2026-10-01";
+    const client = setup();
+    await screen.findByText("Page 1 of 3 · 51 authorized subjects");
+    await userEvent.type(
+      screen.getByLabelText("Subject ID (optional)"),
+      "unfinished-draft",
+    );
+    let complete: (value: unknown) => void = () => {};
+    state.get.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    act(() => {
+      void client.invalidateQueries({ queryKey: accessKey });
+    });
+    await screen.findByText("Checking current analytics permissions…");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(
+      client.getQueryCache().findAll({ queryKey: ["analytics"] }),
+    ).toHaveLength(0);
+    await act(async () => {
+      complete(ok(access));
+    });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Subject ID (optional)")).toHaveValue(
+        "unfinished-draft",
+      ),
+    );
+    access = { ...reader, userId: "another-user" };
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: accessKey });
+    });
+    await waitFor(() =>
+      expect(screen.getByLabelText("Subject ID (optional)")).toHaveValue(""),
+    );
   });
   it("does not let a late old-filter response replace the newly selected measure", async () => {
     let complete: (value: unknown) => void = () => {};

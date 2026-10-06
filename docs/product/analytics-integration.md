@@ -48,6 +48,21 @@ This prevents reusing an old department projection after a successful access
 recheck. Existing access polling/focus checks are retained; analytics itself adds
 no polling. Export remains explicitly disabled without an approved contract.
 
+Unsubmitted filter drafts live only in screen-level memory, scoped to the user
+and the selected measure's applied filters. They survive controller remounts
+during polling/focus permission rechecks, without being applied to API requests.
+Changed applied filters/measures or a different user do not reuse the old draft.
+No metric responses are retained in this draft state; fail-closed hiding and
+permission-epoch cache eviction remain unchanged.
+
+The follow-up draft-retention correction passed 75 targeted analytics tests,
+including unchanged-access/focus rechecks, an in-flight access check and user
+switching. Independent re-review also ran those 75 tests and reported no
+findings. Frontend type checking, lint, formatting, production build and asset
+budgets passed (664.4 KiB JavaScript, 11.6 KiB CSS). The full browser suite was
+not rerun for this state-only correction; the original integration evidence
+below remains separate.
+
 ## Verification
 
 Gateway, URL, query-controller, cache-revocation, navigation and server-route tests

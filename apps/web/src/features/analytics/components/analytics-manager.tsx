@@ -14,6 +14,7 @@ import {
   type Measure,
   type Panels,
   type Responses,
+  type AnalyticsFilters,
 } from "../lib/analytics-presentation";
 import {
   defaultFilters,
@@ -41,10 +42,14 @@ export function AnalyticsManager({
   access,
   epoch,
   onAuthorizationError,
+  savedDraft,
+  onDraftChange,
 }: {
   access: CurrentAccess;
   epoch: number;
   onAuthorizationError: (error: AnalyticsRequestError) => void;
+  savedDraft: { selection: string; filters: AnalyticsFilters } | null;
+  onDraftChange: (selection: string, filters: AnalyticsFilters) => void;
 }) {
   const router = useRouter(),
     params = useSearchParams(),
@@ -59,6 +64,8 @@ export function AnalyticsManager({
     "tasks";
   const selection = readSelection(params, fallback, defaults);
   const { measure, filters, error } = selection;
+  // Paging and permission epochs do not change the applied form filters.
+  const draftKey = `${measure}:${JSON.stringify(filters)}`;
   const identity = analyticsIdentity(access, epoch);
   const queryKey = [...identity, measure, selectionUrl(selection)] as const;
   const selectionKey = JSON.stringify(queryKey);
@@ -128,11 +135,15 @@ export function AnalyticsManager({
     );
   return (
     <AnalyticsWorkspace
-      key={`${measure}:${JSON.stringify(filters)}`}
+      key={draftKey}
       allowed={allowed}
       measure={measure}
       panels={panels}
       filters={filters}
+      initialDraft={
+        savedDraft?.selection === draftKey ? savedDraft.filters : filters
+      }
+      onDraftChange={(values) => onDraftChange(draftKey, values)}
       scopeLabel="Per-measure server-authorized scope; department grants may limit results to your current department"
       refreshing={query.isFetching && !!query.data && !query.isError}
       {...(notice?.key === selectionKey ? { notice: notice.message } : {})}

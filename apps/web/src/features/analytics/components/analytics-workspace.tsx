@@ -24,6 +24,8 @@ export interface AnalyticsWorkspaceProps {
   initialMeasure?: Measure;
   measure?: Measure;
   filters?: AnalyticsFilters;
+  initialDraft?: AnalyticsFilters;
+  onDraftChange?: (filters: AnalyticsFilters) => void;
   refreshing?: boolean;
   notice?: string;
   onApply?: (measure: Measure, filters: AnalyticsFilters) => void;
@@ -39,6 +41,8 @@ export function AnalyticsWorkspace({
   initialMeasure,
   measure: controlledMeasure,
   filters = EMPTY_FILTERS,
+  initialDraft,
+  onDraftChange,
   refreshing = false,
   notice,
   onApply,
@@ -53,7 +57,7 @@ export function AnalyticsWorkspace({
   const [selected, setSelected] = useState<Measure>(
     initialMeasure ?? choices[0] ?? "tasks",
   );
-  const [draft, setDraft] = useState(filters);
+  const [draft, setDraft] = useState(initialDraft ?? filters);
   // Permission loss always takes precedence over cached response data.
   const current = controlledMeasure ?? selected;
   const measure = allowed[current] ? current : choices[0];
@@ -80,8 +84,11 @@ export function AnalyticsWorkspace({
     choices.some((key) => panels[key]?.state === "ready");
   const controlsEnabled =
     !refreshing && !["denied", "unavailable", "loading"].includes(panel.state);
-  const update = (patch: Partial<AnalyticsFilters>) =>
-    setDraft((value) => ({ ...value, ...patch }));
+  const update = (patch: Partial<AnalyticsFilters>) => {
+    const next = { ...draft, ...patch };
+    setDraft(next);
+    onDraftChange?.(next);
+  };
   return (
     <div className="min-w-0 space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -123,6 +130,7 @@ export function AnalyticsWorkspace({
           onChange={(event) => {
             setSelected(event.target.value as Measure);
             setDraft(filters);
+            onDraftChange?.(filters);
             onMeasureChange?.(event.target.value as Measure);
           }}
         >
