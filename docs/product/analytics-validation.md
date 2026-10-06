@@ -100,6 +100,20 @@ constrained; sampled interaction upper bounds were 16ms and 40ms respectively.
 The unchanged profile limits remain enforced. Gzipped assets measured 666.3KiB
 JavaScript and 10.5KiB CSS, within the 750KiB/150KiB hard limits.
 
+## CI performance correction
+
+PR #123's first CI run passed 90 journeys but failed constrained-mobile LCP.
+The permission-loading heading was replaced when verification finished. The
+screen now keeps that public context mounted across verification/rechecks and
+renders gated controls separately; metric hiding and cache eviction are unchanged.
+The regression test verifies heading and scope DOM identity. Mobile reports now
+save paint candidates before asserting the unchanged performance limits.
+
+Correction run `run_5b367143e8795476` passed all 19 targeted browser tests without
+retries, including baseline/constrained LCP of 916ms/2224ms and sampled interaction
+bounds of 16ms/32ms. The 73 analytics unit tests passed. GitHub CI must still verify
+the pushed correction on its runner.
+
 ## Residual release checks
 
 Record actual command results and attachments in the delivery comment/PR.

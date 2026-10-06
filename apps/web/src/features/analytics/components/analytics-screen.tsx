@@ -13,6 +13,15 @@ import { AnalyticsManager } from "./analytics-manager";
 import { AnalyticsHeading, ANALYTICS_SCOPE_LABEL } from "./analytics-heading";
 
 export function AnalyticsScreen() {
+  return (
+    <div className="space-y-5">
+      <AnalyticsHeading scopeLabel={ANALYTICS_SCOPE_LABEL} />
+      <AnalyticsController />
+    </div>
+  );
+}
+
+function AnalyticsController() {
   const access = useCurrentAccess(),
     client = useQueryClient();
   const [blocked, setBlocked] = useState<{
@@ -52,12 +61,7 @@ export function AnalyticsScreen() {
     }
   }, [hidden, client, access.data?.userId, access.dataUpdatedAt]);
   if (access.isPending || access.isFetching)
-    return (
-      <div className="space-y-5">
-        <AnalyticsHeading scopeLabel={ANALYTICS_SCOPE_LABEL} />
-        <p role="status">Checking current analytics permissions…</p>
-      </div>
-    );
+    return <p role="status">Checking current analytics permissions…</p>;
   if (access.isError)
     return (
       <div role="alert" className="space-y-3">

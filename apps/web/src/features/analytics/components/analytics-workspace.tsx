@@ -22,6 +22,7 @@ export interface AnalyticsWorkspaceProps {
   allowed: Record<Measure, boolean>;
   panels?: Panels;
   scopeLabel: string;
+  showHeading?: boolean;
   initialMeasure?: Measure;
   measure?: Measure;
   filters?: AnalyticsFilters;
@@ -39,6 +40,7 @@ export function AnalyticsWorkspace({
   allowed,
   panels = {},
   scopeLabel,
+  showHeading = true,
   initialMeasure,
   measure: controlledMeasure,
   filters = EMPTY_FILTERS,
@@ -93,7 +95,7 @@ export function AnalyticsWorkspace({
   return (
     <div className="min-w-0 space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <AnalyticsHeading scopeLabel={scopeLabel} />
+        {showHeading ? <AnalyticsHeading scopeLabel={scopeLabel} /> : null}
         <div className="space-y-1">
           <Button variant="outline" disabled aria-describedby={`${id}-export`}>
             Export analytics

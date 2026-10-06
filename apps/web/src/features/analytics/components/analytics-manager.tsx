@@ -146,6 +146,7 @@ export function AnalyticsManager({
       }
       onDraftChange={(values) => onDraftChange(draftKey, values)}
       scopeLabel={ANALYTICS_SCOPE_LABEL}
+      showHeading={false}
       refreshing={query.isFetching && !!query.data && !query.isError}
       {...(notice?.key === selectionKey ? { notice: notice.message } : {})}
       onMeasureChange={(next) =>

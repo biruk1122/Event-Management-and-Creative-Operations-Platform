@@ -629,10 +629,27 @@ test.describe("ANA-06 responsive and network release profiles", () => {
     }, testInfo) => {
       test.setTimeout(90_000);
       await page.addInitScript(() => {
-        const readings = { lcp: 0, interactions: [] as number[] };
+        const readings = {
+          lcp: 0,
+          candidates: [] as {
+            startTime: number;
+            element: string;
+            text: string;
+          }[],
+          interactions: [] as number[],
+        };
         Object.defineProperty(window, "anaReleaseMetrics", { value: readings });
         new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) readings.lcp = entry.startTime;
+          for (const entry of list.getEntries()) {
+            readings.lcp = entry.startTime;
+            const element = (entry as PerformanceEntry & { element?: Element })
+              .element;
+            readings.candidates.push({
+              startTime: entry.startTime,
+              element: element?.tagName ?? "",
+              text: element?.textContent?.slice(0, 160) ?? "",
+            });
+          }
         }).observe({ type: "largest-contentful-paint", buffered: true });
         new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {
@@ -669,13 +686,36 @@ test.describe("ANA-06 responsive and network release profiles", () => {
         () =>
           (
             window as unknown as {
-              anaReleaseMetrics: { lcp: number; interactions: number[] };
+              anaReleaseMetrics: {
+                lcp: number;
+                candidates: {
+                  startTime: number;
+                  element: string;
+                  text: string;
+                }[];
+                interactions: number[];
+              };
             }
           ).anaReleaseMetrics,
       );
       // Chromium Event Timing has a 16ms observation floor. No entries means <16ms,
       // not an invented zero-duration interaction. This is a short-journey INP sample.
       const inpUpperBound = Math.max(16, ...readings.interactions);
+      // Persist diagnostics even when a hard performance assertion fails.
+      await testInfo.attach("analytics-mobile-profile", {
+        body: JSON.stringify(
+          {
+            ...profile,
+            viewport: "360x800 DPR2",
+            cache: "disabled",
+            ...readings,
+            sampledInpUpperBound: inpUpperBound,
+          },
+          null,
+          2,
+        ),
+        contentType: "application/json",
+      });
       expect(readings.lcp).toBeGreaterThan(0);
       expect(readings.lcp, `${profile.name} LCP`).toBeLessThanOrEqual(
         profile.lcpLimit,
@@ -690,21 +730,6 @@ test.describe("ANA-06 responsive and network release profiles", () => {
         ),
       ).toBe(true);
       await expectNoWcag22AaViolations(page, profile.name);
-      await testInfo.attach("analytics-mobile-profile", {
-        body: JSON.stringify(
-          {
-            ...profile,
-            viewport: "360x800 DPR2",
-            cache: "disabled",
-            lcp: readings.lcp,
-            interactions: readings.interactions,
-            sampledInpUpperBound: inpUpperBound,
-          },
-          null,
-          2,
-        ),
-        contentType: "application/json",
-      });
       await testInfo.attach("analytics-mobile-screen", {
         body: await page.screenshot({ fullPage: true }),
         contentType: "image/png",
