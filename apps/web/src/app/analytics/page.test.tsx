@@ -11,9 +11,14 @@ vi.mock("next/navigation", () => ({
   },
 }));
 import AnalyticsPage from "./page";
+vi.mock("@/features/analytics/components/analytics-screen", () => ({
+  AnalyticsScreen: () => <p role="status">Live analytics integration</p>,
+}));
 
 describe("analytics server route", () => {
-  beforeEach(() => api.GET.mockReset());
+  beforeEach(() => {
+    api.GET.mockReset();
+  });
   it("redirects expired sessions before rendering analytics", async () => {
     api.GET.mockResolvedValue({ response: { status: 401 } });
     await expect(AnalyticsPage()).rejects.toThrow(
@@ -36,7 +41,7 @@ describe("analytics server route", () => {
       { cache: "no-store" },
     );
   });
-  it("renders an honest department-only shell without issuing metric requests", async () => {
+  it("renders the live screen only after a scoped analytics grant is checked", async () => {
     api.GET.mockResolvedValue({
       response: { status: 200 },
       data: {
@@ -49,14 +54,10 @@ describe("analytics server route", () => {
       },
     });
     render(await AnalyticsPage());
-    expect(
-      screen.getByRole("option", { name: "Department performance" }),
-    ).toBeVisible();
-    expect(
-      screen.queryByRole("option", { name: "Employee performance" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText(/Your current department only/)).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("EVE-175");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Live analytics integration",
+    );
+    expect(screen.getByRole("main")).toHaveClass("w-full", "min-w-0");
     expect(api.GET).toHaveBeenCalledOnce();
   });
 });

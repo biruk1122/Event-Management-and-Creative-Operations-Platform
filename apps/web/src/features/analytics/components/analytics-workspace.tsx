@@ -22,12 +22,14 @@ export interface AnalyticsWorkspaceProps {
   panels?: Panels;
   scopeLabel: string;
   initialMeasure?: Measure;
+  measure?: Measure;
   filters?: AnalyticsFilters;
   refreshing?: boolean;
   notice?: string;
   onApply?: (measure: Measure, filters: AnalyticsFilters) => void;
   onRetry?: (measure: Measure) => void;
   onPageChange?: (measure: Measure, page: number) => void;
+  onMeasureChange?: (measure: Measure) => void;
 }
 
 export function AnalyticsWorkspace({
@@ -35,12 +37,14 @@ export function AnalyticsWorkspace({
   panels = {},
   scopeLabel,
   initialMeasure,
+  measure: controlledMeasure,
   filters = EMPTY_FILTERS,
   refreshing = false,
   notice,
   onApply,
   onRetry,
   onPageChange,
+  onMeasureChange,
 }: AnalyticsWorkspaceProps) {
   const id = useId();
   const choices = (Object.keys(MEASURES) as Measure[]).filter(
@@ -51,7 +55,8 @@ export function AnalyticsWorkspace({
   );
   const [draft, setDraft] = useState(filters);
   // Permission loss always takes precedence over cached response data.
-  const measure = allowed[selected] ? selected : choices[0];
+  const current = controlledMeasure ?? selected;
+  const measure = allowed[current] ? current : choices[0];
   if (!measure)
     return (
       <div role="alert" className="space-y-2 rounded-xl border p-5">
@@ -118,6 +123,7 @@ export function AnalyticsWorkspace({
           onChange={(event) => {
             setSelected(event.target.value as Measure);
             setDraft(filters);
+            onMeasureChange?.(event.target.value as Measure);
           }}
         >
           {choices.map((key) => (
@@ -256,6 +262,11 @@ export function AnalyticsWorkspace({
         {panel.state === "loading" ? (
           <p role="status">Loading {MEASURES[measure].toLowerCase()}…</p>
         ) : null}
+        {panel.state === "input" ? (
+          <p role="status">
+            {panel.message ?? "Choose valid filters to load this measure."}
+          </p>
+        ) : null}
         {panel.state === "unavailable" ? (
           <p role="status">
             Analytics data is not connected yet. Live API integration is
@@ -271,8 +282,8 @@ export function AnalyticsWorkspace({
         {panel.state === "error" ? (
           <div role="alert" className="space-y-3">
             <p>
-              This measure could not load. Unavailable data is not zero
-              activity.
+              {panel.message ??
+                "This measure could not load. Unavailable data is not zero activity."}
             </p>
             <Button
               variant="outline"

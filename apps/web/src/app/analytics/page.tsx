@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AnalyticsWorkspace, analyticsAbilities } from "@/features/analytics";
+import { Suspense } from "react";
+import {
+  AnalyticsWorkspace,
+  AnalyticsScreen,
+  analyticsAbilities,
+} from "@/features/analytics";
 import { createServerApi } from "@/lib/api/server";
 
 export const metadata: Metadata = { title: "Management analytics" };
@@ -23,7 +28,7 @@ export default async function AnalyticsPage() {
       ["ORGANIZATION", "MANAGEMENT"].includes(grant.scope),
   );
   return (
-    <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+    <main className="mx-auto w-full max-w-6xl min-w-0 px-5 py-8 sm:px-8">
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
@@ -35,14 +40,22 @@ export default async function AnalyticsPage() {
         inferred ROI.
       </p>
       <div className="mt-6">
-        <AnalyticsWorkspace
-          allowed={allowed}
-          scopeLabel={
-            departmentOnly && !departmentGrant
-              ? "Your current department only (no department means no rows)"
-              : "Per-measure server-authorized scope; department measures may be restricted to your current department"
-          }
-        />
+        {Object.values(allowed).some(Boolean) ? (
+          <Suspense
+            fallback={<p role="status">Loading analytics workspace…</p>}
+          >
+            <AnalyticsScreen />
+          </Suspense>
+        ) : (
+          <AnalyticsWorkspace
+            allowed={allowed}
+            scopeLabel={
+              departmentOnly && !departmentGrant
+                ? "Your current department only (no department means no rows)"
+                : "Per-measure server-authorized scope; department measures may be restricted to your current department"
+            }
+          />
+        )}
       </div>
     </main>
   );
