@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { renderToString } from "react-dom/server";
 import {
   focusManager,
   QueryClient,
@@ -101,14 +102,52 @@ const metricCalls = () =>
     path.startsWith("/api/v1/analytics/"),
   );
 describe("live analytics integration", () => {
+  it("server-renders useful public context while keeping controls and metrics permission-gated", () => {
+    const client = new QueryClient();
+    const html = renderToString(
+      <QueryClientProvider client={client}>
+        <AnalyticsScreen />
+      </QueryClientProvider>,
+    );
+    expect(html).toContain("Work delivery analytics");
+    expect(html).toContain("Each measure requires its own scoped grant.");
+    expect(html).toContain("Checking current analytics permissions");
+    expect(html).not.toContain("Eligible tasks");
+    expect(html).not.toContain("<select");
+    expect(metricCalls()).toHaveLength(0);
+  });
   it("fetches only the selected authorized measure with authoritative counts", async () => {
-    setup();
+    const client = setup();
+    const heading = screen.getByRole("heading", {
+      name: "Work delivery analytics",
+    });
+    const scope = screen.getByText(
+      /Each measure requires its own scoped grant/,
+    );
     expect(await screen.findByText("50%", { selector: "p" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Work delivery analytics" }),
+    ).toBe(heading);
+    expect(screen.getByText(/Each measure requires its own scoped grant/)).toBe(
+      scope,
+    );
     expect(metricCalls()).toHaveLength(1);
     expect(metricCalls()[0]?.[0]).toBe("/api/v1/analytics/task-completion");
     expect(
       screen.queryByRole("option", { name: "Employee performance" }),
     ).not.toBeInTheDocument();
+    await act(async () => {
+      await client.invalidateQueries({ queryKey: accessKey });
+    });
+    await waitFor(() =>
+      expect(screen.getByText("50%", { selector: "p" })).toBeVisible(),
+    );
+    expect(
+      screen.getByRole("heading", { name: "Work delivery analytics" }),
+    ).toBe(heading);
+    expect(screen.getByText(/Each measure requires its own scoped grant/)).toBe(
+      scope,
+    );
   });
   it("never requests metrics for ordinary employees, forbidden deep links or malformed ranges", async () => {
     access = { ...reader, grants: [] };

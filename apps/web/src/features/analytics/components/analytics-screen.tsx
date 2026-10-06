@@ -10,8 +10,18 @@ import {
 } from "../lib/analytics-presentation";
 import type { AnalyticsRequestError } from "../api/analytics-gateway";
 import { AnalyticsManager } from "./analytics-manager";
+import { AnalyticsHeading, ANALYTICS_SCOPE_LABEL } from "./analytics-heading";
 
 export function AnalyticsScreen() {
+  return (
+    <div className="space-y-5">
+      <AnalyticsHeading scopeLabel={ANALYTICS_SCOPE_LABEL} />
+      <AnalyticsController />
+    </div>
+  );
+}
+
+function AnalyticsController() {
   const access = useCurrentAccess(),
     client = useQueryClient();
   const [blocked, setBlocked] = useState<{
