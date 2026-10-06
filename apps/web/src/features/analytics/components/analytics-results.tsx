@@ -169,16 +169,17 @@ export function AnalyticsResults({
         ])}
       />
     );
-  } else if ("campaignId" in data) {
+  } else if (measure === "promotion") {
+    const promotion = data as Responses["promotion"];
     content = (
       <>
         <p className="text-sm break-all">
-          Promotion campaign: {data.campaignId}
+          Promotion campaign: {promotion.campaignId}
         </p>
         <ScrollTable
           caption="Promotion channel delivery"
           headers={["Channel", "Completed / eligible", "Delivery rate"]}
-          rows={data.items.map((row) => [
+          rows={promotion.items.map((row) => [
             row.channel.toLowerCase().replaceAll("_", " "),
             `${row.completed} / ${row.total}`,
             rateLabel(row.percent),

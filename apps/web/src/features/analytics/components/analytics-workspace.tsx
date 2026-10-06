@@ -16,6 +16,7 @@ import {
   type Panels,
 } from "../lib/analytics-presentation";
 import { AnalyticsResults } from "./analytics-results";
+import { AnalyticsHeading } from "./analytics-heading";
 
 export interface AnalyticsWorkspaceProps {
   allowed: Record<Measure, boolean>;
@@ -92,12 +93,7 @@ export function AnalyticsWorkspace({
   return (
     <div className="min-w-0 space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold">Work delivery analytics</h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Scope: {scopeLabel}. Each measure requires its own scoped grant.
-          </p>
-        </div>
+        <AnalyticsHeading scopeLabel={scopeLabel} />
         <div className="space-y-1">
           <Button variant="outline" disabled aria-describedby={`${id}-export`}>
             Export analytics

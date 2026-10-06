@@ -45,6 +45,29 @@ const base: AnalyticsWorkspaceProps = {
 };
 
 describe("AnalyticsWorkspace", () => {
+  it("renders filtered marketing results as entity progress, not promotion channels", () => {
+    // Runtime filter metadata must not act as a response-shape discriminator.
+    const filteredCampaign = {
+      ...progress,
+      campaignId: "campaign-1",
+      campaignType: "MARKETING",
+    };
+    render(
+      <AnalyticsWorkspace
+        {...base}
+        initialMeasure="campaigns"
+        panels={{
+          campaigns: {
+            state: "ready",
+            data: filteredCampaign,
+          },
+        }}
+      />,
+    );
+    expect(screen.getByRole("rowheader", { name: "event-1" })).toBeVisible();
+    expect(screen.getByText("2 / 4")).toBeVisible();
+    expect(screen.queryByText(/Promotion campaign:/)).not.toBeInTheDocument();
+  });
   it("presents counts, rate, UTC cohort and server freshness without inventing a snapshot", () => {
     render(<AnalyticsWorkspace {...base} />);
     expect(screen.getByText("50%", { selector: "p" })).toBeVisible();

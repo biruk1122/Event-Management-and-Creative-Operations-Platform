@@ -10,6 +10,7 @@ import {
 } from "../lib/analytics-presentation";
 import type { AnalyticsRequestError } from "../api/analytics-gateway";
 import { AnalyticsManager } from "./analytics-manager";
+import { AnalyticsHeading, ANALYTICS_SCOPE_LABEL } from "./analytics-heading";
 
 export function AnalyticsScreen() {
   const access = useCurrentAccess(),
@@ -51,7 +52,12 @@ export function AnalyticsScreen() {
     }
   }, [hidden, client, access.data?.userId, access.dataUpdatedAt]);
   if (access.isPending || access.isFetching)
-    return <p role="status">Checking current analytics permissions…</p>;
+    return (
+      <div className="space-y-5">
+        <AnalyticsHeading scopeLabel={ANALYTICS_SCOPE_LABEL} />
+        <p role="status">Checking current analytics permissions…</p>
+      </div>
+    );
   if (access.isError)
     return (
       <div role="alert" className="space-y-3">

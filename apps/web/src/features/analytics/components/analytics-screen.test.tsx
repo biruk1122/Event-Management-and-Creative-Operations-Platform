@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { renderToString } from "react-dom/server";
 import {
   focusManager,
   QueryClient,
@@ -101,6 +102,20 @@ const metricCalls = () =>
     path.startsWith("/api/v1/analytics/"),
   );
 describe("live analytics integration", () => {
+  it("server-renders useful public context while keeping controls and metrics permission-gated", () => {
+    const client = new QueryClient();
+    const html = renderToString(
+      <QueryClientProvider client={client}>
+        <AnalyticsScreen />
+      </QueryClientProvider>,
+    );
+    expect(html).toContain("Work delivery analytics");
+    expect(html).toContain("Each measure requires its own scoped grant.");
+    expect(html).toContain("Checking current analytics permissions");
+    expect(html).not.toContain("Eligible tasks");
+    expect(html).not.toContain("<select");
+    expect(metricCalls()).toHaveLength(0);
+  });
   it("fetches only the selected authorized measure with authoritative counts", async () => {
     setup();
     expect(await screen.findByText("50%", { selector: "p" })).toBeVisible();

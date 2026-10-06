@@ -23,6 +23,7 @@ import {
   type AnalyticsSelection,
 } from "../lib/analytics-url";
 import { AnalyticsWorkspace } from "./analytics-workspace";
+import { ANALYTICS_SCOPE_LABEL } from "./analytics-heading";
 
 export function analyticsIdentity(access: CurrentAccess, epoch: number) {
   return [
@@ -144,7 +145,7 @@ export function AnalyticsManager({
         savedDraft?.selection === draftKey ? savedDraft.filters : filters
       }
       onDraftChange={(values) => onDraftChange(draftKey, values)}
-      scopeLabel="Per-measure server-authorized scope; department grants may limit results to your current department"
+      scopeLabel={ANALYTICS_SCOPE_LABEL}
       refreshing={query.isFetching && !!query.data && !query.isError}
       {...(notice?.key === selectionKey ? { notice: notice.message } : {})}
       onMeasureChange={(next) =>
