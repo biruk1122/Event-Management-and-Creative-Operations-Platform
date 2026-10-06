@@ -4,7 +4,10 @@ import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useCurrentAccess } from "@/features/auth/api/access-queries";
-import { analyticsAbilities } from "../lib/analytics-presentation";
+import {
+  analyticsAbilities,
+  type AnalyticsFilters,
+} from "../lib/analytics-presentation";
 import type { AnalyticsRequestError } from "../api/analytics-gateway";
 import { AnalyticsManager } from "./analytics-manager";
 
@@ -14,6 +17,12 @@ export function AnalyticsScreen() {
   const [blocked, setBlocked] = useState<{
     epoch: number;
     error: AnalyticsRequestError;
+  } | null>(null);
+  // Only user-entered filters survive controller remounts; never metric data.
+  const [draft, setDraft] = useState<{
+    userId: string;
+    selection: string;
+    filters: AnalyticsFilters;
   } | null>(null);
   const failClosed = useCallback(
     (error: AnalyticsRequestError) =>
@@ -85,6 +94,10 @@ export function AnalyticsScreen() {
       access={access.data}
       epoch={access.dataUpdatedAt}
       onAuthorizationError={failClosed}
+      savedDraft={draft?.userId === access.data.userId ? draft : null}
+      onDraftChange={(selection, filters) =>
+        setDraft({ userId: access.data!.userId, selection, filters })
+      }
     />
   );
 }
