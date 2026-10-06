@@ -1,5 +1,8 @@
 # Management analytics UI (EVE-174)
 
+This records the UI-only delivery slice. [EVE-175's integration](analytics-integration.md)
+supersedes the disconnected route with authoritative API data and scoped navigation.
+
 ## Delivery boundary
 
 `/analytics` is a Server Component route that checks current scoped grants with

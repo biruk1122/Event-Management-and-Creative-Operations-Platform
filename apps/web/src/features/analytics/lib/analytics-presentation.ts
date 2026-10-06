@@ -22,7 +22,10 @@ export interface Responses {
 }
 export type Panel<T> =
   | { state: "ready"; data: T }
-  | { state: "loading" | "error" | "denied" | "unavailable" };
+  | {
+      state: "loading" | "error" | "denied" | "unavailable" | "input";
+      message?: string;
+    };
 export type Panels = { [K in Measure]?: Panel<Responses[K]> };
 export interface AnalyticsFilters {
   from: string;
