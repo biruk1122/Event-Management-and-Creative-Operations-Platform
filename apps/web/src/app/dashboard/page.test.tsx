@@ -11,6 +11,9 @@ vi.mock("next/navigation", () => ({
   },
 }));
 import DashboardPage from "./page";
+vi.mock("@/features/dashboards/components/dashboard-screen", () => ({
+  DashboardScreen: () => <p role="status">Live dashboard integration</p>,
+}));
 describe("dashboard server route", () => {
   beforeEach(() => api.GET.mockReset());
   it("redirects expired sessions", async () => {
@@ -26,27 +29,26 @@ describe("dashboard server route", () => {
   it.each([
     ["dashboard.read", "SELF", "My work"],
     ["dashboard.management.read", "MANAGEMENT", "Management overview"],
-  ])(
-    "renders a protected disconnected %s view",
-    async (permissionKey, scope, label) => {
-      api.GET.mockResolvedValue({
-        response: { status: 200 },
-        data: {
-          userId: "actor",
-          grants: [
-            { permissionKey, scope },
-            { permissionKey: "task.read", scope: "ORGANIZATION" },
-          ],
-        },
-      });
-      render(await DashboardPage());
-      expect(screen.getByLabelText("Dashboard view")).toHaveTextContent(label);
-      expect(api.GET).toHaveBeenCalledExactlyOnceWith(
-        "/api/v1/auth/me/permissions",
-        { cache: "no-store" },
-      );
-    },
-  );
+  ])("renders a protected live %s view", async (permissionKey, scope) => {
+    api.GET.mockResolvedValue({
+      response: { status: 200 },
+      data: {
+        userId: "actor",
+        grants: [
+          { permissionKey, scope },
+          { permissionKey: "task.read", scope: "ORGANIZATION" },
+        ],
+      },
+    });
+    render(await DashboardPage());
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Live dashboard integration",
+    );
+    expect(api.GET).toHaveBeenCalledExactlyOnceWith(
+      "/api/v1/auth/me/permissions",
+      { cache: "no-store" },
+    );
+  });
   it("denies missing entry capabilities", async () => {
     api.GET.mockResolvedValue({
       response: { status: 200 },
