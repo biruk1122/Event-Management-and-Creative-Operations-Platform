@@ -24,6 +24,13 @@ export default async function DashboardPage() {
         Back to home
       </Link>
       <h1 className="my-5 text-2xl font-semibold tracking-tight">Dashboard</h1>
+      <p className="text-muted-foreground mb-6 text-sm">
+        See current work, schedules, communication and delivery rates permitted
+        for your account. Management totals describe current organizational
+        state; personal work remains yours alone. Today uses UTC dates. Lists
+        are bounded previews; open the source workspace for full details.
+        Refresh to check the latest authoritative results.
+      </p>
       {canEnter(data, "management") || canEnter(data, "employee") ? (
         <Suspense fallback={<p role="status">Checking dashboard access…</p>}>
           <DashboardScreen />
