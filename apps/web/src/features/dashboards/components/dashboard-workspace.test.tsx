@@ -286,6 +286,29 @@ describe("dashboard presentation", () => {
       limit: 5,
     });
   });
+  it("retains refresh focus while busy and suppresses repeated activation", async () => {
+    const refresh = vi.fn();
+    const user = userEvent.setup();
+    const props = {
+      access: management,
+      audience: "management" as const,
+      onRefresh: refresh,
+    };
+    const view = render(<DashboardWorkspace {...props} />);
+    const button = screen.getByRole("button", { name: "Refresh dashboard" });
+    button.focus();
+    await user.keyboard("{Enter}");
+    expect(refresh).toHaveBeenCalledTimes(1);
+    view.rerender(<DashboardWorkspace {...props} refreshing />);
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Enter}");
+    expect(refresh).toHaveBeenCalledTimes(1);
+    view.rerender(<DashboardWorkspace {...props} />);
+    expect(button).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
   it("uses an accessible meter and textual alternative, not an unlabeled chart", () => {
     render(
       <DashboardWorkspace

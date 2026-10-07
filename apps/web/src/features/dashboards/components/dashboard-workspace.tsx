@@ -144,8 +144,12 @@ export function DashboardWorkspace({
           </div>
           <Button
             type="button"
-            onClick={onRefresh}
-            disabled={!onRefresh || refreshing}
+            onClick={() => {
+              if (!refreshing) onRefresh?.();
+            }}
+            disabled={!onRefresh}
+            aria-disabled={refreshing}
+            className="aria-disabled:opacity-50"
           >
             {refreshing ? "Refreshing…" : "Refresh dashboard"}
           </Button>
@@ -373,8 +377,11 @@ export function DashboardWorkspace({
                           {panel.retryable && onRetry ? (
                             <Button
                               variant="outline"
-                              disabled={refreshing}
-                              onClick={() => onRetry(item.key)}
+                              aria-disabled={refreshing}
+                              className="aria-disabled:opacity-50"
+                              onClick={() => {
+                                if (!refreshing) onRetry(item.key);
+                              }}
                             >
                               Retry {item.title.toLowerCase()}
                             </Button>
@@ -419,8 +426,11 @@ export function DashboardWorkspace({
                           onRetry ? (
                             <Button
                               variant="outline"
-                              disabled={refreshing}
-                              onClick={() => onRetry(item.key)}
+                              aria-disabled={refreshing}
+                              className="aria-disabled:opacity-50"
+                              onClick={() => {
+                                if (!refreshing) onRetry(item.key);
+                              }}
                             >
                               Retry {item.title.toLowerCase()}
                             </Button>
