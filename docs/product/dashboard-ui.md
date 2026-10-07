@@ -11,9 +11,10 @@ verified. The workspace renders all 23 management and seven employee card
 definitions only when entry and source grants permit them. Denied responses are
 omitted, including their titles and links. Roles are never inferred from names.
 
-This route deliberately displays **not connected**, not fixtures or zero totals.
-EVE-181 owns live endpoint integration, query keys, filters, cache invalidation,
-scope/account transitions, permission polling and navigation wiring. No API,
+The EVE-180 delivery initially displayed **not connected**, not fixtures or zero
+totals. [EVE-181 now connects live data](dashboard-integration.md), including query
+keys, filters, cache invalidation, scope/account transitions, permission polling
+and navigation wiring. No API,
 database, global navigation, company branding or theme-switcher changes are made.
 The UI uses existing light/dark theme tokens and shadcn controls.
 
@@ -39,7 +40,7 @@ authorized source workspaces; no invented entity-detail routes are used.
 Export remains disabled with an accessible explanation because no dashboard
 export contract exists. Refresh, applied-day/campaign filtering, audience changes
 and success notices are callback-driven; disconnected controls cannot imply a
-successful request. Cohort/month/limit query controls remain integration work.
+successful request. EVE-181 wires cohort/month/limit query controls.
 
 ## Integration obligations
 

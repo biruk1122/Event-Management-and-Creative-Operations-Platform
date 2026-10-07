@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { DashboardWorkspace, canEnter } from "@/features/dashboards";
+import { Suspense } from "react";
+import {
+  DashboardWorkspace,
+  DashboardScreen,
+  canEnter,
+} from "@/features/dashboards";
 import { createServerApi } from "@/lib/api/server";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -19,10 +24,13 @@ export default async function DashboardPage() {
         Back to home
       </Link>
       <h1 className="my-5 text-2xl font-semibold tracking-tight">Dashboard</h1>
-      <DashboardWorkspace
-        access={data}
-        audience={canEnter(data, "management") ? "management" : "employee"}
-      />
+      {canEnter(data, "management") || canEnter(data, "employee") ? (
+        <Suspense fallback={<p role="status">Checking dashboard access…</p>}>
+          <DashboardScreen />
+        </Suspense>
+      ) : (
+        <DashboardWorkspace access={data} audience="employee" />
+      )}
     </main>
   );
 }

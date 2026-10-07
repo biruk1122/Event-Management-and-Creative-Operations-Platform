@@ -15,12 +15,14 @@ import { MeetingsNavigation } from "@/features/meetings";
 import { TalentNavigation } from "@/features/talent";
 import { ReportsNavigation } from "@/features/reports";
 import { AnalyticsNavigation } from "@/features/analytics";
+import { DashboardNavigation } from "@/features/dashboards";
 
 import { RolesNavigation } from "@/features/rbac/components/roles-navigation";
 
 export default function Home() {
   return (
     <>
+      <DashboardNavigation />
       <RolesNavigation />
       <UsersNavigation />
       <DepartmentsNavigation />

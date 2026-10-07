@@ -27,6 +27,7 @@ vi.mock("@/features/meetings", () => ({ MeetingsNavigation: () => null }));
 vi.mock("@/features/talent", () => ({ TalentNavigation: () => null }));
 vi.mock("@/features/reports", () => ({ ReportsNavigation: () => null }));
 vi.mock("@/features/analytics", () => ({ AnalyticsNavigation: () => null }));
+vi.mock("@/features/dashboards", () => ({ DashboardNavigation: () => null }));
 
 describe("frontend foundation", () => {
   it("identifies the foundation state without exposing business features", () => {

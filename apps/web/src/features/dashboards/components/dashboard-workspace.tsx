@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,11 @@ import {
   type DashboardPanel,
 } from "../lib/dashboard-presentation";
 import { DashboardResults } from "./dashboard-results";
+import {
+  dashboardFilterError,
+  defaultDashboardFilters,
+  type DashboardFilters,
+} from "../lib/dashboard-selection";
 
 export interface DashboardWorkspaceProps {
   access: DashboardAccess | null;
@@ -20,13 +25,16 @@ export interface DashboardWorkspaceProps {
   accessStatus?: "ready" | "checking" | "error" | "signedOut";
   panels?: Record<string, DashboardPanel>;
   day?: string;
+  filters?: DashboardFilters;
+  initialDraft?: DashboardFilters;
+  onDraftChange?: (filters: DashboardFilters) => void;
   staleKeys?: string[];
   refreshing?: boolean;
   notice?: string;
   onRefresh?: () => void;
   onRetry?: (key: string) => void;
   onAudienceChange?: (audience: Audience) => void;
-  onApply?: (filters: { day: string; promotionCampaignId: string }) => void;
+  onApply?: (filters: DashboardFilters) => void;
   onCheckAccess?: () => void;
 }
 export function DashboardWorkspace({
@@ -35,6 +43,9 @@ export function DashboardWorkspace({
   accessStatus = "ready",
   panels = {},
   day = "",
+  filters,
+  initialDraft,
+  onDraftChange,
   staleKeys = [],
   refreshing = false,
   notice,
@@ -45,8 +56,23 @@ export function DashboardWorkspace({
   onCheckAccess,
 }: DashboardWorkspaceProps) {
   const id = useId();
-  const [draftDay, setDraftDay] = useState(day);
-  const [campaign, setCampaign] = useState("");
+  const draft = initialDraft ?? filters;
+  const [draftDay, setDraftDay] = useState(draft?.day ?? day);
+  const [campaign, setCampaign] = useState(draft?.promotionCampaignId ?? "");
+  const [from, setFrom] = useState(draft?.from ?? "");
+  const [toExclusive, setToExclusive] = useState(draft?.toExclusive ?? "");
+  const [months, setMonths] = useState(draft?.months ?? 3);
+  const [limit, setLimit] = useState(draft?.limit ?? 5);
+  useEffect(() => {
+    onDraftChange?.({
+      day: draftDay,
+      promotionCampaignId: campaign,
+      from,
+      toExclusive,
+      months,
+      limit,
+    });
+  }, [onDraftChange, draftDay, campaign, from, toExclusive, months, limit]);
   const [error, setError] = useState("");
   if (accessStatus !== "ready" || !access)
     return (
@@ -140,29 +166,21 @@ export function DashboardWorkspace({
           className="flex flex-wrap items-end gap-3"
           onSubmit={(event) => {
             event.preventDefault();
-            const parsedDay = new Date(`${draftDay}T00:00:00Z`);
-            if (
-              !/^\d{4}-\d{2}-\d{2}$/.test(draftDay) ||
-              !Number.isFinite(parsedDay.getTime()) ||
-              parsedDay.toISOString().slice(0, 10) !== draftDay
-            ) {
-              setError("Choose a valid UTC day.");
-              return;
-            }
-            if (
-              campaign &&
-              !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                campaign,
-              )
-            ) {
-              setError("Enter a valid promotion campaign UUID.");
+            const next = {
+              ...defaultDashboardFilters(),
+              day: draftDay,
+              limit,
+              ...(audience === "management"
+                ? { from, toExclusive, months, promotionCampaignId: campaign }
+                : {}),
+            };
+            const invalid = dashboardFilterError(audience, next);
+            if (invalid) {
+              setError(invalid);
               return;
             }
             setError("");
-            onApply?.({
-              day: draftDay,
-              promotionCampaignId: audience === "management" ? campaign : "",
-            });
+            onApply?.(next);
           }}
         >
           <div className="space-y-2">
@@ -190,12 +208,74 @@ export function DashboardWorkspace({
               />
             </div>
           ) : null}
+          <div className="space-y-2">
+            <Label htmlFor={`${id}-limit`}>Items per list (1–10)</Label>
+            <Input
+              id={`${id}-limit`}
+              type="number"
+              min={1}
+              max={10}
+              step={1}
+              value={limit}
+              onChange={(event) => setLimit(Number(event.target.value))}
+              disabled={!onApply || refreshing}
+              className="w-32"
+            />
+          </div>
+          {audience === "management" ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor={`${id}-from`}>Cohort start (UTC)</Label>
+                <Input
+                  id={`${id}-from`}
+                  type="date"
+                  value={from}
+                  onChange={(event) => setFrom(event.target.value)}
+                  disabled={!onApply || refreshing}
+                  className="w-auto"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${id}-end`}>Cohort end (excluded, UTC)</Label>
+                <Input
+                  id={`${id}-end`}
+                  type="date"
+                  value={toExclusive}
+                  onChange={(event) => setToExclusive(event.target.value)}
+                  disabled={!onApply || refreshing}
+                  className="w-auto"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${id}-months`}>Monthly buckets (1–12)</Label>
+                <Input
+                  id={`${id}-months`}
+                  type="number"
+                  min={1}
+                  max={12}
+                  step={1}
+                  value={months}
+                  onChange={(event) => setMonths(Number(event.target.value))}
+                  disabled={!onApply || refreshing}
+                  className="w-32"
+                />
+              </div>
+            </>
+          ) : null}
           <Button disabled={!onApply || refreshing}>Apply filters</Button>
         </form>
         {audience === "management" ? (
           <p id={`${id}-promotion`} className="text-muted-foreground text-sm">
             Choose a campaign to see promotion performance; no campaign is
             guessed.
+          </p>
+        ) : null}
+        {audience === "management" ? (
+          <p className="text-muted-foreground text-sm">
+            Cohort dates affect task/department analytics only; leave both blank
+            for the current UTC month. Maximum 366 days. Monthly buckets end in
+            the current, partial UTC month. Lists are bounded previews, not
+            paginated full workspaces.
           </p>
         ) : null}
         {error ? <p role="alert">{error}</p> : null}
@@ -293,6 +373,7 @@ export function DashboardWorkspace({
                           {panel.retryable && onRetry ? (
                             <Button
                               variant="outline"
+                              disabled={refreshing}
                               onClick={() => onRetry(item.key)}
                             >
                               Retry {item.title.toLowerCase()}
@@ -338,6 +419,7 @@ export function DashboardWorkspace({
                           onRetry ? (
                             <Button
                               variant="outline"
+                              disabled={refreshing}
                               onClick={() => onRetry(item.key)}
                             >
                               Retry {item.title.toLowerCase()}

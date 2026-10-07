@@ -280,6 +280,10 @@ describe("dashboard presentation", () => {
     expect(apply).toHaveBeenCalledWith({
       day: "2026-10-07",
       promotionCampaignId: "",
+      from: "",
+      toExclusive: "",
+      months: 3,
+      limit: 5,
     });
   });
   it("uses an accessible meter and textual alternative, not an unlabeled chart", () => {
