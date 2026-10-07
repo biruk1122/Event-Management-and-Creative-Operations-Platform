@@ -598,6 +598,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/dashboards/employee": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Caller-only actionable dashboard; never reads another user's personal work. */
+    get: operations["Dashboards_employee_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/dashboards/management": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Permission-safe management dashboard; card failures are isolated. */
+    get: operations["Dashboards_management_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/departments": {
     parameters: {
       query?: never;
@@ -3076,6 +3110,134 @@ export interface components {
       grants: components["schemas"]["EffectivePermissionResponse"][];
       /** Format: uuid */
       userId: string;
+    };
+    DashboardCard: {
+      /** Format: date-time */
+      asOf?: string;
+      code?: string;
+      data?:
+        | components["schemas"]["DashboardCount"]
+        | components["schemas"]["DashboardList"]
+        | components["schemas"]["DashboardChannels"]
+        | components["schemas"]["DashboardUnread"]
+        | components["schemas"]["TaskAnalyticsResponse"]
+        | components["schemas"]["WorkAnalyticsPageResponse"]
+        | components["schemas"]["ProgressAnalyticsPageResponse"]
+        | components["schemas"]["PromotionAnalyticsResponse"]
+        | components["schemas"]["MonthlyAnalyticsResponse"];
+      requestId?: string;
+      retryable?: boolean;
+      /** @enum {string} */
+      scope?: "organization" | "department" | "self";
+      sources?: {
+        [key: string]: components["schemas"]["DashboardSourceState"];
+      };
+      /** @enum {string} */
+      state:
+        | "ready"
+        | "empty"
+        | "denied"
+        | "selectionRequired"
+        | "unavailable"
+        | "partial";
+    };
+    DashboardChannels: {
+      count: number;
+      hasMore: boolean;
+      items: components["schemas"]["DashboardItem"][];
+    };
+    DashboardConversationCount: {
+      /** Format: uuid */
+      conversationId: string;
+      count: number;
+    };
+    DashboardCount: {
+      count: number;
+    };
+    DashboardItem: {
+      activityType?: string;
+      attentionReasons?: ("OVERDUE" | "BLOCKED" | "UNDER_REVIEW")[];
+      /** Format: date-time */
+      dueAt?: string | null;
+      /** Format: date */
+      dueDate?: string | null;
+      dueTime?: string | null;
+      /** Format: date-time */
+      endAt?: string | null;
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      kind:
+        | "EVENT"
+        | "PROJECT"
+        | "TASK"
+        | "MEETING"
+        | "TODO"
+        | "PERSONAL"
+        | "REMINDER"
+        | "CHANNEL"
+        | "CAMPAIGN_ACTIVITY"
+        | "TASK_ACTIVITY";
+      /** Format: date-time */
+      occurredAt?: string;
+      /** Format: date-time */
+      startAt?: string | null;
+      status?: string;
+      /** Format: uuid */
+      taskId?: string;
+      title: string;
+    };
+    DashboardList: {
+      hasMore: boolean;
+      items: components["schemas"]["DashboardItem"][];
+    };
+    DashboardResponse: {
+      /** Format: date-time */
+      asOf: string;
+      /** @description Requested audience card keys only. Each value is one tagged state; denied has no data. */
+      cards: {
+        [key: string]: components["schemas"]["DashboardCard"];
+      };
+      /** Format: date */
+      day: string;
+      /** @enum {string} */
+      freshness: "live-current-state";
+      partial: boolean;
+      /** @enum {string} */
+      timeZone: "UTC";
+    };
+    DashboardSourceState: {
+      /** Format: date-time */
+      asOf?: string;
+      code?: string;
+      data?:
+        | components["schemas"]["DashboardCount"]
+        | components["schemas"]["DashboardList"]
+        | components["schemas"]["DashboardChannels"]
+        | components["schemas"]["DashboardUnread"]
+        | components["schemas"]["TaskAnalyticsResponse"]
+        | components["schemas"]["WorkAnalyticsPageResponse"]
+        | components["schemas"]["ProgressAnalyticsPageResponse"]
+        | components["schemas"]["PromotionAnalyticsResponse"]
+        | components["schemas"]["MonthlyAnalyticsResponse"];
+      requestId?: string;
+      retryable?: boolean;
+      /** @enum {string} */
+      scope?: "organization" | "department" | "self";
+      /** @enum {string} */
+      state:
+        | "ready"
+        | "empty"
+        | "denied"
+        | "selectionRequired"
+        | "unavailable"
+        | "partial";
+    };
+    DashboardUnread: {
+      count: number;
+      hasMore: boolean;
+      items: components["schemas"]["DashboardConversationCount"][];
+      totalConversations: number;
     };
     DepartmentManagerSummary: {
       /**
@@ -7599,6 +7761,125 @@ export interface operations {
       };
       /** @description The caller is not a member of this conversation */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Dashboards_employee_v1: {
+    parameters: {
+      query?: {
+        /** @description Comma-separated unique audience card keys; omitted means all. */
+        cards?: string;
+        /** @description UTC day; defaults to current UTC date. */
+        day?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DashboardResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Dashboards_management_v1: {
+    parameters: {
+      query?: {
+        /** @description Comma-separated unique audience card keys; omitted means all. */
+        cards?: string;
+        /** @description UTC day; defaults to current UTC date. */
+        day?: string;
+        limit?: number;
+        from?: string;
+        /** @description Exclusive cohort bound, at most 366 days after from. */
+        toExclusive?: string;
+        months?: number;
+        promotionCampaignId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DashboardResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      503: {
         headers: {
           [name: string]: unknown;
         };

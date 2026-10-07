@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { Module } from "@nestjs/common";
 import { AnalyticsModule } from "./analytics/analytics.module.js";
+import { DashboardsModule } from "./dashboards/dashboards.module.js";
 import { LoggerModule } from "nestjs-pino";
 
 import { AuthModule } from "./auth/auth.module.js";
@@ -34,6 +35,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
 @Module({
   imports: [
     AnalyticsModule,
+    DashboardsModule,
     EnvironmentModule,
     LoggerModule.forRoot({
       pinoHttp: {

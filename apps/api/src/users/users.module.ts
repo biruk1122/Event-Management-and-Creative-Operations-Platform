@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { UsersDashboardQuery } from "./users-dashboard.query.js";
 import { UsersAnalyticsQuery } from "./users-analytics.query.js";
 
 import { AuthModule } from "../auth/auth.module.js";
@@ -10,7 +11,12 @@ import { UsersService } from "./users.service.js";
 @Module({
   imports: [AuthModule, PermissionsModule],
   controllers: [UsersController],
-  providers: [UsersService, UsersRepository, UsersAnalyticsQuery],
-  exports: [UsersAnalyticsQuery],
+  providers: [
+    UsersDashboardQuery,
+    UsersService,
+    UsersRepository,
+    UsersAnalyticsQuery,
+  ],
+  exports: [UsersDashboardQuery, UsersAnalyticsQuery],
 })
 export class UsersModule {}

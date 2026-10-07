@@ -1549,6 +1549,338 @@
         "required": ["userId", "grants"],
         "type": "object"
       },
+      "DashboardCard": {
+        "properties": {
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DashboardCount"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardList"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardChannels"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardUnread"
+              },
+              {
+                "$ref": "#/components/schemas/TaskAnalyticsResponse"
+              },
+              {
+                "$ref": "#/components/schemas/WorkAnalyticsPageResponse"
+              },
+              {
+                "$ref": "#/components/schemas/ProgressAnalyticsPageResponse"
+              },
+              {
+                "$ref": "#/components/schemas/PromotionAnalyticsResponse"
+              },
+              {
+                "$ref": "#/components/schemas/MonthlyAnalyticsResponse"
+              }
+            ]
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "scope": {
+            "enum": ["organization", "department", "self"],
+            "type": "string"
+          },
+          "sources": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DashboardSourceState"
+            },
+            "type": "object"
+          },
+          "state": {
+            "enum": [
+              "ready",
+              "empty",
+              "denied",
+              "selectionRequired",
+              "unavailable",
+              "partial"
+            ],
+            "type": "string"
+          }
+        },
+        "required": ["state"],
+        "type": "object"
+      },
+      "DashboardChannels": {
+        "properties": {
+          "count": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardItem"
+            },
+            "maxItems": 10,
+            "type": "array"
+          }
+        },
+        "required": ["items", "hasMore", "count"],
+        "type": "object"
+      },
+      "DashboardConversationCount": {
+        "properties": {
+          "conversationId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "count": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["conversationId", "count"],
+        "type": "object"
+      },
+      "DashboardCount": {
+        "properties": {
+          "count": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["count"],
+        "type": "object"
+      },
+      "DashboardItem": {
+        "properties": {
+          "activityType": {
+            "type": "string"
+          },
+          "attentionReasons": {
+            "items": {
+              "enum": ["OVERDUE", "BLOCKED", "UNDER_REVIEW"],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "dueDate": {
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "dueTime": {
+            "nullable": true,
+            "type": "string"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "EVENT",
+              "PROJECT",
+              "TASK",
+              "MEETING",
+              "TODO",
+              "PERSONAL",
+              "REMINDER",
+              "CHANNEL",
+              "CAMPAIGN_ACTIVITY",
+              "TASK_ACTIVITY"
+            ],
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "taskId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "kind"],
+        "type": "object"
+      },
+      "DashboardList": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardItem"
+            },
+            "maxItems": 10,
+            "type": "array"
+          }
+        },
+        "required": ["items", "hasMore"],
+        "type": "object"
+      },
+      "DashboardResponse": {
+        "properties": {
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "cards": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DashboardCard"
+            },
+            "description": "Requested audience card keys only. Each value is one tagged state; denied has no data.",
+            "type": "object"
+          },
+          "day": {
+            "format": "date",
+            "type": "string"
+          },
+          "freshness": {
+            "enum": ["live-current-state"],
+            "type": "string"
+          },
+          "partial": {
+            "type": "boolean"
+          },
+          "timeZone": {
+            "enum": ["UTC"],
+            "type": "string"
+          }
+        },
+        "required": [
+          "asOf",
+          "day",
+          "timeZone",
+          "freshness",
+          "partial",
+          "cards"
+        ],
+        "type": "object"
+      },
+      "DashboardSourceState": {
+        "properties": {
+          "asOf": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DashboardCount"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardList"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardChannels"
+              },
+              {
+                "$ref": "#/components/schemas/DashboardUnread"
+              },
+              {
+                "$ref": "#/components/schemas/TaskAnalyticsResponse"
+              },
+              {
+                "$ref": "#/components/schemas/WorkAnalyticsPageResponse"
+              },
+              {
+                "$ref": "#/components/schemas/ProgressAnalyticsPageResponse"
+              },
+              {
+                "$ref": "#/components/schemas/PromotionAnalyticsResponse"
+              },
+              {
+                "$ref": "#/components/schemas/MonthlyAnalyticsResponse"
+              }
+            ]
+          },
+          "requestId": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "scope": {
+            "enum": ["organization", "department", "self"],
+            "type": "string"
+          },
+          "state": {
+            "enum": [
+              "ready",
+              "empty",
+              "denied",
+              "selectionRequired",
+              "unavailable",
+              "partial"
+            ],
+            "type": "string"
+          }
+        },
+        "required": ["state"],
+        "type": "object"
+      },
+      "DashboardUnread": {
+        "properties": {
+          "count": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardConversationCount"
+            },
+            "maxItems": 10,
+            "type": "array"
+          },
+          "totalConversations": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["count", "items", "totalConversations", "hasMore"],
+        "type": "object"
+      },
       "DepartmentManagerSummary": {
         "properties": {
           "email": {
@@ -10031,6 +10363,239 @@
         ],
         "summary": "Mark the conversation read up to a given message",
         "tags": ["Discuss"]
+      }
+    },
+    "/api/v1/dashboards/employee": {
+      "get": {
+        "operationId": "Dashboards_employee_v1",
+        "parameters": [
+          {
+            "description": "Comma-separated unique audience card keys; omitted means all.",
+            "in": "query",
+            "name": "cards",
+            "required": false,
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          },
+          {
+            "description": "UTC day; defaults to current UTC date.",
+            "in": "query",
+            "name": "day",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 10,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Caller-only actionable dashboard; never reads another user's personal work.",
+        "tags": ["Dashboards"]
+      }
+    },
+    "/api/v1/dashboards/management": {
+      "get": {
+        "operationId": "Dashboards_management_v1",
+        "parameters": [
+          {
+            "description": "Comma-separated unique audience card keys; omitted means all.",
+            "in": "query",
+            "name": "cards",
+            "required": false,
+            "schema": {
+              "maxLength": 1024,
+              "type": "string"
+            }
+          },
+          {
+            "description": "UTC day; defaults to current UTC date.",
+            "in": "query",
+            "name": "day",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 10,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Exclusive cohort bound, at most 366 days after from.",
+            "in": "query",
+            "name": "toExclusive",
+            "required": false,
+            "schema": {
+              "format": "date",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "months",
+            "required": false,
+            "schema": {
+              "default": 3,
+              "maximum": 12,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "promotionCampaignId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Permission-safe management dashboard; card failures are isolated.",
+        "tags": ["Dashboards"]
       }
     },
     "/api/v1/departments": {

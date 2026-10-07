@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { DiscussDashboardQuery } from "./discuss-dashboard.query.js";
 
 import { AuthModule } from "../auth/auth.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
@@ -10,7 +11,7 @@ import { DiscussRepository } from "./infrastructure/discuss.repository.js";
 @Module({
   imports: [AuthModule, OutboxModule, PermissionsModule],
   controllers: [DiscussController],
-  providers: [DiscussRepository, DiscussService],
-  exports: [DiscussService],
+  providers: [DiscussDashboardQuery, DiscussRepository, DiscussService],
+  exports: [DiscussDashboardQuery, DiscussService],
 })
 export class DiscussModule {}
