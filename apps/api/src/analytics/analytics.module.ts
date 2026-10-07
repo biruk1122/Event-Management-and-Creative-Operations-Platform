@@ -13,6 +13,7 @@ import { AnalyticsService } from "./analytics.service.js";
 import { AnalyticsController } from "./analytics.controller.js";
 
 @Module({
+  exports: [AnalyticsService],
   imports: [
     AuthModule,
     PermissionsModule,

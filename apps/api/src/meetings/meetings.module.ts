@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { MeetingsDashboardQuery } from "./meetings-dashboard.query.js";
 
 import { AuthModule } from "../auth/auth.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
@@ -13,11 +14,12 @@ import { MeetingsService } from "./meetings.service.js";
   imports: [AuthModule, OutboxModule, PermissionsModule],
   controllers: [MeetingsController],
   providers: [
+    MeetingsDashboardQuery,
     MeetingsRepository,
     MeetingsService,
     MeetingsSchedulerRepository,
     MeetingsSchedulerService,
   ],
-  exports: [MeetingsService],
+  exports: [MeetingsDashboardQuery, MeetingsService],
 })
 export class MeetingsModule {}

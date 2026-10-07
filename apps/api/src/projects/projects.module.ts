@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { ProjectsDashboardQuery } from "./projects-dashboard.query.js";
 import { ProjectsAnalyticsQuery } from "./projects-analytics.query.js";
 
 import { AuthModule } from "../auth/auth.module.js";
@@ -13,11 +14,13 @@ import { ProjectsReportFactsQuery } from "./projects-report-facts.query.js";
   imports: [AuthModule, PermissionsModule, WorkspacesModule],
   controllers: [ProjectsController],
   exports: [
+    ProjectsDashboardQuery,
     ProjectsRepository,
     ProjectsReportFactsQuery,
     ProjectsAnalyticsQuery,
   ],
   providers: [
+    ProjectsDashboardQuery,
     ProjectsService,
     ProjectsRepository,
     ProjectsReportFactsQuery,
