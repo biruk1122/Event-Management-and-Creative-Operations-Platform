@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -79,6 +79,49 @@ describe("NotificationsNavigation", () => {
     currentAccess = { userId: "account-1", grants: [] };
     setup();
     await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(
+      screen.queryByRole("button", { name: "Open notifications" }),
+    ).not.toBeInTheDocument();
+  });
+  it("reports preview failure and retries instead of showing a false empty feed", async () => {
+    const original = get.getMockImplementation()!;
+    let failed = true;
+    get.mockImplementation((path: string) =>
+      path === "/api/v1/notifications" && failed
+        ? Promise.resolve({ response: { status: 500 }, data: undefined })
+        : original(path),
+    );
+    const user = setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Open notifications" }),
+    );
+    expect(
+      await screen.findByText("Notifications could not load."),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("You have no notifications yet."),
+    ).not.toBeInTheDocument();
+    failed = false;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByText("You were assigned a task")).toBeVisible();
+  });
+  it("rechecks permissions when notification access expires", async () => {
+    const original = get.getMockImplementation()!;
+    get.mockImplementation((path: string) => {
+      if (path === "/api/v1/notifications/unread-count") {
+        currentAccess = null;
+        return Promise.resolve({ response: { status: 401 }, data: undefined });
+      }
+      return original(path);
+    });
+    setup();
+    await waitFor(() =>
+      expect(
+        get.mock.calls.filter(
+          ([path]) => path === "/api/v1/auth/me/permissions",
+        ).length,
+      ).toBeGreaterThan(1),
+    );
     expect(
       screen.queryByRole("button", { name: "Open notifications" }),
     ).not.toBeInTheDocument();

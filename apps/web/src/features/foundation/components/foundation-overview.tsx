@@ -46,30 +46,6 @@ export function FoundationOverview() {
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(circle_at_top_left,color-mix(in_oklab,var(--primary)_14%,transparent),transparent_58%)]"
       />
 
-      <header className="border-border/80 bg-background/85 border-b backdrop-blur">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="bg-primary text-primary-foreground flex size-9 shrink-0 items-center justify-center rounded-xl shadow-sm">
-              <Layers3 aria-hidden="true" className="size-4.5" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">Nexo Operations</p>
-              <p className="text-muted-foreground truncate text-xs">
-                Foundation workspace
-              </p>
-            </div>
-          </div>
-
-          <div className="border-border bg-card flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium shadow-xs">
-            <span className="relative flex size-2" aria-hidden="true">
-              <span className="bg-primary/35 absolute inline-flex size-full animate-ping rounded-full" />
-              <span className="bg-primary relative inline-flex size-2 rounded-full" />
-            </span>
-            Phase 3
-          </div>
-        </div>
-      </header>
-
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-5 py-10 sm:px-8 sm:py-14 lg:py-18">
         <section className="max-w-3xl" aria-labelledby="foundation-heading">
           <div className="text-primary mb-5 flex items-center gap-2 text-sm font-semibold">

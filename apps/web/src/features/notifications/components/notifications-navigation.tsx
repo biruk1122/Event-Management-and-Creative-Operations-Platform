@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { Bell } from "lucide-react";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +14,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useCurrentAccess } from "@/features/auth/api/access-queries";
+import {
+  accessKey,
+  useCurrentAccess,
+} from "@/features/auth/api/access-queries";
+import { NotificationsRequestError } from "../api/notifications-gateway";
 
 import {
   useNotificationsFeed,
@@ -31,13 +37,27 @@ export function NotificationsNavigation() {
   return <NotificationsBell access={access.data} />;
 }
 
-function NotificationsBell({
+export function NotificationsBell({
   access,
+  inline = false,
 }: {
   access: NonNullable<ReturnType<typeof useCurrentAccess>["data"]>;
+  inline?: boolean;
 }) {
   const unread = useUnreadCount(access);
   const feed = useNotificationsFeed(access);
+  const client = useQueryClient();
+  useEffect(() => {
+    for (const error of [unread.error, feed.error]) {
+      if (
+        error instanceof NotificationsRequestError &&
+        (error.status === 401 || error.status === 403)
+      ) {
+        void client.invalidateQueries({ queryKey: accessKey });
+        return;
+      }
+    }
+  }, [client, unread.error, feed.error]);
   const recent = (feed.data?.pages[0]?.items ?? []).slice(
     0,
     RECENT_PREVIEW_COUNT,
@@ -45,7 +65,7 @@ function NotificationsBell({
   const unreadCount = unread.data ?? 0;
 
   return (
-    <nav aria-label="Utility navigation" className="flex justify-end px-5 py-3">
+    <div className={inline ? "flex" : "flex justify-end px-5 py-3"}>
       <Dialog>
         <DialogTrigger asChild>
           <Button variant="outline" size="icon" aria-label="Open notifications">
@@ -56,10 +76,29 @@ function NotificationsBell({
           <DialogHeader>
             <DialogTitle>Notifications</DialogTitle>
             <DialogDescription>
-              {unreadCount} unread notification{unreadCount === 1 ? "" : "s"}.
+              {unread.isPending || feed.isPending
+                ? "Loading notifications…"
+                : unread.isError || feed.isError
+                  ? "Notifications could not load."
+                  : `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}.`}
             </DialogDescription>
           </DialogHeader>
-          {recent.length === 0 ? (
+          {unread.isError || feed.isError ? (
+            <div role="alert" className="space-y-3">
+              <p>Try again to recover your notification preview.</p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  void unread.refetch();
+                  void feed.refetch();
+                }}
+              >
+                Try again
+              </Button>
+            </div>
+          ) : unread.isPending || feed.isPending ? (
+            <p role="status">Loading notifications…</p>
+          ) : recent.length === 0 ? (
             <p className="text-muted-foreground text-sm">
               You have no notifications yet.
             </p>
@@ -84,6 +123,6 @@ function NotificationsBell({
           </Link>
         </DialogContent>
       </Dialog>
-    </nav>
+    </div>
   );
 }
