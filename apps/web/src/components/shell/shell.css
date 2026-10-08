@@ -1,0 +1,214 @@
+.application-shell {
+  min-height: 100svh;
+}
+.shell-sidebar {
+  display: none;
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+}
+.shell-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.shell-header-logo {
+  flex-shrink: 0;
+}
+.shell-route-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+}
+.shell-navigation-link:hover,
+.shell-navigation-link:active {
+  background: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+.shell-navigation-active {
+  background: var(--sidebar-primary);
+  color: var(--sidebar-primary-foreground);
+}
+.shell-sidebar :focus-visible {
+  outline-color: var(--sidebar-primary);
+}
+.shell-mobile-navigation {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom));
+  gap: 0.25rem;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+}
+.shell-mobile-more {
+  min-height: 3.5rem;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 0;
+}
+.shell-workspace {
+  min-width: 0;
+  padding-bottom: 5rem;
+}
+.shell-skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  transform: translateY(-200%);
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--ring);
+  border-radius: 0.5rem;
+  background: var(--card);
+  color: var(--foreground);
+}
+.shell-skip-link:focus {
+  transform: none;
+}
+.shell-drawer {
+  max-height: 100svh;
+  height: 100svh;
+  max-width: 100%;
+  border-radius: 0;
+  padding-top: 2.5rem;
+}
+.shell-menu-trigger {
+  display: none;
+}
+@media (min-width: 640px) {
+  .application-shell {
+    display: grid;
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+  .shell-sidebar {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    min-height: 0;
+    padding: 0.75rem;
+  }
+  .shell-brand {
+    flex-shrink: 0;
+  }
+  .shell-logo {
+    display: none;
+    max-height: 5.5rem;
+    border-radius: 0.5rem;
+  }
+  .shell-brand-caption {
+    display: none;
+  }
+  .shell-rail-logo {
+    width: 100%;
+    max-height: 5.5rem;
+    border-radius: 0.5rem;
+  }
+  .shell-sidebar-navigation {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .shell-sidebar-navigation li > p,
+  .shell-sidebar-navigation a > span,
+  .shell-collapse-trigger {
+    display: none;
+  }
+  .shell-sidebar-navigation a {
+    justify-content: center;
+    padding: 0.75rem;
+  }
+  .shell-mobile-navigation,
+  .shell-header-logo {
+    display: none;
+  }
+  .shell-workspace {
+    padding-bottom: 0;
+  }
+  .shell-header {
+    padding: 1rem 2rem;
+  }
+  .shell-route-toolbar {
+    padding: 0.75rem 2rem;
+  }
+  .shell-menu-trigger {
+    display: flex;
+  }
+  .shell-drawer {
+    left: 5rem;
+    top: 0;
+    width: 22rem;
+    max-width: calc(100% - 5rem);
+    height: 100svh;
+    transform: none;
+    translate: none;
+  }
+}
+@media (min-width: 1024px) {
+  .shell-logo {
+    display: block;
+    width: 100%;
+  }
+  .shell-rail-logo {
+    display: none;
+  }
+  .application-shell {
+    grid-template-columns: 16rem minmax(0, 1fr);
+  }
+  .shell-brand {
+    padding: 0.5rem 0.75rem 0;
+  }
+  .shell-brand-caption {
+    display: block;
+    margin-top: 0.75rem;
+    text-align: center;
+    font-size: 0.75rem;
+  }
+  .shell-sidebar-navigation li > p,
+  .shell-sidebar-navigation a > span {
+    display: block;
+  }
+  .shell-sidebar-navigation a {
+    justify-content: flex-start;
+  }
+  .shell-collapse-trigger {
+    display: flex;
+    margin-top: 0.75rem;
+    color: var(--sidebar-foreground);
+  }
+  .shell-collapse-trigger:hover,
+  .shell-collapse-trigger[aria-expanded="true"] {
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-foreground);
+  }
+  .shell-menu-trigger {
+    display: none;
+  }
+  .shell-collapsed {
+    grid-template-columns: 5rem minmax(0, 1fr);
+  }
+  .shell-collapsed .shell-brand {
+    padding: 0;
+  }
+  .shell-collapsed .shell-rail-label,
+  .shell-collapsed .shell-brand-caption,
+  .shell-collapsed .shell-sidebar-navigation li > p,
+  .shell-collapsed .shell-sidebar-navigation a > span {
+    display: none;
+  }
+  .shell-collapsed .shell-sidebar-navigation a {
+    justify-content: center;
+  }
+}

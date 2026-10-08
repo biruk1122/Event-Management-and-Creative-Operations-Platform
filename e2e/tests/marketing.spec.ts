@@ -109,12 +109,16 @@ test.describe("Marketing campaigns and strategy — real-service workflow", () =
 
       await page.goto("/");
       const navigation = page.getByRole("link", {
-        name: "Marketing campaigns",
+        name: "Campaigns",
         exact: true,
       });
       await expect(navigation).toBeVisible();
       await navigation.click();
-      await expect(page).toHaveURL("/campaigns?type=MARKETING");
+      await expect(page).toHaveURL("/campaigns");
+      await page.getByRole("combobox", { name: "Filter by type" }).click();
+      await page
+        .getByRole("option", { name: "Marketing", exact: true })
+        .click();
       await expect(
         page.getByRole("combobox", { name: "Filter by type" }),
       ).toContainText("Marketing");
@@ -336,7 +340,7 @@ test.describe("Marketing campaigns and strategy — real-service workflow", () =
         const restrictedPage = await restricted.newPage();
         await restrictedPage.goto("/");
         await expect(
-          restrictedPage.getByRole("link", { name: "Marketing campaigns" }),
+          restrictedPage.getByRole("link", { name: "Campaigns", exact: true }),
         ).toHaveCount(0);
         await restrictedPage.goto("/campaigns?type=MARKETING");
         await expect(

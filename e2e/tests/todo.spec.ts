@@ -341,7 +341,9 @@ test.describe("Personal To-Do and reminders — end to end", () => {
           ),
         ).toBeVisible();
         await expect(
-          disposablePage.getByRole("link", { name: "Sign in" }),
+          disposablePage
+            .getByRole("main")
+            .getByRole("link", { name: "Sign in" }),
         ).toBeVisible();
 
         // Recovery: a fresh sign-in restores real access, and the item

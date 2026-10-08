@@ -413,7 +413,9 @@ test.describe("In-app notifications — end to end", () => {
           ),
         ).toBeVisible();
         await expect(
-          disposablePage.getByRole("link", { name: "Sign in" }),
+          disposablePage
+            .getByRole("main")
+            .getByRole("link", { name: "Sign in" }),
         ).toBeVisible();
 
         // Recovery: a fresh sign-in restores real access, not a stuck

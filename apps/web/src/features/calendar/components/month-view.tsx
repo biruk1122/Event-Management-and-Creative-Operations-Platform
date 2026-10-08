@@ -84,6 +84,7 @@ export function MonthView({
                 <div className="flex flex-col gap-0.5">
                   {visible.map((entry) => (
                     <EntryChip
+                      compact
                       key={entry.id}
                       entry={entry}
                       onSelect={onSelectEntry}

@@ -165,20 +165,26 @@ Accessibility (WCAG 2.2 AA):
 | **Deployed but temporarily disabled** | Either a disabled navigation item with an explanatory tooltip, or a "temporarily unavailable" page; the choice is NAV-04.                                                                                                  |
 | **Permitted but empty**               | An empty state with a primary action and guidance. An empty state is never presented as a denial.                                                                                                                          |
 
-## Open navigation decisions
+## Navigation decision status
 
-| ID     | Decision required                                                                                                        |
-| ------ | ------------------------------------------------------------------------------------------------------------------------ |
-| NAV-01 | Whether a global search is a top-bar affordance from launch, its scope, and its result routing.                          |
-| NAV-02 | Final dynamic segment naming: opaque id versus human-readable slug for events, projects, campaigns, talent, and reports. |
-| NAV-03 | Whether Meetings is a top-level destination, a child of Discuss, or both, and how it appears in the mobile bottom bar.   |
-| NAV-04 | The treatment for a deployed-but-disabled destination: disabled nav item with tooltip, or a dedicated unavailable page.  |
-| NAV-05 | Whether a management-level `/files` index exists in addition to per-workspace Files tabs.                                |
-| NAV-06 | Whether Management/Administrator sees `/users` and `/settings/roles`, tracked with permission-catalogue `PC-02`.         |
-| NAV-07 | The exact four or five mobile bottom-bar destinations per audience.                                                      |
-| NAV-08 | The allow-list of `next` targets accepted after sign in.                                                                 |
-| NAV-09 | Whether Campaigns appears as its own top-level destination or only inside the Projects group as Marketing and Promotion. |
-| NAV-10 | Breadcrumb behavior for cross-linked records (a task opened from an event workspace versus from `/tasks`).               |
+EVE-216's user-approved placement and mobile priorities supersede the earlier
+draft choices for NAV-03, NAV-07 and NAV-09 only. See
+[Lela application shell](lela-application-shell.md) for approval provenance,
+shipped-route spellings and implementation boundaries. Other entries below
+remain open; this does not authorize new routes or permission changes.
+
+| ID     | Decision required                                                                                                          |
+| ------ | -------------------------------------------------------------------------------------------------------------------------- |
+| NAV-01 | Whether a global search is a top-bar affordance from launch, its scope, and its result routing.                            |
+| NAV-02 | Final dynamic segment naming: opaque id versus human-readable slug for events, projects, campaigns, talent, and reports.   |
+| NAV-03 | Resolved by user approval (2026-10-08): Meetings is a separate destination; available through mobile More.                 |
+| NAV-04 | The treatment for a deployed-but-disabled destination: disabled nav item with tooltip, or a dedicated unavailable page.    |
+| NAV-05 | Whether a management-level `/files` index exists in addition to per-workspace Files tabs.                                  |
+| NAV-06 | Whether Management/Administrator sees `/users` and `/settings/roles`, tracked with permission-catalogue `PC-02`.           |
+| NAV-07 | Resolved by user approval (2026-10-08): Dashboard, Tasks, Calendar, Discuss and More; permission-filtered, not role-coded. |
+| NAV-08 | The allow-list of `next` targets accepted after sign in.                                                                   |
+| NAV-09 | Resolved by user approval (2026-10-08): Campaigns is a separate destination using its shipped screen.                      |
+| NAV-10 | Breadcrumb behavior for cross-linked records (a task opened from an event workspace versus from `/tasks`).                 |
 
 ## SRS traceability
 
