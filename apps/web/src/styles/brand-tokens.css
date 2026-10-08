@@ -1,0 +1,75 @@
+/* EVE-215: user-approved design anchors, not source-sampled swatch values.
+ * Peach #EAB79F / burgundy #421C2B. See docs/product/lela-visual-foundation.md.
+ */
+:root {
+  --background: #fff8f3;
+  --foreground: #321923;
+  --card: #ffffff;
+  --card-foreground: #321923;
+  --popover: #ffffff;
+  --popover-foreground: #321923;
+  --primary: #421c2b;
+  --primary-foreground: #fff8f3;
+  --secondary: #eab79f;
+  --secondary-foreground: #421c2b;
+  --muted: #f4e7df;
+  --muted-foreground: #70574f;
+  --accent: #f9dfd1;
+  --accent-foreground: #421c2b;
+  --border: #a18074;
+  --input: #a18074;
+  --ring: #8d3758;
+  --destructive: #ab243b;
+  --chart-1: #421c2b;
+  --chart-2: #8d3758;
+  --chart-3: #bf7761;
+  --chart-4: #735482;
+  --chart-5: #426f64;
+  --sidebar: #421c2b;
+  --sidebar-foreground: #fff8f3;
+  --sidebar-primary: #eab79f;
+  --sidebar-primary-foreground: #421c2b;
+  --sidebar-accent: #643448;
+  --sidebar-accent-foreground: #fff8f3;
+  --sidebar-border: #ae7b88;
+  --sidebar-ring: #eab79f;
+  --success: #246448;
+  --success-background: #e5f3e9;
+  --warning: #775018;
+  --warning-background: #fff0ca;
+  --information: #315a83;
+  --information-background: #e7eff9;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: #21151b;
+  --foreground: #fff2e8;
+  --card: #302029;
+  --card-foreground: #fff2e8;
+  --popover: #302029;
+  --popover-foreground: #fff2e8;
+  --primary: #eab79f;
+  --primary-foreground: #321923;
+  --secondary: #51313d;
+  --secondary-foreground: #ffe2d1;
+  --muted: #3a2931;
+  --muted-foreground: #d2b9bd;
+  --accent: #63384b;
+  --accent-foreground: #fff2e8;
+  --border: #987580;
+  --input: #987580;
+  --ring: #f5b8c7;
+  --destructive: #ff9aab;
+  --chart-1: #eab79f;
+  --chart-2: #f5b8c7;
+  --chart-3: #d5997a;
+  --chart-4: #baa1d0;
+  --chart-5: #8cbea9;
+  --success: #a0ddba;
+  --success-background: #19392c;
+  --warning: #f4d196;
+  --warning-background: #45331c;
+  --information: #b2d3f2;
+  --information-background: #21344e;
+}
