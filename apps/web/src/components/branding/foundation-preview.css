@@ -1,0 +1,65 @@
+.lela-preview {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.lela-preview .preview-hero {
+  background:
+    radial-gradient(ellipse at bottom left, var(--secondary), transparent 68%),
+    var(--muted);
+}
+
+.lela-preview .preview-chart {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.lela-preview .preview-chart text {
+  fill: var(--foreground);
+  font: 14px sans-serif;
+}
+
+.lela-preview .preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.lela-preview .preview-table th,
+.lela-preview .preview-table td {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.lela-preview .preview-table caption {
+  margin-bottom: 1rem;
+  text-align: left;
+  font-weight: 600;
+}
+
+.lela-preview * {
+  scroll-margin-block: 1rem;
+}
+
+.lela-preview :focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+/* SVG text otherwise shrinks below readable body sizes on a narrow viewport. */
+@media (max-width: 639px) {
+  .lela-preview .preview-chart text {
+    font-size: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lela-preview *,
+  .lela-preview *::before,
+  .lela-preview *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
