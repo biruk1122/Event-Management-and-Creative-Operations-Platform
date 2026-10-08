@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { authStatePath } from "../fixtures/auth.js";
+import { signInThroughUi } from "../fixtures/auth.js";
 import { queryInSchema } from "../fixtures/database.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
 import { testUser } from "../fixtures/test-users.js";
 
-test.use({ storageState: authStatePath("member") });
+// A logout test must never revoke the setup session used by other specs/retries.
+test.use({ storageState: { cookies: [], origins: [] } });
 
 const member = testUser("member");
 
@@ -23,6 +24,7 @@ test.describe("authenticated session lifecycle", () => {
   test("the session persists across a reload and is revoked on sign-out", async ({
     page,
   }) => {
+    await signInThroughUi(page, member);
     // Authoritative account data is readable with the restored session.
     const before = await page.request.get(`${apiBaseUrl}/api/v1/auth/me`);
     expect(before.status()).toBe(200);
@@ -37,7 +39,8 @@ test.describe("authenticated session lifecycle", () => {
       `SELECT s.id
          FROM auth_sessions s
          JOIN users u ON u.id = s.user_id
-        WHERE u.email = $1 AND s.revoked_at IS NULL`,
+        WHERE u.email = $1 AND s.revoked_at IS NULL
+        ORDER BY s.issued_at DESC`,
       [member.email.toLowerCase()],
     );
     expect(live.length).toBeGreaterThanOrEqual(1);
@@ -69,10 +72,8 @@ test.describe("authenticated session lifecycle", () => {
       `SELECT s.revoked_reason
          FROM auth_sessions s
          JOIN users u ON u.id = s.user_id
-        WHERE u.email = $1
-        ORDER BY s.issued_at DESC
-        LIMIT 1`,
-      [member.email.toLowerCase()],
+        WHERE s.id = $1`,
+      [live[0]!.id],
     );
     expect(revoked[0]?.revoked_reason).toBe("LOGOUT");
   });

@@ -59,6 +59,7 @@ export function WeekView({
               ) : (
                 dayEntries.map((entry) => (
                   <EntryChip
+                    compact
                     key={entry.id}
                     entry={entry}
                     onSelect={onSelectEntry}

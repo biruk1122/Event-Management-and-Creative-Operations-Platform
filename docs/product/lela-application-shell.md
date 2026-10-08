@@ -90,3 +90,20 @@ reports.spec.ts`. This includes all five role sign-ins, authorized navigation,
   170.0 KiB / 1,500 KiB total image budget. Browser journeys also built webpack.
 - Independent implementation review findings were fixed and re-reviewed without
   blockers. PR, merge and Linear closure are separate authorized delivery steps.
+
+### PR #131 CI regression correction
+
+- Updated legacy campaign navigation expectations to the approved Campaigns
+  destination and explicit Marketing filter. Recovery links and meeting notices
+  are located within page content, separately from shell account/live regions.
+- The session lifecycle test now signs in with its own session and verifies that
+  exact session's revocation, preserving shared setup sessions across retries.
+- Month/week calendar chips place the title above wrapping metadata so the
+  narrower shell content cannot shrink the title to zero. Day/agenda titles
+  wrap long unbroken text; independent Chromium verification retained a 360px
+  scroll width with a 500-character title at a 360px viewport.
+- Isolated run `run_25fead9d7844eb2f`: 35 tests passed across shell, session,
+  calendar, marketing, meetings, notifications and to-do workflows. Its schema
+  was removed by teardown. Production webpack build, frontend/E2E type checks,
+  focused calendar lint, formatting and two month-view unit tests passed.
+- Independent re-review reported no findings. No CI gates were weakened.

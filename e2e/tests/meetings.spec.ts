@@ -98,9 +98,9 @@ test.describe("Meeting participant responses — end to end", () => {
         participantPage.getByRole("heading", { name: title, exact: true }),
       ).toBeVisible();
       await participantPage.getByRole("button", { name: "Accept" }).click();
-      await expect(participantPage.getByRole("status")).toHaveText(
-        /marked accepted/i,
-      );
+      await expect(
+        participantPage.getByRole("main").getByRole("status"),
+      ).toHaveText(/marked accepted/i);
       await participantPage.reload();
       await expect(
         participantPage.getByText("Accepted", { exact: true }),
