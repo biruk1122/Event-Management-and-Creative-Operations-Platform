@@ -9,6 +9,15 @@ emblem and wordmark match the user's supplied reference.
 - Black artwork on a white canvas; do not assume transparency or stretch it.
 - Keep original proportions. Use a light backing on dark surfaces.
 - Do not substitute the script logo shown in the separate login layout reference.
+
+`lela-login-logo.webp` is the EVE-217 right-sized encoding of that source at
+416x632 dimensions, retaining original artwork and proportions. Login preloads it at high priority
+to avoid delaying its largest paint behind application scripts on slow networks.
+Run `node scripts/optimize-lela-login-logo.mjs` to reproduce it and compare decoded
+RGBA pixels with the deterministic half-size PNG rendering. Full/compact SVG
+viewports are unchanged; SVG image coordinates remain 832x1264 so both sources
+use the same crop geometry. The source PNG remains untouched.
+
 - Full/compact derivatives, if created, must record reproducible crop bounds and
   undergo visual comparison; do not redraw or generate an approximate logo.
 
