@@ -5,10 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LoginResult } from "../api/auth-gateway";
 import { Login } from "./login";
 
-const { replace, refresh, mutateAsync } = vi.hoisted(() => ({
+const { replace, refresh, mutateAsync, destination } = vi.hoisted(() => ({
   replace: vi.fn(),
   refresh: vi.fn(),
   mutateAsync: vi.fn(),
+  destination: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -18,6 +19,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("../api/auth-queries", () => ({
   useLoginMutation: () => ({ mutateAsync }),
 }));
+vi.mock("../api/login-destination", () => ({ loginDestination: destination }));
 
 async function fillAndSubmit() {
   const user = userEvent.setup();
@@ -30,26 +32,31 @@ const resolve = (result: LoginResult) => mutateAsync.mockResolvedValue(result);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  destination.mockResolvedValue("/dashboard");
 });
 
 describe("Login", () => {
   it("redirects to the validated destination on success", async () => {
     resolve({ outcome: { status: "success" }, user: null });
-    render(<Login redirectTo="/events/42" />);
+    destination.mockResolvedValue("/calendar?view=week");
+    render(<Login redirectTo="/calendar?view=week" />);
 
     await fillAndSubmit();
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/events/42"));
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith("/calendar?view=week"),
+    );
+    expect(destination).toHaveBeenCalledWith("/calendar?view=week");
     expect(refresh).toHaveBeenCalled();
   });
 
-  it("redirects home when there is no next target", async () => {
+  it("redirects to dashboard when there is no next target", async () => {
     resolve({ outcome: { status: "success" }, user: null });
     render(<Login />);
 
     await fillAndSubmit();
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
   });
 
   it("shows the error and stays on the page when sign-in is rejected", async () => {

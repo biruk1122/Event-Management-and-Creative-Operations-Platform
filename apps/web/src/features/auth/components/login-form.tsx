@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -60,7 +66,18 @@ interface LoginFormProps {
   redirectTo?: string;
 }
 
+const subscribeToHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
+
 export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
+  // SSR stays meaningful, but edits must wait for React Hook Form to own the
+  // inputs. Otherwise slow hydration can discard credentials typed early.
+  const ready = useSyncExternalStore(
+    subscribeToHydration,
+    clientReady,
+    serverReady,
+  );
   const emailErrorId = useId();
   const passwordErrorId = useId();
   const feedbackRef = useRef<HTMLDivElement>(null);
@@ -136,7 +153,7 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
       noValidate
       aria-label="Sign in"
       className="space-y-6"
-      aria-busy={isSubmitting}
+      aria-busy={!ready || isSubmitting}
       onSubmit={(event) => void handleSubmit(run)(event)}
     >
       {formError ? (
@@ -166,7 +183,7 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
             autoFocus
             placeholder="you@company.com"
             className="h-12 pl-11 text-base"
-            readOnly={isSubmitting}
+            readOnly={!ready || isSubmitting}
             aria-invalid={errors.email ? true : undefined}
             aria-describedby={errors.email ? emailErrorId : undefined}
             {...register("email")}
@@ -192,13 +209,14 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
             autoComplete="current-password"
             className="h-12 pr-12 pl-11 text-base"
             placeholder="Enter your password"
-            readOnly={isSubmitting}
+            readOnly={!ready || isSubmitting}
             aria-invalid={errors.password ? true : undefined}
             aria-describedby={errors.password ? passwordErrorId : undefined}
             {...register("password")}
           />
           <button
             type="button"
+            disabled={!ready}
             aria-label={passwordVisible ? "Hide password" : "Show password"}
             aria-pressed={passwordVisible}
             onClick={() => setPasswordVisible((visible) => !visible)}
@@ -222,7 +240,7 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
         type="submit"
         size="lg"
         className="h-12 w-full"
-        disabled={isSubmitting}
+        disabled={!ready || isSubmitting}
         aria-busy={isSubmitting}
       >
         {isSubmitting ? (
@@ -239,6 +257,11 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
           </>
         )}
       </Button>
+      <noscript>
+        <p className="text-muted-foreground text-sm">
+          JavaScript is required to sign in.
+        </p>
+      </noscript>
     </form>
   );
 }

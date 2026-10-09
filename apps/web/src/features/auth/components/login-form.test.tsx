@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import type { LoginOutcome, SubmitLogin } from "../lib/login-outcome";
@@ -20,6 +21,17 @@ const resolvesTo = (outcome: LoginOutcome): SubmitLogin =>
   vi.fn(() => Promise.resolve(outcome));
 
 describe("LoginForm", () => {
+  it("renders meaningful but non-interactive fields before hydration", () => {
+    const html = renderToString(
+      <LoginForm onSubmit={resolvesTo({ status: "success" })} />,
+    );
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    expect(parsed.querySelectorAll("input[readonly]")).toHaveLength(2);
+    expect(
+      parsed.querySelector('button[type="submit"]')?.hasAttribute("disabled"),
+    ).toBe(true);
+    expect(html).toContain("JavaScript is required to sign in.");
+  });
   it("blocks submission and shows field messages when the form is empty", async () => {
     const onSubmit = resolvesTo({ status: "success" });
     const { user, submit } = setup(onSubmit);

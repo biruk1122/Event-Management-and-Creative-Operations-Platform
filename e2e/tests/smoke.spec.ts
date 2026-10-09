@@ -4,7 +4,7 @@ import { countAppliedMigrations } from "../fixtures/database.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
 
 test.describe("foundation smoke journey", () => {
-  test("the web application renders the foundation surface", async ({
+  test("the web application routes signed-out entry to Lela login", async ({
     page,
   }) => {
     await page.goto("/");
@@ -12,12 +12,11 @@ test.describe("foundation smoke journey", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "A dependable surface for the work that comes next.",
+        name: "Welcome back",
       }),
     ).toBeVisible();
-    await expect(
-      page.getByText("No business features are implemented in this phase."),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/\/login\?next=(?:\/|%2F)$/);
+    await expect(page.getByRole("form", { name: "Sign in" })).toBeVisible();
   });
 
   test("the web server reaches the API through its health bridge", async ({
