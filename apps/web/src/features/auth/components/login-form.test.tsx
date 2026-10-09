@@ -73,12 +73,14 @@ describe("LoginForm", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Your email or password is incorrect");
     expect(alert).toHaveAttribute("aria-live", "assertive");
+    expect(alert).toHaveFocus();
     expect(email).toHaveValue("manager@example.com");
     expect(password).toHaveValue("wrong-password");
   });
 
   it.each([
     ["account_locked", "This account is temporarily locked"],
+    ["account_inactive", "This account is not active"],
     ["rate_limited", "Too many attempts"],
     ["unexpected", "Something went wrong"],
   ] as const)("surfaces the %s state", async (status, heading) => {
@@ -106,6 +108,7 @@ describe("LoginForm", () => {
     expect(
       await screen.findByText("We do not recognise this address."),
     ).toBeVisible();
+    expect(email).toHaveFocus();
   });
 
   it("disables the button and announces progress while the request is in flight", async () => {
@@ -126,9 +129,33 @@ describe("LoginForm", () => {
 
     const pending = await screen.findByRole("button", { name: /signing in/i });
     expect(pending).toBeDisabled();
+    expect(email).toHaveAttribute("readonly");
+    expect(password).toHaveAttribute("readonly");
 
     release?.();
     expect(await screen.findByText("You are signed in")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveFocus();
+  });
+
+  it("recovers from a rejected network request without losing input", async () => {
+    const onSubmit = vi
+      .fn<SubmitLogin>()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce({ status: "success" });
+    const { user, email, password, submit } = setup(onSubmit);
+    await user.type(email, "manager@example.com");
+    await user.type(password, "secret123");
+    await user.click(submit);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Something went wrong",
+    );
+    expect(email).toHaveValue("manager@example.com");
+    expect(password).toHaveValue("secret123");
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "You are signed in",
+    );
   });
 
   it("toggles password visibility from the field control", async () => {

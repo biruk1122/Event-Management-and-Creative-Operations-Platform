@@ -4,10 +4,13 @@ import { cn } from "@/lib/utils";
 export function BrandLogo({
   compact = false,
   decorative = false,
+  optimized = false,
   className,
 }: {
   compact?: boolean;
   decorative?: boolean;
+  /** Right-sized, source-derived encoding for the critical login paint. */
+  optimized?: boolean;
   className?: string;
 }) {
   return (
@@ -24,7 +27,11 @@ export function BrandLogo({
       )}
     >
       <image
-        href="/branding/lela-creative-management-logo.png"
+        href={
+          optimized
+            ? "/branding/lela-login-logo.webp"
+            : "/branding/lela-creative-management-logo.png"
+        }
         width="832"
         height="1264"
       />

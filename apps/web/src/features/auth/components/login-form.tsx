@@ -1,9 +1,17 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleAlert, Eye, EyeOff, LoaderCircle } from "lucide-react";
+import {
+  ArrowRight,
+  CircleAlert,
+  Eye,
+  EyeOff,
+  LoaderCircle,
+  LockKeyhole,
+  Mail,
+} from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -55,12 +63,16 @@ interface LoginFormProps {
 export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
   const emailErrorId = useId();
   const passwordErrorId = useId();
+  const feedbackRef = useRef<HTMLDivElement>(null);
 
   const [formErrorKey, setFormErrorKey] = useState<
     keyof typeof FORM_ERRORS | null
   >(null);
   const [succeeded, setSucceeded] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
+  useEffect(() => {
+    if (formErrorKey || succeeded) feedbackRef.current?.focus();
+  }, [formErrorKey, succeeded]);
 
   const {
     register,
@@ -74,16 +86,28 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
 
   async function run(values: LoginValues) {
     setFormErrorKey(null);
-    const outcome = await onSubmit(values);
+    let outcome;
+    try {
+      outcome = await onSubmit(values);
+    } catch {
+      setFormErrorKey("unexpected");
+      return;
+    }
 
     switch (outcome.status) {
       case "success":
         setSucceeded(true);
         return;
       case "field_errors":
+        let firstError = true;
         for (const [field, message] of Object.entries(outcome.fieldErrors)) {
           if (message) {
-            setError(field as keyof LoginValues, { message });
+            setError(
+              field as keyof LoginValues,
+              { message },
+              { shouldFocus: firstError },
+            );
+            firstError = false;
           }
         }
         return;
@@ -94,7 +118,7 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
 
   if (succeeded) {
     return (
-      <Alert role="status" aria-live="polite">
+      <Alert ref={feedbackRef} tabIndex={-1} role="status" aria-live="polite">
         <AlertTitle>You are signed in</AlertTitle>
         <AlertDescription>
           {redirectTo
@@ -111,11 +135,17 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
     <form
       noValidate
       aria-label="Sign in"
-      className="space-y-5"
+      className="space-y-6"
+      aria-busy={isSubmitting}
       onSubmit={(event) => void handleSubmit(run)(event)}
     >
       {formError ? (
-        <Alert variant="destructive" aria-live="assertive">
+        <Alert
+          ref={feedbackRef}
+          tabIndex={-1}
+          variant="destructive"
+          aria-live="assertive"
+        >
           <CircleAlert aria-hidden="true" />
           <AlertTitle>{formError.title}</AlertTitle>
           <AlertDescription>{formError.description}</AlertDescription>
@@ -124,15 +154,24 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="login-email">Email</Label>
-        <Input
-          id="login-email"
-          type="email"
-          autoComplete="email"
-          autoFocus
-          aria-invalid={errors.email ? true : undefined}
-          aria-describedby={errors.email ? emailErrorId : undefined}
-          {...register("email")}
-        />
+        <div className="relative">
+          <Mail
+            aria-hidden="true"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+          />
+          <Input
+            id="login-email"
+            type="email"
+            autoComplete="email"
+            autoFocus
+            placeholder="you@company.com"
+            className="h-12 pl-11 text-base"
+            readOnly={isSubmitting}
+            aria-invalid={errors.email ? true : undefined}
+            aria-describedby={errors.email ? emailErrorId : undefined}
+            {...register("email")}
+          />
+        </div>
         {errors.email ? (
           <p id={emailErrorId} className="text-destructive text-sm">
             {errors.email.message}
@@ -143,11 +182,17 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
       <div className="space-y-2">
         <Label htmlFor="login-password">Password</Label>
         <div className="relative">
+          <LockKeyhole
+            aria-hidden="true"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+          />
           <Input
             id="login-password"
             type={passwordVisible ? "text" : "password"}
             autoComplete="current-password"
-            className="pr-10"
+            className="h-12 pr-12 pl-11 text-base"
+            placeholder="Enter your password"
+            readOnly={isSubmitting}
             aria-invalid={errors.password ? true : undefined}
             aria-describedby={errors.password ? passwordErrorId : undefined}
             {...register("password")}
@@ -157,7 +202,7 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
             aria-label={passwordVisible ? "Hide password" : "Show password"}
             aria-pressed={passwordVisible}
             onClick={() => setPasswordVisible((visible) => !visible)}
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg focus-visible:ring-3 focus-visible:outline-none"
+            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-lg focus-visible:ring-3 focus-visible:outline-none"
           >
             {passwordVisible ? (
               <EyeOff aria-hidden="true" className="size-4" />
@@ -176,17 +221,22 @@ export function LoginForm({ onSubmit, redirectTo }: LoginFormProps) {
       <Button
         type="submit"
         size="lg"
-        className="w-full"
+        className="h-12 w-full"
         disabled={isSubmitting}
         aria-busy={isSubmitting}
       >
         {isSubmitting ? (
           <>
-            <LoaderCircle aria-hidden="true" className="animate-spin" />
+            <LoaderCircle
+              aria-hidden="true"
+              className="animate-spin motion-reduce:animate-none"
+            />
             Signing in{"…"}
           </>
         ) : (
-          "Sign in"
+          <>
+            Sign in <ArrowRight aria-hidden="true" />
+          </>
         )}
       </Button>
     </form>
