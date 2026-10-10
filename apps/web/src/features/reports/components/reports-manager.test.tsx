@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -319,5 +319,50 @@ describe("ReportsManager", () => {
     expect(
       screen.getAllByRole("button", { name: /Weekly production/ }),
     ).toHaveLength(2);
+  });
+
+  it("prevents duplicate reviews and retains focus and notes while a request is pending", async () => {
+    const user = userEvent.setup();
+    setup({
+      userId: "reviewer-1",
+      grants: [
+        { permissionKey: "report.read", scope: "ORGANIZATION" },
+        { permissionKey: "report.review", scope: "ORGANIZATION" },
+      ],
+    } as CurrentAccess);
+    await screen.findByText("1 report");
+    await user.click(
+      screen.getAllByRole("button", { name: /Weekly production/ })[0]!,
+    );
+    const button = await screen.findByRole("button", { name: "Mark reviewed" });
+    await user.type(
+      screen.getByLabelText("Review note (optional)"),
+      "Keep this note",
+    );
+    let finish!: (value: ReturnType<typeof fail>) => void;
+    post.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    button.focus();
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await waitFor(() =>
+      expect(button).toHaveAttribute("aria-disabled", "true"),
+    );
+    expect(button).toHaveFocus();
+    expect(post).toHaveBeenCalledOnce();
+    fireEvent.click(button);
+    expect(post).toHaveBeenCalledOnce();
+    finish(fail("REPORT_CONFLICT", 409));
+    await waitFor(() =>
+      expect(button).not.toHaveAttribute("aria-disabled", "true"),
+    );
+    expect(screen.getByLabelText("Review note (optional)")).toHaveValue(
+      "Keep this note",
+    );
+    expect(button).toHaveFocus();
   });
 });

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { PageHeader } from "@/components/ui/page-header";
 
 import { ReportsScreen } from "@/features/reports";
 import { createServerApi } from "@/lib/api/server";
@@ -21,15 +22,15 @@ export default async function ReportsPage() {
   );
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+    <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-8 sm:py-8">
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold tracking-tight">Reports</h1>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Daily, weekly, and monthly work reports and review history.
-      </p>
-      <div className="mt-6">
+      <PageHeader
+        title="Reports"
+        description="Daily, weekly, and monthly work reports and review history."
+      />
+      <div>
         {readGrants.length ? (
           <ReportsScreen />
         ) : (

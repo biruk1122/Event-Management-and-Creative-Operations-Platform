@@ -65,6 +65,26 @@ const base: ReportsWorkspaceProps = {
 };
 
 describe("ReportsWorkspace", () => {
+  it("returns focus on draft cancellation and preserves values after a failed save", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn().mockResolvedValue(false);
+    render(<ReportsWorkspace {...base} canCreate onSaveDraft={save} />);
+    await user.click(screen.getByRole("button", { name: "New report" }));
+    await user.type(screen.getByLabelText("Title"), "Keep my draft");
+    await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-01");
+    await user.type(
+      screen.getByLabelText("Problems encountered"),
+      "Unsaved narrative",
+    );
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(screen.getByLabelText("Title")).toHaveValue("Keep my draft");
+    expect(screen.getByLabelText("Problems encountered")).toHaveValue(
+      "Unsaved narrative",
+    );
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByRole("button", { name: "New report" })).toHaveFocus();
+  });
   it("shows honest loading, denied, unavailable, and retry states", async () => {
     const onRetry = vi.fn();
     const { rerender } = render(<ReportsWorkspace {...base} state="loading" />);

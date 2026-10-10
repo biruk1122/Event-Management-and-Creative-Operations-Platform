@@ -2,10 +2,10 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ReportActionButton } from "./report-action-button";
 
 import {
   NARRATIVE_FIELDS,
@@ -44,11 +44,22 @@ export function ReportDraftForm({
   const [workspaceIds, setWorkspaceIds] = useState<string[]>(
     initial?.workspaceIds ?? [],
   );
+  const [sections, setSections] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      Object.values(NARRATIVE_FIELDS)
+        .flat()
+        .map(({ key }) => [key, String(initial?.[key] ?? "")]),
+    ),
+  );
+  const completedSections = NARRATIVE_FIELDS[type].filter(({ key }) =>
+    sections[key]?.trim(),
+  ).length;
 
   useEffect(() => titleRef.current?.focus(), []);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     const form = new FormData(event.currentTarget);
     const sections = Object.fromEntries(
       NARRATIVE_FIELDS[type]
@@ -66,8 +77,14 @@ export function ReportDraftForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-5" aria-label="Report draft">
-      <div className="grid gap-4 sm:grid-cols-2">
+    <form
+      onSubmit={submit}
+      className="space-y-6"
+      aria-label="Report draft"
+      aria-busy={busy}
+    >
+      <fieldset className="bg-muted/40 grid gap-4 rounded-xl border p-4 sm:grid-cols-2 sm:p-5">
+        <legend className="px-2 text-sm font-semibold">Report details</legend>
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor={`${prefix}-title`}>Title</Label>
           <Input
@@ -77,7 +94,7 @@ export function ReportDraftForm({
             defaultValue={initial?.title ?? ""}
             maxLength={200}
             required
-            disabled={busy}
+            readOnly={busy}
           />
         </div>
         <div className="space-y-2">
@@ -105,7 +122,7 @@ export function ReportDraftForm({
             type="date"
             defaultValue={initial?.periodStart ?? ""}
             required
-            disabled={busy}
+            readOnly={busy}
           />
         </div>
         <div className="space-y-2">
@@ -116,28 +133,45 @@ export function ReportDraftForm({
             type="date"
             defaultValue={initial?.periodEnd ?? ""}
             required
-            disabled={busy}
+            readOnly={busy}
           />
         </div>
-      </div>
+      </fieldset>
       <p className="text-muted-foreground text-sm">
         Daily reports cover one day, weekly reports seven days, and monthly
         reports a whole calendar month. All dates use UTC.
       </p>
-      {NARRATIVE_FIELDS[type].map(({ key, label }) => (
-        <div key={key} className="space-y-2">
-          <Label htmlFor={`${prefix}-${key}`}>{label}</Label>
-          <Textarea
-            id={`${prefix}-${key}`}
-            name={key}
-            defaultValue={initial?.[key] ?? ""}
-            maxLength={5000}
-            rows={3}
-            disabled={busy}
-            aria-describedby={`${prefix}-narrative-hint`}
-          />
-        </div>
-      ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-semibold">Your work narrative</h3>
+        <span className="bg-secondary text-secondary-foreground rounded-full px-3 py-1 text-xs font-medium">
+          {completedSections} of {NARRATIVE_FIELDS[type].length} sections filled
+        </span>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {NARRATIVE_FIELDS[type].map(({ key, label }) => (
+          <div
+            key={key}
+            className="bg-muted/40 space-y-2 rounded-xl border p-4"
+          >
+            <Label htmlFor={`${prefix}-${key}`}>{label}</Label>
+            <Textarea
+              id={`${prefix}-${key}`}
+              name={key}
+              value={sections[key] ?? ""}
+              onChange={(event) =>
+                setSections((current) => ({
+                  ...current,
+                  [key]: event.target.value,
+                }))
+              }
+              maxLength={5000}
+              rows={5}
+              readOnly={busy}
+              aria-describedby={`${prefix}-narrative-hint`}
+            />
+          </div>
+        ))}
+      </div>
       <p
         id={`${prefix}-narrative-hint`}
         className="text-muted-foreground text-sm"
@@ -145,8 +179,10 @@ export function ReportDraftForm({
         These sections may be left blank in a draft; complete them before
         submission.
       </p>
-      <fieldset className="space-y-2" disabled={busy}>
-        <legend className="text-sm font-medium">Related workspaces</legend>
+      <fieldset className="space-y-3 rounded-xl border p-4" disabled={busy}>
+        <legend className="px-2 text-sm font-semibold">
+          Related workspaces
+        </legend>
         {warning ? (
           <p role="status" className="text-muted-foreground text-sm">
             {warning}
@@ -160,7 +196,7 @@ export function ReportDraftForm({
           workspaces.map((workspace) => (
             <label
               key={workspace.id}
-              className="flex items-center gap-2 text-sm"
+              className="bg-muted/40 flex min-h-11 items-center gap-3 rounded-lg p-3 text-sm"
             >
               <input
                 type="checkbox"
@@ -184,18 +220,18 @@ export function ReportDraftForm({
           ))
         )}
       </fieldset>
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
+      <div className="flex flex-wrap justify-end gap-3 border-t pt-5">
+        <ReportActionButton
           type="button"
           variant="outline"
           onClick={onCancel}
-          disabled={busy}
+          busy={busy}
         >
           Cancel
-        </Button>
-        <Button type="submit" disabled={busy}>
+        </ReportActionButton>
+        <ReportActionButton type="submit" busy={busy}>
           {busy ? "Saving…" : "Save draft"}
-        </Button>
+        </ReportActionButton>
       </div>
     </form>
   );
