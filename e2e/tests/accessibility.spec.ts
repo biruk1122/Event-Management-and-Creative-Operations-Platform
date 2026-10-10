@@ -16,11 +16,12 @@ test.describe("accessibility quality gates", () => {
     await page.getByLabel("Password", { exact: true }).fill(user.password);
     await page.getByLabel("Password", { exact: true }).press("Enter");
 
-    await expect(page).toHaveURL("/");
+    await expect(page).toHaveURL("/dashboard");
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "A dependable surface for the work that comes next.",
+        name: "Dashboard",
+        exact: true,
       }),
     ).toBeVisible();
     await expectNoWcag22AaViolations(page, "authenticated home screen");

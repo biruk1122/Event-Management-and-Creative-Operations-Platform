@@ -202,8 +202,11 @@ jobs:
           grep '"api":"up"' web-health.json
           curl --fail --silent --show-error http://127.0.0.1:4000/health/ready > api-health.json
           grep '"status":"ready"' api-health.json
-          curl --fail --silent --show-error http://127.0.0.1:3000/ > web.html
-          grep "A dependable surface" web.html
+          # Next may stream a meta redirect after the layout flushes its headers.
+          curl --fail --silent --show-error --location --max-redirs 3 http://127.0.0.1:3000/ > web-entry.html
+          grep -E 'url=/login\?next=(/|%2F)|Welcome back' web-entry.html
+          curl --fail --silent --show-error http://127.0.0.1:3000/login > web.html
+          grep "Welcome back" web.html
           docker compose ps
 
       - name: Print service logs on failure

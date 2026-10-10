@@ -94,6 +94,16 @@ test("branding and labelled form are server-rendered without JavaScript", async 
     ).toBeVisible();
     await expect(page.getByLabel("Email", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Sign in", exact: true }),
+    ).toBeDisabled();
+    const explanation = page
+      .getByRole("form", { name: "Sign in" })
+      .locator("noscript p");
+    await expect(explanation).toBeVisible();
+    expect(await explanation.textContent()).toBe(
+      "JavaScript is required to sign in.",
+    );
   } finally {
     await context.close();
   }
@@ -106,10 +116,9 @@ test("real sign-in preserves safe next paths, existing signed-in behavior and ex
   const user = testUser("member");
   await signInThroughUi(page, user);
   await page.goto("/login");
-  // UI-04 owns signed-in entry policy; UI-02 must not revoke/redirect a session.
-  await expect(
-    page.getByRole("heading", { name: "Welcome back" }),
-  ).toBeVisible();
+  // UI-04 now owns signed-in entry policy; the session must remain intact.
+  await expect(page).toHaveURL("/dashboard");
+  await expect(page.getByRole("form", { name: "Sign in" })).toHaveCount(0);
   expect(
     (await page.request.get(`${apiBaseUrl}/api/v1/auth/me`)).status(),
   ).toBe(200);
@@ -148,7 +157,7 @@ test("real sign-in cannot redirect to an external next target", async ({
   await page.getByLabel("Email", { exact: true }).fill(user.email);
   await page.getByLabel("Password", { exact: true }).fill(user.password);
   await page.getByLabel("Password", { exact: true }).press("Enter");
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/dashboard");
 });
 
 test.describe("Lela login mobile network profiles", () => {
@@ -227,7 +236,7 @@ test.describe("Lela login mobile network profiles", () => {
       );
       const signInStarted = performance.now();
       await page.getByLabel("Password", { exact: true }).press("Enter");
-      await expect(page).toHaveURL("/");
+      await expect(page).toHaveURL("/dashboard");
       expect(
         (await page.request.get(`${apiBaseUrl}/api/v1/auth/me`)).status(),
       ).toBe(200);

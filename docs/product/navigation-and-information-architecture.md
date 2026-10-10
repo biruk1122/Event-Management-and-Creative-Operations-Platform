@@ -170,21 +170,22 @@ Accessibility (WCAG 2.2 AA):
 EVE-216's user-approved placement and mobile priorities supersede the earlier
 draft choices for NAV-03, NAV-07 and NAV-09 only. See
 [Lela application shell](lela-application-shell.md) for approval provenance,
-shipped-route spellings and implementation boundaries. Other entries below
-remain open; this does not authorize new routes or permission changes.
+shipped-route spellings and implementation boundaries. EVE-218 resolves NAV-08
+for shipped destinations as documented in [entry routing](lela-entry-routing.md).
+Remaining open entries do not authorize new routes or permission changes.
 
-| ID     | Decision required                                                                                                          |
-| ------ | -------------------------------------------------------------------------------------------------------------------------- |
-| NAV-01 | Whether a global search is a top-bar affordance from launch, its scope, and its result routing.                            |
-| NAV-02 | Final dynamic segment naming: opaque id versus human-readable slug for events, projects, campaigns, talent, and reports.   |
-| NAV-03 | Resolved by user approval (2026-10-08): Meetings is a separate destination; available through mobile More.                 |
-| NAV-04 | The treatment for a deployed-but-disabled destination: disabled nav item with tooltip, or a dedicated unavailable page.    |
-| NAV-05 | Whether a management-level `/files` index exists in addition to per-workspace Files tabs.                                  |
-| NAV-06 | Whether Management/Administrator sees `/users` and `/settings/roles`, tracked with permission-catalogue `PC-02`.           |
-| NAV-07 | Resolved by user approval (2026-10-08): Dashboard, Tasks, Calendar, Discuss and More; permission-filtered, not role-coded. |
-| NAV-08 | The allow-list of `next` targets accepted after sign in.                                                                   |
-| NAV-09 | Resolved by user approval (2026-10-08): Campaigns is a separate destination using its shipped screen.                      |
-| NAV-10 | Breadcrumb behavior for cross-linked records (a task opened from an event workspace versus from `/tasks`).                 |
+| ID     | Decision required                                                                                                                    |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| NAV-01 | Whether a global search is a top-bar affordance from launch, its scope, and its result routing.                                      |
+| NAV-02 | Final dynamic segment naming: opaque id versus human-readable slug for events, projects, campaigns, talent, and reports.             |
+| NAV-03 | Resolved by user approval (2026-10-08): Meetings is a separate destination; available through mobile More.                           |
+| NAV-04 | The treatment for a deployed-but-disabled destination: disabled nav item with tooltip, or a dedicated unavailable page.              |
+| NAV-05 | Whether a management-level `/files` index exists in addition to per-workspace Files tabs.                                            |
+| NAV-06 | Whether Management/Administrator sees `/users` and `/settings/roles`, tracked with permission-catalogue `PC-02`.                     |
+| NAV-07 | Resolved by user approval (2026-10-08): Dashboard, Tasks, Calendar, Discuss and More; permission-filtered, not role-coded.           |
+| NAV-08 | Resolved by EVE-218 implementation request (2026-10-09): shipped permitted destinations; see [entry routing](lela-entry-routing.md). |
+| NAV-09 | Resolved by user approval (2026-10-08): Campaigns is a separate destination using its shipped screen.                                |
+| NAV-10 | Breadcrumb behavior for cross-linked records (a task opened from an event workspace versus from `/tasks`).                           |
 
 ## SRS traceability
 

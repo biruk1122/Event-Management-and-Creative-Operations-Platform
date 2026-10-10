@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useLoginMutation } from "../api/auth-queries";
 import type { LoginOutcome } from "../lib/login-outcome";
 import type { LoginValues } from "../lib/login-schema";
-import { safeRedirect } from "../lib/safe-redirect";
+import { loginDestination } from "../api/login-destination";
 import { LoginForm } from "./login-form";
 
 interface LoginProps {
@@ -26,7 +26,7 @@ export function Login({ redirectTo }: LoginProps) {
     const { outcome } = await mutation.mutateAsync(values);
 
     if (outcome.status === "success") {
-      router.replace(safeRedirect(redirectTo));
+      router.replace(await loginDestination(redirectTo));
       router.refresh();
     }
 

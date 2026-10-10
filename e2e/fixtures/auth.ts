@@ -21,12 +21,13 @@ export async function signInThroughUi(
   page: Page,
   user: TestUser,
 ): Promise<void> {
+  // Start fresh without revoking the setup session shared by other specs/retries.
+  await page.context().clearCookies();
   await page.goto("/login");
   // `exact` so "Password" does not also match the "Show password" toggle.
   await page.getByLabel("Email", { exact: true }).fill(user.email);
   await page.getByLabel("Password", { exact: true }).fill(user.password);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  // `safeRedirect` sends a sign-in with no `?next` to the home route.
-  await expect(page).toHaveURL("/");
+  await expect(page).toHaveURL("/dashboard");
 }
