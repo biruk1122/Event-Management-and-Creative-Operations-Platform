@@ -101,8 +101,8 @@ test.describe("Reporting — end to end", () => {
   test("an employee authors all periods and management reviews an authorized report", async ({
     page: admin,
     browser,
-  }) => {
-    test.setTimeout(120_000);
+  }, testInfo) => {
+    test.setTimeout(180_000);
     const { id: authorId, user } = await createReportUser(admin);
     const csrf = await csrfToken(admin);
     const departmentResponse = await admin.request.post(
@@ -325,8 +325,41 @@ test.describe("Reporting — end to end", () => {
         .first()
         .click();
       await expectNoWcag22AaViolations(manager, "management report review");
+      for (const viewport of [
+        { width: 360, height: 800 },
+        { width: 768, height: 1024 },
+        { width: 1440, height: 900 },
+        { width: 720, height: 900 },
+      ]) {
+        for (const [role, surface] of [
+          ["employee", employee],
+          ["manager", manager],
+        ] as const) {
+          await surface.setViewportSize(viewport);
+          await surface.emulateMedia({ reducedMotion: "reduce" });
+          expect(
+            await surface.evaluate(
+              () => document.documentElement.scrollWidth <= innerWidth,
+            ),
+          ).toBe(true);
+          await expectNoWcag22AaViolations(
+            surface,
+            `${role} reports ${viewport.width}`,
+          );
+          await surface.screenshot({
+            path: testInfo.outputPath(`reports-${role}-${viewport.width}.png`),
+            fullPage: true,
+          });
+        }
+      }
       await manager.getByLabel("Review note (optional)").fill("E2E reviewed");
-      await manager.getByRole("button", { name: "Mark reviewed" }).click();
+      await manager.getByLabel("Review note (optional)").press("Tab");
+      await expect(
+        manager.getByRole("button", { name: "Mark reviewed" }),
+      ).toBeFocused();
+      await manager
+        .getByRole("button", { name: "Mark reviewed" })
+        .press("Enter");
       await expect
         .poll(async () => {
           const response = await manager.request.get(
@@ -377,6 +410,106 @@ test.describe("Reporting — end to end", () => {
           () => document.documentElement.scrollWidth <= window.innerWidth,
         ),
       ).toBe(true);
+      for (const report of created.slice(1)) {
+        await employee
+          .getByRole("button", { name: report.title })
+          .first()
+          .click();
+        await employee
+          .getByRole("button", { name: "Submit for review" })
+          .click();
+        await expect
+          .poll(
+            async () =>
+              (
+                (await (
+                  await employee.request.get(`${reportsUrl}/${report.id}`)
+                ).json()) as Report
+              ).status,
+          )
+          .toBe("SUBMITTED");
+        await manager.getByRole("button", { name: "Refresh reports" }).click();
+        await manager
+          .getByRole("button", { name: report.title })
+          .first()
+          .click();
+        await expect(
+          manager.getByRole("button", { name: "Mark reviewed" }),
+        ).toBeVisible();
+        await expectNoWcag22AaViolations(
+          manager,
+          `${report.type} management review`,
+        );
+        if (report.type === "WEEKLY") {
+          await manager
+            .getByLabel("Review note (optional)")
+            .fill("Clarify weekly narrative");
+          await manager
+            .getByRole("button", { name: "Request changes" })
+            .click();
+          await expect
+            .poll(
+              async () =>
+                (
+                  (await (
+                    await manager.request.get(`${reportsUrl}/${report.id}`)
+                  ).json()) as Report
+                ).status,
+            )
+            .toBe("CHANGES_REQUESTED");
+          await employee
+            .getByRole("button", { name: "Refresh reports" })
+            .click();
+          await employee.getByRole("button", { name: "Edit draft" }).click();
+          const editForm = employee.getByRole("form", { name: "Report draft" });
+          await expect(editForm.getByLabel("Challenges")).toHaveValue(
+            "E2E weekly challenge",
+          );
+          await editForm
+            .getByLabel("Challenges")
+            .fill("E2E revised weekly challenge");
+          await expectNoWcag22AaViolations(
+            employee,
+            "weekly changes-requested edit",
+          );
+          await employee.screenshot({
+            path: testInfo.outputPath("reports-weekly-edit-360.png"),
+            fullPage: true,
+          });
+          await editForm.getByRole("button", { name: "Save draft" }).click();
+          await expect(editForm).toBeHidden();
+          await employee
+            .getByRole("button", { name: "Submit for review" })
+            .click();
+          await expect
+            .poll(
+              async () =>
+                (
+                  (await (
+                    await employee.request.get(`${reportsUrl}/${report.id}`)
+                  ).json()) as Report
+                ).status,
+            )
+            .toBe("SUBMITTED");
+          await manager
+            .getByRole("button", { name: "Refresh reports" })
+            .click();
+          await expect(
+            manager.getByRole("button", { name: "Mark reviewed" }),
+          ).toBeVisible();
+        }
+        await manager.getByRole("button", { name: "Mark reviewed" }).click();
+        await expect
+          .poll(
+            async () =>
+              (
+                (await (
+                  await manager.request.get(`${reportsUrl}/${report.id}`)
+                ).json()) as Report
+              ).status,
+          )
+          .toBe("REVIEWED");
+      }
     } finally {
       await management.close();
       await employeeContext.close();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -66,6 +66,8 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const requestInFlight = useRef(false);
+  const [exporting, setExporting] = useState(false);
   const params = { ...filters, page, pageSize: PAGE_SIZE };
 
   const listQuery = useQuery({
@@ -133,6 +135,7 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
   });
   const mutations = useReportsMutations(access);
   const busy =
+    exporting ||
     mutations.create.isPending ||
     mutations.update.isPending ||
     mutations.submit.isPending ||
@@ -197,6 +200,8 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
     values: CreateReport,
     reportId?: string,
   ): Promise<boolean> {
+    if (requestInFlight.current) return false;
+    requestInFlight.current = true;
     try {
       const saved = reportId
         ? await mutations.update.mutateAsync({ id: reportId, values })
@@ -208,19 +213,27 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
     } catch (error) {
       setNotice({ kind: "error", message: messageOf(error) });
       return false;
+    } finally {
+      requestInFlight.current = false;
     }
   }
 
   async function submit(id: string) {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
     try {
       await mutations.submit.mutateAsync(id);
       setNotice({ kind: "success", message: "Report submitted for review." });
     } catch (error) {
       setNotice({ kind: "error", message: messageOf(error) });
+    } finally {
+      requestInFlight.current = false;
     }
   }
 
   async function review(id: string, outcome: ReviewOutcome, note: string) {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
     try {
       await mutations.review.mutateAsync({ id, outcome, note });
       setNotice({
@@ -230,16 +243,24 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
       });
     } catch (error) {
       setNotice({ kind: "error", message: messageOf(error) });
+    } finally {
+      requestInFlight.current = false;
     }
   }
 
   async function exportSelected(id: string) {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
+    setExporting(true);
     try {
       const snapshot = await exportReport(id);
       downloadReport(id, snapshot);
       setNotice({ kind: "success", message: "Report exported." });
     } catch (error) {
       setNotice({ kind: "error", message: messageOf(error) });
+    } finally {
+      requestInFlight.current = false;
+      setExporting(false);
     }
   }
 

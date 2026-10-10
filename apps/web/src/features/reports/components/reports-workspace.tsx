@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  CalendarDays,
+  ClipboardList,
+  FilePlus2,
+  SlidersHorizontal,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +31,8 @@ import {
   type ReviewOutcome,
 } from "../lib/report-presentation";
 import { ReportDraftForm, type WorkspaceChoice } from "./report-draft-form";
+import { ReportActionButton } from "./report-action-button";
+import styles from "./reports.module.css";
 
 export interface ReportsWorkspaceProps {
   state: "unavailable" | "loading" | "error" | "denied" | "ready";
@@ -67,9 +75,11 @@ const EMPTY_FILTERS: ReportFilters = {
 function metric(label: string, value: number | null) {
   if (value === null) return null;
   return (
-    <div key={label} className="bg-muted/40 rounded-lg border p-3">
+    <div key={label} className="bg-muted rounded-xl border p-4">
       <dt className="text-muted-foreground text-xs">{label}</dt>
-      <dd className="mt-1 text-xl font-semibold tabular-nums">{value}</dd>
+      <dd className="text-primary mt-2 text-2xl font-semibold tabular-nums">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -84,6 +94,9 @@ function ReportDetailPanel({
   onReview,
   onExport,
   onClose,
+  authorName,
+  departmentName,
+  focusVersion,
 }: {
   report: ReportDetail;
   currentUserId: string;
@@ -94,6 +107,9 @@ function ReportDetailPanel({
   onReview?: ((outcome: ReviewOutcome, note: string) => void) | undefined;
   onExport?: (() => void) | undefined;
   onClose?: (() => void) | undefined;
+  authorName: string;
+  departmentName: string;
+  focusVersion: number;
 }) {
   const [reviewNote, setReviewNote] = useState("");
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -106,12 +122,16 @@ function ReportDetailPanel({
     return typeof value === "string" && value.trim().length > 0;
   });
 
-  useEffect(() => headingRef.current?.focus(), [report.id]);
+  useEffect(
+    () => headingRef.current?.focus(),
+    [report.id, report.status, focusVersion],
+  );
 
   return (
     <section
       aria-labelledby="report-detail-title"
-      className="space-y-5 rounded-xl border p-4 sm:p-6"
+      className={`${styles.panel} space-y-6 p-4 sm:p-6`}
+      aria-busy={busy}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -122,36 +142,57 @@ function ReportDetailPanel({
             ref={headingRef}
             id="report-detail-title"
             tabIndex={-1}
-            className="mt-1 text-lg font-semibold break-words"
+            className="mt-2 text-2xl font-semibold tracking-tight break-words"
           >
             {report.title}
           </h2>
           <Badge variant={statusVariant(report.status)} className="mt-2">
             {STATUS_LABELS[report.status]}
           </Badge>
+          <p className="text-muted-foreground mt-3 text-sm">
+            {authorName} · {departmentName}
+          </p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {report.status === "DRAFT"
+              ? "Save your progress, then submit when every section is complete."
+              : report.status === "SUBMITTED"
+                ? "Submitted for management review."
+                : report.status === "CHANGES_REQUESTED"
+                  ? "Read the review notes and update your draft."
+                  : "Review complete. Your report and review history are available below."}
+          </p>
         </div>
         {onClose ? (
-          <Button variant="outline" size="sm" onClick={onClose}>
+          <ReportActionButton
+            variant="outline"
+            size="sm"
+            busy={busy}
+            onClick={onClose}
+          >
             Close detail
-          </Button>
+          </ReportActionButton>
         ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2">
         {editable && onEdit ? (
-          <Button variant="outline" disabled={busy} onClick={onEdit}>
+          <ReportActionButton variant="outline" busy={busy} onClick={onEdit}>
             Edit draft
-          </Button>
+          </ReportActionButton>
         ) : null}
         {isAuthor && report.status === "DRAFT" && onSubmit ? (
-          <Button disabled={busy || !submissionComplete} onClick={onSubmit}>
+          <ReportActionButton
+            busy={busy}
+            disabled={!submissionComplete}
+            onClick={onSubmit}
+          >
             Submit for review
-          </Button>
+          </ReportActionButton>
         ) : null}
         {onExport ? (
-          <Button variant="outline" disabled={busy} onClick={onExport}>
+          <ReportActionButton variant="outline" busy={busy} onClick={onExport}>
             Export JSON
-          </Button>
+          </ReportActionButton>
         ) : null}
       </div>
       {isAuthor && report.status === "DRAFT" && !submissionComplete ? (
@@ -189,7 +230,10 @@ function ReportDetailPanel({
         </h3>
         <dl className="grid gap-3 sm:grid-cols-2">
           {NARRATIVE_FIELDS[report.type].map(({ key, label }) => (
-            <div key={key} className="rounded-lg border p-3">
+            <div
+              key={key}
+              className={`${styles.narrative} min-w-0 rounded-xl p-4`}
+            >
               <dt className="text-muted-foreground text-sm">{label}</dt>
               <dd className="mt-1 text-sm whitespace-pre-wrap">
                 {report[key] || (
@@ -251,7 +295,7 @@ function ReportDetailPanel({
       {canReview && !isAuthor && report.status === "SUBMITTED" && onReview ? (
         <section
           aria-labelledby="review-action-title"
-          className="space-y-2 border-t pt-4"
+          className="bg-secondary/40 space-y-3 rounded-xl border p-4 sm:p-5"
         >
           <h3 id="review-action-title" className="font-medium">
             Review this report
@@ -262,23 +306,23 @@ function ReportDetailPanel({
             value={reviewNote}
             onChange={(event) => setReviewNote(event.target.value)}
             maxLength={5000}
-            disabled={busy}
+            readOnly={busy}
             className="border-input bg-background focus-visible:ring-ring w-full rounded-md border p-3 text-sm focus-visible:ring-2"
           />
           <div className="flex flex-wrap gap-2">
-            <Button
-              disabled={busy}
+            <ReportActionButton
+              busy={busy}
               onClick={() => onReview("REVIEWED", reviewNote)}
             >
               Mark reviewed
-            </Button>
-            <Button
+            </ReportActionButton>
+            <ReportActionButton
               variant="outline"
-              disabled={busy}
+              busy={busy}
               onClick={() => onReview("CHANGES_REQUESTED", reviewNote)}
             >
               Request changes
-            </Button>
+            </ReportActionButton>
           </div>
         </section>
       ) : null}
@@ -293,6 +337,7 @@ function ReportRows({
   authorNames,
   departmentNames,
   onSelect,
+  busy,
 }: {
   items: readonly Report[];
   currentUserId: string;
@@ -300,6 +345,7 @@ function ReportRows({
   authorNames: Readonly<Record<string, string>>;
   departmentNames: Readonly<Record<string, string>>;
   onSelect?: ((id: string) => void) | undefined;
+  busy: boolean;
 }) {
   const owner = (report: Report) =>
     report.authorId === currentUserId
@@ -313,8 +359,9 @@ function ReportRows({
 
   return (
     <>
-      <div className="hidden overflow-x-auto rounded-xl border md:block">
+      <div className={`${styles.panel} hidden overflow-x-auto md:block`}>
         <table className="w-full text-left text-sm">
+          <caption className="sr-only">Reports on this page</caption>
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
@@ -335,12 +382,15 @@ function ReportRows({
           </thead>
           <tbody className="divide-y">
             {items.map((report) => (
-              <tr key={report.id}>
+              <tr key={report.id} className={styles.row}>
                 <th scope="row" className="px-4 py-3 text-left font-medium">
                   <button
                     type="button"
                     className="rounded text-left underline-offset-4 hover:underline focus-visible:outline-2"
-                    onClick={() => onSelect?.(report.id)}
+                    aria-disabled={busy || undefined}
+                    onClick={() => {
+                      if (!busy) onSelect?.(report.id);
+                    }}
                   >
                     {report.title}
                   </button>
@@ -371,11 +421,14 @@ function ReportRows({
       </div>
       <ul className="space-y-3 md:hidden">
         {items.map((report) => (
-          <li key={report.id} className="rounded-xl border p-4">
+          <li key={report.id} className={`${styles.panel} p-4`}>
             <button
               type="button"
               className="w-full rounded text-left focus-visible:outline-2"
-              onClick={() => onSelect?.(report.id)}
+              aria-disabled={busy || undefined}
+              onClick={() => {
+                if (!busy) onSelect?.(report.id);
+              }}
             >
               <span className="font-medium">{report.title}</span>
               <span className="text-muted-foreground mt-1 block text-sm">
@@ -425,6 +478,13 @@ export function ReportsWorkspace({
   onExport,
 }: ReportsWorkspaceProps) {
   const [editing, setEditing] = useState<ReportDetail | "new" | null>(null);
+  const [focusVersion, setFocusVersion] = useState(0);
+  const newReportRef = useRef<HTMLButtonElement>(null);
+  function closeEditor() {
+    setEditing(null);
+    setFocusVersion((version) => version + 1);
+    if (!selectedId) newReportRef.current?.focus();
+  }
   const [draftFilters, setDraftFilters] = useState(filters);
   const incompleteRange =
     Boolean(draftFilters.periodFrom) !== Boolean(draftFilters.periodTo);
@@ -447,10 +507,15 @@ export function ReportsWorkspace({
 
   if (state === "denied")
     return <p role="alert">You do not have access to reports.</p>;
-  if (state === "loading") return <p role="status">Loading reports…</p>;
+  if (state === "loading")
+    return (
+      <p role="status" className={`${styles.panel} p-6`}>
+        Loading reports…
+      </p>
+    );
   if (state === "error")
     return (
-      <div role="alert">
+      <div role="alert" className={`${styles.panel} space-y-3 p-6`}>
         <p>{errorMessage ?? "We could not load reports."}</p>
         <Button variant="outline" onClick={onRetry}>
           Try again
@@ -469,18 +534,24 @@ export function ReportsWorkspace({
     );
 
   return (
-    <div className="space-y-6">
+    <div className={`${styles.workspace} space-y-6`}>
       {notice ? (
         <p
           role={notice.kind === "error" ? "alert" : "status"}
-          className="rounded-lg border p-3 text-sm"
+          className={`rounded-xl border p-4 text-sm ${notice.kind === "error" ? "border-destructive/40 bg-destructive/5" : "bg-success-background text-success"}`}
         >
           {notice.message}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        className={`${styles.header} flex flex-wrap items-center justify-between gap-4`}
+      >
         <div>
-          <h2 className="text-lg font-semibold">
+          <p className="text-primary mb-2 flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+            <ClipboardList aria-hidden="true" className="size-4" /> Work
+            reporting
+          </p>
+          <h2 className="text-2xl font-semibold tracking-tight">
             {audience === "management" ? "Team reports" : "My reports"}
           </h2>
           <p className="text-muted-foreground text-sm">
@@ -491,20 +562,54 @@ export function ReportsWorkspace({
         </div>
         <div className="flex flex-wrap gap-2">
           {onRetry ? (
-            <Button variant="outline" onClick={onRetry}>
+            <ReportActionButton variant="outline" busy={busy} onClick={onRetry}>
               Refresh reports
-            </Button>
+            </ReportActionButton>
           ) : null}
           {canCreate && onSaveDraft ? (
-            <Button onClick={() => setEditing("new")}>New report</Button>
+            <ReportActionButton
+              ref={newReportRef}
+              busy={busy || editing !== null}
+              onClick={() => setEditing("new")}
+            >
+              <FilePlus2 aria-hidden="true" />
+              New report
+            </ReportActionButton>
           ) : null}
         </div>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-3" aria-label="Reporting periods">
+        {REPORT_TYPES.map((type) => (
+          <div
+            key={type}
+            className={`${styles.panel} flex items-start gap-3 p-4`}
+          >
+            <span className="bg-secondary text-secondary-foreground rounded-lg p-2">
+              <CalendarDays aria-hidden="true" className="size-5" />
+            </span>
+            <div>
+              <p className="font-semibold">{TYPE_LABELS[type]}</p>
+              <p className="text-muted-foreground mt-1 text-sm">
+                {type === "DAILY"
+                  ? "One day of progress and next steps."
+                  : type === "WEEKLY"
+                    ? "Seven days of achievements and challenges."
+                    : "A calendar month of work and performance."}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <section
         aria-label="Report filters"
-        className="grid gap-3 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
+        className={`${styles.panel} grid gap-4 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3 lg:items-end`}
       >
+        <h3 className="flex items-center gap-2 font-semibold sm:col-span-2 lg:col-span-3">
+          <SlidersHorizontal aria-hidden="true" className="size-4" />
+          Find reports
+        </h3>
         <div className="space-y-1">
           <Label htmlFor="report-filter-type">Type</Label>
           <select
@@ -647,7 +752,8 @@ export function ReportsWorkspace({
           />
         </div>
         <div className="flex gap-2">
-          <Button
+          <ReportActionButton
+            busy={busy}
             disabled={
               incompleteRange ||
               reversedRange ||
@@ -657,8 +763,9 @@ export function ReportsWorkspace({
             onClick={() => onFiltersChange?.(draftFilters)}
           >
             Apply
-          </Button>
-          <Button
+          </ReportActionButton>
+          <ReportActionButton
+            busy={busy}
             variant="outline"
             onClick={() => {
               setDraftFilters(EMPTY_FILTERS);
@@ -666,12 +773,12 @@ export function ReportsWorkspace({
             }}
           >
             Clear
-          </Button>
+          </ReportActionButton>
         </div>
         {incompleteRange || reversedRange || overlongRange ? (
           <p
             role="alert"
-            className="text-destructive text-sm sm:col-span-2 lg:col-span-5"
+            className="text-destructive text-sm sm:col-span-2 lg:col-span-3"
           >
             {incompleteRange
               ? "Enter both period dates or leave both blank."
@@ -690,7 +797,11 @@ export function ReportsWorkspace({
           </Button>
         </div>
       ) : list.items.length === 0 ? (
-        <div className="rounded-xl border border-dashed p-8 text-center">
+        <div className={`${styles.panel} border-dashed p-8 text-center`}>
+          <ClipboardList
+            aria-hidden="true"
+            className="text-primary mx-auto mb-3 size-8"
+          />
           <p className="font-medium">No reports to show</p>
           <p className="text-muted-foreground mt-1 text-sm">
             Adjust the filters, or create a report if you have permission.
@@ -704,6 +815,7 @@ export function ReportsWorkspace({
           authorNames={authorNames}
           departmentNames={departmentNames}
           onSelect={onSelect}
+          busy={busy}
         />
       )}
 
@@ -712,23 +824,25 @@ export function ReportsWorkspace({
           aria-label="Reports pagination"
           className="flex items-center justify-between gap-3"
         >
-          <Button
+          <ReportActionButton
+            busy={busy}
             variant="outline"
             disabled={list.page <= 1}
             onClick={() => onPageChange?.(list.page - 1)}
           >
             Previous
-          </Button>
+          </ReportActionButton>
           <span className="text-muted-foreground text-sm">
             Page {list.page} of {pageCount}
           </span>
-          <Button
+          <ReportActionButton
+            busy={busy}
             variant="outline"
             disabled={list.page >= pageCount}
             onClick={() => onPageChange?.(list.page + 1)}
           >
             Next
-          </Button>
+          </ReportActionButton>
         </nav>
       ) : null}
 
@@ -748,6 +862,18 @@ export function ReportsWorkspace({
             report={detail}
             currentUserId={currentUserId}
             canReview={canReview}
+            focusVersion={focusVersion}
+            authorName={
+              detail.authorId === currentUserId
+                ? "You"
+                : (authorNames[detail.authorId] ?? `User ${detail.authorId}`)
+            }
+            departmentName={
+              detail.departmentId
+                ? (departmentNames[detail.departmentId] ??
+                  `Department ${detail.departmentId}`)
+                : "No department"
+            }
             busy={busy}
             onClose={() => onSelect?.(null)}
             onEdit={
@@ -767,23 +893,27 @@ export function ReportsWorkspace({
       {editing && onSaveDraft ? (
         <section
           aria-labelledby="draft-title"
-          className="rounded-xl border p-4 sm:p-6"
+          className={`${styles.panel} p-4 sm:p-6`}
         >
-          <h2 id="draft-title" className="mb-4 text-lg font-semibold">
+          <h2 id="draft-title" className="mb-2 text-xl font-semibold">
             {editing === "new" ? "New report draft" : "Edit report draft"}
           </h2>
+          <p className="text-muted-foreground mb-5 text-sm">
+            Capture your work in your own words. Saving a draft does not submit
+            it for review.
+          </p>
           <ReportDraftForm
             key={editing === "new" ? "new" : editing.id}
             initial={editing === "new" ? null : editing}
             workspaces={workspaces}
             warning={workspaceWarning}
             busy={busy}
-            onCancel={() => setEditing(null)}
+            onCancel={closeEditor}
             onSave={(values) => {
               void Promise.resolve(
                 onSaveDraft(values, editing === "new" ? undefined : editing.id),
               ).then((saved) => {
-                if (saved) setEditing(null);
+                if (saved) closeEditor();
               });
             }}
           />

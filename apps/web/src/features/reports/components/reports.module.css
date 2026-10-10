@@ -1,0 +1,40 @@
+.workspace {
+  min-width: 0;
+}
+
+.workspace :is(input:not([type="checkbox"]), select, button) {
+  min-height: 2.75rem;
+}
+
+.workspace select {
+  max-width: 100%;
+  outline-offset: 3px;
+}
+
+.workspace :is(p, dd, li, th, td, button, label) {
+  overflow-wrap: anywhere;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px color-mix(in oklab, var(--foreground) 3%, transparent);
+}
+
+.header {
+  background: linear-gradient(120deg, var(--card), var(--secondary));
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+}
+
+.row:hover,
+.row:focus-within {
+  background: var(--muted);
+}
+
+.narrative {
+  border-inline-start: 3px solid var(--secondary);
+  background: var(--muted);
+}
