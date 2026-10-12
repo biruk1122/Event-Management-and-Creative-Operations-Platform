@@ -8,13 +8,13 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { AdministrationDialogContent as DialogContent } from "@/components/ui/administration-dialog-content";
 import { Label } from "@/components/ui/label";
 
 import type { CreateRole, RoleFormValues } from "../lib/rbac-outcome";

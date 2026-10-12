@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
 import { TeamsScreen } from "@/features/teams";
+import { AdministrationSurface } from "@/components/ui/administration-surface";
 
 export const metadata: Metadata = { title: "Teams" };
 
@@ -26,24 +27,22 @@ export default async function TeamsPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
-        Teams
-      </h1>
-      {allowed ? (
-        <>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Create department-owned teams, edit details, assign a manager,
-            manage members, and manage status.
+      <AdministrationSurface
+        title="Teams"
+        description={
+          allowed
+            ? "Create department-owned teams, edit details, assign a manager, manage members, and manage status."
+            : undefined
+        }
+      >
+        {allowed ? (
+          <TeamsScreen />
+        ) : (
+          <p role="alert" className="mt-6">
+            You do not have access to this area.
           </p>
-          <div className="mt-6">
-            <TeamsScreen />
-          </div>
-        </>
-      ) : (
-        <p role="alert" className="mt-6">
-          You do not have access to this area.
-        </p>
-      )}
+        )}
+      </AdministrationSurface>
     </main>
   );
 }

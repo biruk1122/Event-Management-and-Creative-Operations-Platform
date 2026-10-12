@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
 import { DepartmentsScreen } from "@/features/departments";
+import { AdministrationSurface } from "@/components/ui/administration-surface";
 
 export const metadata: Metadata = { title: "Departments" };
 
@@ -26,23 +27,22 @@ export default async function DepartmentsPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
-        Departments
-      </h1>
-      {allowed ? (
-        <>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Create units, edit details, assign a manager, and manage status.
+      <AdministrationSurface
+        title="Departments"
+        description={
+          allowed
+            ? "Create units, edit details, assign a manager, and manage status."
+            : undefined
+        }
+      >
+        {allowed ? (
+          <DepartmentsScreen />
+        ) : (
+          <p role="alert" className="mt-6">
+            You do not have access to this area.
           </p>
-          <div className="mt-6">
-            <DepartmentsScreen />
-          </div>
-        </>
-      ) : (
-        <p role="alert" className="mt-6">
-          You do not have access to this area.
-        </p>
-      )}
+        )}
+      </AdministrationSurface>
     </main>
   );
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
 import { UsersScreen } from "@/features/users";
+import { AdministrationSurface } from "@/components/ui/administration-surface";
 
 export const metadata: Metadata = { title: "Users" };
 
@@ -25,23 +26,22 @@ export default async function UsersPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
-        Users
-      </h1>
-      {allowed ? (
-        <>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Create accounts, edit profiles, manage status, and assign roles.
+      <AdministrationSurface
+        title="Users"
+        description={
+          allowed
+            ? "Create accounts, edit profiles, manage status, and assign roles."
+            : undefined
+        }
+      >
+        {allowed ? (
+          <UsersScreen />
+        ) : (
+          <p role="alert" className="mt-6">
+            You do not have access to this area.
           </p>
-          <div className="mt-6">
-            <UsersScreen />
-          </div>
-        </>
-      ) : (
-        <p role="alert" className="mt-6">
-          You do not have access to this area.
-        </p>
-      )}
+        )}
+      </AdministrationSurface>
     </main>
   );
 }

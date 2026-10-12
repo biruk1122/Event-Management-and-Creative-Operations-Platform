@@ -81,15 +81,23 @@ test.describe("RBAC — configurable roles and permissions", () => {
         detailDialog.getByRole("heading", { name: ROLE_NAME }),
       ).toBeVisible();
       await detailDialog.getByLabel("Search permissions").fill("event.read");
-      await detailDialog
-        .getByRole("button", { name: "Grant event.read at Organization scope" })
-        .click();
+      const grantButton = detailDialog.getByRole("button", {
+        name: "Grant event.read at Organization scope",
+      });
+      await grantButton.focus();
+      await page.keyboard.press("Enter");
       // The optimistic-free flow reflects the server after the mutation settles.
       await expect(
         detailDialog.getByRole("button", {
           name: "Revoke event.read at Organization scope",
         }),
       ).toBeVisible();
+
+      await expect(
+        detailDialog.getByRole("button", {
+          name: "Revoke event.read at Organization scope",
+        }),
+      ).toBeFocused();
 
       // The grant is authoritative: visible via the API and present in the row store.
       const withGrants = await page.request.get(

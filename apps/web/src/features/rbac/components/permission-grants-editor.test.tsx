@@ -175,7 +175,7 @@ describe("PermissionGrantsEditor", () => {
     expect(scopeButton("role.create", "Organization", false)).toBeDisabled();
   });
 
-  it("disables only the toggle in flight while a request is pending", async () => {
+  it("keeps keyboard focus and prevents duplicate activation while pending", async () => {
     const user = userEvent.setup();
     let release: (() => void) | undefined;
     const onAddGrant = vi.fn(
@@ -196,12 +196,18 @@ describe("PermissionGrantsEditor", () => {
     const pendingButton = scopeButton("role.read", "Organization", false);
     await user.click(pendingButton);
 
-    expect(pendingButton).toBeDisabled();
+    expect(pendingButton).toHaveAttribute("aria-disabled", "true");
+    expect(pendingButton).toHaveAttribute("aria-busy", "true");
+    expect(pendingButton).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(onAddGrant).toHaveBeenCalledTimes(1);
     expect(
       scopeButton("role.create", "Organization", false),
     ).not.toBeDisabled();
 
     release?.();
-    await waitFor(() => expect(pendingButton).not.toBeDisabled());
+    await waitFor(() =>
+      expect(pendingButton).toHaveAttribute("aria-disabled", "false"),
+    );
   });
 });
