@@ -1,0 +1,65 @@
+.figure {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+  overflow-wrap: anywhere;
+}
+
+.monthly {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+}
+
+.line {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-block: 1rem;
+  overflow: visible;
+  color: var(--foreground);
+  font-size: 16px;
+}
+
+.line text {
+  fill: currentColor;
+}
+
+.axis,
+.grid {
+  fill: none;
+  stroke: var(--muted-foreground);
+  stroke-width: 1;
+}
+
+.grid {
+  stroke-dasharray: 4 4;
+}
+
+.series {
+  fill: none;
+  stroke: var(--series-color);
+  stroke-width: 3;
+}
+
+.point {
+  fill: var(--series-color);
+  stroke: var(--foreground);
+  stroke-width: 1;
+}
+
+.track {
+  height: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--muted);
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  border-right: 2px solid var(--foreground);
+  background: var(--series-color);
+}

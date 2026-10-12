@@ -32,7 +32,7 @@ export default async function AnalyticsPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold tracking-tight">
+      <h1 className="mt-4 text-3xl font-semibold tracking-tight">
         Management analytics
       </h1>
       <p className="text-muted-foreground mt-1 text-sm">

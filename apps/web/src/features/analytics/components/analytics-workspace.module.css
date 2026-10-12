@@ -1,0 +1,21 @@
+.workspace {
+  overflow-wrap: anywhere;
+}
+
+.workspace input,
+.workspace select,
+.workspace button {
+  min-height: 2.75rem;
+}
+
+.filters {
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--foreground) 3%, transparent);
+}
+
+.filters > div {
+  min-width: 0;
+}
+
+.results {
+  border-top: 3px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+}

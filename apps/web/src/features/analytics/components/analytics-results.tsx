@@ -5,6 +5,7 @@ import {
   type Measure,
   type Responses,
 } from "../lib/analytics-presentation";
+import { AnalyticsCharts } from "./analytics-charts";
 
 type Counts = components["schemas"]["AnalyticsWorkCounts"];
 type Progress = components["schemas"]["EntityProgress"];
@@ -99,9 +100,11 @@ function ScrollTable({
 export function AnalyticsResults({
   measure,
   data,
+  showCharts = false,
 }: {
   measure: Measure;
   data: Responses[Measure];
+  showCharts?: boolean;
 }) {
   const period =
     "from" in data
@@ -219,6 +222,7 @@ export function AnalyticsResults({
         </time>
         . Live current state, not a historical or globally atomic snapshot.
       </p>
+      {showCharts ? <AnalyticsCharts measure={measure} data={data} /> : null}
       {content}
       {measure === "employees" ? (
         <p className="text-muted-foreground text-sm">

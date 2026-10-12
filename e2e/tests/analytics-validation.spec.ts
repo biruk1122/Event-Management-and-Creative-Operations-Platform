@@ -97,6 +97,9 @@ test.describe("ANA-06 management fixture journeys", () => {
       percent: 33,
     });
     await page.goto(selection("tasks"));
+    await expect(
+      page.getByRole("figure", { name: "Task status comparison" }),
+    ).toContainText("Completed tasks — 1 tasks");
     for (const [name, value] of Object.entries({
       "Eligible tasks": 3,
       Completed: 1,
@@ -124,6 +127,11 @@ test.describe("ANA-06 management fixture journeys", () => {
       },
     ]);
     await page.goto(selection("departments", fixture.departmentA));
+    await expect(
+      page.getByRole("figure", { name: "Department performance comparison" }),
+    ).toContainText(
+      `Subject: ${fixture.departmentA} — 50% (1 / 2 completed / eligible)`,
+    );
     await workRow(page, fixture.departmentA, 1, 2, "50%", 1, 1);
     await expectNoWcag22AaViolations(page, "ANA-06 department cohort");
 
@@ -155,6 +163,11 @@ test.describe("ANA-06 management fixture journeys", () => {
       percent: 50,
     });
     await page.goto(selection("employees", fixture.employeeId));
+    await expect(
+      page.getByRole("figure", { name: "Employee performance comparison" }),
+    ).toContainText(
+      `Subject: ${fixture.employeeId} — 100% (1 / 1 completed / eligible)`,
+    );
     await workRow(page, fixture.employeeId, 1, 1, "100%", 0, 0);
     await expect(
       page.getByText(/employee totals are not additive/),
@@ -170,6 +183,9 @@ test.describe("ANA-06 management fixture journeys", () => {
       { id: fixture.event, completed: 3, total: 5, percent: 60 },
     ]);
     await page.goto(selection("events", fixture.event));
+    await expect(
+      page.getByRole("figure", { name: "Event progress comparison" }),
+    ).toContainText("60% (3 / 5 completed / eligible)");
     await workRow(page, fixture.event, 3, 5, "60%");
     await expectNoWcag22AaViolations(page, "ANA-06 event progress");
 
@@ -182,6 +198,11 @@ test.describe("ANA-06 management fixture journeys", () => {
       { id: fixture.marketing, completed: 1, total: 2, percent: 50 },
     ]);
     await page.goto(selection("campaigns", fixture.marketing));
+    await expect(
+      page.getByRole("figure", {
+        name: "Marketing campaign progress comparison",
+      }),
+    ).toContainText("50% (1 / 2 completed / eligible)");
     await workRow(page, fixture.marketing, 1, 2, "50%");
     await expectNoWcag22AaViolations(page, "ANA-06 marketing progress");
 
@@ -194,6 +215,11 @@ test.describe("ANA-06 management fixture journeys", () => {
       { channel: "RADIO_PROMOTION", completed: 1, total: 2, percent: 50 },
     ]);
     await page.goto(selection("promotion", fixture.promotion));
+    await expect(
+      page.getByRole("figure", { name: "Promotion performance comparison" }),
+    ).toContainText(
+      "Channel: radio promotion — 50% (1 / 2 completed / eligible)",
+    );
     const radio = page.getByRole("row").filter({
       has: page.getByRole("rowheader", {
         name: "radio promotion",
@@ -223,6 +249,10 @@ test.describe("ANA-06 management fixture journeys", () => {
       },
     ]);
     await page.goto(selection("monthly"));
+    await expect(page.getByRole("figure")).toHaveCount(6);
+    await expect(
+      page.getByRole("img", { name: "Tasks created: count by UTC month" }),
+    ).toContainText("2001-09: 4");
     await expect(
       page
         .getByRole("row")
@@ -503,6 +533,10 @@ test.describe("ANA-06 department boundary", () => {
     await page.goto(selection("departments"));
     await workRow(page, fixture.departmentA, 1, 2, "50%", 1, 1);
     await expect(page.getByRole("rowheader")).toHaveCount(1);
+    await expect(page.getByRole("figure").getByRole("listitem")).toHaveCount(1);
+    await expect(page.getByRole("figure")).not.toContainText(
+      fixture.departmentB,
+    );
     await expect(
       page.getByRole("option", { name: "Employee performance" }),
     ).toHaveCount(0);
@@ -739,12 +773,17 @@ test.describe("ANA-06 responsive and network release profiles", () => {
   }
   test("monthly tables reflow in light/dark and reduced-motion profiles", async ({
     page,
-  }) => {
+  }, testInfo) => {
     test.setTimeout(60_000);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(selection("monthly"));
-    for (const width of [360, 768, 1440, 720]) {
-      await page.setViewportSize({ width, height: 1000 });
+    for (const [width, height] of [
+      [360, 800],
+      [768, 1024],
+      [1440, 900],
+      [720, 900],
+    ]) {
+      await page.setViewportSize({ width: width!, height: height! });
       for (const dark of [false, true]) {
         await page.evaluate(
           (enabled) =>
@@ -752,6 +791,7 @@ test.describe("ANA-06 responsive and network release profiles", () => {
           dark,
         );
         await expect(page.getByRole("table")).toBeVisible();
+        await expect(page.getByRole("figure")).toHaveCount(6);
         expect(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -761,6 +801,13 @@ test.describe("ANA-06 responsive and network release profiles", () => {
           page,
           `monthly ${width}px ${dark ? "dark" : "light"}`,
         );
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({
+          path: testInfo.outputPath(
+            `analytics-monthly-${width}-${dark ? "dark" : "light"}.png`,
+          ),
+          fullPage: true,
+        });
       }
     }
     // 720 CSS pixels models 200% desktop reflow, not manual browser/AT certification.
