@@ -59,17 +59,23 @@ export function DashboardResults({
         {data.items.length === 0 ? (
           <p>No matching items.</p>
         ) : (
-          <ul className="divide-y">
+          <ul className="space-y-2">
             {data.items.map((item) =>
               "conversationId" in item ? (
-                <li key={item.conversationId} className="py-3">
+                <li
+                  key={item.conversationId}
+                  className="bg-muted/50 rounded-xl border p-3"
+                >
                   <p className="break-all">
                     Conversation {item.conversationId}
                   </p>
                   <p>{item.count} unread</p>
                 </li>
               ) : (
-                <li key={`${item.kind}-${item.id}`} className="space-y-1 py-3">
+                <li
+                  key={`${item.kind}-${item.id}`}
+                  className="bg-muted/50 space-y-1 rounded-xl border p-3"
+                >
                   <p className="font-medium break-words">{item.title}</p>
                   <p className="text-muted-foreground text-sm">
                     {item.kind.replaceAll("_", " ")}
@@ -117,6 +123,10 @@ export function DashboardResults({
     );
   }
   if ("count" in data)
-    return <p className="text-3xl font-semibold tabular-nums">{data.count}</p>;
+    return (
+      <p className="text-primary py-2 text-4xl font-semibold tracking-tight tabular-nums">
+        {data.count}
+      </p>
+    );
   return <p>No results supplied.</p>;
 }

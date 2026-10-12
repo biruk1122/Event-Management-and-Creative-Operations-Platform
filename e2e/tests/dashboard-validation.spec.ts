@@ -249,6 +249,13 @@ test.describe("DSH-06 management validation", () => {
     page,
   }) => {
     await login(page, "manager");
+    // Login redirects to the default dashboard before its aggregate finishes.
+    // Settle that valid navigation before counting reads for the invalid URL.
+    await expect(
+      page
+        .getByRole("article", { name: "Pending tasks", exact: true })
+        .getByText(/Refreshed/),
+    ).toBeVisible();
     let reads = 0;
     page.on("request", (request) => {
       if (request.url().includes("/api/v1/dashboards/")) reads++;
@@ -557,8 +564,13 @@ test.describe("DSH-06 quality gates", () => {
         .getByText("33%", { exact: false })
         .first(),
     ).toBeVisible();
-    for (const width of [360, 768, 1440, 720]) {
-      await page.setViewportSize({ width, height: 1000 });
+    for (const [width, height] of [
+      [360, 800],
+      [768, 1024],
+      [1440, 900],
+      [720, 900],
+    ]) {
+      await page.setViewportSize({ width: width!, height: height! });
       for (const dark of [false, true]) {
         await page.evaluate(
           (enabled) =>
@@ -574,6 +586,13 @@ test.describe("DSH-06 quality gates", () => {
           page,
           `dashboard ${width} ${dark ? "dark" : "light"}`,
         );
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({
+          path: testInfo.outputPath(
+            `management-${width}-${dark ? "dark" : "light"}.png`,
+          ),
+          fullPage: true,
+        });
       }
     }
     await testInfo.attach("dashboard-reflow", {

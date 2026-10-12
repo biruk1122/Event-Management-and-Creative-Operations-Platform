@@ -2,6 +2,14 @@
 
 import { useEffect, useId, useState } from "react";
 import Link from "next/link";
+import {
+  BarChart3,
+  CalendarDays,
+  Layers3,
+  MessageSquare,
+  ListChecks,
+} from "lucide-react";
+import { destinations } from "@/components/shell/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +21,7 @@ import {
   type DashboardPanel,
 } from "../lib/dashboard-presentation";
 import { DashboardResults } from "./dashboard-results";
+import styles from "./dashboard-workspace.module.css";
 import {
   dashboardFilterError,
   defaultDashboardFilters,
@@ -37,6 +46,29 @@ export interface DashboardWorkspaceProps {
   onApply?: (filters: DashboardFilters) => void;
   onCheckAccess?: () => void;
 }
+const groupPresentation = {
+  Overview: {
+    icon: Layers3,
+    description: "Current organizational totals from authorized sources.",
+  },
+  Today: {
+    icon: CalendarDays,
+    description: "Schedules, deadlines and work needing attention.",
+  },
+  Communication: {
+    icon: MessageSquare,
+    description: "Your conversations and permitted meeting previews.",
+  },
+  Analytics: {
+    icon: BarChart3,
+    description:
+      "Delivery measures with their actual periods, units and scope.",
+  },
+  "My work": {
+    icon: ListChecks,
+    description: "Your assignments, personal records and recent activity.",
+  },
+};
 export function DashboardWorkspace({
   access,
   audience,
@@ -106,11 +138,13 @@ export function DashboardWorkspace({
     (item) => panels[item.key]?.state !== "denied",
   );
   const groups = [...new Set(cards.map((item) => item.group))];
+  const routes = destinations(access);
+  const permittedRoutes = new Set(routes.map((item) => item.href));
   const disconnected = cards.some(
     (item) => !panels[item.key] || panels[item.key]?.state === "disconnected",
   );
   return (
-    <div className="min-w-0 space-y-6">
+    <div className={`${styles.workspace} min-w-0 space-y-8`}>
       <a
         href={`#${id}-results`}
         className="sr-only rounded-md underline focus:not-sr-only"
@@ -118,8 +152,54 @@ export function DashboardWorkspace({
         Skip to dashboard results
       </a>
       <section
+        className={styles.introduction}
+        aria-labelledby={`${id}-view-title`}
+      >
+        <div>
+          <p className="text-primary mb-2 text-sm font-semibold">
+            Your dashboard
+          </p>
+          <h2
+            id={`${id}-view-title`}
+            className="text-2xl font-semibold tracking-tight sm:text-3xl"
+          >
+            {audience === "management"
+              ? "Management overview"
+              : "Your work today"}
+          </h2>
+          <p className="text-muted-foreground mt-3 max-w-2xl text-sm leading-relaxed">
+            {audience === "management"
+              ? "Review permitted organizational results and scoped operational work. Each card identifies its own scope and refresh time."
+              : "Focus on what needs your attention. These results remain limited to your own assignments, records and conversation memberships."}
+          </p>
+        </div>
+        {routes.some(
+          (route) => route.href === "/reports" || route.href === "/analytics",
+        ) ? (
+          <nav
+            aria-label="Dashboard related workspaces"
+            className="flex flex-wrap gap-2"
+          >
+            {routes
+              .filter(
+                (route) =>
+                  route.href === "/reports" || route.href === "/analytics",
+              )
+              .map((route) => (
+                <Link
+                  key={route.href}
+                  href={route.href}
+                  className={styles.destination}
+                >
+                  {route.label}
+                </Link>
+              ))}
+          </nav>
+        ) : null}
+      </section>
+      <section
         aria-label="Dashboard controls"
-        className="bg-card space-y-4 rounded-xl border p-4 sm:p-5"
+        className={`${styles.controls} bg-card space-y-4 rounded-2xl border p-4 sm:p-6`}
       >
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-2">
@@ -167,7 +247,7 @@ export function DashboardWorkspace({
           provide exports.
         </p>
         <form
-          className="flex flex-wrap items-end gap-3"
+          className={styles.filters}
           onSubmit={(event) => {
             event.preventDefault();
             const next = {
@@ -310,150 +390,168 @@ export function DashboardWorkspace({
             permissions.
           </p>
         ) : null}
-        {groups.map((group) => (
-          <section
-            key={group}
-            aria-labelledby={`${id}-${group}`}
-            className="min-w-0 space-y-3"
-          >
-            <h2 id={`${id}-${group}`} className="text-xl font-semibold">
-              {group}
-            </h2>
-            <div
-              className={`grid min-w-0 gap-4 ${group === "Overview" ? "sm:grid-cols-2 lg:grid-cols-3" : "lg:grid-cols-2"}`}
+        {groups.map((group) => {
+          const { icon: Icon, description } = groupPresentation[group];
+          return (
+            <section
+              key={group}
+              aria-labelledby={`${id}-${group}`}
+              className="min-w-0 space-y-3"
             >
-              {cards
-                .filter((item) => item.group === group)
-                .map((item) => {
-                  const panel = panels[item.key] ?? {
-                    state: "disconnected" as const,
-                  };
-                  const supplied = "data" in panel;
-                  return (
-                    <article
-                      key={item.key}
-                      aria-labelledby={`${id}-${item.key}`}
-                      className="bg-card min-w-0 space-y-3 rounded-xl border p-4 sm:p-5"
-                    >
-                      <h3 id={`${id}-${item.key}`} className="font-semibold">
-                        {item.title}
-                      </h3>
-                      {"scope" in panel && panel.scope ? (
-                        <p className="text-muted-foreground text-sm">
-                          Scope: {panel.scope}
-                        </p>
-                      ) : null}
-                      {"asOf" in panel && panel.asOf ? (
-                        <p className="text-muted-foreground text-sm break-words">
-                          Refreshed{" "}
-                          <time dateTime={panel.asOf}>{panel.asOf} (UTC)</time>
-                        </p>
-                      ) : null}
-                      {staleKeys.includes(item.key) && supplied ? (
-                        <p role="status">
-                          Stale: last successful results in this account and
-                          scope. Refresh to update.
-                        </p>
-                      ) : null}
-                      {panel.state === "loading" ? (
-                        <p role="status">Loading {item.title.toLowerCase()}…</p>
-                      ) : panel.state === "disconnected" ? (
-                        <p className="text-muted-foreground text-sm">
-                          Not connected. Results will appear after live
-                          integration.
-                        </p>
-                      ) : panel.state === "selectionRequired" ? (
-                        <p>Choose a promotion campaign above to see results.</p>
-                      ) : panel.state === "unavailable" ? (
-                        <div className="space-y-2">
-                          <p role="status">
-                            This card is unavailable. Other cards remain usable.
+              <div className="flex items-start gap-3">
+                <span className={styles.groupIcon}>
+                  <Icon aria-hidden="true" size={20} />
+                </span>
+                <div>
+                  <h2 id={`${id}-${group}`} className="text-xl font-semibold">
+                    {group}
+                  </h2>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    {description}
+                  </p>
+                </div>
+              </div>
+              <div
+                className={`grid min-w-0 gap-4 ${group === "Overview" ? "sm:grid-cols-2 lg:grid-cols-3" : "lg:grid-cols-2"}`}
+              >
+                {cards
+                  .filter((item) => item.group === group)
+                  .map((item) => {
+                    const panel = panels[item.key] ?? {
+                      state: "disconnected" as const,
+                    };
+                    const supplied = "data" in panel;
+                    return (
+                      <article
+                        key={item.key}
+                        aria-labelledby={`${id}-${item.key}`}
+                        className={`${styles.card} bg-card min-w-0 space-y-3 rounded-2xl border p-4 sm:p-5`}
+                      >
+                        <h3 id={`${id}-${item.key}`} className="font-semibold">
+                          {item.title}
+                        </h3>
+                        {"scope" in panel && panel.scope ? (
+                          <p className="text-muted-foreground text-sm">
+                            Scope: {panel.scope}
                           </p>
-                          {panel.requestId ? (
-                            <p className="text-sm break-all">
-                              Support reference: {panel.requestId}
-                            </p>
-                          ) : null}
-                          {panel.retryable && onRetry ? (
-                            <Button
-                              variant="outline"
-                              aria-disabled={refreshing}
-                              className="aria-disabled:opacity-50"
-                              onClick={() => {
-                                if (!refreshing) onRetry(item.key);
-                              }}
-                            >
-                              Retry {item.title.toLowerCase()}
-                            </Button>
-                          ) : (
-                            <p className="text-sm">
-                              {panel.retryable
-                                ? "Retry will be available after live integration."
-                                : "Retry is not available for this failure."}
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          {panel.state === "partial" ? (
+                        ) : null}
+                        {"asOf" in panel && panel.asOf ? (
+                          <p className="text-muted-foreground text-sm break-words">
+                            Refreshed{" "}
+                            <time dateTime={panel.asOf}>
+                              {panel.asOf} (UTC)
+                            </time>
+                          </p>
+                        ) : null}
+                        {staleKeys.includes(item.key) && supplied ? (
+                          <p role="status">
+                            Stale: last successful results in this account and
+                            scope. Refresh to update.
+                          </p>
+                        ) : null}
+                        {panel.state === "loading" ? (
+                          <p role="status">
+                            Loading {item.title.toLowerCase()}…
+                          </p>
+                        ) : panel.state === "disconnected" ? (
+                          <p className="text-muted-foreground text-sm">
+                            Not connected. Results will appear after live
+                            integration.
+                          </p>
+                        ) : panel.state === "selectionRequired" ? (
+                          <p>
+                            Choose a promotion campaign above to see results.
+                          </p>
+                        ) : panel.state === "unavailable" ? (
+                          <div className="space-y-2">
                             <p role="status">
-                              Partial results: some sources could not be loaded.
-                              The successful sources are shown.
+                              This card is unavailable. Other cards remain
+                              usable.
                             </p>
-                          ) : null}
-                          {panel.sources ? (
-                            <ul className="text-muted-foreground text-sm">
-                              {Object.entries(panel.sources)
-                                .filter(
-                                  ([, source]) => source.state !== "denied",
-                                )
-                                .map(([source, value]) => (
-                                  <li key={source}>
-                                    {source}: {value.state}
-                                    {value.retryable ? " (retryable)" : ""}
-                                  </li>
-                                ))}
-                            </ul>
-                          ) : null}
-                          <DashboardResults card={panel} cardKey={item.key} />
-                          {panel.state === "partial" &&
-                          (panel.retryable ||
-                            Object.values(panel.sources ?? {}).some(
-                              (source) =>
-                                source.state === "unavailable" &&
-                                source.retryable,
-                            )) &&
-                          onRetry ? (
-                            <Button
-                              variant="outline"
-                              aria-disabled={refreshing}
-                              className="aria-disabled:opacity-50"
-                              onClick={() => {
-                                if (!refreshing) onRetry(item.key);
-                              }}
-                            >
-                              Retry {item.title.toLowerCase()}
-                            </Button>
-                          ) : null}
-                        </>
-                      )}
-                      {item.href &&
-                      (panel.state === "ready" ||
-                        panel.state === "empty" ||
-                        panel.state === "partial") ? (
-                        <Link
-                          href={item.href}
-                          className="text-sm underline underline-offset-4"
-                        >
-                          Open {item.title.toLowerCase()} workspace
-                        </Link>
-                      ) : null}
-                    </article>
-                  );
-                })}
-            </div>
-          </section>
-        ))}
+                            {panel.requestId ? (
+                              <p className="text-sm break-all">
+                                Support reference: {panel.requestId}
+                              </p>
+                            ) : null}
+                            {panel.retryable && onRetry ? (
+                              <Button
+                                variant="outline"
+                                aria-disabled={refreshing}
+                                className="aria-disabled:opacity-50"
+                                onClick={() => {
+                                  if (!refreshing) onRetry(item.key);
+                                }}
+                              >
+                                Retry {item.title.toLowerCase()}
+                              </Button>
+                            ) : (
+                              <p className="text-sm">
+                                {panel.retryable
+                                  ? "Retry will be available after live integration."
+                                  : "Retry is not available for this failure."}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            {panel.state === "partial" ? (
+                              <p role="status">
+                                Partial results: some sources could not be
+                                loaded. The successful sources are shown.
+                              </p>
+                            ) : null}
+                            {panel.sources ? (
+                              <ul className="text-muted-foreground text-sm">
+                                {Object.entries(panel.sources)
+                                  .filter(
+                                    ([, source]) => source.state !== "denied",
+                                  )
+                                  .map(([source, value]) => (
+                                    <li key={source}>
+                                      {source}: {value.state}
+                                      {value.retryable ? " (retryable)" : ""}
+                                    </li>
+                                  ))}
+                              </ul>
+                            ) : null}
+                            <DashboardResults card={panel} cardKey={item.key} />
+                            {panel.state === "partial" &&
+                            (panel.retryable ||
+                              Object.values(panel.sources ?? {}).some(
+                                (source) =>
+                                  source.state === "unavailable" &&
+                                  source.retryable,
+                              )) &&
+                            onRetry ? (
+                              <Button
+                                variant="outline"
+                                aria-disabled={refreshing}
+                                className="aria-disabled:opacity-50"
+                                onClick={() => {
+                                  if (!refreshing) onRetry(item.key);
+                                }}
+                              >
+                                Retry {item.title.toLowerCase()}
+                              </Button>
+                            ) : null}
+                          </>
+                        )}
+                        {item.href &&
+                        permittedRoutes.has(item.href) &&
+                        (panel.state === "ready" ||
+                          panel.state === "empty" ||
+                          panel.state === "partial") ? (
+                          <Link href={item.href} className={styles.destination}>
+                            Open {item.title.toLowerCase()} workspace
+                          </Link>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );

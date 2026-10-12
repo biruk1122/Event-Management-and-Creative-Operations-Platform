@@ -1,0 +1,85 @@
+.workspace {
+  overflow-wrap: anywhere;
+}
+
+.introduction {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: linear-gradient(125deg, var(--accent), var(--card) 75%);
+}
+
+.controls {
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--foreground) 3%, transparent);
+}
+
+.controls input,
+.controls select,
+.controls button {
+  min-height: 2.75rem;
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  align-items: end;
+  gap: 1rem;
+  padding-block: 1rem;
+  border-block: 1px solid var(--border);
+}
+
+.filters > div {
+  min-width: 0;
+}
+
+.filters input {
+  width: 100%;
+  min-width: 0;
+}
+
+.groupIcon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  color: var(--primary);
+  background: var(--accent);
+}
+
+.card {
+  border-top: 3px solid color-mix(in srgb, var(--primary) 35%, var(--border));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--foreground) 3%, transparent);
+}
+
+.destination {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  max-width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  color: var(--primary);
+  background: var(--card);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.destination:hover {
+  background: var(--accent);
+}
+
+.destination:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}

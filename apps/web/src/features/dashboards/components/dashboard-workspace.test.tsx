@@ -29,6 +29,86 @@ const management = access([
   ["analytics.management.read", "MANAGEMENT"],
 ]);
 describe("dashboard presentation", () => {
+  it.each(["management", "employee"] as const)(
+    "presents the complete %s catalog with authoritative scope and freshness",
+    (audience) => {
+      const catalog =
+        audience === "management" ? managementCards : employeeCards;
+      const all = access([
+        ["dashboard.management.read", "MANAGEMENT"],
+        ["dashboard.read", "SELF"],
+        ...[...managementCards, ...employeeCards].map(
+          (card): [string, "ORGANIZATION"] => [card.permission, "ORGANIZATION"],
+        ),
+      ]);
+      const cards = visibleCards(all, audience);
+      expect(cards).toHaveLength(catalog.length);
+      render(
+        <DashboardWorkspace
+          access={all}
+          audience={audience}
+          panels={Object.fromEntries(
+            cards.map((card) => [
+              card.key,
+              {
+                state: card.group === "Analytics" ? "loading" : "ready",
+                scope: audience === "management" ? "organization" : "self",
+                asOf: "2026-10-07T12:00:00Z",
+                data: { count: 17 },
+              },
+            ]),
+          )}
+        />,
+      );
+      expect(screen.getAllByRole("article")).toHaveLength(catalog.length);
+      for (const card of catalog) {
+        const article = screen.getByRole("article", {
+          name: card.title,
+        });
+        if (card.group !== "Analytics")
+          expect(within(article).getByText("17")).toBeVisible();
+        expect(within(article).getByText(/Scope:/)).toHaveTextContent(
+          audience === "management" ? "organization" : "self",
+        );
+        expect(
+          within(article).getByText("2026-10-07T12:00:00Z (UTC)"),
+        ).toBeVisible();
+      }
+    },
+  );
+  it("offers related workspaces only when permitted and hides unauthorized channel drill-downs", () => {
+    const limited = access([
+      ["dashboard.management.read", "MANAGEMENT"],
+      ["conversation.read", "SELF"],
+      ["report.read", "SELF"],
+    ]);
+    render(
+      <DashboardWorkspace
+        access={limited}
+        audience="management"
+        panels={{ activeChannels: { state: "ready", data: { count: 2 } } }}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Management overview" }),
+    ).toBeVisible();
+    expect(
+      within(
+        screen.getByRole("navigation", {
+          name: "Dashboard related workspaces",
+        }),
+      ).getByRole("link", { name: "Reports" }),
+    ).toHaveAttribute("href", "/reports");
+    expect(
+      screen.queryByRole("link", { name: "Analytics" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("article", { name: "Active channels" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("link", { name: "Open active channels workspace" }),
+    ).not.toBeInTheDocument();
+  });
   it("contains every approved management and employee card", () => {
     expect(managementCards).toHaveLength(23);
     expect(employeeCards).toHaveLength(7);
