@@ -87,7 +87,8 @@ test.describe("dashboard employee integration", () => {
   test.use({ storageState: authStatePath("member") });
   test("shows caller-owned To-Do and blocks management deep links without a management fetch", async ({
     page,
-  }) => {
+  }, testInfo) => {
+    test.setTimeout(90_000);
     await signInThroughUi(
       page,
       TEST_USERS.find((user) => user.key === "member")!,
@@ -108,7 +109,38 @@ test.describe("dashboard employee integration", () => {
         .getByText(title),
     ).toBeVisible();
     await expect(page.getByLabel("Dashboard view")).toHaveValue("employee");
-    await expectNoWcag22AaViolations(page, "live employee dashboard");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    for (const [width, height] of [
+      [360, 800],
+      [768, 1024],
+      [1440, 900],
+      [720, 900],
+    ]) {
+      await page.setViewportSize({ width: width!, height: height! });
+      for (const dark of [false, true]) {
+        await page.evaluate(
+          (enabled) =>
+            document.documentElement.classList.toggle("dark", enabled),
+          dark,
+        );
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+        await expectNoWcag22AaViolations(
+          page,
+          `employee dashboard ${width} ${dark ? "dark" : "light"}`,
+        );
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({
+          path: testInfo.outputPath(
+            `employee-${width}-${dark ? "dark" : "light"}.png`,
+          ),
+          fullPage: true,
+        });
+      }
+    }
     let managementRequests = 0;
     page.on("request", (request) => {
       if (request.url().includes("/api/v1/dashboards/management"))

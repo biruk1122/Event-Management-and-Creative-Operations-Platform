@@ -23,8 +23,8 @@ export default async function DashboardPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="my-5 text-2xl font-semibold tracking-tight">Dashboard</h1>
-      <p className="text-muted-foreground mb-6 text-sm">
+      <h1 className="my-5 text-3xl font-semibold tracking-tight">Dashboard</h1>
+      <p className="text-muted-foreground bg-card mb-6 rounded-xl border p-4 text-sm leading-relaxed">
         See current work, schedules, communication and delivery rates permitted
         for your account. Management totals describe current organizational
         state; personal work remains yours alone. Today uses UTC dates. Lists
