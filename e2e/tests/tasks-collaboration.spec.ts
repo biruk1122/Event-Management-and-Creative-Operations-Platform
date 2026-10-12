@@ -155,7 +155,10 @@ test.describe("Task assignment and collaboration — end to end", () => {
       const storageUpload = memberPage.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
-          new URL(response.url()).port === "9000",
+          new URL(response.url()).port ===
+            new URL(
+              process.env.FILE_STORAGE_ENDPOINT ?? "http://127.0.0.1:9000",
+            ).port,
         { timeout: 45_000 },
       );
       await memberDetail.getByRole("button", { name: "Upload" }).click();

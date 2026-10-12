@@ -17,11 +17,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
+import { WorkSurface } from "@/components/ui/work-surface";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -154,7 +155,10 @@ function Progress({ value }: { value: number }) {
 
 function TaskCard({ task, onSelect }: { task: Task; onSelect: () => void }) {
   return (
-    <article className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-xs">
+    <article
+      data-task-card
+      className="border-border bg-card space-y-3 rounded-xl border p-4 shadow-xs"
+    >
       <div className="flex items-start justify-between gap-3">
         <button
           type="button"
@@ -302,6 +306,7 @@ function BoardView({
           <section
             key={status}
             aria-label={`${taskStatusLabel(status)} tasks`}
+            data-task-column
             className="bg-muted/40 border-border min-w-0 rounded-xl border p-3"
           >
             <div className="mb-3 flex items-center justify-between gap-2">
@@ -347,7 +352,11 @@ function CalendarView({
       className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
     >
       {scheduled.map((task) => (
-        <article key={task.id} className="border-border rounded-xl border p-4">
+        <article
+          data-task-card
+          key={task.id}
+          className="border-border rounded-xl border p-4"
+        >
           <p className="text-muted-foreground text-xs">
             {task.startAt
               ? `Starts ${dateLabel(task.startAt)}`
@@ -724,7 +733,9 @@ function TaskDetailDialog({
                       key={file.id}
                       className="flex items-center justify-between gap-3 p-3 text-sm"
                     >
-                      <span className="min-w-0 truncate">{file.filename}</span>
+                      <span data-file-name className="min-w-0">
+                        {file.filename}
+                      </span>
                       <Badge variant="outline">
                         {file.state.toLocaleLowerCase()}
                       </Badge>
@@ -961,192 +972,203 @@ export function TaskWorkspace({
   }, [onFiltersChange, query, status]);
 
   return (
-    <section aria-labelledby="tasks-title" className="space-y-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 id="tasks-title" className="text-xl font-semibold tracking-tight">
-            Tasks
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Plan, assign, review, and track work across workspaces and
-            departments.
-          </p>
-        </div>
-      </div>
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Tasks could not be loaded</AlertTitle>
-          <AlertDescription className="mt-2">
-            {error}
-            {onRetry ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="ml-2"
-                onClick={onRetry}
-              >
-                Try again
-              </Button>
-            ) : null}
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {loading ? (
-        <p role="status" className="text-muted-foreground">
-          Loading tasks...
-        </p>
-      ) : error ? null : (
-        <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="task-search">Search tasks</Label>
-                <Input
-                  id="task-search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search title or assignee"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="task-status">Status</Label>
-                <Select
-                  value={status ?? ALL}
-                  onValueChange={(value) =>
-                    setStatus(value === ALL ? null : (value as TaskStatus))
-                  }
-                >
-                  <SelectTrigger id="task-status" className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL}>All statuses</SelectItem>
-                    {TASK_STATUSES.map((value) => (
-                      <SelectItem key={value} value={value}>
-                        {taskStatusLabel(value)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div
-              role="group"
-              aria-label="Task view"
-              className="flex rounded-lg border p-1"
+    <WorkSurface>
+      <section aria-labelledby="tasks-title" className="space-y-5">
+        <div
+          data-work-heading
+          className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"
+        >
+          <div>
+            <h1
+              id="tasks-title"
+              className="text-xl font-semibold tracking-tight"
             >
-              {(
-                [
-                  { id: "list", label: "List", icon: List },
-                  { id: "board", label: "Board", icon: LayoutGrid },
-                  { id: "calendar", label: "Calendar", icon: CalendarDays },
-                ] as const
-              ).map(({ id, label, icon: Icon }) => (
-                <Button
-                  key={id}
-                  type="button"
-                  aria-pressed={view === id}
-                  variant={view === id ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setView(id)}
-                >
-                  <Icon aria-hidden="true" />
-                  {label}
-                </Button>
-              ))}
-            </div>
+              Tasks
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Plan, assign, review, and track work across workspaces and
+              departments.
+            </p>
           </div>
-          <p className="text-muted-foreground text-sm">
-            {total ?? visibleTasks.length} task
-            {(total ?? visibleTasks.length) === 1 ? "" : "s"}
-            {filtered ? " matching filters" : ""}
-            {fetching ? " · Updating…" : ""}
+        </div>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Tasks could not be loaded</AlertTitle>
+            <AlertDescription className="mt-2">
+              {error}
+              {onRetry ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="ml-2"
+                  onClick={onRetry}
+                >
+                  Try again
+                </Button>
+              ) : null}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {loading ? (
+          <p role="status" className="text-muted-foreground">
+            Loading tasks...
           </p>
-          {view === "list" ? (
-            <ListView
-              tasks={visibleTasks}
-              onSelect={select}
-              filtered={filtered}
-            />
-          ) : null}
-          {view === "board" ? (
-            <BoardView tasks={visibleTasks} onSelect={select} />
-          ) : null}
-          {view === "calendar" ? (
-            <CalendarView tasks={visibleTasks} onSelect={select} />
-          ) : null}
-          {onPageChange &&
-          page &&
-          pageSize &&
-          total !== undefined &&
-          total > pageSize ? (
-            <nav
-              aria-label="Task pagination"
-              className="flex items-center justify-between gap-3"
+        ) : error ? null : (
+          <>
+            <div
+              data-work-filters
+              className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
             >
-              <p className="text-muted-foreground text-sm">
-                Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1 || fetching}
-                  onClick={() => onPageChange(page - 1)}
-                >
-                  Previous
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= Math.ceil(total / pageSize) || fetching}
-                  onClick={() => onPageChange(page + 1)}
-                >
-                  Next
-                </Button>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="task-search">Search tasks</Label>
+                  <Input
+                    id="task-search"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search title or assignee"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="task-status">Status</Label>
+                  <Select
+                    value={status ?? ALL}
+                    onValueChange={(value) =>
+                      setStatus(value === ALL ? null : (value as TaskStatus))
+                    }
+                  >
+                    <SelectTrigger id="task-status" className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL}>All statuses</SelectItem>
+                      {TASK_STATUSES.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {taskStatusLabel(value)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </nav>
-          ) : null}
-        </>
-      )}
-      {collaboration ? (
-        <TaskDetailDialog
-          key={selected?.id}
-          preview={
-            selected
-              ? {
-                  task: selected,
-                  comments: [],
-                  activity: [],
-                  reviews: [],
-                  files: [],
-                }
-              : null
-          }
-          onClose={() => setSelected(null)}
-          collaboration={collaboration}
-        />
-      ) : (
-        <TaskDetailDialog
-          key={selected?.id}
-          preview={
-            selected
-              ? (data?.details[selected.id] ?? {
-                  task: selected,
-                  comments: [],
-                  activity: [],
-                  reviews: [],
-                  files: [],
-                })
-              : null
-          }
-          onClose={() => setSelected(null)}
-        />
-      )}
-    </section>
+              <div
+                role="group"
+                aria-label="Task view"
+                className="flex rounded-lg border p-1"
+              >
+                {(
+                  [
+                    { id: "list", label: "List", icon: List },
+                    { id: "board", label: "Board", icon: LayoutGrid },
+                    { id: "calendar", label: "Calendar", icon: CalendarDays },
+                  ] as const
+                ).map(({ id, label, icon: Icon }) => (
+                  <Button
+                    key={id}
+                    type="button"
+                    aria-pressed={view === id}
+                    variant={view === id ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setView(id)}
+                  >
+                    <Icon aria-hidden="true" />
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <p className="text-muted-foreground text-sm">
+              {total ?? visibleTasks.length} task
+              {(total ?? visibleTasks.length) === 1 ? "" : "s"}
+              {filtered ? " matching filters" : ""}
+              {fetching ? " · Updating…" : ""}
+            </p>
+            {view === "list" ? (
+              <ListView
+                tasks={visibleTasks}
+                onSelect={select}
+                filtered={filtered}
+              />
+            ) : null}
+            {view === "board" ? (
+              <BoardView tasks={visibleTasks} onSelect={select} />
+            ) : null}
+            {view === "calendar" ? (
+              <CalendarView tasks={visibleTasks} onSelect={select} />
+            ) : null}
+            {onPageChange &&
+            page &&
+            pageSize &&
+            total !== undefined &&
+            total > pageSize ? (
+              <nav
+                aria-label="Task pagination"
+                className="flex items-center justify-between gap-3"
+              >
+                <p className="text-muted-foreground text-sm">
+                  Page {page} of {Math.max(1, Math.ceil(total / pageSize))}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1 || fetching}
+                    onClick={() => onPageChange(page - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= Math.ceil(total / pageSize) || fetching}
+                    onClick={() => onPageChange(page + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </nav>
+            ) : null}
+          </>
+        )}
+        {collaboration ? (
+          <TaskDetailDialog
+            key={selected?.id}
+            preview={
+              selected
+                ? {
+                    task: selected,
+                    comments: [],
+                    activity: [],
+                    reviews: [],
+                    files: [],
+                  }
+                : null
+            }
+            onClose={() => setSelected(null)}
+            collaboration={collaboration}
+          />
+        ) : (
+          <TaskDetailDialog
+            key={selected?.id}
+            preview={
+              selected
+                ? (data?.details[selected.id] ?? {
+                    task: selected,
+                    comments: [],
+                    activity: [],
+                    reviews: [],
+                    files: [],
+                  })
+                : null
+            }
+            onClose={() => setSelected(null)}
+          />
+        )}
+      </section>
+    </WorkSurface>
   );
 }

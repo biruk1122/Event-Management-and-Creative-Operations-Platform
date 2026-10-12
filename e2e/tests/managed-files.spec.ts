@@ -86,7 +86,10 @@ test.describe("Secure event-file management — end to end", () => {
       const uploadResponse = page.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&
-          new URL(response.url()).port === "9000",
+          new URL(response.url()).port ===
+            new URL(
+              process.env.FILE_STORAGE_ENDPOINT ?? "http://127.0.0.1:9000",
+            ).port,
         { timeout: 45_000 },
       );
       await attachButton.click();

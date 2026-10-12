@@ -145,7 +145,9 @@ export function EventFilesPanel({
               className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <p className="text-sm font-medium">{file.filename}</p>
+                <p data-file-name className="text-sm font-medium">
+                  {file.filename}
+                </p>
                 <p className="text-muted-foreground text-xs">
                   {formatFileSize(file.sizeBytes)} · Available
                 </p>
@@ -194,7 +196,7 @@ export function EventFilesPanel({
         </ul>
       )}
       {canUpdate ? (
-        <div className="rounded-lg border border-dashed p-3">
+        <div data-file-upload className="rounded-lg border border-dashed p-3">
           <Label htmlFor={`${id}-upload`}>Add a file</Label>
           <p className="text-muted-foreground mt-1 text-xs">
             PDF, images, text, CSV, or Office documents up to 10 MB.

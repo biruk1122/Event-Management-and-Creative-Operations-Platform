@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { WorkSurface } from "@/components/ui/work-surface";
 
 import { createServerApi } from "@/lib/api/server";
 import { WorkspacesScreen } from "@/features/workspaces";
@@ -33,24 +34,24 @@ export default async function WorkspacesPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
-        Workspaces
-      </h1>
-      {allowed ? (
-        <>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Review connected workspaces, create a workspace root, assign a
-            manager, and manage its teams and participants.
-          </p>
-          <div className="mt-6">
+      <WorkSurface
+        title="Workspaces"
+        description={
+          allowed
+            ? "Review connected workspaces, create a workspace root, assign a manager, and manage its teams and participants."
+            : undefined
+        }
+      >
+        {allowed ? (
+          <div>
             <WorkspacesScreen />
           </div>
-        </>
-      ) : (
-        <p role="alert" className="mt-6">
-          You do not have access to this area.
-        </p>
-      )}
+        ) : (
+          <p role="alert" className="mt-6">
+            You do not have access to this area.
+          </p>
+        )}
+      </WorkSurface>
     </main>
   );
 }

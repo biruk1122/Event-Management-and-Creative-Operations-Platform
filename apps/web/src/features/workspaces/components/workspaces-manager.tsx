@@ -141,7 +141,10 @@ export function WorkspacesManager({ access }: { access: CurrentAccess }) {
         <p role="status">Loading workspaces…</p>
       ) : listQuery.isError ? null : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div
+            data-work-toolbar
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
             <p className="text-muted-foreground text-sm">
               {filtersActive
                 ? `${visible.length} of ${total} on this page match`

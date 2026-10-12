@@ -38,7 +38,10 @@ export function WorkspaceFilters({
   const searchId = useId();
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+    <div
+      data-work-filters
+      className="flex flex-col gap-3 sm:flex-row sm:items-end"
+    >
       <div className="space-y-2 sm:w-48">
         <Label htmlFor={kindId}>Kind</Label>
         <Select
