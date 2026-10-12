@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createServerApi } from "@/lib/api/server";
 import { RolesScreen } from "@/features/rbac/components/roles-screen";
+import { AdministrationSurface } from "@/components/ui/administration-surface";
 
 export const metadata: Metadata = { title: "Roles and permissions" };
 
@@ -23,23 +24,22 @@ export default async function RolesPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
-        Roles and permissions
-      </h1>
-      {allowed ? (
-        <>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Create configurable roles and manage their permission grants.
+      <AdministrationSurface
+        title="Roles and permissions"
+        description={
+          allowed
+            ? "Create configurable roles and manage their permission grants."
+            : undefined
+        }
+      >
+        {allowed ? (
+          <RolesScreen />
+        ) : (
+          <p role="alert" className="mt-6">
+            You do not have access to this area.
           </p>
-          <div className="mt-6">
-            <RolesScreen />
-          </div>
-        </>
-      ) : (
-        <p role="alert" className="mt-6">
-          You do not have access to this area.
-        </p>
-      )}
+        )}
+      </AdministrationSurface>
     </main>
   );
 }

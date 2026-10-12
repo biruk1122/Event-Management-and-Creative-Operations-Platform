@@ -85,6 +85,7 @@ export function PermissionGrantsEditor({
 
   async function toggle(permission: Permission, scope: PermissionScope) {
     const key = grantKey(permission.key, scope);
+    if (readOnly || pending.has(key)) return;
     const isGranted = granted.has(key);
 
     setError(null);
@@ -149,6 +150,11 @@ export function PermissionGrantsEditor({
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}
       </p>
+      <p className="text-muted-foreground text-sm leading-relaxed">
+        Each button controls one permission at one scope. Selected scopes are
+        granted; unselected scopes are not. Use Tab and Enter or Space to change
+        a grant.
+      </p>
 
       {groups.length === 0 ? (
         <p className="text-muted-foreground py-6 text-center text-sm">
@@ -159,6 +165,7 @@ export function PermissionGrantsEditor({
           {groups.map((group) => (
             <section
               key={group.resource}
+              data-permission-group
               aria-labelledby={`group-${group.resource}`}
             >
               <h3
@@ -176,6 +183,7 @@ export function PermissionGrantsEditor({
                     </p>
                     <div
                       role="group"
+                      data-permission-scopes
                       aria-label={`Scopes for ${permission.key}`}
                       className="mt-2 flex flex-wrap gap-1.5"
                     >
@@ -191,10 +199,14 @@ export function PermissionGrantsEditor({
                             variant={isGranted ? "default" : "outline"}
                             aria-pressed={isGranted}
                             aria-label={`${isGranted ? "Revoke" : "Grant"} ${permission.key} at ${SCOPE_LABELS[scope]} scope`}
-                            disabled={readOnly || isPending}
+                            disabled={readOnly}
+                            aria-disabled={isPending || readOnly}
                             aria-busy={isPending}
                             onClick={() => void toggle(permission, scope)}
                           >
+                            <span aria-hidden="true">
+                              {isGranted ? "✓" : "+"}
+                            </span>
                             {SCOPE_LABELS[scope]}
                           </Button>
                         );

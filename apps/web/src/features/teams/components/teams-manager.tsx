@@ -138,7 +138,10 @@ export function TeamsManager({ access }: { access: CurrentAccess }) {
         <p role="status">Loading teams…</p>
       ) : listQuery.isError ? null : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div
+            data-admin-toolbar
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
             <p className="text-muted-foreground text-sm">
               {total} team{total === 1 ? "" : "s"}
               {filtersActive ? " match these filters" : ""}

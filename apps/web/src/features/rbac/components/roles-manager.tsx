@@ -104,7 +104,10 @@ export function RolesManager({
       {rolesQuery.isPending || permissionsQuery.isPending ? (
         <p role="status">Loading roles and permissions...</p>
       ) : null}
-      <div className="flex items-center justify-between gap-3">
+      <div
+        data-admin-toolbar
+        className="flex items-center justify-between gap-3"
+      >
         <p className="text-muted-foreground text-sm">
           {roles.length} role{roles.length === 1 ? "" : "s"}
         </p>
@@ -115,7 +118,7 @@ export function RolesManager({
           </Button>
         ) : null}
       </div>
-      <div className="space-y-2">
+      <div data-admin-filters className="space-y-2">
         <Label htmlFor="role-search">Search roles</Label>
         <Input
           id="role-search"

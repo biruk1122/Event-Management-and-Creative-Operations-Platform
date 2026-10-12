@@ -46,7 +46,10 @@ export function TeamFilters({
   const searchId = useId();
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+    <div
+      data-admin-filters
+      className="flex flex-col gap-3 sm:flex-row sm:items-end"
+    >
       <div className="space-y-2 sm:w-40">
         <Label htmlFor={statusId}>Status</Label>
         <Select

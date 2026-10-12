@@ -1,0 +1,188 @@
+.surface {
+  min-width: 0;
+  color: var(--foreground);
+}
+
+.header {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: linear-gradient(120deg, var(--accent), var(--card));
+}
+
+.content {
+  margin-top: 1.5rem;
+}
+
+.surface [data-admin-toolbar] {
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+}
+
+.surface [data-admin-filters] {
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--muted);
+}
+
+.surface [data-admin-filters] > div {
+  min-width: 0;
+}
+
+.surface table {
+  background: var(--card);
+}
+
+.surface thead {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: 0.875rem;
+}
+
+.surface :is(th, td) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.surface td {
+  max-width: 22rem;
+}
+
+.surface tbody tr:hover {
+  background: var(--muted);
+}
+
+.surface ul > li {
+  background: var(--card);
+  overflow-wrap: anywhere;
+}
+
+.surface ul button > span:first-child {
+  flex-wrap: wrap;
+}
+
+.surface nav[aria-label$="pagination"] {
+  flex-wrap: wrap;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+}
+
+.surface [role="alert"] {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  overflow-wrap: anywhere;
+  background: var(--card);
+}
+
+.surface :is(button, input),
+.dialog :is(button, input) {
+  min-height: 2.75rem;
+}
+
+.surface button:focus-visible,
+.dialog button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.dialog {
+  border-top: 4px solid var(--primary);
+  padding: 1.25rem;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+}
+
+.dialog [data-slot="dialog-header"] {
+  padding-right: 2.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.dialog [data-slot="dialog-title"] {
+  font-size: 1.375rem;
+  line-height: 1.4;
+}
+
+.dialog [data-slot="dialog-description"] {
+  line-height: 1.6;
+}
+
+.dialog [data-slot="dialog-close"] {
+  top: 0.625rem;
+  right: 0.625rem;
+  width: 2.75rem;
+  opacity: 1;
+  display: grid;
+  place-items: center;
+}
+
+.dialog form {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+}
+
+.dialog [data-slot="dialog-footer"] {
+  padding-top: 0.5rem;
+}
+
+.dialog :is(form, section) .flex {
+  flex-wrap: wrap;
+}
+
+.dialog input,
+.dialog [data-slot="select-trigger"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.dialog [data-permission-group] {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--muted);
+}
+
+.dialog [data-permission-group] h3 {
+  font-size: 1rem;
+}
+
+.dialog [data-permission-scopes] {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
+  gap: 0.5rem;
+}
+
+.dialog [data-permission-scopes] button {
+  height: auto;
+  white-space: normal;
+  font-size: 0.875rem;
+  padding: 0.5rem;
+}
+
+.dialog button[aria-busy="true"] {
+  cursor: wait;
+}
+
+@media (min-width: 640px) {
+  .dialog {
+    padding: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog,
+  .dialog * {
+    animation: none;
+    transition: none;
+  }
+}
