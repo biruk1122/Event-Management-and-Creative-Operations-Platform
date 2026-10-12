@@ -110,7 +110,9 @@ test.describe("General project management — end to end", () => {
       // The account holds project.read at organization scope, so the nav
       // entry shows.
       await page.goto("/");
-      const navLink = page.getByRole("link", { name: "Projects" });
+      const navLink = page
+        .getByRole("navigation", { name: "Primary", exact: true })
+        .getByRole("link", { name: "Projects", exact: true });
       await expect(navLink).toBeVisible();
       await navLink.click();
       await expect(page).toHaveURL("/projects");
@@ -415,7 +417,9 @@ test.describe("General project management — end to end", () => {
       page,
     }) => {
       await page.goto("/");
-      await expect(page.getByRole("link", { name: "Projects" })).toHaveCount(0);
+      await expect(
+        page.getByRole("link", { name: "Projects", exact: true }),
+      ).toHaveCount(0);
 
       await page.goto("/projects");
       await expect(
