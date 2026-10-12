@@ -45,6 +45,19 @@ const base: AnalyticsWorkspaceProps = {
 };
 
 describe("AnalyticsWorkspace", () => {
+  it("retains keyboard refresh focus while busy and suppresses duplicate activation", async () => {
+    const retry = vi.fn();
+    const user = userEvent.setup();
+    const view = render(<AnalyticsWorkspace {...base} onRetry={retry} />);
+    const button = screen.getByRole("button", { name: "Refresh measure" });
+    button.focus();
+    await user.keyboard("{Enter}");
+    view.rerender(<AnalyticsWorkspace {...base} onRetry={retry} refreshing />);
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Enter}");
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
   it("renders filtered marketing results as entity progress, not promotion channels", () => {
     // Runtime filter metadata must not act as a response-shape discriminator.
     const filteredCampaign = {
@@ -157,6 +170,7 @@ describe("AnalyticsWorkspace", () => {
         />,
       );
       expect(screen.queryByText("50%")).not.toBeInTheDocument();
+      expect(screen.queryByRole("figure")).not.toBeInTheDocument();
       if (state === "loading")
         expect(screen.getByRole("status")).toHaveTextContent(
           "Loading task completion",

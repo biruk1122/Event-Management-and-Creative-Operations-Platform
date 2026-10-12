@@ -17,6 +17,7 @@ import {
 } from "../lib/analytics-presentation";
 import { AnalyticsResults } from "./analytics-results";
 import { AnalyticsHeading } from "./analytics-heading";
+import styles from "./analytics-workspace.module.css";
 
 export interface AnalyticsWorkspaceProps {
   allowed: Record<Measure, boolean>;
@@ -93,7 +94,7 @@ export function AnalyticsWorkspace({
     onDraftChange?.(next);
   };
   return (
-    <div className="min-w-0 space-y-5">
+    <div className={`${styles.workspace} min-w-0 space-y-6`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         {showHeading ? <AnalyticsHeading scopeLabel={scopeLabel} /> : null}
         <div className="space-y-1">
@@ -141,7 +142,7 @@ export function AnalyticsWorkspace({
       </div>
       <form
         aria-label={`${MEASURES[measure]} filters`}
-        className="grid gap-3 rounded-xl border p-4 sm:grid-cols-2 lg:grid-cols-4"
+        className={`${styles.filters} bg-card grid gap-4 rounded-2xl border p-4 sm:grid-cols-2 sm:p-6 lg:grid-cols-4`}
         onSubmit={(event) => {
           event.preventDefault();
           if (!error && controlsEnabled) onApply?.(measure, draft);
@@ -229,8 +230,15 @@ export function AnalyticsWorkspace({
           <Button
             type="button"
             variant="outline"
-            disabled={!controlsEnabled || !onRetry}
-            onClick={() => onRetry?.(measure)}
+            disabled={
+              !onRetry ||
+              ["denied", "unavailable", "loading"].includes(panel.state)
+            }
+            aria-disabled={refreshing}
+            className="aria-disabled:opacity-50"
+            onClick={() => {
+              if (!refreshing) onRetry?.(measure);
+            }}
           >
             Refresh measure
           </Button>
@@ -256,7 +264,7 @@ export function AnalyticsWorkspace({
       <section
         aria-label={MEASURES[measure]}
         aria-busy={panel.state === "loading" || refreshing}
-        className="min-w-0 space-y-4 rounded-xl border p-4 sm:p-6"
+        className={`${styles.results} bg-card min-w-0 space-y-4 rounded-2xl border p-4 sm:p-6`}
       >
         <h3 className="text-lg font-semibold">{MEASURES[measure]}</h3>
         {refreshing ? (
@@ -293,15 +301,19 @@ export function AnalyticsWorkspace({
             </p>
             <Button
               variant="outline"
-              disabled={!onRetry || refreshing}
-              onClick={() => onRetry?.(measure)}
+              disabled={!onRetry}
+              aria-disabled={refreshing}
+              className="aria-disabled:opacity-50"
+              onClick={() => {
+                if (!refreshing) onRetry?.(measure);
+              }}
             >
               Try again
             </Button>
           </div>
         ) : null}
         {ready ? (
-          <AnalyticsResults measure={measure} data={panel.data} />
+          <AnalyticsResults measure={measure} data={panel.data} showCharts />
         ) : null}
         {page ? (
           <nav
