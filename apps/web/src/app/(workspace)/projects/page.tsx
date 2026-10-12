@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { WorkSurface } from "@/components/ui/work-surface";
 
 import { createServerApi } from "@/lib/api/server";
 import { ProjectsScreen } from "@/features/projects";
@@ -32,30 +33,32 @@ export default async function ProjectsPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
-        Projects
-      </h1>
-      {allowed ? (
-        <>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Review projects, create one, edit its details, move it through its
-            lifecycle, assign a manager and teams, and relate it to an event.
+      <WorkSurface
+        title="Projects"
+        description={
+          allowed
+            ? "Review projects, create one, edit its details, move it through its lifecycle, assign a manager and teams, and relate it to an event."
+            : undefined
+        }
+      >
+        {allowed ? (
+          <>
+            <Link
+              href="/projects/production"
+              className="mt-3 inline-block text-sm underline underline-offset-4"
+            >
+              View production projects
+            </Link>
+            <div className="mt-6">
+              <ProjectsScreen />
+            </div>
+          </>
+        ) : (
+          <p role="alert" className="mt-6">
+            You do not have access to this area.
           </p>
-          <Link
-            href="/projects/production"
-            className="mt-3 inline-block text-sm underline underline-offset-4"
-          >
-            View production projects
-          </Link>
-          <div className="mt-6">
-            <ProjectsScreen />
-          </div>
-        </>
-      ) : (
-        <p role="alert" className="mt-6">
-          You do not have access to this area.
-        </p>
-      )}
+        )}
+      </WorkSurface>
     </main>
   );
 }

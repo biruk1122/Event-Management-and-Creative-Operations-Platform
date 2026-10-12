@@ -11,8 +11,9 @@ export function AdministrationDialogContent({
   className,
   onOpenAutoFocus,
   onCloseAutoFocus,
+  fallbackSelector = "[data-admin-toolbar] button:not(:disabled), [data-admin-filters] input",
   ...props
-}: ComponentProps<typeof DialogContent>) {
+}: ComponentProps<typeof DialogContent> & { fallbackSelector?: string }) {
   const opener = useRef<HTMLElement | null>(null);
   return (
     <DialogContent
@@ -31,9 +32,7 @@ export function AdministrationDialogContent({
         const target = opener.current;
         // A deleted/renamed/refetched row may disappear. Fall back to the
         // surviving create action, then the first usable control in this area.
-        const fallback = document.querySelector<HTMLElement>(
-          "[data-admin-toolbar] button:not(:disabled), [data-admin-filters] input",
-        );
+        const fallback = document.querySelector<HTMLElement>(fallbackSelector);
         const destination =
           target?.isConnected && target.getClientRects().length
             ? target

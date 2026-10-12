@@ -133,7 +133,10 @@ export function ProjectsManager({ access }: { access: CurrentAccess }) {
         <p role="status">Loading projects…</p>
       ) : listQuery.isError ? null : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div
+            data-work-toolbar
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
             <p className="text-muted-foreground text-sm">
               {filtersActive
                 ? `${total} matching project${total === 1 ? "" : "s"}`

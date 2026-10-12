@@ -1,0 +1,121 @@
+.surface {
+  min-width: 0;
+}
+
+.surface [data-work-heading] {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: linear-gradient(120deg, var(--accent), var(--card));
+}
+
+.surface [data-work-heading] h1 {
+  font-size: 1.75rem;
+  line-height: 1.3;
+}
+
+.surface [data-work-toolbar],
+.surface [data-work-filters] {
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+  flex-wrap: wrap;
+}
+
+.surface [data-work-filters] {
+  background: var(--muted);
+}
+
+.surface [data-work-filters] > div {
+  min-width: 0;
+}
+
+.surface [aria-label="Task view"] {
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  background: var(--card);
+}
+
+.surface [aria-label="Task view"] [aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: inset 0 -3px 0 var(--secondary);
+}
+
+.surface [data-task-column] {
+  padding: 1rem;
+  background: var(--muted);
+}
+
+.surface [data-task-column] h2,
+.dialog section h2 {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.surface [data-task-card] {
+  border-top: 3px solid var(--primary);
+  overflow-wrap: anywhere;
+}
+
+.surface [data-task-card] button {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.surface [data-task-card] .text-xs,
+.surface [data-task-column] .text-xs,
+.surface [aria-label="Task list"] .text-xs {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.dialog section {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--muted);
+}
+
+.dialog :is(section, form) :is(p, li, button) {
+  overflow-wrap: anywhere;
+}
+
+.dialog section button {
+  white-space: normal;
+  height: auto;
+}
+
+.dialog section li {
+  min-width: 0;
+}
+
+.dialog textarea {
+  min-width: 0;
+  width: 100%;
+}
+
+.dialog [data-file-upload] {
+  background: var(--card);
+  padding: 1rem;
+}
+
+.dialog [data-file-name] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.dialog input[type="file"] {
+  height: auto;
+  padding-block: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface *,
+  .dialog * {
+    animation: none;
+    transition: none;
+  }
+}
