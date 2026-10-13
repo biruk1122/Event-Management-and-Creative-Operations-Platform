@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { WorkSurface } from "@/components/ui/work-surface";
 
 import { createServerApi } from "@/lib/api/server";
 import { ProductionsScreen } from "@/features/productions";
@@ -31,20 +32,18 @@ export default async function ProductionProjectsPage() {
         </span>
         <span aria-current="page">Production</span>
       </nav>
-      <h1 className="mt-4 text-2xl font-semibold tracking-tight">
-        Production projects
-      </h1>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Plan production work, schedules, teams, talent, and connected workspace
-        activity.
-      </p>
-      <div className="mt-6">
-        {allowed ? (
-          <ProductionsScreen />
-        ) : (
-          <p role="alert">You do not have access to this area.</p>
-        )}
-      </div>
+      <WorkSurface
+        title="Production projects"
+        description="Plan production work, schedules, teams, talent, and connected workspace activity."
+      >
+        <div>
+          {allowed ? (
+            <ProductionsScreen />
+          ) : (
+            <p role="alert">You do not have access to this area.</p>
+          )}
+        </div>
+      </WorkSurface>
     </main>
   );
 }

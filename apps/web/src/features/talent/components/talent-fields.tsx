@@ -118,7 +118,7 @@ export function TalentFields({
         <Label htmlFor={ids.biography}>Biography</Label>
         <textarea
           id={ids.biography}
-          rows={3}
+          rows={5}
           value={values.biography}
           disabled={disabled}
           className="border-input placeholder:text-muted-foreground focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-3 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"

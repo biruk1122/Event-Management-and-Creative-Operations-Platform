@@ -55,7 +55,10 @@ export function TalentFilters({
   const searchId = useId();
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+    <div
+      data-work-filters
+      className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+    >
       <div className="space-y-2 sm:w-44">
         <Label htmlFor={typeId}>Type</Label>
         <Select

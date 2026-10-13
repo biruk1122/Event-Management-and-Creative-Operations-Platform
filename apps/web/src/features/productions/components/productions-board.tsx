@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import styles from "./production-presentation.module.css";
 
 import { ProductionForm, type ProductionValues } from "./production-form";
 import type { ProductionArea } from "../lib/production-access";
@@ -223,8 +224,11 @@ export function ProductionsBoard({
     );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={`${styles.board} space-y-6`}>
+      <div
+        data-work-toolbar
+        className="flex flex-wrap items-center justify-between gap-3"
+      >
         <p className="text-muted-foreground text-sm">
           {total ?? productions.length} production
           {(total ?? productions.length) === 1 ? "" : "s"}
@@ -240,7 +244,7 @@ export function ProductionsBoard({
           Refreshing productions…
         </p>
       ) : null}
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div data-work-filters className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <Label htmlFor="production-search">Search productions</Label>
           <Input
@@ -318,6 +322,7 @@ export function ProductionsBoard({
                   setActiveArea("Overview");
                 }}
                 aria-current={selectedId === item.id ? "true" : undefined}
+                data-production-card
                 className="border-border hover:bg-muted/50 focus-visible:ring-ring/50 h-full w-full rounded-xl border p-4 text-left focus-visible:ring-3 focus-visible:outline-none"
               >
                 <span className="flex flex-wrap items-center gap-2 font-medium">
@@ -397,6 +402,7 @@ export function ProductionsBoard({
       {selected ? (
         <section
           aria-label="Production details"
+          data-production-detail
           className="border-border space-y-5 rounded-xl border p-4 sm:p-6"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -427,7 +433,10 @@ export function ProductionsBoard({
           <p className="text-sm break-words">
             {selected.description || "No description added."}
           </p>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <dl
+            data-production-overview
+            className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4"
+          >
             {(
               [
                 ["Start", productionDate(selected.startAt)],
@@ -447,7 +456,10 @@ export function ProductionsBoard({
               </div>
             ))}
           </dl>
-          <div className="grid gap-4 text-sm sm:grid-cols-3">
+          <div
+            data-production-resources
+            className="grid gap-4 text-sm sm:grid-cols-3"
+          >
             <div>
               <h3 className="font-medium">Teams</h3>
               <p className="text-muted-foreground">
