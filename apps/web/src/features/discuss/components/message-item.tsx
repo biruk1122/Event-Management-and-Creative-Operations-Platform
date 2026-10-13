@@ -4,6 +4,7 @@ import { useId, useState, type FormEvent } from "react";
 import { Pencil, Pin, PinOff, Reply, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { CommunicationAvatar } from "@/components/ui/communication-avatar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -92,9 +93,16 @@ export function MessageItem({
   }
 
   return (
-    <li className="space-y-1 rounded-lg px-3 py-2 hover:bg-black/[0.02]">
+    <li
+      data-message-item
+      data-owned={isAuthor}
+      className="space-y-1 rounded-lg px-3 py-2"
+    >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex flex-wrap items-baseline gap-2">
+          <CommunicationAvatar
+            name={message.author ? personName(message.author) : "Deleted user"}
+          />
           <span className="text-sm font-semibold">
             {message.author ? personName(message.author) : "Deleted user"}
           </span>
@@ -212,7 +220,7 @@ export function MessageItem({
         <>
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
           {message.mentionedUsers.length > 0 ? (
-            <p className="text-muted-foreground text-xs">
+            <p data-message-mentions className="text-muted-foreground text-xs">
               cc {message.mentionedUsers.map(personName).join(", ")}
             </p>
           ) : null}

@@ -1,4 +1,5 @@
 "use client";
+import { CommunicationAvatar } from "@/components/ui/communication-avatar";
 
 import {
   conversationTitle,
@@ -62,6 +63,7 @@ export function ConversationList({
         return (
           <li key={conversation.id}>
             <button
+              data-conversation-item
               type="button"
               onClick={() => onSelect(conversation.id)}
               aria-current={selected ? "true" : undefined}
@@ -70,6 +72,10 @@ export function ConversationList({
               }`}
             >
               <span className="flex min-w-0 items-center gap-2">
+                <CommunicationAvatar
+                  name={conversationTitle(conversation, viewerId)}
+                  channel={kind === "channel"}
+                />
                 {unread ? (
                   <span
                     aria-label="Unread"

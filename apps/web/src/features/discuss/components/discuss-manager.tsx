@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import styles from "./discuss-presentation.module.css";
 import {
   accessKey,
   type CurrentAccess,
@@ -102,8 +103,11 @@ export function DiscussManager({
   const messages = messagesQuery.data?.items ?? null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className={`${styles.surface} space-y-4`}>
+      <div
+        data-work-toolbar
+        className="flex flex-wrap items-center justify-between gap-3"
+      >
         <ConversationFilters search={search} onSearchChange={setSearch} />
         <Button
           type="button"
@@ -120,8 +124,11 @@ export function DiscussManager({
         {announcement}
       </p>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[18rem_1fr]">
-        <div className={selectedId ? "hidden sm:block" : ""}>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[16rem_minmax(0,1fr)]">
+        <div
+          data-conversation-list
+          className={selectedId ? "hidden md:block" : ""}
+        >
           {listQuery.isError ? (
             <div role="alert" className="space-y-2">
               <p>{(listQuery.error as Error).message}</p>
@@ -143,14 +150,17 @@ export function DiscussManager({
           )}
         </div>
 
-        <div className={selectedId ? "" : "hidden sm:block"}>
+        <div
+          data-conversation-detail
+          className={selectedId ? "" : "hidden md:block"}
+        >
           {selected ? (
             <div className="flex h-full flex-col gap-3">
               <div className="flex items-center justify-between gap-2 border-b pb-2">
                 <Button
                   type="button"
                   variant="ghost"
-                  className="sm:hidden"
+                  className="md:hidden"
                   onClick={() => selectConversation(null)}
                 >
                   Back

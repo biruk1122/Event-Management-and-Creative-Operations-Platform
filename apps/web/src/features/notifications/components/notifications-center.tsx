@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import styles from "./notifications-presentation.module.css";
 
 import {
   NOTIFICATION_TYPE_LABELS,
@@ -74,7 +75,7 @@ export function NotificationsCenter({
   }
 
   return (
-    <div className="space-y-8">
+    <div className={`${styles.surface} space-y-8`}>
       {state === "reconnecting" ? (
         <Alert>
           <AlertTitle>Reconnecting to live updates</AlertTitle>
@@ -129,7 +130,10 @@ export function NotificationsCenter({
           <ol className="space-y-3" aria-label="Notification feed">
             {visibleItems.map((item) => (
               <li key={item.id}>
-                <article className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-start sm:justify-between">
+                <article
+                  data-notification-unread={item.readAt === null}
+                  className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-start sm:justify-between"
+                >
                   <div className="space-y-1">
                     <p className="font-medium">{item.title}</p>
                     <p className="text-muted-foreground text-sm">{item.body}</p>
