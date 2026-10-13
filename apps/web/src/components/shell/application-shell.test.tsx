@@ -64,6 +64,16 @@ const content = (
   </main>
 );
 describe("application shell", () => {
+  it("uses the existing right-sized artwork for every shell logo", () => {
+    const { container } = render(
+      <ApplicationShell>{content}</ApplicationShell>,
+    );
+    const images = container.querySelectorAll("svg image");
+    expect(images).toHaveLength(3);
+    for (const image of images) {
+      expect(image).toHaveAttribute("href", "/branding/lela-login-logo.webp");
+    }
+  });
   it("leaves login outside the shell", () => {
     mocks.pathname = "/login";
     render(<ApplicationShell>{content}</ApplicationShell>);

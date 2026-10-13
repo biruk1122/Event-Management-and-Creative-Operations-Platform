@@ -39,7 +39,7 @@ src/features/notifications src/components/ui/work.test.tsx src/app`).
   issue and is not included in this change.
 - End-to-end: `pnpm --filter @event-platform/e2e e2e lela-communication.spec.ts
 discuss.spec.ts notifications.spec.ts --project=chromium` against the
-  harness's own isolated PostgreSQL schema (31 migrations applied, then torn
+  harness's own isolated PostgreSQL schema (27 migrations applied, then torn
   down) and freshly built API/web servers on dynamic ports: 17 of 17 passed,
   including five role logins, both existing `discuss.spec.ts` administrator/
   denied/isolation/session-recovery journeys, both existing
@@ -79,3 +79,34 @@ lint`, `pnpm format:check`, `pnpm build`, `pnpm quality:budgets`, and the
 200% zoom and field INP remain release checks, consistent with the other Lela
 restyle issues. Push, PR and Linear closure are separate authorized delivery
 steps, not claimed here.
+
+## PR #141 mobile performance correction
+
+The failed full-suite constrained campaign profile measured 9236ms against the
+unchanged 6000ms LCP limit. Its trace showed the original 174067-byte shell logo
+taking 12775ms to download while startup scripts and two preloaded fonts competed
+on the throttled network. All three shell logos now reuse the existing approved
+24058-byte WebP encoding with identical SVG crop coordinates and accessible names.
+Geist Mono remains available, but is no longer preloaded on routes that do not use
+it. No font family, permission, layout, network profile or performance limit was
+removed or relaxed. The campaign profile now records its LCP target as diagnostic
+evidence.
+
+Validation ran in an isolated EVE-226 worktree to preserve concurrent EVE-227
+changes. Run `run_08c29ba267db42d9` passed all 13 checks across
+`lela-campaigns.spec.ts` and `lela-communication.spec.ts`, including all four
+baseline/constrained performance checks, campaign and communication responsive
+journeys, two-account delivery and notification reconnect catch-up. Campaign
+baseline LCP was 1212ms and constrained LCP 2336ms; the largest painted element
+was the campaign introduction paragraph, with sampled interaction bounds of
+72ms/64ms. These lab samples are not field INP measurements or a substitute for
+the hosted CI rerun.
+
+The production build, frontend/E2E type checks, frontend lint, changed-file
+formatting and diff checks passed. Nineteen focused shell/branding unit tests
+passed, including a regression check for all three optimized logo references.
+Independent actual-diff review/re-review found no findings. Clean-worktree
+budgets passed: JavaScript gzip 651.7 KiB, CSS 16.3 KiB and public images 193.5 KiB.
+The unrelated untracked login image in the primary workspace remains untouched.
+The harness removed its isolated schema after validation. Desktop/mobile logo
+geometry remains unchanged; a mobile dark communication screenshot was inspected.
