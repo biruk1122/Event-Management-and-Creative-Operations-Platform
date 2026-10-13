@@ -8,11 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
+import styles from "./campaign-presentation.module.css";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
@@ -135,7 +136,9 @@ export function CampaignDetailDialog({
         if (!open) onOpenChange(false);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+      <DialogContent
+        className={`${styles.dialog} max-h-[90vh] overflow-y-auto sm:max-w-5xl`}
+      >
         {campaignId !== null ? (
           <CampaignDetailBody
             key={campaignId}
@@ -454,7 +457,7 @@ function CampaignDetailBody({
 
   return (
     <>
-      <DialogHeader>
+      <DialogHeader data-campaign-summary>
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle>{campaign.name}</DialogTitle>
           <Badge variant="secondary">

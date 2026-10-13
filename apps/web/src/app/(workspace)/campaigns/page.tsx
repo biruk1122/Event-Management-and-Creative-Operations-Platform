@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { WorkSurface } from "@/components/ui/work-surface";
 
 import { createServerApi } from "@/lib/api/server";
 import { CampaignsScreen } from "@/features/campaigns";
@@ -38,26 +39,24 @@ export default async function CampaignsPage({
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
-        Campaigns
-      </h1>
-      {allowed ? (
-        <>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Review marketing and promotion campaigns, create one, edit its
-            details, move it through its lifecycle, plan its activities and
-            track progress, assign a manager and teams, and set an optional
-            budget.
-          </p>
-          <div className="mt-6">
+      <WorkSurface
+        title="Campaigns"
+        description={
+          allowed
+            ? "Review marketing and promotion campaigns, create one, edit its details, move it through its lifecycle, plan its activities and track progress, assign a manager and teams, and set an optional budget."
+            : undefined
+        }
+      >
+        {allowed ? (
+          <div>
             <CampaignsScreen initialType={initialType} />
           </div>
-        </>
-      ) : (
-        <p role="alert" className="mt-6">
-          You do not have access to this area.
-        </p>
-      )}
+        ) : (
+          <p role="alert" className="mt-6">
+            You do not have access to this area.
+          </p>
+        )}
+      </WorkSurface>
     </main>
   );
 }

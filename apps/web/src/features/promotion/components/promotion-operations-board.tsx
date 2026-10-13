@@ -147,6 +147,7 @@ export function PromotionOperationsBoard({
 
   return (
     <section
+      data-campaign-plan="promotion"
       aria-label={`Promotion activities for ${campaignName}`}
       className="space-y-5"
     >
@@ -223,6 +224,7 @@ export function PromotionOperationsBoard({
               return (
                 <li key={activity.id}>
                   <button
+                    data-promotion-activity
                     type="button"
                     aria-current={
                       selectedId === activity.id ? "true" : undefined

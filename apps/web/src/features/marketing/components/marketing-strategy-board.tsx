@@ -158,6 +158,7 @@ export function MarketingStrategyBoard({
 
   return (
     <section
+      data-campaign-plan="marketing"
       aria-label={`Marketing strategy for ${campaign.name}`}
       className="min-w-0 space-y-5"
     >
@@ -174,7 +175,10 @@ export function MarketingStrategyBoard({
         <CampaignStatusBadge status={campaign.status} />
       </div>
 
-      <div className="border-border grid min-w-0 gap-4 rounded-xl border p-4 sm:grid-cols-2">
+      <div
+        data-plan-summary
+        className="border-border grid min-w-0 gap-4 rounded-xl border p-4 sm:grid-cols-2"
+      >
         <div className="min-w-0 space-y-1">
           <h3 className="text-sm font-medium">Campaign progress</h3>
           <CampaignProgress

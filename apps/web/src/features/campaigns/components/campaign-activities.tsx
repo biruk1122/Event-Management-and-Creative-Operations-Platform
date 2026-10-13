@@ -211,6 +211,7 @@ export function CampaignActivities({
 
   return (
     <section
+      data-campaign-activities
       aria-labelledby={headingId}
       className="border-border space-y-3 border-t pt-4"
     >
@@ -302,6 +303,7 @@ export function CampaignActivities({
                 </li>
               ) : (
                 <li
+                  data-campaign-activity
                   key={activity.id}
                   className="border-border space-y-2 rounded-lg border p-3"
                 >
