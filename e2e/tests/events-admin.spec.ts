@@ -97,7 +97,7 @@ test.describe("Event management — end to end", () => {
       // The account holds event.read at organization scope, so the nav entry
       // shows.
       await page.goto("/");
-      const navLink = page.getByRole("link", { name: "Events" });
+      const navLink = page.getByRole("link", { name: "Events", exact: true });
       await expect(navLink).toBeVisible();
       await navLink.click();
       await expect(page).toHaveURL("/events");

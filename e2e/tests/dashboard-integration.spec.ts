@@ -16,6 +16,10 @@ test.describe("dashboard authoritative integration", () => {
       page,
       TEST_USERS.find((user) => user.key === "superAdmin")!,
     );
+    // Leave the post-login dashboard before capturing a fresh response.
+    // Otherwise its in-flight request can be captured and then discarded
+    // by the following navigation before Chromium exposes its body.
+    await page.goto("/tasks");
     const token = (await page.context().cookies()).find(
       (cookie) => cookie.name === "csrf_token",
     )!.value;
@@ -25,16 +29,18 @@ test.describe("dashboard authoritative integration", () => {
     );
     expect(workspace.status()).toBe(201);
     const { id: workspaceId } = (await workspace.json()) as { id: string };
-    const responsePromise = page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/v1/dashboards/management") &&
-        response.request().method() === "GET",
-    );
+    const responsePromise = page
+      .waitForResponse(
+        (response) =>
+          response.url().includes("/api/v1/dashboards/management") &&
+          response.request().method() === "GET",
+      )
+      .then(async (response) => {
+        expect(response.ok()).toBe(true);
+        return (await response.json()) as components["schemas"]["DashboardResponse"];
+      });
     await page.goto("/dashboard");
-    const response = await responsePromise;
-    expect(response.ok()).toBe(true);
-    const initial =
-      (await response.json()) as components["schemas"]["DashboardResponse"];
+    const initial = await responsePromise;
     const card = page.getByRole("article", {
       name: "Pending tasks",
       exact: true,

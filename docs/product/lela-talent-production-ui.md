@@ -62,3 +62,20 @@ frontend/UI-UX/testing skills were replaced with approved architecture, SRS,
 installed Next.js guidance and existing shared Lela patterns. The PDF skill
 guided inspection of the relevant talent and production SRS requirements.
 Push, PR and Linear closure are separate authorized delivery steps.
+
+## PR #139 CI correction
+
+The first full-suite CI run exposed an ambiguous Events navigation selector,
+an invalid shared select height utility that allowed long assignee menus to
+extend outside the viewport, and a dashboard response-body race during
+navigation. The navigation assertion now matches the exact accessible name;
+the select correctly resolves Radix's available-height variable; the dashboard
+test leaves the post-login page before capturing and eagerly reading its fresh
+response. Existing business assertions and actionability checks remain intact.
+
+Run `run_932a675eed059354` passed all 13 checks across events-admin,
+tasks-collaboration, dashboard-integration and select-overflow, including real
+uploads, denied roles and a new long-menu desktop/mobile regression. Frontend
+and E2E type checks, frontend lint, changed-file formatting, diff checks and the
+production build passed. Independent actual-diff review found no findings.
+The harness removed its isolated database schema successfully.
