@@ -20,6 +20,7 @@ import {
   useMeetingMutations,
   useMeetings,
 } from "../api/meetings-queries";
+import styles from "./meetings-presentation.module.css";
 
 const LIVE_EVENT = "notification.invalidated";
 
@@ -151,7 +152,7 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`${styles.surface} space-y-4`}>
       {connection.state.status === "reconnecting" ? (
         <p role="status" className="text-muted-foreground text-sm">
           Reconnecting…
@@ -182,16 +183,17 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
         </section>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.2fr)]">
-          <section aria-label="Meetings" className="space-y-2">
+          <section aria-label="Meetings" className="min-w-0 space-y-2">
             {meetings.map((meeting) => (
               <Button
                 key={meeting.id}
+                data-meeting-item
                 variant="outline"
                 className="h-auto w-full justify-start p-3 text-left"
                 onClick={() => setSelectedId(meeting.id)}
                 aria-pressed={selected?.id === meeting.id}
               >
-                <span className="min-w-0">
+                <span className="block min-w-0">
                   <span className="block truncate font-medium">
                     {meeting.title}
                   </span>
@@ -243,12 +245,16 @@ function MeetingDetail({
 }) {
   return (
     <section
+      data-meeting-detail
       aria-labelledby="meeting-detail-title"
-      className="rounded-lg border p-4 sm:p-6"
+      className="min-w-0 rounded-lg border p-4 sm:p-6"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 id="meeting-detail-title" className="text-lg font-medium">
+        <div className="min-w-0">
+          <h2
+            id="meeting-detail-title"
+            className="text-lg font-medium wrap-anywhere"
+          >
             {meeting.title}
           </h2>
           <p className="text-muted-foreground text-sm">
@@ -295,7 +301,10 @@ function MeetingDetail({
           {meeting.participants.map((item) => (
             <li key={item.id} className="flex justify-between gap-2">
               <span>{personName(item)}</span>
-              <span className="text-muted-foreground">
+              <span
+                data-participant-response={item.response}
+                className="text-muted-foreground"
+              >
                 {PARTICIPANT_RESPONSE_LABELS[item.response]}
               </span>
             </li>

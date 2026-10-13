@@ -1,0 +1,24 @@
+.surface [data-todo-item] {
+  border-left: 3px solid var(--destructive);
+}
+
+.surface [data-todo-item][data-priority="HIGH"] {
+  border-left-color: var(--primary);
+}
+
+.surface [data-todo-item][data-priority="MEDIUM"],
+.surface [data-todo-item][data-priority="LOW"] {
+  border-left-color: var(--secondary-foreground);
+}
+
+.surface [data-todo-item][data-todo-completed="true"] {
+  border-left-color: var(--muted-foreground);
+  background: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface * {
+    animation: none;
+    transition: none;
+  }
+}

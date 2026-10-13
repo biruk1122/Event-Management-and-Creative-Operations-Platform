@@ -20,7 +20,10 @@ export function TodoToolbar({
   onCreate,
 }: TodoToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
+    <div
+      data-work-toolbar
+      className="flex flex-wrap items-center justify-between gap-3"
+    >
       <div
         role="group"
         aria-label="To-do views"

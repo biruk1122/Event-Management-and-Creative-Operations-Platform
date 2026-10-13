@@ -36,7 +36,12 @@ export function TodoItemRow({
 }: TodoItemRowProps) {
   const completed = item.status === "COMPLETED";
   return (
-    <li className="border-border flex items-start gap-3 rounded-lg border p-3">
+    <li
+      data-todo-item
+      data-priority={item.priority}
+      data-todo-completed={completed}
+      className="border-border flex items-start gap-3 rounded-lg border p-3"
+    >
       <Button
         type="button"
         size="icon-xs"

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { TodoScreen } from "@/features/todo";
+import { WorkSurface } from "@/components/ui/work-surface";
 export const metadata: Metadata = { title: "To-Do" };
 export default function TodoPage() {
   return (
@@ -8,14 +9,12 @@ export default function TodoPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight">To-Do</h1>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Your personal planning items and reminders, separate from official
-        tasks.
-      </p>
-      <div className="mt-6">
+      <WorkSurface
+        title="To-Do"
+        description="Your personal planning items and reminders, separate from official tasks."
+      >
         <TodoScreen />
-      </div>
+      </WorkSurface>
     </main>
   );
 }

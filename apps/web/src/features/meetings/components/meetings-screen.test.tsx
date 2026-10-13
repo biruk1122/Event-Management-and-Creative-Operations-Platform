@@ -59,7 +59,7 @@ describe("MeetingsScreen access boundary", () => {
     };
     setup();
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Your schedule" }),
+      await screen.findByRole("heading", { level: 1, name: "Meetings" }),
     ).toBeVisible();
   });
 

@@ -1,0 +1,20 @@
+.surface [data-entry-item] {
+  border-left: 3px solid var(--primary);
+}
+
+.surface [data-entry-item][data-entry-type="PERSONAL"],
+.surface [data-entry-item][data-entry-type="REMINDER"] {
+  border-left-color: var(--muted-foreground);
+}
+
+.surface [data-entry-item][data-entry-type="TASK"],
+.surface [data-entry-item][data-entry-type="PROJECT"] {
+  border-left-color: var(--secondary-foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface * {
+    animation: none;
+    transition: none;
+  }
+}
