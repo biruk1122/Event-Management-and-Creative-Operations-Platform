@@ -65,7 +65,7 @@ newly-introduced defects, each confirmed and fixed rather than worked around:
 - 84 scoped calendar/meetings/todo unit tests passed across 13 files (includes
   the updated `MeetingsScreen` heading-text expectation).
 - Frontend typecheck, frontend lint (`--max-warnings=0`), and `pnpm
-  format:check` passed. `pnpm turbo build --filter=@event-platform/web`
+format:check` passed. `pnpm turbo build --filter=@event-platform/web`
   (Next.js production build) passed.
 - Gzipped JavaScript is 550.5 KiB and CSS 16.3 KiB, within the 750/150 KiB
   limits. The image gate fails solely on the unrelated, untracked
@@ -73,7 +73,7 @@ newly-introduced defects, each confirmed and fixed rather than worked around:
   per-image limit) - the same pre-existing, documented exception every prior
   Lela restyle issue has reported; this issue adds no images.
 - `pnpm --filter @event-platform/e2e e2e lela-calendar-meetings-todo.spec.ts
-  calendar.spec.ts meetings.spec.ts todo.spec.ts`: 17/17 passed, run with
+calendar.spec.ts meetings.spec.ts todo.spec.ts`: 17/17 passed, run with
   `API_RATE_LIMIT_MAX=10000 AUTH_LOGIN_RATE_LIMIT_MAX=10000` set explicitly
   (the local `.env`'s `API_RATE_LIMIT_MAX=100` otherwise silently shadows the
   harness's intended test-only ceiling, per the documented gotcha in
