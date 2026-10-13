@@ -1,0 +1,31 @@
+.dialog [data-talent-summary] {
+  padding: 1.25rem 3rem 1.25rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: linear-gradient(120deg, var(--accent), var(--card));
+}
+
+.dialog section > :global(.flex) > p[id],
+.dialog section > p[id] {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.dialog section li {
+  padding: 1rem;
+  background: var(--card);
+  overflow-wrap: anywhere;
+}
+
+.dialog section :global(.text-xs) {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.dialog :is(a, span) {
+  overflow-wrap: anywhere;
+}
+
+.dialog section input[type="datetime-local"] {
+  font-size: 0.875rem;
+}

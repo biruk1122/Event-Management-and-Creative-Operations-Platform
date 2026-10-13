@@ -5,11 +5,11 @@ import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProductionMutationError } from "../lib/production-errors";

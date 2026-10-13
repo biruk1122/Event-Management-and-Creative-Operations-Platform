@@ -7,11 +7,12 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
+import styles from "./talent-presentation.module.css";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -106,7 +107,9 @@ export function TalentDetailDialog({
         if (!open) onOpenChange(false);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className={`${styles.dialog} max-h-[90vh] overflow-y-auto sm:max-w-2xl`}
+      >
         {talentId !== null ? (
           <TalentDetailBody key={talentId} talentId={talentId} {...bodyProps} />
         ) : null}
@@ -278,7 +281,7 @@ function TalentDetailBody({
 
   return (
     <>
-      <DialogHeader>
+      <DialogHeader data-talent-summary>
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle>{talent.fullName}</DialogTitle>
           <Badge variant="secondary">{talentTypeLabel(talent.type)}</Badge>

@@ -129,7 +129,10 @@ export function TalentManager({ access }: { access: CurrentAccess }) {
         <p role="status">Loading talent…</p>
       ) : listQuery.isError ? null : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div
+            data-work-toolbar
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
             <p className="text-muted-foreground text-sm">
               {filtersActive
                 ? `${total} matching talent${total === 1 ? "" : "s"}`
