@@ -24,6 +24,7 @@ import {
 } from "./entry-dialog";
 import { MonthView } from "./month-view";
 import { WeekView } from "./week-view";
+import styles from "./calendar-presentation.module.css";
 import { CalendarRequestError } from "../api/calendar-gateway";
 import {
   calendarKeys,
@@ -200,7 +201,7 @@ export function CalendarManager({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`${styles.surface} space-y-4`}>
       {connection.state.status === "denied" ? (
         <p role="status" className="text-muted-foreground text-sm">
           Live updates are unavailable. Refresh to see changes made elsewhere.

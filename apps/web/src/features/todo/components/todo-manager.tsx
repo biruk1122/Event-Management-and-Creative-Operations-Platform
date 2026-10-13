@@ -20,6 +20,7 @@ import {
 } from "./todo-dialog";
 import { TodoList } from "./todo-list";
 import { TodoToolbar } from "./todo-toolbar";
+import styles from "./todo-presentation.module.css";
 import {
   TodoRequestError,
   listAssignableEvents,
@@ -206,7 +207,7 @@ export function TodoManager({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={`${styles.surface} space-y-4`}>
       {connection.state.status === "denied" ? (
         <p role="status" className="text-muted-foreground text-sm">
           Live updates are unavailable. Refresh to see changes made elsewhere.

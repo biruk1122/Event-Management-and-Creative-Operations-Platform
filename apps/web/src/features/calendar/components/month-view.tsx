@@ -77,6 +77,7 @@ export function MonthView({
                     variant="ghost"
                     onClick={() => onCreateAt(day)}
                     aria-label={`Add an entry on ${day.toLocaleDateString()}`}
+                    className="hidden sm:inline-flex"
                   >
                     <Plus aria-hidden="true" />
                   </Button>

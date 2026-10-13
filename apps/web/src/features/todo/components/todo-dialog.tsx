@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -23,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
 
 import type {
   CreateTodoOutcome,
@@ -233,7 +233,6 @@ export function TodoDialog({
             <Label htmlFor={ids.title}>Title</Label>
             <Input
               id={ids.title}
-              autoFocus
               maxLength={500}
               value={values.title}
               aria-invalid={fieldErrors.title ? true : undefined}

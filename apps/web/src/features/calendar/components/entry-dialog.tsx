@@ -6,7 +6,6 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -22,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
 
 import type {
   CalendarEntryFormValues,
@@ -210,7 +210,6 @@ export function EntryDialog({
             <Label htmlFor={ids.title}>Title</Label>
             <Input
               id={ids.title}
-              autoFocus
               maxLength={500}
               value={values.title}
               aria-invalid={fieldErrors.title ? true : undefined}

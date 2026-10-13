@@ -1,0 +1,27 @@
+.surface [data-meeting-item][aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.surface [data-meeting-item][aria-pressed="true"] * {
+  color: inherit;
+}
+
+.surface [data-meeting-detail] {
+  background: var(--card);
+}
+
+.surface [data-participant-response="ACCEPTED"] {
+  color: var(--primary);
+}
+
+.surface [data-participant-response="DECLINED"] {
+  color: var(--destructive);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface * {
+    animation: none;
+    transition: none;
+  }
+}

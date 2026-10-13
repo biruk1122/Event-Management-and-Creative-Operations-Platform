@@ -3,12 +3,12 @@
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
 
 import { formatFullDate, formatTime } from "../lib/calendar-date";
 import {

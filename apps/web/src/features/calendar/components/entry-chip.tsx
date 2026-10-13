@@ -31,6 +31,8 @@ export function EntryChip({ entry, onSelect, compact }: EntryChipProps) {
   return (
     <button
       type="button"
+      data-entry-item
+      data-entry-type={entry.type}
       onClick={() => onSelect(entry)}
       className={`hover:bg-muted focus-visible:ring-ring flex w-full min-w-0 gap-1.5 rounded-md px-1.5 py-1 text-left text-xs focus-visible:ring-2 focus-visible:outline-none ${compact ? "flex-col items-start" : "flex-wrap items-center"}`}
     >

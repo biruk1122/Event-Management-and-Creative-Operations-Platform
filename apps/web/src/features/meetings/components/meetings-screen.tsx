@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { WorkSurface } from "@/components/ui/work-surface";
 import { useCurrentAccess } from "@/features/auth/api/access-queries";
 import type { ConnectRealtime } from "@/features/realtime";
 
@@ -45,16 +46,17 @@ export function MeetingsScreen({ connect }: MeetingsScreenProps = {}) {
     return <p role="alert">You do not have access to these meetings.</p>;
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">Meetings</p>
-        <h1 className="text-2xl font-semibold tracking-tight">Your schedule</h1>
-      </header>
-      <MeetingsManager
-        key={access.data.userId}
-        access={access.data}
-        {...(connect ? { connect } : {})}
-      />
+    <main className="mx-auto max-w-5xl p-4 sm:p-6">
+      <WorkSurface
+        title="Meetings"
+        description="Your schedule, and the meetings you've been invited to."
+      >
+        <MeetingsManager
+          key={access.data.userId}
+          access={access.data}
+          {...(connect ? { connect } : {})}
+        />
+      </WorkSurface>
     </main>
   );
 }
