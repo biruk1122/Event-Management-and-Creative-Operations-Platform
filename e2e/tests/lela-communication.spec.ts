@@ -159,9 +159,9 @@ for (const kind of ["DIRECT", "CHANNEL"] as const) {
     expect(created.status()).toBe(201);
     const { id } = (await created.json()) as { id: string };
     if (kind === "CHANNEL") {
-        const added = await page.request.put(
-          `${apiBaseUrl}/api/v1/conversations/${id}/members/${userId}`,
-          { headers },
+      const added = await page.request.put(
+        `${apiBaseUrl}/api/v1/conversations/${id}/members/${userId}`,
+        { headers },
       );
       expect(added.ok()).toBe(true);
     }
