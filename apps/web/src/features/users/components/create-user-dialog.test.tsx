@@ -36,6 +36,7 @@ function setup(onCreate: CreateUser) {
       open
       onOpenChange={onOpenChange}
       roles={ROLES}
+      departments={[{ id: "dept-marketing", name: "Marketing" }]}
       onCreate={onCreate}
       onCreated={onCreated}
     />,
@@ -54,9 +55,36 @@ async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
     screen.getByLabelText("Temporary password"),
     "temp-password-1",
   );
+  await user.click(screen.getByRole("combobox", { name: "Role" }));
+  await user.click(await screen.findByRole("option", { name: "Super Admin" }));
 }
 
 describe("CreateUserDialog", () => {
+  it("requires a department for a department member and submits both assignments", async () => {
+    const onCreate = resolvesTo({ status: "success", user: CREATED });
+    const { user } = setup(onCreate);
+    await fillRequired(user);
+    await user.click(screen.getByRole("combobox", { name: "Role" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Team Member" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Create user" }));
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText(/Choose a supported role and active department/),
+    ).toBeVisible();
+    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    await user.click(await screen.findByRole("option", { name: "Marketing" }));
+    await user.click(screen.getByRole("button", { name: "Create user" }));
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          roleId: "role-1",
+          departmentId: "dept-marketing",
+        }),
+      ),
+    );
+  });
   it("submits the typed values and reports the created user", async () => {
     const onCreate = resolvesTo({ status: "success", user: CREATED });
     const { user, onCreated, onOpenChange } = setup(onCreate);
@@ -71,7 +99,7 @@ describe("CreateUserDialog", () => {
           firstName: "New",
           lastName: "User",
           temporaryPassword: "temp-password-1",
-          roleId: null,
+          roleId: "role-2",
         }),
       ),
     );
@@ -84,7 +112,7 @@ describe("CreateUserDialog", () => {
     const { user } = setup(onCreate);
 
     await fillRequired(user);
-    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("combobox", { name: "Role" }));
     await user.click(
       await screen.findByRole("option", { name: "Super Admin" }),
     );

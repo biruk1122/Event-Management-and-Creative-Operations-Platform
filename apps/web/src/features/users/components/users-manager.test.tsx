@@ -97,7 +97,7 @@ beforeEach(() => {
     ) => {
       if (path === "/api/v1/users") return listResponse(opts?.params?.query);
       if (path === "/api/v1/roles")
-        return ok([{ id: "role-1", name: "Team Member" }]);
+        return ok([{ id: "role-1", name: "Super Admin", isSystem: true }]);
       if (path === "/api/v1/users/{id}") {
         const id = opts?.params?.path?.id;
         return ok([...page1, ...page2].find((u) => u.id === id) ?? null);
@@ -228,6 +228,10 @@ describe("UsersManager API integration", () => {
       within(dialog).getByLabelText("Temporary password"),
       "temp-password-1",
     );
+    await user.click(within(dialog).getByRole("combobox", { name: "Role" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Super Admin" }),
+    );
     await user.click(
       within(dialog).getByRole("button", { name: "Create user" }),
     );
@@ -257,6 +261,10 @@ describe("UsersManager API integration", () => {
     await user.type(
       within(dialog).getByLabelText("Temporary password"),
       "temp-password-1",
+    );
+    await user.click(within(dialog).getByRole("combobox", { name: "Role" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Super Admin" }),
     );
     await user.click(
       within(dialog).getByRole("button", { name: "Create user" }),

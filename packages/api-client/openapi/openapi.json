@@ -1,6 +1,22 @@
 {
   "components": {
     "schemas": {
+      "AccessDepartmentResponse": {
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "active"],
+        "type": "object"
+      },
       "AddRolePermissionDto": {
         "properties": {
           "permissionKey": {
@@ -156,7 +172,7 @@
       "AssignUserRoleDto": {
         "properties": {
           "roleId": {
-            "description": "The role to assign, or null to remove the user's role.",
+            "description": "The platform role to assign. Legacy null input is rejected; accounts must retain a role.",
             "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
             "format": "uuid",
             "nullable": true,
@@ -1471,6 +1487,10 @@
       },
       "CreateUserDto": {
         "properties": {
+          "departmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
           "email": {
             "example": "regional.coordinator@example.com",
             "format": "email",
@@ -1500,7 +1520,7 @@
             "type": "string"
           },
           "roleId": {
-            "description": "Assign this role on creation. Omit for baseline-only access.",
+            "description": "Required platform role; validated with the department assignment.",
             "example": "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
             "format": "uuid",
             "type": "string"
@@ -1535,11 +1555,25 @@
       },
       "CurrentAccessResponse": {
         "properties": {
+          "department": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccessDepartmentResponse"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
           "grants": {
             "items": {
               "$ref": "#/components/schemas/EffectivePermissionResponse"
             },
             "type": "array"
+          },
+          "role": {
+            "enum": ["SUPER_ADMIN", "DEPARTMENT_MANAGER", "DEPARTMENT_MEMBER"],
+            "nullable": true,
+            "type": "string"
           },
           "userId": {
             "format": "uuid",
@@ -5824,6 +5858,11 @@
       },
       "UpdateUserDto": {
         "properties": {
+          "departmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "email": {
             "example": "regional.coordinator@example.com",
             "format": "email",
@@ -5850,6 +5889,10 @@
           "profileImage": {
             "example": "avatars/ada.png",
             "maxLength": 1024,
+            "type": "string"
+          },
+          "roleId": {
+            "format": "uuid",
             "type": "string"
           }
         },
@@ -5949,6 +5992,15 @@
             "format": "date-time",
             "nullable": true,
             "type": "string"
+          },
+          "department": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserRoleSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
           },
           "email": {
             "example": "regional.coordinator@example.com",

@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 
 const STATUS_VALUES = ["ACTIVE", "INACTIVE"] as const;
 
@@ -49,6 +49,9 @@ export class UserResponse {
     description: "Null when the user holds only the baseline grants.",
   })
   role!: UserRoleSummary | null;
+
+  @ApiPropertyOptional({ type: UserRoleSummary, nullable: true })
+  department!: UserRoleSummary | null;
 
   @ApiProperty({
     example: false,

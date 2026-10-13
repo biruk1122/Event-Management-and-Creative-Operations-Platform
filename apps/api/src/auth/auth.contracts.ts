@@ -1,5 +1,20 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { PermissionScope } from "../generated/prisma/enums.js";
+import {
+  PLATFORM_ROLES,
+  type PlatformRole,
+} from "../common/security/department-access.policy.js";
+
+export class AccessDepartmentResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+
+  @ApiProperty()
+  active!: boolean;
+}
 
 export class EffectivePermissionResponse {
   @ApiProperty()
@@ -16,6 +31,12 @@ export class CurrentAccessResponse {
 
   @ApiProperty({ type: [EffectivePermissionResponse] })
   grants!: EffectivePermissionResponse[];
+
+  @ApiPropertyOptional({ enum: PLATFORM_ROLES, nullable: true })
+  role!: PlatformRole | null;
+
+  @ApiPropertyOptional({ type: AccessDepartmentResponse, nullable: true })
+  department!: AccessDepartmentResponse | null;
 }
 
 /** Public view of the authenticated account. Never carries credential data. */

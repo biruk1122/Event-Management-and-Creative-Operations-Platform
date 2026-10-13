@@ -83,6 +83,8 @@ function saveFailure(error: unknown, status: number): SaveUserOutcome {
     if (error.code === "USER_EMAIL_CONFLICT")
       return { status: "email_conflict" };
     if (error.code === "ROLE_NOT_FOUND") return { status: "role_not_found" };
+    if (error.code === "USER_ASSIGNMENT_INVALID")
+      return { status: "assignment_invalid" };
     if (error.code === "USER_NOT_FOUND") return { status: "not_found" };
     if (error.code === "VALIDATION_ERROR") {
       const fields = fieldErrorsFrom(error);
@@ -94,6 +96,7 @@ function saveFailure(error: unknown, status: number): SaveUserOutcome {
         "profileImage",
         "temporaryPassword",
         "roleId",
+        "departmentId",
       ];
       const fieldErrors: Partial<Record<keyof CreateUserValues, string>> = {};
       for (const key of keys) {
@@ -138,6 +141,8 @@ function reactivateFailure(
 
 function assignFailure(error: unknown, status: number): AssignRoleOutcome {
   if (isProblemDetails(error)) {
+    if (error.code === "USER_ASSIGNMENT_INVALID")
+      return { status: "assignment_invalid" };
     if (error.code === "ROLE_NOT_FOUND") return { status: "role_not_found" };
     if (error.code === "USER_NOT_FOUND") return { status: "not_found" };
   }
@@ -202,7 +207,15 @@ export async function listAssignableRoles(
     ...(signal ? { signal } : {}),
     cache: "no-store",
   });
-  return (data ?? []).map((role) => ({ id: role.id, name: role.name }));
+  return (data ?? [])
+    .filter(
+      (role) =>
+        role.isSystem &&
+        ["Super Admin", "Department Manager", "Department Member"].includes(
+          role.name,
+        ),
+    )
+    .map((role) => ({ id: role.id, name: role.name }));
 }
 
 function toCreateBody(values: CreateUserValues) {
@@ -216,6 +229,7 @@ function toCreateBody(values: CreateUserValues) {
       ? { profileImage: values.profileImage.trim() }
       : {}),
     ...(values.roleId ? { roleId: values.roleId } : {}),
+    ...(values.departmentId ? { departmentId: values.departmentId } : {}),
   };
 }
 
@@ -226,7 +240,12 @@ function toUpdateBody(values: Partial<ProfileValues>) {
       body[key] = value.trim();
     }
   }
-  return body;
+  return {
+    ...body,
+    ...(values.departmentId !== undefined
+      ? { departmentId: values.departmentId }
+      : {}),
+  };
 }
 
 export const createUser: CreateUser = async (values) => {

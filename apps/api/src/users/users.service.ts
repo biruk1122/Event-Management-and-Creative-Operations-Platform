@@ -4,6 +4,10 @@ import type { PermissionScope } from "../generated/prisma/client.js";
 import { PasswordHasher } from "../auth/domain/password-hasher.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
+import {
+  platformRole,
+  supportedDepartment,
+} from "../common/security/department-access.policy.js";
 import type { CreateUserDto } from "./dto/create-user.dto.js";
 import type { ListUsersQueryDto } from "./dto/list-users-query.dto.js";
 import type { UpdateUserDto } from "./dto/update-user.dto.js";
@@ -17,6 +21,7 @@ import type {
 } from "./users.contracts.js";
 import {
   roleNotFound,
+  invalidUserAssignment,
   userAlreadyActive,
   userAlreadyInactive,
   userEmailConflict,
@@ -50,6 +55,33 @@ export class UsersService {
       !(await this.permissions.hasGrant(actingUserId, permissionKey, scope))
     ) {
       throw permissionDenied();
+    }
+  }
+
+  private async validateAssignment(
+    roleId: string | null | undefined,
+    departmentId: string | null | undefined,
+  ): Promise<void> {
+    if (!roleId) throw invalidUserAssignment("Choose a platform role.");
+    const role = await this.repository.findRole(roleId);
+    if (!role) throw roleNotFound();
+    const code = role.isSystem ? platformRole(role.name) : null;
+    if (!code)
+      throw invalidUserAssignment("Choose one of the three platform roles.");
+    if (code !== "SUPER_ADMIN" && !departmentId) {
+      throw invalidUserAssignment(
+        "Department managers and members require a department.",
+      );
+    }
+    if (departmentId) {
+      const department = await this.repository.findDepartment(departmentId);
+      if (
+        !department ||
+        department.deactivatedAt ||
+        !supportedDepartment(department.name)
+      ) {
+        throw invalidUserAssignment("Choose an active platform department.");
+      }
     }
   }
 
@@ -87,9 +119,10 @@ export class UsersService {
   ): Promise<UserResponse> {
     await this.requireGrant(actingUserId, "user.create");
 
-    if (dto.roleId && !(await this.repository.roleExists(dto.roleId))) {
-      throw roleNotFound();
-    }
+    await this.requireGrant(actingUserId, "user.assign_role");
+    if (dto.departmentId)
+      await this.requireGrant(actingUserId, "user.assign_department");
+    await this.validateAssignment(dto.roleId, dto.departmentId);
 
     const passwordHash = await this.passwordHasher.hash(dto.temporaryPassword);
     const result = await this.repository.create({
@@ -100,6 +133,7 @@ export class UsersService {
       profileImage: dto.profileImage ?? null,
       passwordHash,
       roleId: dto.roleId ?? null,
+      departmentId: dto.departmentId ?? null,
     });
 
     if (result === "email_conflict") {
@@ -118,6 +152,31 @@ export class UsersService {
   ): Promise<UserResponse> {
     await this.requireGrant(actingUserId, "user.update");
 
+    if (dto.roleId !== undefined || dto.departmentId !== undefined) {
+      const current = await this.repository.findById(id);
+      if (!current) throw userNotFound();
+      if (dto.roleId !== undefined) {
+        await this.requireGrant(actingUserId, "user.assign_role");
+        if (
+          current.role &&
+          platformRole(current.role.name) === "SUPER_ADMIN" &&
+          dto.roleId !== current.role.id
+        ) {
+          throw invalidUserAssignment(
+            "The existing Super Admin role must be preserved.",
+          );
+        }
+      }
+      if (dto.departmentId !== undefined)
+        await this.requireGrant(actingUserId, "user.assign_department");
+      await this.validateAssignment(
+        dto.roleId ?? current.role?.id,
+        dto.departmentId === undefined
+          ? current.department?.id
+          : dto.departmentId,
+      );
+    }
+
     const result = await this.repository.update(id, {
       ...(dto.email !== undefined ? { email: dto.email.toLowerCase() } : {}),
       ...(dto.firstName !== undefined ? { firstName: dto.firstName } : {}),
@@ -125,6 +184,10 @@ export class UsersService {
       ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
       ...(dto.profileImage !== undefined
         ? { profileImage: dto.profileImage }
+        : {}),
+      ...(dto.roleId !== undefined ? { roleId: dto.roleId } : {}),
+      ...(dto.departmentId !== undefined
+        ? { departmentId: dto.departmentId }
         : {}),
     });
 
@@ -143,6 +206,11 @@ export class UsersService {
     const user = await this.repository.findById(id);
     if (!user) {
       throw userNotFound();
+    }
+    if (user.role && platformRole(user.role.name) === "SUPER_ADMIN") {
+      throw invalidUserAssignment(
+        "The Super Admin account must remain active.",
+      );
     }
     if (user.status === "INACTIVE") {
       throw userAlreadyInactive();
@@ -180,6 +248,19 @@ export class UsersService {
   ): Promise<UserResponse> {
     await this.requireGrant(actingUserId, "user.assign_role");
 
+    const user = await this.repository.findById(id);
+    if (!user) throw userNotFound();
+    if (
+      user.role &&
+      platformRole(user.role.name) === "SUPER_ADMIN" &&
+      roleId !== user.role.id
+    ) {
+      throw invalidUserAssignment(
+        "The existing Super Admin role must be preserved.",
+      );
+    }
+    await this.validateAssignment(roleId, user.department?.id);
+
     const result = await this.repository.setRole(id, roleId);
     if (result === "user_not_found") {
       throw userNotFound();
@@ -202,6 +283,7 @@ function toUserResponse(user: UserRecord): UserResponse {
     status: user.status,
     deactivatedAt: user.deactivatedAt ? user.deactivatedAt.toISOString() : null,
     role: user.role,
+    department: user.department,
     mustChangePassword: user.mustChangePassword,
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString(),

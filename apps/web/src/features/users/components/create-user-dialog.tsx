@@ -30,6 +30,8 @@ const NO_ROLE = "NONE";
 const FORM_ERRORS: Record<string, string> = {
   email_conflict: "A user with that email already exists.",
   role_not_found: "That role no longer exists. Pick another.",
+  assignment_invalid:
+    "Choose a supported role and active department. Department roles require a department.",
   permission_denied: "You do not have permission to create a user.",
   unexpected: "We could not create the user. Try again.",
 };
@@ -38,6 +40,7 @@ interface CreateUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   roles: readonly UserRoleSummary[];
+  departments?: readonly UserRoleSummary[];
   onCreate: CreateUser;
   onCreated: (user: User) => void;
 }
@@ -50,12 +53,14 @@ const EMPTY: CreateUserValues = {
   profileImage: "",
   temporaryPassword: "",
   roleId: null,
+  departmentId: null,
 };
 
 export function CreateUserDialog({
   open,
   onOpenChange,
   roles,
+  departments = [],
   onCreate,
   onCreated,
 }: CreateUserDialogProps) {
@@ -67,6 +72,7 @@ export function CreateUserDialog({
     profileImage: useId(),
     password: useId(),
     role: useId(),
+    department: useId(),
   };
 
   const [values, setValues] = useState<CreateUserValues>(EMPTY);
@@ -91,6 +97,14 @@ export function CreateUserDialog({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    const chosenRole = roles.find((role) => role.id === values.roleId);
+    if (
+      !chosenRole ||
+      (chosenRole.name !== "Super Admin" && !values.departmentId)
+    ) {
+      setFormError(FORM_ERRORS.assignment_invalid!);
+      return;
+    }
     setSubmitting(true);
     setFieldErrors({});
     setFormError(null);
@@ -233,7 +247,7 @@ export function CreateUserDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={ids.role}>Role (optional)</Label>
+            <Label htmlFor={ids.role}>Role</Label>
             <Select
               value={values.roleId ?? NO_ROLE}
               onValueChange={(value) =>
@@ -244,9 +258,7 @@ export function CreateUserDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_ROLE}>
-                  No role (baseline access)
-                </SelectItem>
+                <SelectItem value={NO_ROLE}>Choose a role</SelectItem>
                 {roles.map((role) => (
                   <SelectItem key={role.id} value={role.id}>
                     {role.name}
@@ -254,6 +266,31 @@ export function CreateUserDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={ids.department}>Department</Label>
+            <Select
+              value={values.departmentId ?? NO_ROLE}
+              onValueChange={(value) =>
+                set("departmentId", value === NO_ROLE ? null : value)
+              }
+            >
+              <SelectTrigger id={ids.department}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_ROLE}>Choose a department</SelectItem>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-sm">
+              Required for department managers and members.
+            </p>
           </div>
 
           <DialogFooter>

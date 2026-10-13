@@ -3,11 +3,26 @@ import {
   IsEmail,
   IsOptional,
   IsString,
+  IsUUID,
+  ValidateIf,
   MaxLength,
   MinLength,
 } from "class-validator";
 
 export class UpdateUserDto {
+  @ApiPropertyOptional({ format: "uuid" })
+  @ValidateIf((dto: UpdateUserDto) => dto.roleId !== undefined)
+  @IsUUID()
+  roleId?: string;
+
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true })
+  @ValidateIf(
+    (dto: UpdateUserDto) =>
+      dto.departmentId !== undefined && dto.departmentId !== null,
+  )
+  @IsUUID()
+  departmentId?: string | null;
+
   @ApiPropertyOptional({
     format: "email",
     example: "regional.coordinator@example.com",

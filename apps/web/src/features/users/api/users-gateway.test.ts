@@ -92,7 +92,7 @@ describe("users gateway reads", () => {
     await expect(getUser("missing")).resolves.toBeNull();
   });
 
-  it("maps the roles list down to id and name", async () => {
+  it("offers only supported system roles for assignment", async () => {
     get.mockResolvedValue(
       ok([
         { id: "r1", name: "Super Admin", description: null, isSystem: true },
@@ -101,7 +101,6 @@ describe("users gateway reads", () => {
     );
     await expect(listAssignableRoles()).resolves.toEqual([
       { id: "r1", name: "Super Admin" },
-      { id: "r2", name: "Team Member" },
     ]);
   });
 

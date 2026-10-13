@@ -68,6 +68,25 @@ function baseProps(user: User) {
 }
 
 describe("UserDetailDialog", () => {
+  it("assigns a department through the update API", async () => {
+    const user = userEvent.setup();
+    const props = baseProps(makeUser());
+    render(
+      <UserDetailDialog
+        {...props}
+        departments={[{ id: "dept-marketing", name: "Marketing" }]}
+      />,
+    );
+    await screen.findByDisplayValue("Ada");
+    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    await user.click(await screen.findByRole("option", { name: "Marketing" }));
+    await waitFor(() =>
+      expect(props.onUpdate).toHaveBeenCalledWith("user-1", {
+        departmentId: "dept-marketing",
+      }),
+    );
+  });
+
   it("shows a loading state before the user resolves", () => {
     const props = baseProps(makeUser());
     let resolve: (() => void) | undefined;
@@ -169,7 +188,7 @@ describe("UserDetailDialog", () => {
     render(<UserDetailDialog {...props} />);
 
     await screen.findByDisplayValue("Ada");
-    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("combobox", { name: "Role" }));
     await user.click(
       await screen.findByRole("option", { name: "Super Admin" }),
     );
@@ -179,18 +198,16 @@ describe("UserDetailDialog", () => {
     );
   });
 
-  it("clears the role when 'No role' is chosen", async () => {
+  it("does not allow clearing the required role", async () => {
     const user = userEvent.setup();
     const props = baseProps(makeUser());
     render(<UserDetailDialog {...props} />);
 
     await screen.findByDisplayValue("Ada");
-    await user.click(screen.getByRole("combobox"));
-    await user.click(await screen.findByRole("option", { name: /no role/i }));
-
-    await waitFor(() =>
-      expect(props.onAssignRole).toHaveBeenCalledWith("user-1", null),
-    );
+    await user.click(screen.getByRole("combobox", { name: "Role" }));
+    const option = await screen.findByRole("option", { name: "Choose a role" });
+    expect(option).toHaveAttribute("aria-disabled", "true");
+    expect(props.onAssignRole).not.toHaveBeenCalled();
   });
 
   it("shows an error state when the user cannot be loaded", async () => {

@@ -15,6 +15,7 @@ export interface UserRecord {
   status: UserStatus;
   deactivatedAt: Date | null;
   role: { id: string; name: string } | null;
+  department: { id: string; name: string } | null;
   mustChangePassword: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +29,7 @@ export interface CreateUserInput {
   profileImage: string | null;
   passwordHash: string;
   roleId: string | null;
+  departmentId?: string | null;
 }
 
 export interface ListUsersInput {
@@ -61,6 +63,7 @@ const USER_SELECT = {
   createdAt: true,
   updatedAt: true,
   roleAssignment: { select: { role: { select: { id: true, name: true } } } },
+  department: { select: { id: true, name: true } },
   credential: { select: { mustChangePassword: true } },
 } as const;
 
@@ -77,6 +80,7 @@ function toRecord(raw: RawUser): UserRecord {
     status: raw.status,
     deactivatedAt: raw.deactivatedAt,
     role: raw.roleAssignment?.role ?? null,
+    department: raw.department,
     mustChangePassword: raw.credential?.mustChangePassword ?? false,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
@@ -137,6 +141,20 @@ export class UsersRepository {
     return role !== null;
   }
 
+  async findRole(roleId: string) {
+    return this.db.role.findUnique({
+      where: { id: roleId },
+      select: { id: true, name: true, isSystem: true },
+    });
+  }
+
+  async findDepartment(departmentId: string) {
+    return this.db.department.findUnique({
+      where: { id: departmentId },
+      select: { id: true, name: true, deactivatedAt: true },
+    });
+  }
+
   /**
    * Returns the created record, or `"email_conflict"` / `"role_not_found"`.
    * The nested `credential` and `roleAssignment` writes run in one implicit
@@ -153,6 +171,7 @@ export class UsersRepository {
           lastName: input.lastName,
           phone: input.phone,
           profileImage: input.profileImage,
+          departmentId: input.departmentId ?? null,
           credential: {
             create: {
               passwordHash: input.passwordHash,
@@ -186,12 +205,35 @@ export class UsersRepository {
       lastName?: string;
       phone?: string;
       profileImage?: string;
+      roleId?: string;
+      departmentId?: string | null;
     },
   ): Promise<UserRecord | "not_found" | "email_conflict"> {
+    const { roleId, departmentId, ...profile } = data;
     try {
       const updated = await this.db.user.update({
         where: { id },
-        data,
+        data: {
+          ...profile,
+          ...(departmentId !== undefined
+            ? {
+                department:
+                  departmentId === null
+                    ? { disconnect: true }
+                    : { connect: { id: departmentId } },
+              }
+            : {}),
+          ...(roleId !== undefined
+            ? {
+                roleAssignment: {
+                  upsert: {
+                    create: { roleId },
+                    update: { roleId },
+                  },
+                },
+              }
+            : {}),
+        },
         select: USER_SELECT,
       });
       return toRecord(updated);

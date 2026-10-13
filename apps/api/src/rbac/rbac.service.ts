@@ -97,6 +97,11 @@ export class RbacService {
     dto: UpdateRoleDto,
   ): Promise<RoleResponse> {
     await this.requireGrant(actingUserId, "role.update");
+    if (dto.name !== undefined) {
+      const current = await this.repository.findRoleSummary(id);
+      if (!current) throw roleNotFound();
+      if (current.isSystem && dto.name !== current.name) throw roleIsSystem();
+    }
     const result = await this.repository.updateRole(id, dto);
     if (result === "not_found") {
       throw roleNotFound();

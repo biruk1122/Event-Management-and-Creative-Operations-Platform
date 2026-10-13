@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { listDepartments } from "@/features/departments/api/departments-gateway";
 import {
   accessKey,
   type CurrentAccess,
@@ -75,6 +76,14 @@ export function UsersManager({ access }: { access: CurrentAccess }) {
   });
 
   const mutations = useUsersMutations(access);
+
+  const departmentsQuery = useQuery({
+    queryKey: [...keys.all, "assignable-departments"],
+    queryFn: ({ signal }) =>
+      listDepartments({ status: "ACTIVE", page: 1, pageSize: 100 }, signal),
+    enabled: can("user.assign_department"),
+    retry: false,
+  });
 
   // A 401/403 on the list means the caller's authority changed under them;
   // re-check access so the screen can drop to its denied/expired state.
@@ -163,6 +172,7 @@ export function UsersManager({ access }: { access: CurrentAccess }) {
           open={createOpen}
           onOpenChange={setCreateOpen}
           roles={rolesQuery.data ?? []}
+          departments={departmentsQuery.data?.items ?? []}
           onCreate={mutations.create.mutateAsync}
           onCreated={() => {
             setStatusFilter(null);
@@ -181,6 +191,7 @@ export function UsersManager({ access }: { access: CurrentAccess }) {
           }
         }}
         roles={rolesQuery.data ?? []}
+        departments={departmentsQuery.data?.items ?? []}
         getUser={getUser}
         onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
         onDeactivate={mutations.deactivate.mutateAsync}

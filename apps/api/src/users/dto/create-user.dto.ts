@@ -59,9 +59,15 @@ export class CreateUserDto {
   @ApiPropertyOptional({
     format: "uuid",
     example: "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
-    description: "Assign this role on creation. Omit for baseline-only access.",
+    description:
+      "Required platform role; validated with the department assignment.",
   })
   @IsOptional()
   @IsUUID()
   roleId?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  departmentId?: string;
 }

@@ -318,7 +318,7 @@ function RoleEditor({
           <Label htmlFor={nameId}>Name</Label>
           <Input
             id={nameId}
-            readOnly={!canUpdate || saving}
+            readOnly={role.isSystem || !canUpdate || saving}
             value={name}
             onChange={(event) =>
               changeDraft({ ...draft, name: event.target.value })

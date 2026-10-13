@@ -44,6 +44,8 @@ const NO_ROLE = "NONE";
 const ACTION_ERRORS: Record<string, string> = {
   email_conflict: "Another user already uses that email.",
   role_not_found: "That role no longer exists.",
+  assignment_invalid:
+    "Choose an active supported department. Department roles require a department.",
   already_inactive: "This user is already deactivated.",
   already_active: "This user is already active.",
   not_found: "This user no longer exists. Close this and refresh the list.",
@@ -55,6 +57,7 @@ interface UserDetailDialogProps {
   userId: string | null;
   onOpenChange: (open: boolean) => void;
   roles: readonly UserRoleSummary[];
+  departments?: readonly UserRoleSummary[];
   getUser?: GetUser;
   onUpdate: UpdateUser;
   onDeactivate: DeactivateUser;
@@ -89,6 +92,7 @@ export function UserDetailDialog({
 interface UserDetailBodyProps {
   userId: string;
   roles: readonly UserRoleSummary[];
+  departments?: readonly UserRoleSummary[];
   getUser?: GetUser;
   onUpdate: UpdateUser;
   onDeactivate: DeactivateUser;
@@ -100,6 +104,7 @@ interface UserDetailBodyProps {
 function UserDetailBody({
   userId,
   roles,
+  departments = [],
   getUser = defaultGetUser,
   onUpdate,
   onDeactivate,
@@ -114,6 +119,7 @@ function UserDetailBody({
     phone: useId(),
     profileImage: useId(),
     role: useId(),
+    department: useId(),
   };
 
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
@@ -234,6 +240,22 @@ function UserDetailBody({
       return;
     }
     setRoleError(ACTION_ERRORS[outcome.status] ?? ACTION_ERRORS.unexpected!);
+  }
+
+  async function handleDepartmentChange(value: string) {
+    if (!user) return;
+    setRoleBusy(true);
+    setRoleError(null);
+    const outcome = await onUpdate(user.id, {
+      departmentId: value === NO_ROLE ? null : value,
+    });
+    setRoleBusy(false);
+    if (outcome.status === "success") {
+      applyUser(outcome.user);
+      setAnnouncement("Department assigned.");
+    } else {
+      setRoleError(ACTION_ERRORS[outcome.status] ?? ACTION_ERRORS.unexpected!);
+    }
   }
 
   if (status === "loading") {
@@ -363,13 +385,15 @@ function UserDetailBody({
           <Select
             value={user.role?.id ?? NO_ROLE}
             onValueChange={(value) => void handleRoleChange(value)}
-            disabled={roleBusy}
+            disabled={roleBusy || user.role?.name === "Super Admin"}
           >
             <SelectTrigger id={ids.role} aria-busy={roleBusy}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_ROLE}>No role (baseline access)</SelectItem>
+              <SelectItem value={NO_ROLE} disabled>
+                Choose a role
+              </SelectItem>
               {roles.map((role) => (
                 <SelectItem key={role.id} value={role.id}>
                   {role.name}
@@ -382,6 +406,32 @@ function UserDetailBody({
               {roleError}
             </p>
           ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor={ids.department}>Department</Label>
+          <Select
+            value={user.department?.id ?? NO_ROLE}
+            onValueChange={(value) => void handleDepartmentChange(value)}
+            disabled={roleBusy}
+          >
+            <SelectTrigger id={ids.department}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                value={NO_ROLE}
+                disabled={user.role?.name !== "Super Admin"}
+              >
+                No department (Super Admin only)
+              </SelectItem>
+              {departments.map((department) => (
+                <SelectItem key={department.id} value={department.id}>
+                  {department.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -416,6 +466,7 @@ function UserDetailBody({
                 variant="destructive"
                 size="sm"
                 onClick={() => setConfirmingDeactivate(true)}
+                disabled={user.role?.name === "Super Admin"}
               >
                 Deactivate user
               </Button>
@@ -469,9 +520,7 @@ function changedFields(
   before: ProfileValues,
   after: ProfileValues,
 ): Partial<ProfileValues> {
-  const changed: Partial<ProfileValues> = {};
-  for (const key of changedKeys(before, after)) {
-    changed[key] = after[key];
-  }
-  return changed;
+  return Object.fromEntries(
+    changedKeys(before, after).map((key) => [key, after[key]]),
+  ) as Partial<ProfileValues>;
 }
