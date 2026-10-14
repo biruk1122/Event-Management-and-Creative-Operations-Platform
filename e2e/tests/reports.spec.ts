@@ -46,7 +46,7 @@ async function csrfToken(page: Page): Promise<string> {
 
 async function createReportUser(
   admin: Page,
-  roleName: "Team Member" | "Super Admin" = "Team Member",
+  roleName: "Department Member" | "Super Admin" = "Department Member",
 ) {
   const suffix = randomUUID().slice(0, 8);
   const email = `report-${suffix}@e2e.test`;

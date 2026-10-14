@@ -123,7 +123,7 @@ test.describe("Authenticated real-time platform — end to end", () => {
       page,
     }) => {
       // auth-session.spec intentionally signs this account out; sign in again
-      // to continue proving the Team Member boundary at the realtime layer.
+      // to continue proving the Department Member boundary at the realtime layer.
       await signInThroughUi(page, member);
       expect(
         sharedWorkspaceId,
@@ -180,7 +180,7 @@ test.describe("Authenticated real-time platform — end to end", () => {
           key: "realtime-recovery",
           email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Realtime",
           lastName: "Recovery",
         });

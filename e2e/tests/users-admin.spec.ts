@@ -47,7 +47,7 @@ test.describe("User administration — end to end", () => {
       password: "e2e-Passw0rd!",
       phone: "+1 (555) 987-6543",
       profileImage: "avatars/usr06.png",
-      role: "Team Member",
+      role: "Department Member",
     };
 
     test("creates, edits, assigns a role, deactivates, reloads, and reactivates a user", async ({

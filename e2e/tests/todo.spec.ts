@@ -23,7 +23,7 @@ async function csrfToken(page: Page): Promise<string> {
 }
 
 /** `POST /api/v1/users` grants baseline-only access unless a `roleId` is
- * given explicitly - so a disposable "Team Member" account needs this
+ * given explicitly - so a disposable "Department Member" account needs this
  * looked up and passed at creation time. */
 async function roleIdByName(
   requester: Pick<Page, "request">,
@@ -41,7 +41,7 @@ interface DisposableUser {
   email: string;
 }
 
-/** Creates a disposable "Team Member" account through the real API - a
+/** Creates a disposable "Department Member" account through the real API - a
  * clean, unrelated to-do owner rather than the shared `member` fixture
  * (already signed out elsewhere in the suite by auth-session.spec.ts),
  * matching calendar.spec.ts's own convention. */
@@ -52,7 +52,7 @@ async function createDisposableUser(
 ): Promise<DisposableUser> {
   const suffix = randomUUID().slice(0, 8);
   const email = `todo-${label}-${suffix}@e2e.test`;
-  const teamMemberRoleId = await roleIdByName(page, "Team Member");
+  const teamMemberRoleId = await roleIdByName(page, "Department Member");
   const created = await page.request.post(`${apiBaseUrl}/api/v1/users`, {
     headers: { "x-csrf-token": csrf },
     data: {
@@ -199,7 +199,7 @@ test.describe("Personal To-Do and reminders — end to end", () => {
           key: "todo-isolation-a",
           email: userA.email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Todo",
           lastName: "Isolation A",
         });
@@ -207,7 +207,7 @@ test.describe("Personal To-Do and reminders — end to end", () => {
           key: "todo-isolation-b",
           email: userB.email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Todo",
           lastName: "Isolation B",
         });
@@ -274,7 +274,7 @@ test.describe("Personal To-Do and reminders — end to end", () => {
       const csrf = await csrfToken(page);
       const suffix = randomUUID().slice(0, 8);
       const email = `todo-denied-${suffix}@e2e.test`;
-      const teamMemberRoleId = await roleIdByName(page, "Team Member");
+      const teamMemberRoleId = await roleIdByName(page, "Department Member");
       const created = await page.request.post(`${apiBaseUrl}/api/v1/users`, {
         headers: { "x-csrf-token": csrf },
         data: {
@@ -294,7 +294,7 @@ test.describe("Personal To-Do and reminders — end to end", () => {
           key: "todo-denied",
           email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Todo",
           lastName: `Denied ${suffix}`,
         });
@@ -353,7 +353,7 @@ test.describe("Personal To-Do and reminders — end to end", () => {
           key: "todo-denied",
           email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Todo",
           lastName: `Denied ${suffix}`,
         });

@@ -551,7 +551,7 @@ test.describe("Direct messages and channels — end to end", () => {
           key: "discuss-recovery",
           email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Discuss",
           lastName: "Recovery",
         });
