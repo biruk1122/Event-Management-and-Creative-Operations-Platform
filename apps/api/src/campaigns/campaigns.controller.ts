@@ -97,6 +97,20 @@ export class CampaignsController {
     return this.campaigns.list(actingUserId(request), query);
   }
 
+  @Get("for-event/:eventId")
+  @RequirePermissions("campaign.read")
+  @ApiOperation({
+    summary:
+      "List the campaigns linked to one event (EOM-01 cross-department coordination)",
+  })
+  @ApiOkResponse({ type: [CampaignResponse] })
+  async listForEvent(
+    @Req() request: RequestWithContext,
+    @Param("eventId") eventId: string,
+  ): Promise<CampaignResponse[]> {
+    return this.campaigns.listForEvent(actingUserId(request), eventId);
+  }
+
   @Get(":id")
   @RequirePermissions("campaign.read")
   @ApiOperation({

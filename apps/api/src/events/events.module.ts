@@ -12,7 +12,12 @@ import { EventsRepository } from "./infrastructure/events.repository.js";
 @Module({
   imports: [AuthModule, PermissionsModule, WorkspacesModule],
   controllers: [EventsController],
-  exports: [EventsDashboardQuery, EventsRepository, EventsAnalyticsQuery],
+  exports: [
+    EventsDashboardQuery,
+    EventsRepository,
+    EventsAnalyticsQuery,
+    EventsService,
+  ],
   providers: [
     EventsDashboardQuery,
     EventsService,

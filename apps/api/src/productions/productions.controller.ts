@@ -72,6 +72,20 @@ export class ProductionsController {
     return this.service.list(actor(request), query);
   }
 
+  @Get("for-event/:eventId")
+  @RequirePermissions("project.read")
+  @ApiOperation({
+    summary:
+      "List the productions linked to one event (EOM-01 cross-department coordination)",
+  })
+  @ApiOkResponse({ type: [ProductionResponse] })
+  listForEvent(
+    @Req() request: RequestWithContext,
+    @Param("eventId") eventId: string,
+  ) {
+    return this.service.listForEvent(actor(request), eventId);
+  }
+
   @Get(":id")
   @RequirePermissions("project.read")
   @ApiOperation({

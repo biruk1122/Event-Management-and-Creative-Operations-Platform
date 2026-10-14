@@ -18,6 +18,7 @@ const RESPONSE_KEYS = [
   "deadlineAt",
   "description",
   "endAt",
+  "eventId",
   "id",
   "manager",
   "name",
@@ -45,6 +46,7 @@ interface ProductionBody {
   endAt: string | null;
   deadlineAt: string | null;
   status: string;
+  eventId: string | null;
   manager: { id: string } | null;
   teams: { id: string; name: string }[];
   participants: { id: string }[];

@@ -35,6 +35,14 @@ export class ProductionResponse {
   @ApiProperty({ type: String, format: "date-time", nullable: true })
   deadlineAt!: string | null;
   @ApiProperty({ enum: ProductionStatus }) status!: ProductionStatus;
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description:
+      "Soft cross-reference to an event this production supports (EOM-01).",
+  })
+  eventId!: string | null;
   @ApiProperty({ type: ProductionPerson, nullable: true })
   manager!: ProductionPerson | null;
   @ApiProperty({ type: [ProductionTeam] }) teams!: ProductionTeam[];

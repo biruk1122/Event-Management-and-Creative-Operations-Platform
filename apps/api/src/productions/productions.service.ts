@@ -2,11 +2,13 @@ import { HttpException, Injectable } from "@nestjs/common";
 import type { ProductionStatus } from "../generated/prisma/client.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
+import { EventsService } from "../events/events.service.js";
 import { WorkspacesService } from "../workspaces/workspaces.service.js";
 import { WORKSPACE_ERROR } from "../workspaces/workspaces.errors.js";
 import { canTransition } from "./productions.lifecycle.js";
 import {
   productionConflict,
+  productionEventNotFound,
   productionInvalidSchedule,
   productionInvalidTransition,
   productionNotFound,
@@ -52,6 +54,7 @@ export class ProductionsService {
     private readonly repository: ProductionsRepository,
     private readonly workspaces: WorkspacesService,
     private readonly permissions: PermissionsService,
+    private readonly events: EventsService,
   ) {}
   private async grant(userId: string, key: string) {
     if (!(await this.permissions.hasGrant(userId, key, "ORGANIZATION")))
@@ -120,6 +123,8 @@ export class ProductionsService {
       dto.startAt ? new Date(dto.startAt) : null,
       dto.endAt ? new Date(dto.endAt) : null,
     );
+    if (dto.eventId && !(await this.repository.eventExists(dto.eventId)))
+      throw productionEventNotFound();
     const result = await this.repository.create({
       name: dto.name.trim(),
       productionType: dto.productionType.trim(),
@@ -131,6 +136,7 @@ export class ProductionsService {
       ...(dto.endAt ? { endAt: new Date(dto.endAt) } : {}),
       ...(dto.deadlineAt ? { deadlineAt: new Date(dto.deadlineAt) } : {}),
       ...(dto.managerId ? { managerId: dto.managerId } : {}),
+      ...(dto.eventId ? { eventId: dto.eventId } : {}),
     });
     if (result === "manager_not_found") throw productionUserNotFound();
     return response(result);
@@ -142,6 +148,12 @@ export class ProductionsService {
       resolveDate(dto.startAt, current.startAt),
       resolveDate(dto.endAt, current.endAt),
     );
+    if (
+      dto.eventId !== undefined &&
+      dto.eventId !== null &&
+      !(await this.repository.eventExists(dto.eventId))
+    )
+      throw productionEventNotFound();
     const result = await this.repository.update(id, {
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(dto.productionType !== undefined
@@ -162,6 +174,7 @@ export class ProductionsService {
       ...(dto.deadlineAt !== undefined
         ? { deadlineAt: resolveDate(dto.deadlineAt, current.deadlineAt) }
         : {}),
+      ...(dto.eventId !== undefined ? { eventId: dto.eventId } : {}),
     });
     if (!result) throw productionNotFound();
     return response(result);
@@ -252,6 +265,20 @@ export class ProductionsService {
     if (!(await this.repository.unassignTalent(id, talentId)))
       throw productionConflict("PRODUCTION_TALENT_NOT_ASSIGNED");
     return this.reload(id);
+  }
+  /** Narrow, read-only cross-department coordination (EOM-01): the
+   * productions linked to one event, for a caller who can already read that
+   * event and holds `project.read` at any scope - not a full department-scope
+   * retrofit of this module's own list/get/mutation methods. */
+  async listForEvent(userId: string, eventId: string) {
+    const [organization, department, self] = await Promise.all([
+      this.permissions.hasGrant(userId, "project.read", "ORGANIZATION"),
+      this.permissions.hasGrant(userId, "project.read", "DEPARTMENT"),
+      this.permissions.hasGrant(userId, "project.read", "SELF"),
+    ]);
+    if (!organization && !department && !self) throw permissionDenied();
+    await this.events.get(userId, eventId);
+    return (await this.repository.listByEventId(eventId)).map(response);
   }
   async remove(userId: string, id: string): Promise<void> {
     await this.load(id);

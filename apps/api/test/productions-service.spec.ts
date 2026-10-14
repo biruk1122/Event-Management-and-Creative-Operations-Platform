@@ -24,6 +24,7 @@ const record = (
   endAt: null,
   deadlineAt: null,
   status: "PLANNED",
+  eventId: null,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-02T00:00:00.000Z"),
   createdBy: null,
@@ -51,6 +52,8 @@ describe("ProductionsService", () => {
     assignTalent: vi.fn(),
     unassignTalent: vi.fn(),
     delete: vi.fn(),
+    eventExists: vi.fn(),
+    listByEventId: vi.fn(),
   };
   const workspaces = {
     setManager: vi.fn(),
@@ -60,10 +63,12 @@ describe("ProductionsService", () => {
     removeParticipant: vi.fn(),
   };
   const permissions = { hasGrant: vi.fn() };
+  const events = { get: vi.fn() };
   const service = new ProductionsService(
     repository as never,
     workspaces as never,
     permissions as never,
+    events as never,
   );
 
   beforeEach(() => {
@@ -295,5 +300,34 @@ describe("ProductionsService", () => {
       service.assignTalent(ACTOR, "production-1", "talent-1", "Lead"),
       "PRODUCTION_TALENT_ALREADY_ASSIGNED",
     );
+  });
+
+  describe("listForEvent (EOM-01 cross-department coordination)", () => {
+    it("is denied without project.read at any scope", async () => {
+      permissions.hasGrant.mockResolvedValue(false);
+      await expectCode(
+        service.listForEvent(ACTOR, "evt-1"),
+        "PERMISSION_DENIED",
+      );
+      expect(events.get).not.toHaveBeenCalled();
+    });
+
+    it("defers to the event's own authorization before listing", async () => {
+      events.get.mockRejectedValue(new Error("event denied"));
+      await expect(service.listForEvent(ACTOR, "evt-1")).rejects.toThrow(
+        "event denied",
+      );
+      expect(repository.listByEventId).not.toHaveBeenCalled();
+    });
+
+    it("lists productions linked to the event once authorized", async () => {
+      repository.listByEventId.mockResolvedValue([
+        record({ eventId: "evt-1" }),
+      ]);
+      const result = await service.listForEvent(ACTOR, "evt-1");
+      expect(events.get).toHaveBeenCalledWith(ACTOR, "evt-1");
+      expect(repository.listByEventId).toHaveBeenCalledWith("evt-1");
+      expect(result).toHaveLength(1);
+    });
   });
 });

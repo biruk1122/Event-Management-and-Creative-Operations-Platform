@@ -93,6 +93,7 @@ describe("CampaignsService", () => {
       >
     >;
   };
+  let events: { get: ReturnType<typeof vi.fn> };
   let service: CampaignsService;
 
   beforeEach(() => {
@@ -120,10 +121,12 @@ describe("CampaignsService", () => {
       unassignTeam: vi.fn().mockResolvedValue({}),
     };
     permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
+    events = { get: vi.fn().mockResolvedValue(undefined) };
     service = new CampaignsService(
       repository as never,
       workspaces as never,
       permissions as never,
+      events as never,
     );
   });
 
@@ -728,6 +731,40 @@ describe("CampaignsService", () => {
       });
       expect(page).toMatchObject({ page: 3, pageSize: 2, total: 9 });
       expect(page.items[0]?.startAt).toBeNull();
+    });
+  });
+
+  describe("listForEvent (EOM-01 cross-department coordination)", () => {
+    it("is denied without campaign.read at any scope", async () => {
+      grantOnly();
+      await expectCode(
+        service.listForEvent(ACTOR, "evt-1"),
+        "PERMISSION_DENIED",
+      );
+      expect(events.get).not.toHaveBeenCalled();
+    });
+
+    it("defers to the event's own authorization before listing", async () => {
+      grantOnly(["campaign.read", "DEPARTMENT"]);
+      events.get.mockRejectedValue(new Error("event denied"));
+      await expect(service.listForEvent(ACTOR, "evt-1")).rejects.toThrow(
+        "event denied",
+      );
+      expect(repository.list).not.toHaveBeenCalled();
+    });
+
+    it("lists campaigns linked to the event once authorized", async () => {
+      grantOnly(["campaign.read", "DEPARTMENT"]);
+      repository.list.mockResolvedValue({
+        items: [makeCampaign({ eventId: "evt-1" })],
+        total: 1,
+      });
+      const result = await service.listForEvent(ACTOR, "evt-1");
+      expect(events.get).toHaveBeenCalledWith(ACTOR, "evt-1");
+      expect(repository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ eventId: "evt-1" }),
+      );
+      expect(result).toHaveLength(1);
     });
   });
 });
