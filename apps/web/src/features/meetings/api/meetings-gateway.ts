@@ -74,3 +74,45 @@ export async function respondToMeeting(
   );
   if (!data) throw new MeetingsRequestError(httpResponse.status);
 }
+
+/** Records or edits a meeting's minutes, as its organizer (EOM-01). */
+export async function setMeetingMinutes(
+  meetingId: string,
+  minutes: string,
+): Promise<Meeting> {
+  const { data, response } = await browserApi.PUT(
+    "/api/v1/meetings/{id}/minutes",
+    {
+      params: { path: { id: meetingId } },
+      body: { minutes },
+      headers: headers(),
+    },
+  );
+  if (!data) throw new MeetingsRequestError(response.status);
+  return data;
+}
+
+export interface CreateActionItemInput {
+  title: string;
+  assigneeId?: string;
+}
+
+/** Creates a `Task` linked back to this meeting via `sourceMeetingId`, as its
+ * organizer (EOM-01) - the task's department is resolved server-side.
+ * `priority` is sent explicitly because the generated client - following the
+ * DTO's `@default` annotation - types it as required, even though the API
+ * itself treats it as optional. */
+export async function createMeetingActionItem(
+  meetingId: string,
+  input: CreateActionItemInput,
+): Promise<void> {
+  const { data, response } = await browserApi.POST(
+    "/api/v1/meetings/{id}/action-items",
+    {
+      params: { path: { id: meetingId } },
+      body: { priority: "MEDIUM", ...input },
+      headers: headers(),
+    },
+  );
+  if (!data) throw new MeetingsRequestError(response.status);
+}

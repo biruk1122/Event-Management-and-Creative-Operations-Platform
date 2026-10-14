@@ -26,6 +26,9 @@ import type {
 import {
   isMutableNotificationType,
   MUTABLE_NOTIFICATION_TYPES,
+  expenseApprovedContent,
+  expenseRejectedContent,
+  expenseSubmittedContent,
   messageMentionContent,
   meetingInvitationContent,
   meetingReminderContent,
@@ -152,6 +155,12 @@ export class NotificationsService {
           NotificationType.TASK_OVERDUE,
           taskOverdueContent,
         );
+        return;
+      case "expense.submitted":
+        await this.processExpenseSubmitted(event);
+        return;
+      case "expense.reviewed":
+        await this.processExpenseReviewed(event);
         return;
       default:
         // An event name this consumer version does not understand: succeed
@@ -319,6 +328,64 @@ export class NotificationsService {
     }
   }
 
+  /** Every active user holding `expense.approve` at ORGANIZATION scope
+   * (Super Admin only, by design) is notified - resolved through the grant
+   * system at process time, not a hardcoded role name. */
+  private async processExpenseSubmitted(
+    event: OutboxEventEnvelope,
+  ): Promise<void> {
+    if (!event.resourceId) return;
+    const expense = await this.repository.getExpense(event.resourceId);
+    if (!expense) return;
+    const recipientIds = await this.repository.getUsersWithGrant(
+      "expense.approve",
+      "ORGANIZATION",
+    );
+    const content = expenseSubmittedContent(expense.description);
+    for (const recipientUserId of recipientIds) {
+      if (recipientUserId === event.actorUserId) continue;
+      await this.createAndPublish({
+        recipientUserId,
+        type: NotificationType.EXPENSE_SUBMITTED,
+        sourceEventId: event.id,
+        occurrenceKey: event.id,
+        title: content.title,
+        body: content.body,
+        expenseId: event.resourceId,
+      });
+    }
+  }
+
+  private async processExpenseReviewed(
+    event: OutboxEventEnvelope,
+  ): Promise<void> {
+    const payload = event.payload as { outcome?: string } | null;
+    const outcome = payload?.outcome;
+    if (
+      !event.resourceId ||
+      (outcome !== "APPROVED" && outcome !== "REJECTED")
+    ) {
+      return;
+    }
+    const expense = await this.repository.getExpense(event.resourceId);
+    if (!expense?.createdById || expense.createdById === event.actorUserId) {
+      return;
+    }
+    const content =
+      outcome === "APPROVED"
+        ? expenseApprovedContent(expense.description)
+        : expenseRejectedContent(expense.description);
+    await this.createAndPublish({
+      recipientUserId: expense.createdById,
+      type: NotificationType.EXPENSE_REVIEWED,
+      sourceEventId: event.id,
+      occurrenceKey: event.id,
+      title: content.title,
+      body: content.body,
+      expenseId: event.resourceId,
+    });
+  }
+
   private async processMessageCreated(
     event: OutboxEventEnvelope,
   ): Promise<void> {
@@ -409,6 +476,7 @@ function toNotificationResponse(
     messageId: record.messageId,
     eventId: record.eventId,
     meetingId: record.meetingId,
+    expenseId: record.expenseId,
     createdAt: record.createdAt.toISOString(),
     readAt: record.readAt?.toISOString() ?? null,
   };

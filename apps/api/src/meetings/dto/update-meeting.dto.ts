@@ -74,4 +74,13 @@ export class UpdateMeetingDto {
   @ValidateIf((_, value) => value !== null)
   @IsISO8601({ strict: true })
   reminderAt?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 10000 })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(10000)
+  @Matches(NOT_BLANK, { message: "agenda must not be blank" })
+  agenda?: string | null;
 }

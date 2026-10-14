@@ -41,6 +41,7 @@ const production: Production = {
   startAt: null,
   endAt: null,
   deadlineAt: now,
+  eventId: null,
   status: "PLANNED",
   manager: null,
   teams: [],

@@ -154,6 +154,24 @@ export class ReportsController {
     return this.reports.submit(actingUserId(req), id, req.id);
   }
 
+  @Post(":id/start-review")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("report.review")
+  @ApiOperation({
+    summary:
+      "Mark a submitted report 'Under Review' before the final decision (optional)",
+  })
+  @ApiOkResponse({ type: ReportResponse })
+  @ApiConflictResponse({ type: ProblemDetails })
+  startReview(
+    @Req() req: RequestWithContext,
+    @Param("id") id: string,
+  ): Promise<ReportResponse> {
+    return this.reports.startReview(actingUserId(req), id, req.id);
+  }
+
   @Post(":id/reviews")
   @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)

@@ -22,4 +22,6 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   EVENT_REMINDER: "Event reminder",
   TODO_REMINDER: "To-Do reminder",
   REPORT_REMINDER: "Report reminder",
+  EXPENSE_SUBMITTED: "Expense submitted for approval",
+  EXPENSE_REVIEWED: "Expense reviewed",
 };

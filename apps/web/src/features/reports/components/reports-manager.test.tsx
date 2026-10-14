@@ -36,6 +36,8 @@ function report(overrides: Partial<Report> = {}): Report {
     nextDayPlan: null,
     departmentPerformance: null,
     employeePerformance: null,
+    lessonsLearned: null,
+    recommendations: null,
     workspaceIds: [],
     reviews: [],
     submittedAt: now,
@@ -57,6 +59,13 @@ const detail: ReportDetail = {
     totalProjectsNow: null,
     completedProjectsNow: null,
     activeProjectsNow: null,
+    eventTotalTasksNow: null,
+    eventCompletedTasksNow: null,
+    eventIncompleteTasksNow: null,
+    eventPlannedAmount: null,
+    eventBudgetCurrency: null,
+    eventActualApproved: null,
+    eventActualPending: null,
   },
 };
 const ok = (data: unknown, status = 200) => ({ data, response: { status } });

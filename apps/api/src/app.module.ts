@@ -14,6 +14,7 @@ import { DatabaseModule } from "./database/database.module.js";
 import { DepartmentsModule } from "./departments/departments.module.js";
 import { DiscussModule } from "./discuss/discuss.module.js";
 import { EventsModule } from "./events/events.module.js";
+import { ExpensesModule } from "./expenses/expenses.module.js";
 import { FileManagementModule } from "./file-management/file-management.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { MeetingsModule } from "./meetings/meetings.module.js";
@@ -25,6 +26,7 @@ import { ProductionsModule } from "./productions/productions.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
 import { ReportsModule } from "./reports/reports.module.js";
+import { SuppliersModule } from "./suppliers/suppliers.module.js";
 import { TeamsModule } from "./teams/teams.module.js";
 import { TalentModule } from "./talent/talent.module.js";
 import { TasksModule } from "./tasks/tasks.module.js";
@@ -73,6 +75,8 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     TasksModule,
     WorkspacesModule,
     EventsModule,
+    ExpensesModule,
+    SuppliersModule,
     TalentModule,
     ProjectsModule,
     ProductionsModule,

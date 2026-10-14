@@ -11,10 +11,14 @@ export type SupportedAuditAction =
   | "task.review.approved"
   | "task.review.changes_requested"
   | "report.submitted"
+  | "report.review_started"
   | "report.reviewed"
   | "report.changes_requested"
   | "managed_file.downloaded"
-  | "report.exported";
+  | "report.exported"
+  | "expense.submitted"
+  | "expense.review.approved"
+  | "expense.review.rejected";
 
 export interface AppendAuditRecordInput {
   actorKind: AuditActorKind;
@@ -22,7 +26,7 @@ export interface AppendAuditRecordInput {
   requestId?: string;
   correlationId?: string;
   action: SupportedAuditAction;
-  resourceType: "task" | "managed_file" | "report";
+  resourceType: "task" | "managed_file" | "report" | "expense";
   resourceId: string | null;
   workspaceContext?: string;
   outcome: AuditOutcome;

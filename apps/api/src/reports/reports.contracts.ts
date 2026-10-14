@@ -37,6 +37,18 @@ export class ReportResponse {
     string | null;
   @ApiProperty({ type: String, nullable: true }) employeePerformance!:
     string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Post-event only.",
+  })
+  lessonsLearned!: string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Post-event only.",
+  })
+  recommendations!: string | null;
   @ApiProperty({ type: String, nullable: true, format: "date-time" })
   submittedAt!: string | null;
   @ApiProperty({ type: String, nullable: true, format: "date-time" })
@@ -57,7 +69,10 @@ export class PaginatedReportsResponse {
   @ApiProperty() total!: number;
 }
 
-/** Live, author-scoped counts from Tasks and Projects, never copied into reports. */
+/** Live, author-scoped counts from Tasks and Projects, never copied into
+ * reports. The `event*`/`budget*` fields are live for POST_EVENT reports
+ * only (null otherwise) - the event this report covers, resolved through
+ * the existing ReportWorkspace join, never a stored snapshot. */
 export class ReportFactsResponse {
   @ApiProperty({ format: "date-time" }) asOf!: string;
   @ApiProperty() completedTasksInPeriod!: number;
@@ -70,6 +85,24 @@ export class ReportFactsResponse {
     number | null;
   @ApiProperty({ type: Number, nullable: true }) activeProjectsNow!:
     number | null;
+  @ApiProperty({ type: Number, nullable: true }) eventTotalTasksNow!:
+    number | null;
+  @ApiProperty({ type: Number, nullable: true }) eventCompletedTasksNow!:
+    number | null;
+  @ApiProperty({ type: Number, nullable: true }) eventIncompleteTasksNow!:
+    number | null;
+  @ApiProperty({ type: String, nullable: true }) eventPlannedAmount!:
+    string | null;
+  @ApiProperty({ type: String, nullable: true }) eventBudgetCurrency!:
+    string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Never includes pending (SUBMITTED) expenses.",
+  })
+  eventActualApproved!: string | null;
+  @ApiProperty({ type: String, nullable: true }) eventActualPending!:
+    string | null;
 }
 
 export class ReportDetailResponse extends ReportResponse {

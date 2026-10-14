@@ -14,6 +14,7 @@ import {
   EventsRequestError,
   getEvent,
   getEventBudget,
+  listAssignableDepartments,
   listAssignableTeams,
   listAssignableUsers,
   listEvents,
@@ -90,6 +91,15 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
     enabled: abilities.canAssignTeams,
   });
 
+  // The detail dialog resolves and displays an event's department name, so
+  // this is always needed, not gated on a write ability.
+  const departmentsQuery = useQuery({
+    queryKey: keys.departments,
+    queryFn: ({ signal }) => listAssignableDepartments(signal),
+    retry: false,
+    staleTime: 60_000,
+  });
+
   const mutations = useEventsMutations(access);
 
   // A 401/403 on the list means the caller's authority changed under them;
@@ -114,6 +124,7 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
 
   const users = usersQuery.data ?? [];
   const teams = teamsQuery.data ?? [];
+  const departments = departmentsQuery.data ?? [];
 
   return (
     <div className="space-y-4">
@@ -204,6 +215,7 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
         }}
         users={users}
         teams={teams}
+        departments={departments}
         canUpdate={abilities.canUpdate}
         canTransition={abilities.canTransition}
         canAssignManager={abilities.canAssignManager}
@@ -211,6 +223,8 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
         canReadBudget={abilities.canReadBudget}
         canUpdateBudget={abilities.canUpdateBudget}
         canDelete={abilities.canDelete}
+        canSeeLinkedCampaigns={abilities.canSeeLinkedCampaigns}
+        canSeeLinkedProductions={abilities.canSeeLinkedProductions}
         getEvent={getEvent}
         getBudget={getEventBudget}
         onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}

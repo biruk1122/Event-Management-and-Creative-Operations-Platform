@@ -1,6 +1,8 @@
 import type { Route } from "next";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 import { canReadEvents } from "@/features/events/lib/event-access";
+import { canReadExpenses } from "@/features/expenses/lib/expense-access";
+import { canReadSuppliers } from "@/features/suppliers/lib/supplier-access";
 import { canReadProjects } from "@/features/projects/lib/project-access";
 import { canReadCampaigns } from "@/features/campaigns/lib/campaign-access";
 import { canReadTalent } from "@/features/talent/lib/talent-access";
@@ -20,6 +22,8 @@ export type Destination = {
     | "meetings"
     | "todo"
     | "events"
+    | "expenses"
+    | "suppliers"
     | "projects"
     | "production"
     | "campaigns"
@@ -66,6 +70,8 @@ export function destinations(access: CurrentAccess): Destination[] {
   );
   add(holds("task.read"), "/tasks", "Tasks", "Work", "tasks");
   add(canReadEvents(access), "/events", "Events", "Work", "events");
+  add(canReadExpenses(access), "/expenses", "Expenses", "Work", "expenses");
+  add(canReadSuppliers(access), "/suppliers", "Suppliers", "Work", "suppliers");
   add(canReadProjects(access), "/projects", "Projects", "Work", "projects");
   add(
     canReadProjects(access),

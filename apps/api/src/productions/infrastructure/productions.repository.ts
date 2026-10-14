@@ -23,6 +23,7 @@ const SELECT = {
   endAt: true,
   deadlineAt: true,
   status: true,
+  eventId: true,
   createdAt: true,
   updatedAt: true,
   createdBy: { select: PERSON },
@@ -50,6 +51,7 @@ export interface ProductionFields {
   startAt?: Date | null;
   endAt?: Date | null;
   deadlineAt?: Date | null;
+  eventId?: string | null;
 }
 function toRecord(raw: Raw) {
   return {
@@ -62,6 +64,7 @@ function toRecord(raw: Raw) {
     endAt: raw.endAt,
     deadlineAt: raw.deadlineAt,
     status: raw.status,
+    eventId: raw.eventId,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
     createdBy: raw.createdBy,
@@ -86,6 +89,23 @@ function prismaError(error: unknown, code: string) {
 @Injectable()
 export class ProductionsRepository {
   constructor(private readonly db: DatabaseService) {}
+  async eventExists(id: string): Promise<boolean> {
+    if (!UUID.test(id)) return false;
+    return (await this.db.event.count({ where: { id } })) === 1;
+  }
+  /** Narrow, read-only cross-department coordination (EOM-01): the
+   * productions soft-linked to one event, for an event the caller can
+   * already read. No pagination - this is a small supporting list, not the
+   * module's primary listing surface. */
+  async listByEventId(eventId: string): Promise<ProductionRecord[]> {
+    if (!UUID.test(eventId)) return [];
+    const items = await this.db.production.findMany({
+      where: { eventId },
+      select: SELECT,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    return items.map(toRecord);
+  }
   async list(input: {
     page: number;
     pageSize: number;
@@ -126,6 +146,7 @@ export class ProductionsRepository {
     endAt?: Date;
     deadlineAt?: Date;
     managerId?: string;
+    eventId?: string;
     createdById: string;
   }): Promise<ProductionRecord | "manager_not_found"> {
     try {
@@ -149,6 +170,7 @@ export class ProductionsRepository {
             ...(input.startAt ? { startAt: input.startAt } : {}),
             ...(input.endAt ? { endAt: input.endAt } : {}),
             ...(input.deadlineAt ? { deadlineAt: input.deadlineAt } : {}),
+            ...(input.eventId ? { eventId: input.eventId } : {}),
           },
           select: SELECT,
         });

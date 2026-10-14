@@ -24,11 +24,15 @@ import type {
   UpdateEventOutcome,
 } from "../lib/events-outcome";
 import type {
+  AssignableDepartment,
   AssignableTeam,
   AssignableUser,
   Event,
   EventBudget,
+  EventBudgetSummary,
   EventStatus,
+  LinkedCampaign,
+  LinkedProduction,
   PaginatedEvents,
 } from "../lib/events-types";
 
@@ -291,6 +295,59 @@ export async function getEventBudget(
 }
 
 /**
+ * Planned vs. actual budget for an event. Resolves `null` on any non-OK
+ * response - in particular a 403 when the caller lacks `event.budget.read` -
+ * so the section can render its restricted state instead of an error.
+ */
+export async function getEventBudgetSummary(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EventBudgetSummary | null> {
+  const { data } = await browserApi.GET("/api/v1/events/{id}/budget-summary", {
+    params: { path: { id } },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return data ?? null;
+}
+
+/** The campaigns linked to this event (EOM-01 cross-department coordination).
+ * Resolves `[]` on any non-OK response, in particular a 403 when the caller
+ * lacks `campaign.read`. */
+export async function listCampaignsForEvent(
+  id: string,
+  signal?: AbortSignal,
+): Promise<LinkedCampaign[]> {
+  const { data } = await browserApi.GET(
+    "/api/v1/campaigns/for-event/{eventId}",
+    {
+      params: { path: { eventId: id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  return data ?? [];
+}
+
+/** The productions linked to this event (EOM-01 cross-department
+ * coordination). Resolves `[]` on any non-OK response, in particular a 403
+ * when the caller lacks `project.read`. */
+export async function listProductionsForEvent(
+  id: string,
+  signal?: AbortSignal,
+): Promise<LinkedProduction[]> {
+  const { data } = await browserApi.GET(
+    "/api/v1/productions/for-event/{eventId}",
+    {
+      params: { path: { eventId: id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  return data ?? [];
+}
+
+/**
  * Users the manager control can offer. The events API has no dedicated route,
  * so this reads the first page of `GET /api/v1/users`. Resolves `[]` when the
  * caller cannot read users.
@@ -321,6 +378,23 @@ export async function listAssignableTeams(
     cache: "no-store",
   });
   return (data?.items ?? []).map((team) => ({ id: team.id, name: team.name }));
+}
+
+/** Department names to resolve `Event.departmentId` for display (EOM-01),
+ * from the first page of `GET /api/v1/departments`. Resolves `[]` when the
+ * caller cannot read departments. */
+export async function listAssignableDepartments(
+  signal?: AbortSignal,
+): Promise<AssignableDepartment[]> {
+  const { data } = await browserApi.GET("/api/v1/departments", {
+    params: { query: { pageSize: 100 } as never },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return (data?.items ?? []).map((department) => ({
+    id: department.id,
+    name: department.name,
+  }));
 }
 
 export const createEvent: CreateEvent = async (values) => {

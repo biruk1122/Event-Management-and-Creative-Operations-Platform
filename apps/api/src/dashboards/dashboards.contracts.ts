@@ -26,6 +26,7 @@ export class DashboardItem {
       "CHANNEL",
       "CAMPAIGN_ACTIVITY",
       "TASK_ACTIVITY",
+      "EXPENSE",
     ],
   })
   kind!: string;
@@ -59,6 +60,26 @@ export class DashboardList {
 export class DashboardChannels extends DashboardList {
   @ApiProperty({ minimum: 0 }) count!: number;
 }
+/**
+ * One event's planned-vs-actual (EOM-01). Deliberately per-event, not a
+ * single cross-event sum: events may carry different budget currencies, and
+ * summing across currencies would be financially meaningless.
+ * `actualApproved`/`actualPending` are always reported separately - a
+ * pending expense is never counted as approved spending.
+ */
+export class DashboardBudgetItem {
+  @ApiProperty({ format: "uuid" }) eventId!: string;
+  @ApiProperty() eventName!: string;
+  @ApiProperty({ type: String, nullable: true }) plannedAmount!: string | null;
+  @ApiProperty({ type: String, nullable: true }) currency!: string | null;
+  @ApiProperty() actualApproved!: string;
+  @ApiProperty() actualPending!: string;
+}
+export class DashboardBudgetList {
+  @ApiProperty({ type: [DashboardBudgetItem], maxItems: 10 })
+  items!: DashboardBudgetItem[];
+  @ApiProperty() hasMore!: boolean;
+}
 export class DashboardConversationCount {
   @ApiProperty({ format: "uuid" }) conversationId!: string;
   @ApiProperty({ minimum: 0 }) count!: number;
@@ -74,6 +95,7 @@ const dataTypes = [
   DashboardList,
   DashboardChannels,
   DashboardUnread,
+  DashboardBudgetList,
   TaskAnalyticsResponse,
   WorkAnalyticsPageResponse,
   ProgressAnalyticsPageResponse,
@@ -85,6 +107,7 @@ export type DashboardData =
   | DashboardList
   | DashboardChannels
   | DashboardUnread
+  | DashboardBudgetList
   | TaskAnalyticsResponse
   | WorkAnalyticsPageResponse
   | ProgressAnalyticsPageResponse
@@ -147,6 +170,8 @@ export const dashboardModels = [
   DashboardList,
   DashboardChannels,
   DashboardUnread,
+  DashboardBudgetItem,
+  DashboardBudgetList,
   DashboardConversationCount,
   DashboardSourceState,
   DashboardCard,

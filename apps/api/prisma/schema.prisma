@@ -141,6 +141,11 @@ model User {
   authoredReports          Report[]                  @relation("ReportAuthor")
   reviewedReports          Report[]                  @relation("ReportCurrentReviewer")
   reportReviews            ReportReview[]            @relation("ReportReviewActor")
+  createdExpenses          Expense[]                 @relation("ExpenseCreatedBy")
+  reviewedExpenses         Expense[]                 @relation("ExpenseCurrentReviewer")
+  expenseReviews           ExpenseReview[]           @relation("ExpenseReviewActor")
+  expenseAttachments       ExpenseAttachment[]       @relation("ExpenseAttachmentActor")
+  createdSuppliers         Supplier[]                @relation("SupplierCreatedBy")
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -335,6 +340,9 @@ model Department {
   tasks         Task[]
   conversations Conversation[]
   reports       Report[]
+  events        Event[]
+  expenses      Expense[]
+  suppliers     Supplier[]
 
   // Look up the departments a user manages, and list active departments.
   @@index([managerId])
@@ -530,6 +538,10 @@ model ManagedFile {
   /// At most one intent parent is set, matching the existing workspace,
   /// task, and conversation intent boundary.
   intentTalentId       String?          @map("intent_talent_id") @db.Uuid
+  /// Explicit expense authorized for a receipt/invoice upload intent (EOM-01),
+  /// the same boundary as every other intent parent above. At most one intent
+  /// parent is set.
+  intentExpenseId      String?          @map("intent_expense_id") @db.Uuid
   createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -538,9 +550,11 @@ model ManagedFile {
   intentTask           Task?                     @relation("ManagedFileIntentTask", fields: [intentTaskId], references: [id], onDelete: Restrict)
   intentConversation   Conversation?             @relation("ManagedFileIntentConversation", fields: [intentConversationId], references: [id], onDelete: Restrict)
   intentTalent         Talent?                   @relation("ManagedFileIntentTalent", fields: [intentTalentId], references: [id], onDelete: Restrict)
+  intentExpense        Expense?                  @relation("ManagedFileIntentExpense", fields: [intentExpenseId], references: [id], onDelete: Restrict)
   workspaceAttachments WorkspaceFileAttachment[]
   taskAttachments      TaskAttachment[]
   messageAttachments   MessageAttachment[]
+  expenseAttachments   ExpenseAttachment[]
   talentProfileImage   Talent?                   @relation("TalentProfileImage")
 
   // Upload expiry, cleanup sweeps, actor investigation, and resolving a
@@ -552,6 +566,7 @@ model ManagedFile {
   @@index([intentTaskId])
   @@index([intentConversationId])
   @@index([intentTalentId])
+  @@index([intentExpenseId])
   @@map("managed_files")
 }
 
@@ -677,22 +692,27 @@ enum TaskActivityType {
 /// a polymorphic entity-type/id pair; department ownership supports general
 /// departmental work. A database CHECK requires at least one explicit owner.
 model Task {
-  id           String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  workspaceId  String?      @map("workspace_id") @db.Uuid
-  departmentId String?      @map("department_id") @db.Uuid
-  title        String
-  description  String?
-  priority     TaskPriority @default(MEDIUM)
-  status       TaskStatus   @default(TODO)
-  progress     Int          @default(0)
-  startAt      DateTime?    @map("start_at") @db.Timestamptz(6)
-  dueAt        DateTime?    @map("due_at") @db.Timestamptz(6)
-  createdById  String?      @map("created_by_id") @db.Uuid
-  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  workspaceId     String?      @map("workspace_id") @db.Uuid
+  departmentId    String?      @map("department_id") @db.Uuid
+  title           String
+  description     String?
+  priority        TaskPriority @default(MEDIUM)
+  status          TaskStatus   @default(TODO)
+  progress        Int          @default(0)
+  startAt         DateTime?    @map("start_at") @db.Timestamptz(6)
+  dueAt           DateTime?    @map("due_at") @db.Timestamptz(6)
+  /// The meeting this task was created from as an action item (EOM-01), or
+  /// NULL for an ordinary task. Cleared, not cascaded, if that meeting row is
+  /// removed - the task itself stays a real, assignable, trackable task.
+  sourceMeetingId String?      @map("source_meeting_id") @db.Uuid
+  createdById     String?      @map("created_by_id") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace       Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   department      Department?      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  sourceMeeting   Meeting?         @relation(fields: [sourceMeetingId], references: [id], onDelete: SetNull)
   createdBy       User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   assignments     TaskAssignment[]
   comments        TaskComment[]
@@ -712,6 +732,7 @@ model Task {
   @@index([dueAt])
   @@index([priority, dueAt])
   @@index([createdById])
+  @@index([sourceMeetingId])
   @@map("tasks")
 }
 
@@ -896,6 +917,11 @@ model Event {
   /// be three upper-case letters.
   budgetAmount   Decimal?    @map("budget_amount") @db.Decimal(14, 2)
   budgetCurrency String?     @map("budget_currency") @db.Char(3)
+  /// The owning department, or NULL for events predating department-scoped
+  /// access (EOM-01). NULL stays organization-only visible - the migration
+  /// backfill never guesses an owner for a pre-existing event. Cleared, not
+  /// cascaded, if that department row is removed.
+  departmentId   String?     @map("department_id") @db.Uuid
   /// The user who created the event; cleared, not cascaded, if that user row
   /// is removed.
   createdById    String?     @map("created_by_id") @db.Uuid
@@ -903,6 +929,7 @@ model Event {
   updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace         Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  department        Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   createdBy         User?           @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   /// General projects that optionally relate to this event (PRJ-01). A soft,
   /// unbounded cross-reference between peers, not ownership - deleting the
@@ -911,17 +938,22 @@ model Event {
   /// Campaigns that optionally relate to this event (CAM-01), with the same
   /// soft cross-reference semantics as `projects`.
   campaigns         Campaign[]
+  /// Productions that optionally relate to this event (EOM-01), the same
+  /// soft cross-reference semantics as `projects`/`campaigns`.
+  productions       Production[]
   calendarEntries   CalendarEntry[]
   notifications     Notification[]
   todos             Todo[]
   talentAssignments EventTalent[]
+  expenses          Expense[]
 
   // Administration and the connected-workspace overview filter events by
-  // lifecycle state, type, schedule, and author.
+  // lifecycle state, type, schedule, author, and (EOM-01) owning department.
   @@index([status])
   @@index([eventType])
   @@index([startAt])
   @@index([createdById])
+  @@index([departmentId, status])
   @@map("events")
 }
 
@@ -1076,11 +1108,15 @@ model Production {
   endAt          DateTime?        @map("end_at") @db.Timestamptz(6)
   deadlineAt     DateTime?        @map("deadline_at") @db.Timestamptz(6)
   status         ProductionStatus @default(PLANNED)
+  /// Optional relationship to an event (EOM-01), mirroring `Campaign.eventId`'s
+  /// soft, unbounded cross-reference semantics - not an ownership relation.
+  eventId        String?          @map("event_id") @db.Uuid
   createdById    String?          @map("created_by_id") @db.Uuid
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  event     Event?             @relation(fields: [eventId], references: [id], onDelete: SetNull)
   createdBy User?              @relation("ProductionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   talents   ProductionTalent[]
 
@@ -1088,6 +1124,7 @@ model Production {
   @@index([productionType, status])
   @@index([deadlineAt])
   @@index([createdById])
+  @@index([eventId])
   @@map("productions")
 }
 
@@ -1445,6 +1482,12 @@ model Meeting {
   location    String?
   onlineLink  String?       @map("online_link")
   reminderAt  DateTime?     @map("reminder_at") @db.Timestamptz(6)
+  /// Free-text meeting agenda, set before or during the meeting (EOM-01).
+  agenda      String?       @db.Text
+  /// Free-text minutes/notes recorded during or after the meeting (EOM-01).
+  /// Action items are not stored here - they are real `Task` rows linked via
+  /// `Task.sourceMeetingId`, so they stay assignable and trackable.
+  minutes     String?       @db.Text
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -1453,6 +1496,7 @@ model Meeting {
   participants    MeetingParticipant[]
   calendarEntries CalendarEntry[]
   notifications   Notification[]
+  actionItems     Task[]
 
   @@index([organizerId, startAt])
   @@index([workspaceId, startAt])
@@ -1800,6 +1844,11 @@ enum NotificationType {
   EVENT_REMINDER
   TODO_REMINDER
   REPORT_REMINDER
+  /// EOM-01: a submitted expense notifies every user holding
+  /// `expense.approve` at ORGANIZATION scope (today, Super Admin only).
+  EXPENSE_SUBMITTED
+  /// EOM-01: an expense decision (approved or rejected) notifies its author.
+  EXPENSE_REVIEWED
 
   @@map("notification_type")
 }
@@ -1912,10 +1961,11 @@ model ScheduledOccurrenceClaim {
 /// The durable, per-recipient notification record (ADR 0003 section 1) - the
 /// system of record a client's REST feed reads and reconciles against; a
 /// real-time frame is only ever an advisory nudge to refetch it. `taskId`,
-/// `messageId`, and `eventId` are the typed target union ADR 0003 requires
-/// ("not an unchecked entityType/entityId reference... must resolve through
-/// an approved module relation") - real foreign keys, not a polymorphic
-/// pair, for the four target domains that exist today. A CHECK constraint
+/// `messageId`, `eventId`, `meetingId`, and `expenseId` are the typed target
+/// union ADR 0003 requires ("not an unchecked entityType/entityId
+/// reference... must resolve through an approved module relation") - real
+/// foreign keys, not a polymorphic pair, for the five target domains that
+/// exist today. A CHECK constraint
 /// (added by hand; see the migration) keeps at most one set. A
 /// Meeting notifications use the concrete meeting target. To-Do and report
 /// reminders carry no target until those domains provide an approved concrete
@@ -1937,6 +1987,8 @@ model Notification {
   messageId       String?          @map("message_id") @db.Uuid
   eventId         String?          @map("event_id") @db.Uuid
   meetingId       String?          @map("meeting_id") @db.Uuid
+  /// EOM-01: the fifth typed target, added for EXPENSE_SUBMITTED/REVIEWED.
+  expenseId       String?          @map("expense_id") @db.Uuid
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   readAt          DateTime?        @map("read_at") @db.Timestamptz(6)
 
@@ -1946,6 +1998,7 @@ model Notification {
   message     Message?    @relation(fields: [messageId], references: [id], onDelete: Cascade)
   event       Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   meeting     Meeting?    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  expense     Expense?    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 
   // The cursor feed reads a recipient's own notifications newest first
   // (ADR 0003 section 5); the second index supports the unread count.
@@ -1980,15 +2033,25 @@ enum ReportType {
   DAILY
   WEEKLY
   MONTHLY
+  /// A post-event report (EOM-01): outcomes, budget performance, completed/
+  /// incomplete work, challenges, lessons learned, and recommendations for one
+  /// event. Linked to that event's workspace via `ReportWorkspace`, the same
+  /// checked join every report type already uses - no new relation.
+  POST_EVENT
 
   @@map("report_type")
 }
 
 /// Reviewed is the approved terminal state; it is not a separate approval
-/// workflow (product vocabulary, Report lifecycle).
+/// workflow (product vocabulary, Report lifecycle). `UNDER_REVIEW` (EOM-01)
+/// is an optional extra step a reviewer may use to mark a submitted report as
+/// actively being looked at before deciding; `review()` still accepts either
+/// `SUBMITTED` or `UNDER_REVIEW` as its starting state, so no existing report
+/// type's flow is forced through it.
 enum ReportStatus {
   DRAFT
   SUBMITTED
+  UNDER_REVIEW
   REVIEWED
   CHANGES_REQUESTED
 
@@ -2026,6 +2089,9 @@ model Report {
   nextWeekPlan          String?      @map("next_week_plan")
   departmentPerformance String?      @map("department_performance")
   employeePerformance   String?      @map("employee_performance")
+  /// Post-event only (EOM-01); NULL for every other report type.
+  lessonsLearned        String?      @map("lessons_learned")
+  recommendations       String?
   submittedAt           DateTime?    @map("submitted_at") @db.Timestamptz(6)
   reviewedAt            DateTime?    @map("reviewed_at") @db.Timestamptz(6)
   reviewerId            String?      @map("reviewer_id") @db.Uuid
@@ -2077,4 +2143,159 @@ model ReportReview {
   @@index([reportId, reviewedAt, id])
   @@index([reviewerId, reviewedAt])
   @@map("report_reviews")
+}
+
+/// Expense cost categories for event spending (EOM-01). `MISCELLANEOUS` is
+/// the fallback, matching `EventType.OTHER`'s existing convention.
+enum ExpenseCategory {
+  VENUE
+  CATERING
+  TALENT_FEES
+  MARKETING_MATERIALS
+  LOGISTICS
+  EQUIPMENT
+  STAFFING
+  MISCELLANEOUS
+
+  @@map("expense_category")
+}
+
+/// The expense lifecycle (EOM-01). `APPROVED` and `REJECTED` are terminal for
+/// a given submission, but a `REJECTED` expense can be edited back to `DRAFT`
+/// and resubmitted - the prior decision is never lost, since every decision
+/// is also an immutable `ExpenseReview` row. Approval is restricted to
+/// whichever role holds `expense.approve` in the permission catalog (Super
+/// Admin only, by design - see RBAC-01), not a code-level role check.
+enum ExpenseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+
+  @@map("expense_status")
+}
+
+enum ExpenseReviewOutcome {
+  APPROVED
+  REJECTED
+
+  @@map("expense_review_outcome")
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("supplier_status")
+}
+
+/// A supplier/vendor directory entry (EOM-01). `departmentId = NULL` is a
+/// shared, organization-wide supplier; a set `departmentId` is private to
+/// that department - the same optional-ownership shape `Task` already uses.
+model Supplier {
+  id           String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name         String
+  category     String?
+  contactName  String?        @map("contact_name")
+  contactEmail String?        @map("contact_email")
+  contactPhone String?        @map("contact_phone")
+  departmentId String?        @map("department_id") @db.Uuid
+  status       SupplierStatus @default(ACTIVE)
+  notes        String?
+  createdById  String?        @map("created_by_id") @db.Uuid
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdBy  User?       @relation("SupplierCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  expenses   Expense[]
+
+  // A department cannot register the same supplier name twice; NULL
+  // department (shared directory) participates in its own uniqueness group.
+  @@unique([name, departmentId])
+  @@index([departmentId, status])
+  @@map("suppliers")
+}
+
+/// One expense record against one event (EOM-01). `departmentId` is
+/// denormalized from the event at creation time (matching `Report`'s own
+/// "department is the record's explicit organizational context at creation"
+/// convention) so department-scoped visibility never requires joining
+/// through `Event` just to authorize a read.
+model Expense {
+  id            String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  eventId       String          @map("event_id") @db.Uuid
+  departmentId  String          @map("department_id") @db.Uuid
+  supplierId    String?         @map("supplier_id") @db.Uuid
+  category      ExpenseCategory
+  description   String
+  /// Optional per-line planned amount, distinct from `Event.budgetAmount`'s
+  /// overall total - lets a manager compare one line item's plan to its
+  /// actual, not only the whole event's.
+  plannedAmount Decimal?        @map("planned_amount") @db.Decimal(14, 2)
+  actualAmount  Decimal         @map("actual_amount") @db.Decimal(14, 2)
+  currency      String          @db.Char(3)
+  status        ExpenseStatus   @default(DRAFT)
+  createdById   String?         @map("created_by_id") @db.Uuid
+  submittedAt   DateTime?       @map("submitted_at") @db.Timestamptz(6)
+  reviewedAt    DateTime?       @map("reviewed_at") @db.Timestamptz(6)
+  reviewerId    String?         @map("reviewer_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event       Event               @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  department  Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  supplier    Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  createdBy   User?               @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewer    User?               @relation("ExpenseCurrentReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviews       ExpenseReview[]
+  attachments   ExpenseAttachment[]
+  fileIntents   ManagedFile[]       @relation("ManagedFileIntentExpense")
+  notifications Notification[]
+
+  // Planned-vs-actual summaries and approval queues filter by event/
+  // department and status; this mirrors Task's own `[owner, status]` shape.
+  @@index([eventId, status])
+  @@index([departmentId, status])
+  @@index([supplierId])
+  @@index([createdById])
+  @@map("expenses")
+}
+
+/// Immutable decision per review cycle; a rejected expense can later be
+/// edited and resubmitted without losing the prior decision - the same
+/// "preserve history across cycles" shape as `TaskReview`/`ReportReview`.
+model ExpenseReview {
+  id         String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  expenseId  String               @map("expense_id") @db.Uuid
+  reviewerId String               @map("reviewer_id") @db.Uuid
+  outcome    ExpenseReviewOutcome
+  note       String?
+  reviewedAt DateTime             @default(now()) @map("reviewed_at") @db.Timestamptz(6)
+
+  expense  Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  reviewer User    @relation("ExpenseReviewActor", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([expenseId, reviewedAt])
+  @@index([reviewerId, reviewedAt])
+  @@map("expense_reviews")
+}
+
+/// A concrete expense parent for an existing managed object (a receipt or
+/// invoice), the same shape as `TaskAttachment`/`WorkspaceFileAttachment`.
+model ExpenseAttachment {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  expenseId     String   @map("expense_id") @db.Uuid
+  managedFileId String   @map("managed_file_id") @db.Uuid
+  attachedById  String?  @map("attached_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  expense     Expense     @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  managedFile ManagedFile @relation(fields: [managedFileId], references: [id], onDelete: Restrict)
+  attachedBy  User?       @relation("ExpenseAttachmentActor", fields: [attachedById], references: [id], onDelete: SetNull)
+
+  @@unique([expenseId, managedFileId])
+  @@index([managedFileId])
+  @@index([attachedById])
+  @@map("expense_attachments")
 }

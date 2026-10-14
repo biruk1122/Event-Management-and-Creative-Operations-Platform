@@ -13,7 +13,13 @@ export interface TestUser {
   readonly email: string;
   /** Plain-text password; the seed hashes it once credential storage exists. */
   readonly password: string;
-  /** Canonical role name from the permission catalogue (EVE-32). */
+  /**
+   * Canonical role name from the permission catalogue (EVE-32). Only these
+   * three are ever seeded (`seedRbac()` upserts exactly `ROLE_DEFINITIONS`
+   * from `rbac-catalog.ts`) - the department-rbac migration retired
+   * "Management/Administrator" and "Talent Manager" and renamed "Team
+   * Member" to "Department Member".
+   */
   readonly role: "Super Admin" | "Department Manager" | "Department Member";
   readonly firstName: string;
   readonly lastName: string;

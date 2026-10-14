@@ -142,6 +142,18 @@ export async function submitReport(id: string) {
   return data;
 }
 
+/** Marks a submitted report as actively being looked at (SUBMITTED →
+ * UNDER_REVIEW) - optional; `reviewReport` may still be called directly from
+ * SUBMITTED without ever passing through this state (EOM-01). */
+export async function startReview(id: string) {
+  const { data, error, response } = await browserApi.POST(
+    "/api/v1/reports/{id}/start-review",
+    { params: { path: { id } }, headers: csrfHeaders() },
+  );
+  if (!data) throw requestError(error, response.status);
+  return data;
+}
+
 export async function reviewReport(
   id: string,
   outcome: ReviewOutcome,

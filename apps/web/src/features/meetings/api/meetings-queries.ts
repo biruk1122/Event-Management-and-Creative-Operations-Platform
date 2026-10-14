@@ -53,5 +53,19 @@ export function useMeetingMutations(access: CurrentAccess) {
       // a conflict caused by an update made by another participant.
       onSettled: () => client.invalidateQueries({ queryKey: keys.all }),
     }),
+    setMinutes: useMutation({
+      mutationFn: ({ id, minutes }: { id: string; minutes: string }) =>
+        gateway.setMeetingMinutes(id, minutes),
+      onSettled: () => client.invalidateQueries({ queryKey: keys.all }),
+    }),
+    createActionItem: useMutation({
+      mutationFn: ({
+        id,
+        input,
+      }: {
+        id: string;
+        input: gateway.CreateActionItemInput;
+      }) => gateway.createMeetingActionItem(id, input),
+    }),
   };
 }

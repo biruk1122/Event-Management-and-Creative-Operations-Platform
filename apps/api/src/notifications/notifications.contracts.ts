@@ -27,6 +27,9 @@ export class NotificationResponse {
   @ApiProperty({ type: String, format: "uuid", nullable: true })
   meetingId!: string | null;
 
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  expenseId!: string | null;
+
   @ApiProperty({ format: "date-time" })
   createdAt!: string;
 

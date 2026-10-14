@@ -20,6 +20,7 @@ const ITEMS: readonly NotificationItem[] = [
     messageId: null,
     eventId: null,
     meetingId: null,
+    expenseId: null,
   },
   {
     id: "notification-2",
@@ -32,6 +33,7 @@ const ITEMS: readonly NotificationItem[] = [
     messageId: null,
     eventId: null,
     meetingId: null,
+    expenseId: null,
   },
   {
     id: "notification-3",
@@ -44,6 +46,7 @@ const ITEMS: readonly NotificationItem[] = [
     messageId: null,
     eventId: null,
     meetingId: null,
+    expenseId: null,
   },
 ];
 

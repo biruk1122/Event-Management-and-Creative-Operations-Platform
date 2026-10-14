@@ -12,13 +12,23 @@ import {
 export class EventsDashboardQuery {
   constructor(private readonly db: DatabaseService) {}
   async counts(ctx: ReadContext, w: ReadWindow) {
-    const scope = sourceScope(ctx, "event.read", ["organization"]);
+    const scope = sourceScope(ctx, "event.read", [
+      "organization",
+      "department",
+    ]);
+    const visible =
+      scope === "organization"
+        ? Prisma.sql`true`
+        : Prisma.sql`e.department_id = ${ctx.departmentId}::uuid`;
     const [data] = await this.db.readModel<{
       totalEvents: number;
       upcomingEvents: number;
+      completedEvents: number;
     }>(Prisma.sql`
-      SELECT count(*)::int AS "totalEvents",count(*) FILTER (WHERE e.status IN (\'PLANNING\',\'READY\') AND e.start_at >= ${w.from} AND e.start_at < ${w.to})::int AS "upcomingEvents"
-      FROM events e`);
+      SELECT count(*)::int AS "totalEvents",
+      count(*) FILTER (WHERE e.status IN (\'PLANNING\',\'READY\') AND e.start_at >= ${w.from} AND e.start_at < ${w.to})::int AS "upcomingEvents",
+      count(*) FILTER (WHERE e.status = \'COMPLETED\')::int AS "completedEvents"
+      FROM events e WHERE ${visible}`);
     return { scope, data: data! };
   }
   async list(ctx: ReadContext, deadline: boolean, w: ReadWindow) {

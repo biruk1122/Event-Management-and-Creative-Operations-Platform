@@ -20,6 +20,7 @@ import type {
   AssignableUser,
   Event,
   EventBudget,
+  EventBudgetSummary,
 } from "../lib/events-types";
 
 const now = "2026-09-01T09:00:00.000Z";
@@ -55,6 +56,7 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     endAt: null,
     location: "Grand Hall",
     organizerName: "Arts Council",
+    departmentId: null,
     manager: null,
     teams: [{ id: "t1", name: "Stage Crew" }],
     participants: [
@@ -80,6 +82,7 @@ function renderDialog(
     onOpenChange: vi.fn(),
     users: USERS,
     teams: TEAMS,
+    departments: [],
     canUpdate: true,
     canTransition: true,
     canAssignManager: true,
@@ -87,9 +90,14 @@ function renderDialog(
     canReadBudget: true,
     canUpdateBudget: true,
     canDelete: true,
+    canSeeLinkedCampaigns: false,
+    canSeeLinkedProductions: false,
     getEvent: vi.fn((): Promise<Event | null> => Promise.resolve(makeEvent())),
     getBudget: vi.fn((): Promise<EventBudget | null> =>
       Promise.resolve({ amount: null, currency: null }),
+    ),
+    getBudgetSummary: vi.fn((): Promise<EventBudgetSummary | null> =>
+      Promise.resolve(null),
     ),
     onUpdate: vi.fn((): Promise<UpdateEventOutcome> =>
       Promise.resolve({

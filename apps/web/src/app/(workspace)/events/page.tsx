@@ -10,9 +10,12 @@ import { EventsScreen } from "@/features/events";
 export const metadata: Metadata = { title: "Events" };
 
 /**
- * Reading events is gated by `event.read` at organization scope - the same
- * rule `EventsService` enforces. This server check is the first gate; the
- * client `EventsScreen` re-checks and keeps the grant fresh.
+ * Reading events is gated by `event.read` at organization or department
+ * scope - the same rule `EventsService` enforces since EOM-01 made events
+ * department-scoped (an organization-scoped caller sees every event, a
+ * department-scoped caller sees only their own department's). This server
+ * check is the first gate; the client `EventsScreen` re-checks and keeps the
+ * grant fresh.
  */
 const READ_KEY = "event.read";
 
@@ -25,7 +28,8 @@ export default async function EventsPage() {
   if (!data) throw new Error("We could not check your permissions. Try again.");
   const allowed = data.grants.some(
     (grant) =>
-      grant.permissionKey === READ_KEY && grant.scope === "ORGANIZATION",
+      grant.permissionKey === READ_KEY &&
+      (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
   );
 
   return (

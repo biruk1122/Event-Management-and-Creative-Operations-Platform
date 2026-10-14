@@ -20,6 +20,11 @@ export const productionTalentNotFound = () =>
     code: "TALENT_NOT_FOUND",
     detail: "Talent not found.",
   });
+export const productionEventNotFound = () =>
+  new NotFoundException({
+    code: "EVENT_NOT_FOUND",
+    detail: "No event exists with that id.",
+  });
 export const productionInvalidSchedule = () =>
   new BadRequestException({
     code: "PRODUCTION_SCHEDULE_INVALID",

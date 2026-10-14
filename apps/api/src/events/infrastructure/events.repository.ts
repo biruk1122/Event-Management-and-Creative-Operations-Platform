@@ -38,6 +38,7 @@ export interface EventRecord {
   endAt: Date | null;
   location: string | null;
   organizerName: string | null;
+  departmentId: string | null;
   budgetAmount: string | null;
   budgetCurrency: string | null;
   manager: EventPersonRecord | null;
@@ -48,7 +49,16 @@ export interface EventRecord {
   updatedAt: Date;
 }
 
+/** Mirrors `TaskVisibility`/`ReportVisibility`: a `departmentId` scopes an
+ * event to the manager's own department (EOM-01); a pre-existing event with
+ * no department is visible only to an organization-scoped caller. */
+export interface EventVisibility {
+  organization: boolean;
+  departmentId?: string;
+}
+
 export interface ListEventsInput {
+  visibility: EventVisibility;
   status?: EventStatus;
   eventType?: EventType;
   managerId?: string;
@@ -69,6 +79,14 @@ export interface CreateEventInput {
   organizerName?: string;
   managerId?: string;
   createdById: string;
+  departmentId?: string;
+}
+
+export interface EventBudgetSummary {
+  plannedAmount: string | null;
+  currency: string | null;
+  actualApproved: string;
+  actualPending: string;
 }
 
 export interface UpdateEventFields {
@@ -124,6 +142,7 @@ const EVENT_SELECT = {
   endAt: true,
   location: true,
   organizerName: true,
+  departmentId: true,
   budgetAmount: true,
   budgetCurrency: true,
   createdBy: { select: PERSON_SELECT },
@@ -164,6 +183,7 @@ function toRecord(raw: RawEvent): EventRecord {
     endAt: raw.endAt,
     location: raw.location,
     organizerName: raw.organizerName,
+    departmentId: raw.departmentId,
     budgetAmount:
       raw.budgetAmount === null ? null : raw.budgetAmount.toFixed(2),
     // A `@db.Char(3)` reads back space-padded; the CHECK guarantees three
@@ -181,6 +201,13 @@ function toRecord(raw: RawEvent): EventRecord {
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
+}
+
+function visibleWhere(visibility: EventVisibility): Prisma.EventWhereInput {
+  if (visibility.organization) return {};
+  return visibility.departmentId
+    ? { departmentId: visibility.departmentId }
+    : { id: { in: [] } };
 }
 
 /** Only the keys the caller actually set, so a patch never nulls a field by omission. */
@@ -202,6 +229,15 @@ function updateData(fields: UpdateEventFields): Prisma.EventUpdateInput {
 export class EventsRepository {
   constructor(private readonly db: DatabaseService) {}
 
+  async findUserDepartmentId(userId: string): Promise<string | null> {
+    if (!isUuid(userId)) return null;
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: { departmentId: true },
+    });
+    return user?.departmentId ?? null;
+  }
+
   async list(
     input: ListEventsInput,
   ): Promise<{ items: EventRecord[]; total: number }> {
@@ -214,6 +250,7 @@ export class EventsRepository {
         : undefined;
 
     const where: Prisma.EventWhereInput = {
+      ...visibleWhere(input.visibility),
       ...(input.status ? { status: input.status } : {}),
       ...(input.eventType ? { eventType: input.eventType } : {}),
       ...(input.managerId ? { workspace: { managerId: input.managerId } } : {}),
@@ -248,6 +285,47 @@ export class EventsRepository {
       select: EVENT_SELECT,
     });
     return raw ? toRecord(raw) : null;
+  }
+
+  async findVisibleById(
+    id: string,
+    visibility: EventVisibility,
+  ): Promise<EventRecord | null> {
+    if (!isUuid(id)) return null;
+    const raw = await this.db.event.findFirst({
+      where: { AND: [{ id }, visibleWhere(visibility)] },
+      select: EVENT_SELECT,
+    });
+    return raw ? toRecord(raw) : null;
+  }
+
+  /**
+   * Planned-vs-actual for one event (EOM-01): `actualApproved` and
+   * `actualPending` are summed separately from `Expense.actualAmount` by
+   * status, so a pending expense can never be mistaken for approved spend.
+   */
+  async budgetSummary(eventId: string): Promise<EventBudgetSummary | null> {
+    if (!isUuid(eventId)) return null;
+    const event = await this.db.event.findUnique({
+      where: { id: eventId },
+      select: { budgetAmount: true, budgetCurrency: true },
+    });
+    if (!event) return null;
+    const sums = await this.db.expense.groupBy({
+      by: ["status"],
+      where: { eventId, status: { in: ["APPROVED", "SUBMITTED"] } },
+      _sum: { actualAmount: true },
+    });
+    const approved = sums.find((row) => row.status === "APPROVED");
+    const pending = sums.find((row) => row.status === "SUBMITTED");
+    return {
+      plannedAmount:
+        event.budgetAmount === null ? null : event.budgetAmount.toFixed(2),
+      currency:
+        event.budgetCurrency === null ? null : event.budgetCurrency.trim(),
+      actualApproved: approved?._sum.actualAmount?.toFixed(2) ?? "0.00",
+      actualPending: pending?._sum.actualAmount?.toFixed(2) ?? "0.00",
+    };
   }
 
   /**
@@ -285,6 +363,7 @@ export class EventsRepository {
             ...(input.organizerName !== undefined
               ? { organizerName: input.organizerName }
               : {}),
+            ...(input.departmentId ? { departmentId: input.departmentId } : {}),
           },
           select: EVENT_SELECT,
         });

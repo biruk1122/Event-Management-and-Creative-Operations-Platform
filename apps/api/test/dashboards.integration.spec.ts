@@ -267,7 +267,7 @@ describe("dashboard persistence and API verification (EVE-178 / EVE-179)", () =>
           to: new Date(now.getTime() + 7 * 86400000),
         })
       ).data,
-    ).toEqual({ totalEvents: 1, upcomingEvents: 0 });
+    ).toEqual({ totalEvents: 1, upcomingEvents: 0, completedEvents: 0 });
     expect(
       (await queries.events.list(organization(), false, window)).data.items[0]
         ?.id,

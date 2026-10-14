@@ -12,7 +12,9 @@ export type SupportedOutboxEventName =
   | "meeting.participant.invited"
   | "meeting.reminder"
   | "task.due"
-  | "task.overdue";
+  | "task.overdue"
+  | "expense.submitted"
+  | "expense.reviewed";
 
 /**
  * `meeting.participant.invited` v1 payload. The consumer resolves all other
@@ -43,7 +45,7 @@ export interface AppendOutboxEventInput {
   actorKind: OutboxActorKind;
   actorUserId?: string;
   correlationId?: string;
-  resourceType: "task" | "message" | "meeting";
+  resourceType: "task" | "message" | "meeting" | "expense";
   resourceId: string;
   workspaceContext?: string;
   payload?: Prisma.InputJsonObject;

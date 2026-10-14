@@ -16,6 +16,7 @@ const production: Production = {
   startAt: now,
   endAt: null,
   deadlineAt: now,
+  eventId: null,
   status: "PLANNED",
   manager: {
     id: "u1",

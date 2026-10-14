@@ -14,6 +14,7 @@ import type {
 } from "../common/queries/operational-read.js";
 import { DatabaseService } from "../database/database.service.js";
 import { EventsDashboardQuery } from "../events/events-dashboard.query.js";
+import { ExpensesDashboardQuery } from "../expenses/expenses-dashboard.query.js";
 import { ProjectsDashboardQuery } from "../projects/projects-dashboard.query.js";
 import { CampaignsDashboardQuery } from "../campaigns/campaigns-dashboard.query.js";
 import { TasksDashboardQuery } from "../tasks/tasks-dashboard.query.js";
@@ -47,6 +48,7 @@ export class DashboardsService {
     private readonly db: DatabaseService,
     private readonly analytics: AnalyticsService,
     private readonly events: EventsDashboardQuery,
+    private readonly expenses: ExpensesDashboardQuery,
     private readonly projects: ProjectsDashboardQuery,
     private readonly campaigns: CampaignsDashboardQuery,
     private readonly tasks: TasksDashboardQuery,
@@ -226,6 +228,7 @@ export class DashboardsService {
       switch (key) {
         case "totalEvents":
         case "upcomingEvents":
+        case "completedEvents":
           return card(key, async () => {
             const r = await cached("events-count", () =>
               this.events.counts(ctx, up),
@@ -369,6 +372,15 @@ export class DashboardsService {
             key,
             analytics(() => this.analytics.monthlyActivity(userId, q.monthly)),
           );
+        case "pendingExpenseApprovals":
+          return card(key, () => this.expenses.pendingApprovals(ctx, up));
+        case "budgetPlannedVsApproved":
+          return card(key, () => this.expenses.budgetSummary(ctx, up));
+        case "operationalIssues":
+          return merge(key, {
+            tasks: () => this.tasks.list(ctx, "attention", today),
+            expenses: () => this.expenses.rejected(ctx, up),
+          });
       }
     };
     return this.db.withReadConcurrency(4, async () => {

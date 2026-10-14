@@ -60,6 +60,7 @@ export interface ReportsWorkspaceProps {
     | ((values: CreateReport, reportId?: string) => boolean | Promise<boolean>)
     | undefined;
   onSubmit?: ((id: string) => void) | undefined;
+  onStartReview?: ((id: string) => void) | undefined;
   onReview?:
     ((id: string, outcome: ReviewOutcome, note: string) => void) | undefined;
   onExport?: (id: string) => void;
@@ -91,6 +92,7 @@ function ReportDetailPanel({
   busy,
   onEdit,
   onSubmit,
+  onStartReview,
   onReview,
   onExport,
   onClose,
@@ -104,6 +106,7 @@ function ReportDetailPanel({
   busy: boolean;
   onEdit?: (() => void) | undefined;
   onSubmit?: (() => void) | undefined;
+  onStartReview?: (() => void) | undefined;
   onReview?: ((outcome: ReviewOutcome, note: string) => void) | undefined;
   onExport?: (() => void) | undefined;
   onClose?: (() => void) | undefined;
@@ -157,9 +160,11 @@ function ReportDetailPanel({
               ? "Save your progress, then submit when every section is complete."
               : report.status === "SUBMITTED"
                 ? "Submitted for management review."
-                : report.status === "CHANGES_REQUESTED"
-                  ? "Read the review notes and update your draft."
-                  : "Review complete. Your report and review history are available below."}
+                : report.status === "UNDER_REVIEW"
+                  ? "A reviewer is actively looking at this report."
+                  : report.status === "CHANGES_REQUESTED"
+                    ? "Read the review notes and update your draft."
+                    : "Review complete. Your report and review history are available below."}
           </p>
         </div>
         {onClose ? (
@@ -187,6 +192,18 @@ function ReportDetailPanel({
             onClick={onSubmit}
           >
             Submit for review
+          </ReportActionButton>
+        ) : null}
+        {canReview &&
+        !isAuthor &&
+        report.status === "SUBMITTED" &&
+        onStartReview ? (
+          <ReportActionButton
+            variant="outline"
+            busy={busy}
+            onClick={onStartReview}
+          >
+            Start review
           </ReportActionButton>
         ) : null}
         {onExport ? (
@@ -221,7 +238,33 @@ function ReportDetailPanel({
           {metric("Projects total now", report.facts.totalProjectsNow)}
           {metric("Projects completed now", report.facts.completedProjectsNow)}
           {metric("Projects active now", report.facts.activeProjectsNow)}
+          {metric("Event tasks total now", report.facts.eventTotalTasksNow)}
+          {metric(
+            "Event tasks completed now",
+            report.facts.eventCompletedTasksNow,
+          )}
+          {metric(
+            "Event tasks incomplete now",
+            report.facts.eventIncompleteTasksNow,
+          )}
         </dl>
+        {report.facts.eventPlannedAmount !== null ||
+        report.facts.eventActualApproved !== null ||
+        report.facts.eventActualPending !== null ? (
+          <div className="bg-muted rounded-xl border p-4 text-sm">
+            <p className="text-muted-foreground text-xs">Event budget</p>
+            <p className="mt-1">
+              Planned:{" "}
+              {report.facts.eventPlannedAmount !== null
+                ? `${report.facts.eventPlannedAmount} ${report.facts.eventBudgetCurrency ?? ""}`.trim()
+                : "—"}
+            </p>
+            <p>
+              Approved: {report.facts.eventActualApproved ?? "—"} · Pending:{" "}
+              {report.facts.eventActualPending ?? "—"}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section aria-labelledby="report-narrative-title" className="space-y-3">
@@ -292,7 +335,10 @@ function ReportDetailPanel({
         )}
       </section>
 
-      {canReview && !isAuthor && report.status === "SUBMITTED" && onReview ? (
+      {canReview &&
+      !isAuthor &&
+      (report.status === "SUBMITTED" || report.status === "UNDER_REVIEW") &&
+      onReview ? (
         <section
           aria-labelledby="review-action-title"
           className="bg-secondary/40 space-y-3 rounded-xl border p-4 sm:p-5"
@@ -474,6 +520,7 @@ export function ReportsWorkspace({
   onSelect,
   onSaveDraft,
   onSubmit,
+  onStartReview,
   onReview,
   onExport,
 }: ReportsWorkspaceProps) {
@@ -880,6 +927,9 @@ export function ReportsWorkspace({
               canCreate && onSaveDraft ? () => setEditing(detail) : undefined
             }
             onSubmit={onSubmit ? () => onSubmit(detail.id) : undefined}
+            onStartReview={
+              onStartReview ? () => onStartReview(detail.id) : undefined
+            }
             onReview={
               onReview
                 ? (outcome, note) => onReview(detail.id, outcome, note)

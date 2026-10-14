@@ -43,4 +43,12 @@ export class CreateProductionDto {
   @IsOptional()
   @IsUUID()
   managerId?: string;
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Soft cross-reference to an event this production supports (EOM-01), mirroring Campaign.eventId.",
+  })
+  @IsOptional()
+  @IsUUID()
+  eventId?: string;
 }

@@ -19,6 +19,7 @@ export interface ManagedFileRecord {
   intentWorkspaceId: string | null;
   intentTaskId: string | null;
   intentConversationId: string | null;
+  intentExpenseId: string | null;
   availableAt: Date | null;
   createdAt: Date;
 }
@@ -36,6 +37,7 @@ const FILE_SELECT = {
   intentWorkspaceId: true,
   intentTaskId: true,
   intentConversationId: true,
+  intentExpenseId: true,
   availableAt: true,
   createdAt: true,
 } as const;
@@ -61,16 +63,25 @@ export class ManagedFilesRepository {
           intentWorkspaceId: string;
           intentTaskId?: never;
           intentConversationId?: never;
+          intentExpenseId?: never;
         }
       | {
           intentTaskId: string;
           intentWorkspaceId?: never;
           intentConversationId?: never;
+          intentExpenseId?: never;
         }
       | {
           intentConversationId: string;
           intentWorkspaceId?: never;
           intentTaskId?: never;
+          intentExpenseId?: never;
+        }
+      | {
+          intentExpenseId: string;
+          intentWorkspaceId?: never;
+          intentTaskId?: never;
+          intentConversationId?: never;
         }
     ),
   ): Promise<ManagedFileRecord> {
@@ -86,6 +97,9 @@ export class ManagedFilesRepository {
         ...(input.intentTaskId ? { intentTaskId: input.intentTaskId } : {}),
         ...(input.intentConversationId
           ? { intentConversationId: input.intentConversationId }
+          : {}),
+        ...(input.intentExpenseId
+          ? { intentExpenseId: input.intentExpenseId }
           : {}),
         originalFilename: input.originalFilename,
         storageKey: input.storageKey,
@@ -125,6 +139,21 @@ export class ManagedFilesRepository {
       where: {
         id,
         intentTaskId: taskId,
+        state: ManagedFileState.PENDING,
+      },
+      select: FILE_SELECT,
+    });
+  }
+
+  async findPendingForExpense(
+    id: string,
+    expenseId: string,
+  ): Promise<ManagedFileRecord | null> {
+    if (!isUuid(id) || !isUuid(expenseId)) return null;
+    return this.db.managedFile.findFirst({
+      where: {
+        id,
+        intentExpenseId: expenseId,
         state: ManagedFileState.PENDING,
       },
       select: FILE_SELECT,
@@ -273,6 +302,51 @@ export class ManagedFilesRepository {
         id: input.fileId,
         intentExpiresAt: { lte: input.finalizedAt },
         intentTaskId: input.taskId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        cleanupAfter: input.cleanupAfter,
+        state: ManagedFileState.UNAVAILABLE,
+        unavailableAt: input.finalizedAt,
+      },
+    });
+    return expired.count === 1 ? "expired" : "conflict";
+  }
+
+  async makeAvailableForExpense(
+    tx: Prisma.TransactionClient,
+    input: {
+      cleanupAfter: Date;
+      fileId: string;
+      finalizedAt: Date;
+      expenseId: string;
+      verifiedMediaType: string;
+      verifiedSizeBytes: number;
+    },
+  ): Promise<"available" | "conflict" | "expired"> {
+    if (!isUuid(input.fileId) || !isUuid(input.expenseId)) return "conflict";
+    const updated = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { gt: input.finalizedAt },
+        intentExpenseId: input.expenseId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        availableAt: input.finalizedAt,
+        state: ManagedFileState.AVAILABLE,
+        uploadedAt: input.finalizedAt,
+        verifiedMediaType: input.verifiedMediaType,
+        verifiedSizeBytes: input.verifiedSizeBytes,
+      },
+    });
+    if (updated.count === 1) return "available";
+
+    const expired = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { lte: input.finalizedAt },
+        intentExpenseId: input.expenseId,
         state: ManagedFileState.PENDING,
       },
       data: {

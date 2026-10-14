@@ -32,6 +32,8 @@ function makeMeeting(overrides: Partial<MeetingRecord> = {}): MeetingRecord {
     location: null,
     onlineLink: "https://meet.example.test/stand-up",
     reminderAt: new Date("2030-01-01T09:45:00.000Z"),
+    agenda: null,
+    minutes: null,
     participants: [],
     createdAt: new Date("2029-12-01T00:00:00.000Z"),
     updatedAt: new Date("2029-12-01T00:00:00.000Z"),
@@ -64,6 +66,7 @@ describe("MeetingsService", () => {
       >
     >;
   };
+  let tasks: Record<string, ReturnType<typeof vi.fn>>;
   let service: MeetingsService;
 
   beforeEach(() => {
@@ -87,10 +90,22 @@ describe("MeetingsService", () => {
       transition: vi
         .fn()
         .mockResolvedValue(makeMeeting({ status: MeetingStatus.COMPLETED })),
+      setMinutes: vi
+        .fn()
+        .mockResolvedValue(makeMeeting({ minutes: "Decided X." })),
+      linkActionItem: vi.fn().mockResolvedValue(undefined),
       availability: vi.fn().mockResolvedValue(new Map()),
     };
     permissions = { hasGrant: vi.fn().mockResolvedValue(false) };
-    service = new MeetingsService(repository as never, permissions as never);
+    tasks = {
+      create: vi.fn().mockResolvedValue({ id: "task-1" }),
+      addAssignee: vi.fn().mockResolvedValue({ id: "task-1" }),
+    };
+    service = new MeetingsService(
+      repository as never,
+      permissions as never,
+      tasks as never,
+    );
   });
 
   function grantOnly(...allowed: [string, PermissionScope][]): void {
@@ -192,6 +207,114 @@ describe("MeetingsService", () => {
       "PERMISSION_DENIED",
     );
     expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  describe("setMinutes", () => {
+    it("allows recording minutes on a completed meeting", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({ status: MeetingStatus.COMPLETED }),
+      );
+      await expect(
+        service.setMinutes(ACTOR, "meeting-1", "  Decided X.  "),
+      ).resolves.toMatchObject({ minutes: "Decided X." });
+      expect(repository.setMinutes).toHaveBeenCalledWith(
+        "meeting-1",
+        ACTOR,
+        "Decided X.",
+      );
+    });
+
+    it("rejects recording minutes on a cancelled meeting", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({ status: MeetingStatus.CANCELLED }),
+      );
+      repository.setMinutes!.mockResolvedValue("cancelled");
+      await expectCode(
+        service.setMinutes(ACTOR, "meeting-1", "Decided X."),
+        "MEETING_CANCELLED",
+      );
+    });
+
+    it("requires organizer ownership", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({
+          organizer: { ...makeMeeting().organizer, id: PARTICIPANT },
+        }),
+      );
+      await expectCode(
+        service.setMinutes(ACTOR, "meeting-1", "Decided X."),
+        "PERMISSION_DENIED",
+      );
+      expect(repository.setMinutes).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createActionItem", () => {
+    it("creates a task scoped to the meeting's workspace and links it back", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({ workspaceId: "ws-1" }),
+      );
+      const result = await service.createActionItem(
+        ACTOR,
+        "meeting-1",
+        { title: "Confirm venue permits" },
+        "request-1",
+      );
+      expect(result).toEqual({ id: "task-1" });
+      expect(tasks.create).toHaveBeenCalledWith(
+        ACTOR,
+        expect.objectContaining({
+          title: "Confirm venue permits",
+          workspaceId: "ws-1",
+        }),
+      );
+      expect(repository.linkActionItem).toHaveBeenCalledWith(
+        "task-1",
+        "meeting-1",
+      );
+      expect(tasks.addAssignee).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the organizer's own department when the meeting has no workspace", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({ workspaceId: null }),
+      );
+      repository.findUserDepartmentId!.mockResolvedValue("department-9");
+      await service.createActionItem(
+        ACTOR,
+        "meeting-1",
+        { title: "Follow up" },
+        "request-1",
+      );
+      expect(tasks.create).toHaveBeenCalledWith(
+        ACTOR,
+        expect.objectContaining({ departmentId: "department-9" }),
+      );
+    });
+
+    it("assigns the task immediately when an assignee is given", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({ workspaceId: "ws-1" }),
+      );
+      await service.createActionItem(
+        ACTOR,
+        "meeting-1",
+        { title: "Follow up", assigneeId: PARTICIPANT },
+        "request-1",
+      );
+      expect(tasks.addAssignee).toHaveBeenCalledWith(
+        ACTOR,
+        "task-1",
+        PARTICIPANT,
+        "request-1",
+      );
+    });
   });
 
   it("reports conflict counts without exposing meeting details", async () => {

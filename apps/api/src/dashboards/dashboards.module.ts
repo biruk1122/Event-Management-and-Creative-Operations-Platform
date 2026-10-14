@@ -3,6 +3,7 @@ import { AuthModule } from "../auth/auth.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
 import { AnalyticsModule } from "../analytics/analytics.module.js";
 import { EventsModule } from "../events/events.module.js";
+import { ExpensesModule } from "../expenses/expenses.module.js";
 import { ProjectsModule } from "../projects/projects.module.js";
 import { CampaignsModule } from "../campaigns/campaigns.module.js";
 import { TasksModule } from "../tasks/tasks.module.js";
@@ -20,6 +21,7 @@ import { DashboardsService } from "./dashboards.service.js";
     PermissionsModule,
     AnalyticsModule,
     EventsModule,
+    ExpensesModule,
     ProjectsModule,
     CampaignsModule,
     TasksModule,

@@ -350,6 +350,27 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
     key: "analytics.employee_performance.read",
     description: "View employee performance measures. Sensitive.",
   },
+
+  // Event & office management: expenses and suppliers (EOM-01)
+  { key: "expense.create", description: "Create an expense draft." },
+  { key: "expense.read", description: "View an expense and its history." },
+  {
+    key: "expense.update",
+    description: "Edit an expense draft or a rejected expense.",
+  },
+  { key: "expense.submit", description: "Submit an expense for approval." },
+  {
+    key: "expense.approve",
+    description:
+      "Approve or reject a submitted expense. Sensitive; Super Admin only by design.",
+  },
+  {
+    key: "expense.attachment.create",
+    description: "Attach a managed file (receipt or invoice) to an expense.",
+  },
+  { key: "supplier.create", description: "Create a supplier directory entry." },
+  { key: "supplier.read", description: "View a supplier directory entry." },
+  { key: "supplier.update", description: "Update a supplier directory entry." },
 ] as const;
 
 /**
@@ -392,6 +413,14 @@ const SUPER_ADMIN_GRANTS: readonly GrantDefinition[] = PERMISSIONS.map(
 );
 
 const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
+  // EOM-01: without this, a Department Manager cannot reach the
+  // "management" dashboard audience at all (requireAudience gated it to
+  // MANAGEMENT/ORGANIZATION only), so none of the operational-monitoring
+  // cards below are reachable regardless of their own per-card scope.
+  // Each existing card's own sourceScope(...) allow-list is unaffected by
+  // this - only cards already listing "department" (or newly widened for
+  // EOM-01) become visible; every organization-only card still denies.
+  { permissionKey: "dashboard.management.read", scope: "DEPARTMENT" },
   { permissionKey: "department.read", scope: "DEPARTMENT" },
   { permissionKey: "department.manage_activities", scope: "DEPARTMENT" },
   { permissionKey: "team.read", scope: "DEPARTMENT" },
@@ -401,6 +430,16 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "task.update", scope: "DEPARTMENT" },
   { permissionKey: "task.review", scope: "DEPARTMENT" },
   { permissionKey: "event.read", scope: "DEPARTMENT" },
+  // Event & office management (EOM-01): the Event & Office Manager department
+  // additionally manages its own events end to end, not just reads them.
+  { permissionKey: "event.create", scope: "DEPARTMENT" },
+  { permissionKey: "event.update", scope: "DEPARTMENT" },
+  { permissionKey: "event.delete", scope: "DEPARTMENT" },
+  { permissionKey: "event.assign_manager", scope: "DEPARTMENT" },
+  { permissionKey: "event.assign_teams", scope: "DEPARTMENT" },
+  { permissionKey: "event.transition_status", scope: "DEPARTMENT" },
+  { permissionKey: "event.budget.read", scope: "DEPARTMENT" },
+  { permissionKey: "event.budget.update", scope: "DEPARTMENT" },
   { permissionKey: "project.read", scope: "DEPARTMENT" },
   { permissionKey: "campaign.read", scope: "DEPARTMENT" },
   { permissionKey: "meeting.create", scope: "DEPARTMENT" },
@@ -416,6 +455,17 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
     permissionKey: "analytics.department_performance.read",
     scope: "DEPARTMENT",
   },
+  // Expenses and suppliers (EOM-01). `expense.approve` is deliberately never
+  // granted here - it is Super-Admin-only via SUPER_ADMIN_GRANTS's catch-all,
+  // the same "sensitive, approval-gated" idiom as `event.budget.*`.
+  { permissionKey: "expense.create", scope: "DEPARTMENT" },
+  { permissionKey: "expense.read", scope: "DEPARTMENT" },
+  { permissionKey: "expense.update", scope: "DEPARTMENT" },
+  { permissionKey: "expense.submit", scope: "DEPARTMENT" },
+  { permissionKey: "expense.attachment.create", scope: "DEPARTMENT" },
+  { permissionKey: "supplier.create", scope: "DEPARTMENT" },
+  { permissionKey: "supplier.read", scope: "DEPARTMENT" },
+  { permissionKey: "supplier.update", scope: "DEPARTMENT" },
 ];
 
 const TEAM_MEMBER_GRANTS: readonly GrantDefinition[] = [

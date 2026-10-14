@@ -3,6 +3,7 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   MinLength,
@@ -44,4 +45,9 @@ export class UpdateProductionDto {
   @ValidateIf((_, v) => v !== null)
   @IsISO8601({ strict: true })
   deadlineAt?: string | null;
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true })
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null)
+  @IsUUID()
+  eventId?: string | null;
 }

@@ -7,6 +7,7 @@ import type {
 } from "../generated/prisma/client.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
+import { EventsService } from "../events/events.service.js";
 import { WorkspacesRepository } from "../workspaces/infrastructure/workspaces.repository.js";
 import type {
   CampaignActivityResponse,
@@ -68,6 +69,7 @@ export class CampaignsService {
     private readonly repository: CampaignsRepository,
     private readonly workspaces: WorkspacesRepository,
     private readonly permissions: PermissionsService,
+    private readonly events: EventsService,
   ) {}
 
   private async requireGrant(
@@ -134,6 +136,30 @@ export class CampaignsService {
     const campaign = await this.loadOrThrow(id);
     await this.requireGrant(actingUserId, "campaign.read");
     return toCampaignResponse(campaign);
+  }
+
+  /** Narrow, read-only cross-department coordination (EOM-01): the
+   * campaigns linked to one event, for a caller who can already read that
+   * event and holds `campaign.read` at any scope - not a full
+   * department-scope retrofit of this module's own list/get/mutation
+   * methods, which stay organization-only. */
+  async listForEvent(
+    actingUserId: string,
+    eventId: string,
+  ): Promise<CampaignResponse[]> {
+    const [organization, department, self] = await Promise.all([
+      this.permissions.hasGrant(actingUserId, "campaign.read", "ORGANIZATION"),
+      this.permissions.hasGrant(actingUserId, "campaign.read", "DEPARTMENT"),
+      this.permissions.hasGrant(actingUserId, "campaign.read", "SELF"),
+    ]);
+    if (!organization && !department && !self) throw permissionDenied();
+    await this.events.get(actingUserId, eventId);
+    const { items } = await this.repository.list({
+      eventId,
+      page: 1,
+      pageSize: 100,
+    });
+    return items.map(toCampaignResponse);
   }
 
   async create(
