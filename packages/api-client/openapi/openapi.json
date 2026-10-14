@@ -14,7 +14,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "name", "active"],
+        "required": [
+          "id",
+          "name",
+          "active"
+        ],
         "type": "object"
       },
       "AddRolePermissionDto": {
@@ -36,7 +40,10 @@
             "type": "string"
           }
         },
-        "required": ["permissionKey", "scope"],
+        "required": [
+          "permissionKey",
+          "scope"
+        ],
         "type": "object"
       },
       "AnalyticsWorkCounts": {
@@ -64,7 +71,13 @@
             "type": "number"
           }
         },
-        "required": ["total", "completed", "percent", "pending", "overdue"],
+        "required": [
+          "total",
+          "completed",
+          "percent",
+          "pending",
+          "overdue"
+        ],
         "type": "object"
       },
       "AssignCampaignManagerDto": {
@@ -77,7 +90,9 @@
             "type": "string"
           }
         },
-        "required": ["managerId"],
+        "required": [
+          "managerId"
+        ],
         "type": "object"
       },
       "AssignDepartmentManagerDto": {
@@ -90,7 +105,9 @@
             "type": "string"
           }
         },
-        "required": ["managerId"],
+        "required": [
+          "managerId"
+        ],
         "type": "object"
       },
       "AssignEventManagerDto": {
@@ -103,7 +120,9 @@
             "type": "string"
           }
         },
-        "required": ["managerId"],
+        "required": [
+          "managerId"
+        ],
         "type": "object"
       },
       "AssignProductionManagerDto": {
@@ -114,7 +133,9 @@
             "type": "string"
           }
         },
-        "required": ["managerId"],
+        "required": [
+          "managerId"
+        ],
         "type": "object"
       },
       "AssignProductionTalentDto": {
@@ -125,7 +146,9 @@
             "type": "string"
           }
         },
-        "required": ["role"],
+        "required": [
+          "role"
+        ],
         "type": "object"
       },
       "AssignProjectManagerDto": {
@@ -138,7 +161,9 @@
             "type": "string"
           }
         },
-        "required": ["managerId"],
+        "required": [
+          "managerId"
+        ],
         "type": "object"
       },
       "AssignPromotionTalentDto": {
@@ -153,7 +178,10 @@
             "type": "string"
           }
         },
-        "required": ["talentId", "role"],
+        "required": [
+          "talentId",
+          "role"
+        ],
         "type": "object"
       },
       "AssignTeamManagerDto": {
@@ -166,7 +194,9 @@
             "type": "string"
           }
         },
-        "required": ["managerId"],
+        "required": [
+          "managerId"
+        ],
         "type": "object"
       },
       "AssignUserRoleDto": {
@@ -179,7 +209,9 @@
             "type": "string"
           }
         },
-        "required": ["roleId"],
+        "required": [
+          "roleId"
+        ],
         "type": "object"
       },
       "AssignWorkspaceManagerDto": {
@@ -192,7 +224,9 @@
             "type": "string"
           }
         },
-        "required": ["managerId"],
+        "required": [
+          "managerId"
+        ],
         "type": "object"
       },
       "AttachPromotionActivityDto": {
@@ -217,7 +251,9 @@
             "type": "array"
           }
         },
-        "required": ["channel"],
+        "required": [
+          "channel"
+        ],
         "type": "object"
       },
       "AuthenticatedUserResponse": {
@@ -233,12 +269,19 @@
             "type": "string"
           },
           "status": {
-            "enum": ["ACTIVE", "INACTIVE"],
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ],
             "example": "ACTIVE",
             "type": "string"
           }
         },
-        "required": ["id", "email", "status"],
+        "required": [
+          "id",
+          "email",
+          "status"
+        ],
         "type": "object"
       },
       "CalendarEntryResponse": {
@@ -328,7 +371,9 @@
             "type": "array"
           }
         },
-        "required": ["items"],
+        "required": [
+          "items"
+        ],
         "type": "object"
       },
       "CampaignActivityResponse": {
@@ -367,7 +412,12 @@
           },
           "status": {
             "description": "Current state. The vocabulary defines no activity transition graph, so any state may be set.",
-            "enum": ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -403,7 +453,10 @@
             "type": "string"
           }
         },
-        "required": ["amount", "currency"],
+        "required": [
+          "amount",
+          "currency"
+        ],
         "type": "object"
       },
       "CampaignPersonSummary": {
@@ -429,7 +482,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "CampaignProgress": {
@@ -451,7 +509,11 @@
             "type": "number"
           }
         },
-        "required": ["completedActivities", "totalActivities", "percent"],
+        "required": [
+          "completedActivities",
+          "totalActivities",
+          "percent"
+        ],
         "type": "object"
       },
       "CampaignResponse": {
@@ -463,7 +525,10 @@
           },
           "campaignType": {
             "description": "The owning module: Marketing or Promotion.",
-            "enum": ["MARKETING", "PROMOTION"],
+            "enum": [
+              "MARKETING",
+              "PROMOTION"
+            ],
             "type": "string"
           },
           "createdAt": {
@@ -540,7 +605,12 @@
           },
           "status": {
             "description": "Current lifecycle state.",
-            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           },
           "teams": {
@@ -594,7 +664,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "CheckMeetingAvailabilityDto": {
@@ -621,7 +694,11 @@
             "type": "array"
           }
         },
-        "required": ["userIds", "startAt", "endAt"],
+        "required": [
+          "userIds",
+          "startAt",
+          "endAt"
+        ],
         "type": "object"
       },
       "ConversationMemberResponse": {
@@ -708,7 +785,11 @@
             "type": "string"
           },
           "type": {
-            "enum": ["DIRECT", "GROUP", "CHANNEL"],
+            "enum": [
+              "DIRECT",
+              "GROUP",
+              "CHANNEL"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -716,7 +797,10 @@
             "type": "string"
           },
           "visibility": {
-            "enum": ["PUBLIC", "PRIVATE"],
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ],
             "nullable": true,
             "type": "string"
           },
@@ -762,11 +846,18 @@
             "type": "string"
           },
           "type": {
-            "enum": ["PERSONAL", "REMINDER"],
+            "enum": [
+              "PERSONAL",
+              "REMINDER"
+            ],
             "type": "string"
           }
         },
-        "required": ["title", "type", "startAt"],
+        "required": [
+          "title",
+          "type",
+          "startAt"
+        ],
         "type": "object"
       },
       "CreateCampaignActivityDto": {
@@ -795,11 +886,18 @@
           },
           "status": {
             "default": "PLANNED",
-            "enum": ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "CreateCampaignDto": {
@@ -813,7 +911,10 @@
           },
           "campaignType": {
             "description": "The owning module: Marketing or Promotion.",
-            "enum": ["MARKETING", "PROMOTION"],
+            "enum": [
+              "MARKETING",
+              "PROMOTION"
+            ],
             "type": "string"
           },
           "description": {
@@ -856,7 +957,10 @@
             "type": "string"
           }
         },
-        "required": ["name", "campaignType"],
+        "required": [
+          "name",
+          "campaignType"
+        ],
         "type": "object"
       },
       "CreateChannelDto": {
@@ -876,7 +980,10 @@
             "type": "string"
           },
           "visibility": {
-            "enum": ["PUBLIC", "PRIVATE"],
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ],
             "type": "string"
           },
           "workspaceId": {
@@ -885,7 +992,10 @@
             "type": "string"
           }
         },
-        "required": ["name", "visibility"],
+        "required": [
+          "name",
+          "visibility"
+        ],
         "type": "object"
       },
       "CreateConversationDto": {
@@ -900,11 +1010,17 @@
             "type": "array"
           },
           "type": {
-            "enum": ["DIRECT", "GROUP"],
+            "enum": [
+              "DIRECT",
+              "GROUP"
+            ],
             "type": "string"
           }
         },
-        "required": ["type", "memberIds"],
+        "required": [
+          "type",
+          "memberIds"
+        ],
         "type": "object"
       },
       "CreateDepartmentDto": {
@@ -928,7 +1044,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "CreateEventDto": {
@@ -986,7 +1104,10 @@
             "type": "string"
           }
         },
-        "required": ["name", "eventType"],
+        "required": [
+          "name",
+          "eventType"
+        ],
         "type": "object"
       },
       "CreateEventTalentAssignmentDto": {
@@ -1002,11 +1123,111 @@
             "type": "string"
           }
         },
-        "required": ["eventId", "role"],
+        "required": [
+          "eventId",
+          "role"
+        ],
+        "type": "object"
+      },
+      "CreateExpenseDto": {
+        "properties": {
+          "actualAmount": {
+            "description": "Non-negative, at most two fraction digits.",
+            "example": 1350,
+            "minimum": 0,
+            "type": "number"
+          },
+          "category": {
+            "enum": [
+              "VENUE",
+              "CATERING",
+              "TALENT_FEES",
+              "MARKETING_MATERIALS",
+              "LOGISTICS",
+              "EQUIPMENT",
+              "STAFFING",
+              "MISCELLANEOUS"
+            ],
+            "type": "string"
+          },
+          "currency": {
+            "description": "ISO-4217 alphabetic code (three upper-case letters).",
+            "example": "USD",
+            "type": "string"
+          },
+          "description": {
+            "example": "Stage lighting rental",
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "eventId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "plannedAmount": {
+            "description": "This line item's planned amount, at most two fraction digits.",
+            "example": 1200,
+            "minimum": 0,
+            "type": "number"
+          },
+          "supplierId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "eventId",
+          "category",
+          "description",
+          "actualAmount",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "CreateMeetingActionItemDto": {
+        "properties": {
+          "assigneeId": {
+            "description": "Assign this active user to the new task immediately.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4000,
+            "type": "string"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "priority": {
+            "default": "MEDIUM",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "example": "Confirm venue permits",
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
         "type": "object"
       },
       "CreateMeetingDto": {
         "properties": {
+          "agenda": {
+            "description": "Plain text, set by the organizer.",
+            "maxLength": 10000,
+            "type": "string"
+          },
           "description": {
             "maxLength": 4000,
             "type": "string"
@@ -1048,7 +1269,11 @@
             "type": "string"
           },
           "type": {
-            "enum": ["PHYSICAL", "ONLINE", "HYBRID"],
+            "enum": [
+              "PHYSICAL",
+              "ONLINE",
+              "HYBRID"
+            ],
             "type": "string"
           },
           "workspaceId": {
@@ -1056,7 +1281,12 @@
             "type": "string"
           }
         },
-        "required": ["title", "type", "startAt", "endAt"],
+        "required": [
+          "title",
+          "type",
+          "startAt",
+          "endAt"
+        ],
         "type": "object"
       },
       "CreateMessageDto": {
@@ -1078,7 +1308,9 @@
             "type": "string"
           }
         },
-        "required": ["content"],
+        "required": [
+          "content"
+        ],
         "type": "object"
       },
       "CreateProductionDto": {
@@ -1093,6 +1325,11 @@
           },
           "endAt": {
             "format": "date-time",
+            "type": "string"
+          },
+          "eventId": {
+            "description": "Soft cross-reference to an event this production supports (EOM-01), mirroring Campaign.eventId.",
+            "format": "uuid",
             "type": "string"
           },
           "managerId": {
@@ -1114,7 +1351,10 @@
             "type": "string"
           }
         },
-        "required": ["name", "productionType"],
+        "required": [
+          "name",
+          "productionType"
+        ],
         "type": "object"
       },
       "CreateProjectDto": {
@@ -1152,7 +1392,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "CreateReportDto": {
@@ -1175,6 +1417,11 @@
             "type": "string"
           },
           "employeePerformance": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "lessonsLearned": {
+            "description": "Post-event only.",
             "maxLength": 5000,
             "type": "string"
           },
@@ -1204,12 +1451,22 @@
             "maxLength": 5000,
             "type": "string"
           },
+          "recommendations": {
+            "description": "Post-event only.",
+            "maxLength": 5000,
+            "type": "string"
+          },
           "title": {
             "maxLength": 200,
             "type": "string"
           },
           "type": {
-            "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY",
+              "POST_EVENT"
+            ],
             "type": "string"
           },
           "workspaceIds": {
@@ -1221,7 +1478,12 @@
             "type": "array"
           }
         },
-        "required": ["type", "title", "periodStart", "periodEnd"],
+        "required": [
+          "type",
+          "title",
+          "periodStart",
+          "periodEnd"
+        ],
         "type": "object"
       },
       "CreateRoleDto": {
@@ -1237,7 +1499,44 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "CreateSupplierDto": {
+        "properties": {
+          "category": {
+            "example": "Catering",
+            "maxLength": 100,
+            "type": "string"
+          },
+          "contactEmail": {
+            "format": "email",
+            "type": "string"
+          },
+          "contactName": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "contactPhone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "name": {
+            "example": "Grand Hall Catering Co.",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "CreateTalentDto": {
@@ -1279,7 +1578,10 @@
             "type": "string"
           }
         },
-        "required": ["fullName", "type"],
+        "required": [
+          "fullName",
+          "type"
+        ],
         "type": "object"
       },
       "CreateTalentScheduleDto": {
@@ -1299,7 +1601,11 @@
             "type": "string"
           }
         },
-        "required": ["title", "startAt", "endAt"],
+        "required": [
+          "title",
+          "startAt",
+          "endAt"
+        ],
         "type": "object"
       },
       "CreateTalentSocialLinkDto": {
@@ -1315,7 +1621,10 @@
             "type": "string"
           }
         },
-        "required": ["label", "url"],
+        "required": [
+          "label",
+          "url"
+        ],
         "type": "object"
       },
       "CreateTaskCommentDto": {
@@ -1332,7 +1641,9 @@
             "type": "array"
           }
         },
-        "required": ["content"],
+        "required": [
+          "content"
+        ],
         "type": "object"
       },
       "CreateTaskDto": {
@@ -1351,7 +1662,12 @@
           },
           "priority": {
             "default": "MEDIUM",
-            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT"
+            ],
             "type": "string"
           },
           "startAt": {
@@ -1368,7 +1684,9 @@
             "type": "string"
           }
         },
-        "required": ["title"],
+        "required": [
+          "title"
+        ],
         "type": "object"
       },
       "CreateTeamDto": {
@@ -1398,7 +1716,10 @@
             "type": "string"
           }
         },
-        "required": ["name", "departmentId"],
+        "required": [
+          "name",
+          "departmentId"
+        ],
         "type": "object"
       },
       "CreateTodoDto": {
@@ -1418,7 +1739,12 @@
           },
           "priority": {
             "default": "MEDIUM",
-            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT"
+            ],
             "type": "string"
           },
           "relatedEventId": {
@@ -1436,7 +1762,11 @@
           },
           "status": {
             "default": "NOT_STARTED",
-            "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+            "enum": [
+              "NOT_STARTED",
+              "IN_PROGRESS",
+              "COMPLETED"
+            ],
             "type": "string"
           },
           "title": {
@@ -1446,11 +1776,19 @@
           },
           "type": {
             "default": "PERSONAL",
-            "enum": ["PERSONAL", "WORK", "REMINDER", "QUICK_NOTE", "FOLLOW_UP"],
+            "enum": [
+              "PERSONAL",
+              "WORK",
+              "REMINDER",
+              "QUICK_NOTE",
+              "FOLLOW_UP"
+            ],
             "type": "string"
           }
         },
-        "required": ["title"],
+        "required": [
+          "title"
+        ],
         "type": "object"
       },
       "CreateUploadIntentDto": {
@@ -1482,7 +1820,11 @@
             "type": "number"
           }
         },
-        "required": ["filename", "mediaType", "sizeBytes"],
+        "required": [
+          "filename",
+          "mediaType",
+          "sizeBytes"
+        ],
         "type": "object"
       },
       "CreateUserDto": {
@@ -1533,14 +1875,24 @@
             "type": "string"
           }
         },
-        "required": ["email", "firstName", "lastName", "temporaryPassword"],
+        "required": [
+          "email",
+          "firstName",
+          "lastName",
+          "temporaryPassword"
+        ],
         "type": "object"
       },
       "CreateWorkspaceDto": {
         "properties": {
           "kind": {
             "description": "Which module owns this workspace. Fixed once set; there is no route to change it.",
-            "enum": ["EVENT", "PROJECT", "PRODUCTION", "CAMPAIGN"],
+            "enum": [
+              "EVENT",
+              "PROJECT",
+              "PRODUCTION",
+              "CAMPAIGN"
+            ],
             "type": "string"
           },
           "managerId": {
@@ -1550,7 +1902,9 @@
             "type": "string"
           }
         },
-        "required": ["kind"],
+        "required": [
+          "kind"
+        ],
         "type": "object"
       },
       "CurrentAccessResponse": {
@@ -1571,7 +1925,11 @@
             "type": "array"
           },
           "role": {
-            "enum": ["SUPER_ADMIN", "DEPARTMENT_MANAGER", "DEPARTMENT_MEMBER"],
+            "enum": [
+              "SUPER_ADMIN",
+              "DEPARTMENT_MANAGER",
+              "DEPARTMENT_MEMBER"
+            ],
             "nullable": true,
             "type": "string"
           },
@@ -1580,7 +1938,63 @@
             "type": "string"
           }
         },
-        "required": ["userId", "grants"],
+        "required": [
+          "userId",
+          "grants"
+        ],
+        "type": "object"
+      },
+      "DashboardBudgetItem": {
+        "properties": {
+          "actualApproved": {
+            "type": "string"
+          },
+          "actualPending": {
+            "type": "string"
+          },
+          "currency": {
+            "nullable": true,
+            "type": "string"
+          },
+          "eventId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "eventName": {
+            "type": "string"
+          },
+          "plannedAmount": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "eventId",
+          "eventName",
+          "plannedAmount",
+          "currency",
+          "actualApproved",
+          "actualPending"
+        ],
+        "type": "object"
+      },
+      "DashboardBudgetList": {
+        "properties": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DashboardBudgetItem"
+            },
+            "maxItems": 10,
+            "type": "array"
+          }
+        },
+        "required": [
+          "items",
+          "hasMore"
+        ],
         "type": "object"
       },
       "DashboardCard": {
@@ -1607,6 +2021,9 @@
                 "$ref": "#/components/schemas/DashboardUnread"
               },
               {
+                "$ref": "#/components/schemas/DashboardBudgetList"
+              },
+              {
                 "$ref": "#/components/schemas/TaskAnalyticsResponse"
               },
               {
@@ -1630,7 +2047,11 @@
             "type": "boolean"
           },
           "scope": {
-            "enum": ["organization", "department", "self"],
+            "enum": [
+              "organization",
+              "department",
+              "self"
+            ],
             "type": "string"
           },
           "sources": {
@@ -1651,7 +2072,9 @@
             "type": "string"
           }
         },
-        "required": ["state"],
+        "required": [
+          "state"
+        ],
         "type": "object"
       },
       "DashboardChannels": {
@@ -1671,7 +2094,11 @@
             "type": "array"
           }
         },
-        "required": ["items", "hasMore", "count"],
+        "required": [
+          "items",
+          "hasMore",
+          "count"
+        ],
         "type": "object"
       },
       "DashboardConversationCount": {
@@ -1685,7 +2112,10 @@
             "type": "number"
           }
         },
-        "required": ["conversationId", "count"],
+        "required": [
+          "conversationId",
+          "count"
+        ],
         "type": "object"
       },
       "DashboardCount": {
@@ -1695,7 +2125,9 @@
             "type": "number"
           }
         },
-        "required": ["count"],
+        "required": [
+          "count"
+        ],
         "type": "object"
       },
       "DashboardItem": {
@@ -1705,7 +2137,11 @@
           },
           "attentionReasons": {
             "items": {
-              "enum": ["OVERDUE", "BLOCKED", "UNDER_REVIEW"],
+              "enum": [
+                "OVERDUE",
+                "BLOCKED",
+                "UNDER_REVIEW"
+              ],
               "type": "string"
             },
             "type": "array"
@@ -1744,7 +2180,8 @@
               "REMINDER",
               "CHANNEL",
               "CAMPAIGN_ACTIVITY",
-              "TASK_ACTIVITY"
+              "TASK_ACTIVITY",
+              "EXPENSE"
             ],
             "type": "string"
           },
@@ -1768,7 +2205,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "title", "kind"],
+        "required": [
+          "id",
+          "title",
+          "kind"
+        ],
         "type": "object"
       },
       "DashboardList": {
@@ -1784,7 +2225,10 @@
             "type": "array"
           }
         },
-        "required": ["items", "hasMore"],
+        "required": [
+          "items",
+          "hasMore"
+        ],
         "type": "object"
       },
       "DashboardResponse": {
@@ -1805,14 +2249,18 @@
             "type": "string"
           },
           "freshness": {
-            "enum": ["live-current-state"],
+            "enum": [
+              "live-current-state"
+            ],
             "type": "string"
           },
           "partial": {
             "type": "boolean"
           },
           "timeZone": {
-            "enum": ["UTC"],
+            "enum": [
+              "UTC"
+            ],
             "type": "string"
           }
         },
@@ -1850,6 +2298,9 @@
                 "$ref": "#/components/schemas/DashboardUnread"
               },
               {
+                "$ref": "#/components/schemas/DashboardBudgetList"
+              },
+              {
                 "$ref": "#/components/schemas/TaskAnalyticsResponse"
               },
               {
@@ -1873,7 +2324,11 @@
             "type": "boolean"
           },
           "scope": {
-            "enum": ["organization", "department", "self"],
+            "enum": [
+              "organization",
+              "department",
+              "self"
+            ],
             "type": "string"
           },
           "state": {
@@ -1888,7 +2343,9 @@
             "type": "string"
           }
         },
-        "required": ["state"],
+        "required": [
+          "state"
+        ],
         "type": "object"
       },
       "DashboardUnread": {
@@ -1912,7 +2369,12 @@
             "type": "number"
           }
         },
-        "required": ["count", "items", "totalConversations", "hasMore"],
+        "required": [
+          "count",
+          "items",
+          "totalConversations",
+          "hasMore"
+        ],
         "type": "object"
       },
       "DepartmentManagerSummary": {
@@ -1938,7 +2400,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "DepartmentResponse": {
@@ -2018,7 +2485,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "DownloadGrantResponse": {
@@ -2040,7 +2512,12 @@
             "type": "string"
           }
         },
-        "required": ["url", "expiresAt", "mediaType", "filename"],
+        "required": [
+          "url",
+          "expiresAt",
+          "mediaType",
+          "filename"
+        ],
         "type": "object"
       },
       "EffectivePermissionResponse": {
@@ -2060,7 +2537,10 @@
             "type": "string"
           }
         },
-        "required": ["permissionKey", "scope"],
+        "required": [
+          "permissionKey",
+          "scope"
+        ],
         "type": "object"
       },
       "EntityProgress": {
@@ -2084,7 +2564,12 @@
             "type": "number"
           }
         },
-        "required": ["total", "completed", "percent", "id"],
+        "required": [
+          "total",
+          "completed",
+          "percent",
+          "id"
+        ],
         "type": "object"
       },
       "EntityWorkCounts": {
@@ -2141,7 +2626,41 @@
             "type": "string"
           }
         },
-        "required": ["amount", "currency"],
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "EventBudgetSummaryResponse": {
+        "properties": {
+          "actualApproved": {
+            "description": "Sum of APPROVED expenses' actual amounts for this event.",
+            "example": "9800.00",
+            "type": "string"
+          },
+          "actualPending": {
+            "description": "Sum of SUBMITTED (pending) expenses' actual amounts for this event.",
+            "example": "1350.00",
+            "type": "string"
+          },
+          "currency": {
+            "example": "USD",
+            "nullable": true,
+            "type": "string"
+          },
+          "plannedAmount": {
+            "example": "15000.00",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "plannedAmount",
+          "currency",
+          "actualApproved",
+          "actualPending"
+        ],
         "type": "object"
       },
       "EventPersonSummary": {
@@ -2167,7 +2686,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "EventResponse": {
@@ -2185,6 +2709,12 @@
             "description": "The user who created the event; null once that user is gone.",
             "nullable": true,
             "type": "object"
+          },
+          "departmentId": {
+            "description": "The department this event belongs to (EOM-01). Null for a pre-existing, organization-only event that has not been assigned one.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
           },
           "description": {
             "example": "Opening night gala.",
@@ -2290,6 +2820,7 @@
           "endAt",
           "location",
           "organizerName",
+          "departmentId",
           "manager",
           "teams",
           "participants",
@@ -2311,13 +2842,168 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "ExpenseResponse": {
+        "properties": {
+          "actualAmount": {
+            "example": "1350.00",
+            "type": "string"
+          },
+          "category": {
+            "enum": [
+              "VENUE",
+              "CATERING",
+              "TALENT_FEES",
+              "MARKETING_MATERIALS",
+              "LOGISTICS",
+              "EQUIPMENT",
+              "STAFFING",
+              "MISCELLANEOUS"
+            ],
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdById": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "currency": {
+            "example": "USD",
+            "type": "string"
+          },
+          "departmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "description": {
+            "example": "Stage lighting rental",
+            "type": "string"
+          },
+          "eventId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "plannedAmount": {
+            "description": "Decimal string with two fraction digits.",
+            "example": "1200.00",
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewerId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseReviewSummary"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "APPROVED",
+              "REJECTED"
+            ],
+            "type": "string"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "supplierId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "eventId",
+          "departmentId",
+          "supplierId",
+          "category",
+          "description",
+          "plannedAmount",
+          "actualAmount",
+          "currency",
+          "status",
+          "createdById",
+          "submittedAt",
+          "reviewedAt",
+          "reviewerId",
+          "reviews",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ExpenseReviewSummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "APPROVED",
+              "REJECTED"
+            ],
+            "type": "string"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reviewerId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reviewerId",
+          "outcome",
+          "note",
+          "reviewedAt"
+        ],
         "type": "object"
       },
       "LivenessResponse": {
         "properties": {
           "status": {
-            "enum": ["ok"],
+            "enum": [
+              "ok"
+            ],
             "example": "ok",
             "type": "string"
           },
@@ -2327,7 +3013,10 @@
             "type": "string"
           }
         },
-        "required": ["status", "timestamp"],
+        "required": [
+          "status",
+          "timestamp"
+        ],
         "type": "object"
       },
       "LoginDto": {
@@ -2343,7 +3032,10 @@
             "type": "string"
           }
         },
-        "required": ["email", "password"],
+        "required": [
+          "email",
+          "password"
+        ],
         "type": "object"
       },
       "ManagedFileResponse": {
@@ -2395,7 +3087,9 @@
             "type": "string"
           }
         },
-        "required": ["strategy"],
+        "required": [
+          "strategy"
+        ],
         "type": "object"
       },
       "MarketingStrategyResponse": {
@@ -2417,7 +3111,12 @@
             "type": "string"
           }
         },
-        "required": ["campaignId", "strategy", "createdAt", "updatedAt"],
+        "required": [
+          "campaignId",
+          "strategy",
+          "createdAt",
+          "updatedAt"
+        ],
         "type": "object"
       },
       "MeetingAcknowledgementResponse": {
@@ -2431,11 +3130,19 @@
             "type": "string"
           },
           "response": {
-            "enum": ["PENDING", "ACCEPTED", "DECLINED"],
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "DECLINED"
+            ],
             "type": "string"
           }
         },
-        "required": ["meetingId", "response", "respondedAt"],
+        "required": [
+          "meetingId",
+          "response",
+          "respondedAt"
+        ],
         "type": "object"
       },
       "MeetingAvailabilityResponse": {
@@ -2455,7 +3162,11 @@
             "type": "array"
           }
         },
-        "required": ["startAt", "endAt", "users"],
+        "required": [
+          "startAt",
+          "endAt",
+          "users"
+        ],
         "type": "object"
       },
       "MeetingParticipantResponseContract": {
@@ -2486,7 +3197,11 @@
             "type": "string"
           },
           "response": {
-            "enum": ["PENDING", "ACCEPTED", "DECLINED"],
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "DECLINED"
+            ],
             "type": "string"
           }
         },
@@ -2520,11 +3235,21 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "MeetingResponse": {
         "properties": {
+          "agenda": {
+            "description": "Plain text, set by the organizer.",
+            "nullable": true,
+            "type": "string"
+          },
           "createdAt": {
             "format": "date-time",
             "type": "string"
@@ -2542,6 +3267,11 @@
             "type": "string"
           },
           "location": {
+            "nullable": true,
+            "type": "string"
+          },
+          "minutes": {
+            "description": "Plain text, recorded once the meeting has happened.",
             "nullable": true,
             "type": "string"
           },
@@ -2569,14 +3299,22 @@
             "type": "string"
           },
           "status": {
-            "enum": ["SCHEDULED", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "SCHEDULED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           },
           "title": {
             "type": "string"
           },
           "type": {
-            "enum": ["PHYSICAL", "ONLINE", "HYBRID"],
+            "enum": [
+              "PHYSICAL",
+              "ONLINE",
+              "HYBRID"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -2602,6 +3340,8 @@
           "location",
           "onlineLink",
           "reminderAt",
+          "agenda",
+          "minutes",
           "participants",
           "createdAt",
           "updatedAt"
@@ -2743,7 +3483,9 @@
           },
           "freshness": {
             "description": "Composed source reads may observe separate commits.",
-            "enum": ["live-current-state"],
+            "enum": [
+              "live-current-state"
+            ],
             "type": "string"
           },
           "from": {
@@ -2762,7 +3504,13 @@
             "type": "string"
           }
         },
-        "required": ["asOf", "freshness", "from", "toExclusive", "items"],
+        "required": [
+          "asOf",
+          "freshness",
+          "from",
+          "toExclusive",
+          "items"
+        ],
         "type": "object"
       },
       "NotificationFeedResponse": {
@@ -2779,7 +3527,9 @@
             "type": "string"
           }
         },
-        "required": ["items"],
+        "required": [
+          "items"
+        ],
         "type": "object"
       },
       "NotificationPreferenceResponse": {
@@ -2801,12 +3551,17 @@
               "MEETING_REMINDER",
               "EVENT_REMINDER",
               "TODO_REMINDER",
-              "REPORT_REMINDER"
+              "REPORT_REMINDER",
+              "EXPENSE_SUBMITTED",
+              "EXPENSE_REVIEWED"
             ],
             "type": "string"
           }
         },
-        "required": ["type", "muted"],
+        "required": [
+          "type",
+          "muted"
+        ],
         "type": "object"
       },
       "NotificationPreferencesResponse": {
@@ -2818,7 +3573,9 @@
             "type": "array"
           }
         },
-        "required": ["items"],
+        "required": [
+          "items"
+        ],
         "type": "object"
       },
       "NotificationResponse": {
@@ -2832,6 +3589,11 @@
             "type": "string"
           },
           "eventId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "expenseId": {
             "format": "uuid",
             "nullable": true,
             "type": "string"
@@ -2877,7 +3639,9 @@
               "MEETING_REMINDER",
               "EVENT_REMINDER",
               "TODO_REMINDER",
-              "REPORT_REMINDER"
+              "REPORT_REMINDER",
+              "EXPENSE_SUBMITTED",
+              "EXPENSE_REVIEWED"
             ],
             "type": "string"
           }
@@ -2891,6 +3655,7 @@
           "messageId",
           "eventId",
           "meetingId",
+          "expenseId",
           "createdAt",
           "readAt"
         ],
@@ -2923,7 +3688,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedCampaignsResponse": {
@@ -2949,7 +3719,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedConversationsResponse": {
@@ -2973,7 +3748,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedDepartmentsResponse": {
@@ -2999,7 +3779,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedEventsResponse": {
@@ -3025,7 +3810,41 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
+      "PaginatedExpensesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExpenseResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 7,
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedManagedFilesResponse": {
@@ -3049,7 +3868,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedMeetingsResponse": {
@@ -3073,7 +3897,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedMessagesResponse": {
@@ -3097,7 +3926,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedProductionsResponse": {
@@ -3118,7 +3952,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedProjectsResponse": {
@@ -3144,7 +3983,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedPromotionActivitiesResponse": {
@@ -3168,7 +4012,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedReportsResponse": {
@@ -3189,7 +4038,41 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
+        "type": "object"
+      },
+      "PaginatedSuppliersResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SupplierResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 7,
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedTalentsResponse": {
@@ -3213,7 +4096,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedTaskActivitiesResponse": {
@@ -3234,7 +4122,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedTaskCommentsResponse": {
@@ -3255,7 +4148,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedTaskReviewsResponse": {
@@ -3276,7 +4174,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedTasksResponse": {
@@ -3300,7 +4203,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedTeamsResponse": {
@@ -3326,7 +4234,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedUsersResponse": {
@@ -3352,7 +4265,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PaginatedWorkspacesResponse": {
@@ -3378,7 +4296,12 @@
             "type": "number"
           }
         },
-        "required": ["items", "page", "pageSize", "total"],
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total"
+        ],
         "type": "object"
       },
       "PermissionResponse": {
@@ -3392,7 +4315,10 @@
             "type": "string"
           }
         },
-        "required": ["key", "description"],
+        "required": [
+          "key",
+          "description"
+        ],
         "type": "object"
       },
       "ProblemDetails": {
@@ -3460,7 +4386,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "ProductionResponse": {
@@ -3489,6 +4420,12 @@
           },
           "endAt": {
             "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "eventId": {
+            "description": "Soft cross-reference to an event this production supports (EOM-01).",
+            "format": "uuid",
             "nullable": true,
             "type": "string"
           },
@@ -3523,7 +4460,12 @@
             "type": "string"
           },
           "status": {
-            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           },
           "talents": {
@@ -3557,6 +4499,7 @@
           "endAt",
           "deadlineAt",
           "status",
+          "eventId",
           "manager",
           "teams",
           "participants",
@@ -3580,7 +4523,11 @@
             "$ref": "#/components/schemas/ProductionTalentPerson"
           }
         },
-        "required": ["id", "role", "talent"],
+        "required": [
+          "id",
+          "role",
+          "talent"
+        ],
         "type": "object"
       },
       "ProductionTalentPerson": {
@@ -3596,7 +4543,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "fullName", "type"],
+        "required": [
+          "id",
+          "fullName",
+          "type"
+        ],
         "type": "object"
       },
       "ProductionTeam": {
@@ -3609,7 +4560,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "ProgressAnalyticsPageResponse": {
@@ -3621,7 +4575,9 @@
           },
           "freshness": {
             "description": "Composed source reads may observe separate commits.",
-            "enum": ["live-current-state"],
+            "enum": [
+              "live-current-state"
+            ],
             "type": "string"
           },
           "items": {
@@ -3644,7 +4600,14 @@
             "type": "number"
           }
         },
-        "required": ["asOf", "freshness", "total", "page", "pageSize", "items"],
+        "required": [
+          "asOf",
+          "freshness",
+          "total",
+          "page",
+          "pageSize",
+          "items"
+        ],
         "type": "object"
       },
       "ProjectPersonSummary": {
@@ -3670,7 +4633,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "ProjectResponse": {
@@ -3740,7 +4708,12 @@
           },
           "status": {
             "description": "Current lifecycle state.",
-            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           },
           "teams": {
@@ -3790,7 +4763,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "PromotionActivityResponse": {
@@ -3817,7 +4793,11 @@
             "type": "array"
           }
         },
-        "required": ["activity", "channel", "talents"],
+        "required": [
+          "activity",
+          "channel",
+          "talents"
+        ],
         "type": "object"
       },
       "PromotionAnalyticsResponse": {
@@ -3833,7 +4813,9 @@
           },
           "freshness": {
             "description": "Composed source reads may observe separate commits.",
-            "enum": ["live-current-state"],
+            "enum": [
+              "live-current-state"
+            ],
             "type": "string"
           },
           "items": {
@@ -3844,7 +4826,12 @@
             "type": "array"
           }
         },
-        "required": ["asOf", "freshness", "campaignId", "items"],
+        "required": [
+          "asOf",
+          "freshness",
+          "campaignId",
+          "items"
+        ],
         "type": "object"
       },
       "PromotionChannelProgress": {
@@ -3876,7 +4863,12 @@
             "type": "number"
           }
         },
-        "required": ["total", "completed", "percent", "channel"],
+        "required": [
+          "total",
+          "completed",
+          "percent",
+          "channel"
+        ],
         "type": "object"
       },
       "PromotionTalentDto": {
@@ -3891,7 +4883,10 @@
             "type": "string"
           }
         },
-        "required": ["talentId", "role"],
+        "required": [
+          "talentId",
+          "role"
+        ],
         "type": "object"
       },
       "PromotionTalentResponse": {
@@ -3912,18 +4907,27 @@
             "type": "string"
           }
         },
-        "required": ["id", "talentId", "role", "createdAt"],
+        "required": [
+          "id",
+          "talentId",
+          "role",
+          "createdAt"
+        ],
         "type": "object"
       },
       "ReadinessChecks": {
         "properties": {
           "database": {
-            "enum": ["up"],
+            "enum": [
+              "up"
+            ],
             "example": "up",
             "type": "string"
           }
         },
-        "required": ["database"],
+        "required": [
+          "database"
+        ],
         "type": "object"
       },
       "ReadinessResponse": {
@@ -3932,7 +4936,9 @@
             "$ref": "#/components/schemas/ReadinessChecks"
           },
           "status": {
-            "enum": ["ready"],
+            "enum": [
+              "ready"
+            ],
             "example": "ready",
             "type": "string"
           },
@@ -3942,7 +4948,11 @@
             "type": "string"
           }
         },
-        "required": ["checks", "status", "timestamp"],
+        "required": [
+          "checks",
+          "status",
+          "timestamp"
+        ],
         "type": "object"
       },
       "ReportDetailResponse": {
@@ -3983,6 +4993,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "lessonsLearned": {
+            "description": "Post-event only.",
+            "nullable": true,
+            "type": "string"
+          },
           "majorAchievements": {
             "nullable": true,
             "type": "string"
@@ -4007,6 +5022,11 @@
             "nullable": true,
             "type": "string"
           },
+          "recommendations": {
+            "description": "Post-event only.",
+            "nullable": true,
+            "type": "string"
+          },
           "reviewedAt": {
             "format": "date-time",
             "nullable": true,
@@ -4024,7 +5044,13 @@
             "type": "array"
           },
           "status": {
-            "enum": ["DRAFT", "SUBMITTED", "REVIEWED", "CHANGES_REQUESTED"],
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "UNDER_REVIEW",
+              "REVIEWED",
+              "CHANGES_REQUESTED"
+            ],
             "type": "string"
           },
           "submittedAt": {
@@ -4036,7 +5062,12 @@
             "type": "string"
           },
           "type": {
-            "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY",
+              "POST_EVENT"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -4068,6 +5099,8 @@
           "nextWeekPlan",
           "departmentPerformance",
           "employeePerformance",
+          "lessonsLearned",
+          "recommendations",
           "submittedAt",
           "reviewedAt",
           "reviewerId",
@@ -4096,6 +5129,35 @@
           "completedTasksInPeriod": {
             "type": "number"
           },
+          "eventActualApproved": {
+            "description": "Never includes pending (SUBMITTED) expenses.",
+            "nullable": true,
+            "type": "string"
+          },
+          "eventActualPending": {
+            "nullable": true,
+            "type": "string"
+          },
+          "eventBudgetCurrency": {
+            "nullable": true,
+            "type": "string"
+          },
+          "eventCompletedTasksNow": {
+            "nullable": true,
+            "type": "number"
+          },
+          "eventIncompleteTasksNow": {
+            "nullable": true,
+            "type": "number"
+          },
+          "eventPlannedAmount": {
+            "nullable": true,
+            "type": "string"
+          },
+          "eventTotalTasksNow": {
+            "nullable": true,
+            "type": "number"
+          },
           "inProgressTasksNow": {
             "type": "number"
           },
@@ -4118,7 +5180,14 @@
           "overdueTasksNow",
           "totalProjectsNow",
           "completedProjectsNow",
-          "activeProjectsNow"
+          "activeProjectsNow",
+          "eventTotalTasksNow",
+          "eventCompletedTasksNow",
+          "eventIncompleteTasksNow",
+          "eventPlannedAmount",
+          "eventBudgetCurrency",
+          "eventActualApproved",
+          "eventActualPending"
         ],
         "type": "object"
       },
@@ -4157,6 +5226,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "lessonsLearned": {
+            "description": "Post-event only.",
+            "nullable": true,
+            "type": "string"
+          },
           "majorAchievements": {
             "nullable": true,
             "type": "string"
@@ -4181,6 +5255,11 @@
             "nullable": true,
             "type": "string"
           },
+          "recommendations": {
+            "description": "Post-event only.",
+            "nullable": true,
+            "type": "string"
+          },
           "reviewedAt": {
             "format": "date-time",
             "nullable": true,
@@ -4198,7 +5277,13 @@
             "type": "array"
           },
           "status": {
-            "enum": ["DRAFT", "SUBMITTED", "REVIEWED", "CHANGES_REQUESTED"],
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "UNDER_REVIEW",
+              "REVIEWED",
+              "CHANGES_REQUESTED"
+            ],
             "type": "string"
           },
           "submittedAt": {
@@ -4210,7 +5295,12 @@
             "type": "string"
           },
           "type": {
-            "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY",
+              "POST_EVENT"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -4242,6 +5332,8 @@
           "nextWeekPlan",
           "departmentPerformance",
           "employeePerformance",
+          "lessonsLearned",
+          "recommendations",
           "submittedAt",
           "reviewedAt",
           "reviewerId",
@@ -4263,7 +5355,10 @@
             "type": "string"
           },
           "outcome": {
-            "enum": ["REVIEWED", "CHANGES_REQUESTED"],
+            "enum": [
+              "REVIEWED",
+              "CHANGES_REQUESTED"
+            ],
             "type": "string"
           },
           "reviewedAt": {
@@ -4275,17 +5370,48 @@
             "type": "string"
           }
         },
-        "required": ["id", "reviewerId", "outcome", "note", "reviewedAt"],
+        "required": [
+          "id",
+          "reviewerId",
+          "outcome",
+          "note",
+          "reviewedAt"
+        ],
         "type": "object"
       },
       "RespondToMeetingDto": {
         "properties": {
           "response": {
-            "enum": ["ACCEPTED", "DECLINED"],
+            "enum": [
+              "ACCEPTED",
+              "DECLINED"
+            ],
             "type": "string"
           }
         },
-        "required": ["response"],
+        "required": [
+          "response"
+        ],
+        "type": "object"
+      },
+      "ReviewExpenseDto": {
+        "properties": {
+          "note": {
+            "description": "Required context for a rejection; optional on an approval.",
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "APPROVED",
+              "REJECTED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome"
+        ],
         "type": "object"
       },
       "ReviewReportDto": {
@@ -4295,11 +5421,16 @@
             "type": "string"
           },
           "outcome": {
-            "enum": ["REVIEWED", "CHANGES_REQUESTED"],
+            "enum": [
+              "REVIEWED",
+              "CHANGES_REQUESTED"
+            ],
             "type": "string"
           }
         },
-        "required": ["outcome"],
+        "required": [
+          "outcome"
+        ],
         "type": "object"
       },
       "ReviewTaskDto": {
@@ -4309,11 +5440,16 @@
             "type": "string"
           },
           "outcome": {
-            "enum": ["APPROVED", "CHANGES_REQUESTED"],
+            "enum": [
+              "APPROVED",
+              "CHANGES_REQUESTED"
+            ],
             "type": "string"
           }
         },
-        "required": ["outcome"],
+        "required": [
+          "outcome"
+        ],
         "type": "object"
       },
       "RoleGrantResponse": {
@@ -4335,7 +5471,10 @@
             "type": "string"
           }
         },
-        "required": ["permissionKey", "scope"],
+        "required": [
+          "permissionKey",
+          "scope"
+        ],
         "type": "object"
       },
       "RoleResponse": {
@@ -4431,7 +5570,9 @@
             "$ref": "#/components/schemas/AuthenticatedUserResponse"
           }
         },
-        "required": ["user"],
+        "required": [
+          "user"
+        ],
         "type": "object"
       },
       "SetCampaignBudgetDto": {
@@ -4450,7 +5591,10 @@
             "type": "string"
           }
         },
-        "required": ["amount", "currency"],
+        "required": [
+          "amount",
+          "currency"
+        ],
         "type": "object"
       },
       "SetEventBudgetDto": {
@@ -4469,7 +5613,22 @@
             "type": "string"
           }
         },
-        "required": ["amount", "currency"],
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "SetMeetingMinutesDto": {
+        "properties": {
+          "minutes": {
+            "maxLength": 10000,
+            "type": "string"
+          }
+        },
+        "required": [
+          "minutes"
+        ],
         "type": "object"
       },
       "SetTalentManagerDto": {
@@ -4480,7 +5639,78 @@
             "type": "object"
           }
         },
-        "required": ["managerId"],
+        "required": [
+          "managerId"
+        ],
+        "type": "object"
+      },
+      "SupplierResponse": {
+        "properties": {
+          "category": {
+            "example": "Catering",
+            "nullable": true,
+            "type": "string"
+          },
+          "contactEmail": {
+            "format": "email",
+            "nullable": true,
+            "type": "string"
+          },
+          "contactName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "contactPhone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "departmentId": {
+            "description": "Null for a shared, organization-wide supplier.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "example": "Grand Hall Catering Co.",
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category",
+          "contactName",
+          "contactEmail",
+          "contactPhone",
+          "departmentId",
+          "status",
+          "notes",
+          "createdAt",
+          "updatedAt"
+        ],
         "type": "object"
       },
       "TalentEventAssignmentResponse": {
@@ -4501,7 +5731,11 @@
             "type": "string"
           },
           "status": {
-            "enum": ["ASSIGNED", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "ASSIGNED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -4530,13 +5764,21 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "TalentResponse": {
         "properties": {
           "availability": {
-            "enum": ["AVAILABLE", "ASSIGNED", "UNAVAILABLE", "INACTIVE"],
+            "enum": [
+              "AVAILABLE",
+              "ASSIGNED",
+              "UNAVAILABLE",
+              "INACTIVE"
+            ],
             "type": "string"
           },
           "biography": {
@@ -4650,7 +5892,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "title", "startAt", "endAt"],
+        "required": [
+          "id",
+          "title",
+          "startAt",
+          "endAt"
+        ],
         "type": "object"
       },
       "TalentSocialLinkResponse": {
@@ -4668,7 +5915,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "label", "url"],
+        "required": [
+          "id",
+          "label",
+          "url"
+        ],
         "type": "object"
       },
       "TalentUserSummary": {
@@ -4690,7 +5941,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "TaskActivityResponse": {
@@ -4732,7 +5988,13 @@
             "type": "string"
           }
         },
-        "required": ["id", "type", "actor", "details", "occurredAt"],
+        "required": [
+          "id",
+          "type",
+          "actor",
+          "details",
+          "occurredAt"
+        ],
         "type": "object"
       },
       "TaskAnalyticsResponse": {
@@ -4747,7 +6009,9 @@
           },
           "freshness": {
             "description": "Composed source reads may observe separate commits.",
-            "enum": ["live-current-state"],
+            "enum": [
+              "live-current-state"
+            ],
             "type": "string"
           },
           "from": {
@@ -4759,7 +6023,13 @@
             "type": "string"
           }
         },
-        "required": ["asOf", "freshness", "from", "toExclusive", "counts"],
+        "required": [
+          "asOf",
+          "freshness",
+          "from",
+          "toExclusive",
+          "counts"
+        ],
         "type": "object"
       },
       "TaskAssigneeResponse": {
@@ -4785,7 +6055,13 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName", "assignedAt"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName",
+          "assignedAt"
+        ],
         "type": "object"
       },
       "TaskCommentResponse": {
@@ -4851,7 +6127,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "TaskResponse": {
@@ -4894,7 +6175,12 @@
             "type": "string"
           },
           "priority": {
-            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT"
+            ],
             "type": "string"
           },
           "progress": {
@@ -4961,7 +6247,10 @@
             "type": "string"
           },
           "outcome": {
-            "enum": ["APPROVED", "CHANGES_REQUESTED"],
+            "enum": [
+              "APPROVED",
+              "CHANGES_REQUESTED"
+            ],
             "type": "string"
           },
           "reviewedAt": {
@@ -4978,7 +6267,13 @@
             "type": "object"
           }
         },
-        "required": ["id", "outcome", "note", "reviewer", "reviewedAt"],
+        "required": [
+          "id",
+          "outcome",
+          "note",
+          "reviewer",
+          "reviewedAt"
+        ],
         "type": "object"
       },
       "TeamDepartmentSummary": {
@@ -4993,7 +6288,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "TeamResponse": {
@@ -5083,7 +6381,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       },
       "TodoFeedResponse": {
@@ -5095,7 +6398,9 @@
             "type": "array"
           }
         },
-        "required": ["items"],
+        "required": [
+          "items"
+        ],
         "type": "object"
       },
       "TodoResponse": {
@@ -5123,7 +6428,12 @@
             "type": "string"
           },
           "priority": {
-            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT"
+            ],
             "type": "string"
           },
           "relatedEventId": {
@@ -5145,14 +6455,24 @@
             "type": "boolean"
           },
           "status": {
-            "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+            "enum": [
+              "NOT_STARTED",
+              "IN_PROGRESS",
+              "COMPLETED"
+            ],
             "type": "string"
           },
           "title": {
             "type": "string"
           },
           "type": {
-            "enum": ["PERSONAL", "WORK", "REMINDER", "QUICK_NOTE", "FOLLOW_UP"],
+            "enum": [
+              "PERSONAL",
+              "WORK",
+              "REMINDER",
+              "QUICK_NOTE",
+              "FOLLOW_UP"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -5182,11 +6502,18 @@
         "properties": {
           "status": {
             "description": "The lifecycle state to move to. Must be reachable from the current state under the approved graph.",
-            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           }
         },
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "type": "object"
       },
       "TransitionEventDto": {
@@ -5203,68 +6530,109 @@
             "type": "string"
           }
         },
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "type": "object"
       },
       "TransitionEventTalentAssignmentDto": {
         "properties": {
           "status": {
-            "enum": ["ASSIGNED", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "ASSIGNED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           }
         },
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "type": "object"
       },
       "TransitionMeetingDto": {
         "properties": {
           "status": {
-            "enum": ["COMPLETED", "CANCELLED"],
+            "enum": [
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           }
         },
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "type": "object"
       },
       "TransitionProductionDto": {
         "properties": {
           "status": {
-            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           }
         },
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "type": "object"
       },
       "TransitionProjectDto": {
         "properties": {
           "status": {
             "description": "The lifecycle state to move to. Must be reachable from the current state under the approved graph.",
-            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           }
         },
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "type": "object"
       },
       "TransitionTalentDto": {
         "properties": {
           "availability": {
-            "enum": ["AVAILABLE", "ASSIGNED", "UNAVAILABLE", "INACTIVE"],
+            "enum": [
+              "AVAILABLE",
+              "ASSIGNED",
+              "UNAVAILABLE",
+              "INACTIVE"
+            ],
             "type": "string"
           }
         },
-        "required": ["availability"],
+        "required": [
+          "availability"
+        ],
         "type": "object"
       },
       "TransitionTaskDto": {
         "properties": {
           "status": {
-            "enum": ["TODO", "IN_PROGRESS", "BLOCKED", "CANCELLED"],
+            "enum": [
+              "TODO",
+              "IN_PROGRESS",
+              "BLOCKED",
+              "CANCELLED"
+            ],
             "type": "string"
           }
         },
-        "required": ["status"],
+        "required": [
+          "status"
+        ],
         "type": "object"
       },
       "UnreadCountResponse": {
@@ -5274,7 +6642,9 @@
             "type": "number"
           }
         },
-        "required": ["unreadCount"],
+        "required": [
+          "unreadCount"
+        ],
         "type": "object"
       },
       "UpdateCalendarEntryDto": {
@@ -5326,7 +6696,12 @@
             "type": "string"
           },
           "status": {
-            "enum": ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           }
         },
@@ -5341,7 +6716,10 @@
             "type": "string"
           },
           "campaignType": {
-            "enum": ["MARKETING", "PROMOTION"],
+            "enum": [
+              "MARKETING",
+              "PROMOTION"
+            ],
             "type": "string"
           },
           "description": {
@@ -5387,7 +6765,10 @@
             "type": "string"
           },
           "visibility": {
-            "enum": ["PUBLIC", "PRIVATE"],
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ],
             "type": "string"
           }
         },
@@ -5460,8 +6841,54 @@
         },
         "type": "object"
       },
+      "UpdateExpenseDto": {
+        "properties": {
+          "actualAmount": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "category": {
+            "enum": [
+              "VENUE",
+              "CATERING",
+              "TALENT_FEES",
+              "MARKETING_MATERIALS",
+              "LOGISTICS",
+              "EQUIPMENT",
+              "STAFFING",
+              "MISCELLANEOUS"
+            ],
+            "type": "string"
+          },
+          "currency": {
+            "description": "ISO-4217 alphabetic code.",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "plannedAmount": {
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          },
+          "supplierId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "UpdateMeetingDto": {
         "properties": {
+          "agenda": {
+            "maxLength": 10000,
+            "nullable": true,
+            "type": "string"
+          },
           "description": {
             "maxLength": 4000,
             "nullable": true,
@@ -5496,7 +6923,11 @@
             "type": "string"
           },
           "type": {
-            "enum": ["PHYSICAL", "ONLINE", "HYBRID"],
+            "enum": [
+              "PHYSICAL",
+              "ONLINE",
+              "HYBRID"
+            ],
             "type": "string"
           }
         },
@@ -5509,7 +6940,9 @@
             "type": "string"
           }
         },
-        "required": ["content"],
+        "required": [
+          "content"
+        ],
         "type": "object"
       },
       "UpdateProductionDto": {
@@ -5526,6 +6959,11 @@
           },
           "endAt": {
             "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "eventId": {
+            "format": "uuid",
             "nullable": true,
             "type": "string"
           },
@@ -5592,7 +7030,9 @@
             "type": "string"
           }
         },
-        "required": ["channel"],
+        "required": [
+          "channel"
+        ],
         "type": "object"
       },
       "UpdateReadCursorDto": {
@@ -5603,7 +7043,9 @@
             "type": "string"
           }
         },
-        "required": ["messageId"],
+        "required": [
+          "messageId"
+        ],
         "type": "object"
       },
       "UpdateReportDto": {
@@ -5626,6 +7068,11 @@
             "type": "string"
           },
           "employeePerformance": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "lessonsLearned": {
+            "description": "Post-event only.",
             "maxLength": 5000,
             "type": "string"
           },
@@ -5655,12 +7102,22 @@
             "maxLength": 5000,
             "type": "string"
           },
+          "recommendations": {
+            "description": "Post-event only.",
+            "maxLength": 5000,
+            "type": "string"
+          },
           "title": {
             "maxLength": 200,
             "type": "string"
           },
           "type": {
-            "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY",
+              "POST_EVENT"
+            ],
             "type": "string"
           },
           "workspaceIds": {
@@ -5684,6 +7141,45 @@
             "example": "Regional Coordinator",
             "maxLength": 100,
             "minLength": 1,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateSupplierDto": {
+        "properties": {
+          "category": {
+            "example": "Catering",
+            "maxLength": 100,
+            "type": "string"
+          },
+          "contactEmail": {
+            "format": "email",
+            "type": "string"
+          },
+          "contactName": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "contactPhone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "name": {
+            "example": "Grand Hall Catering Co.",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ],
             "type": "string"
           }
         },
@@ -5758,7 +7254,12 @@
             "type": "string"
           },
           "priority": {
-            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT"
+            ],
             "type": "string"
           },
           "startAt": {
@@ -5782,7 +7283,9 @@
             "type": "number"
           }
         },
-        "required": ["progress"],
+        "required": [
+          "progress"
+        ],
         "type": "object"
       },
       "UpdateTeamDto": {
@@ -5821,7 +7324,12 @@
             "type": "string"
           },
           "priority": {
-            "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT"
+            ],
             "type": "string"
           },
           "relatedEventId": {
@@ -5841,7 +7349,11 @@
             "type": "string"
           },
           "status": {
-            "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+            "enum": [
+              "NOT_STARTED",
+              "IN_PROGRESS",
+              "COMPLETED"
+            ],
             "type": "string"
           },
           "title": {
@@ -5850,7 +7362,13 @@
             "type": "string"
           },
           "type": {
-            "enum": ["PERSONAL", "WORK", "REMINDER", "QUICK_NOTE", "FOLLOW_UP"],
+            "enum": [
+              "PERSONAL",
+              "WORK",
+              "REMINDER",
+              "QUICK_NOTE",
+              "FOLLOW_UP"
+            ],
             "type": "string"
           }
         },
@@ -5912,7 +7430,10 @@
             "type": "string"
           }
         },
-        "required": ["url", "fields"],
+        "required": [
+          "url",
+          "fields"
+        ],
         "type": "object"
       },
       "UploadIntentResponse": {
@@ -5979,7 +7500,11 @@
             "type": "string"
           }
         },
-        "required": ["userId", "available", "conflictingMeetingCount"],
+        "required": [
+          "userId",
+          "available",
+          "conflictingMeetingCount"
+        ],
         "type": "object"
       },
       "UserResponse": {
@@ -6048,7 +7573,10 @@
             "type": "object"
           },
           "status": {
-            "enum": ["ACTIVE", "INACTIVE"],
+            "enum": [
+              "ACTIVE",
+              "INACTIVE"
+            ],
             "example": "ACTIVE",
             "type": "string"
           },
@@ -6085,7 +7613,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "WorkAnalyticsPageResponse": {
@@ -6097,7 +7628,9 @@
           },
           "freshness": {
             "description": "Composed source reads may observe separate commits.",
-            "enum": ["live-current-state"],
+            "enum": [
+              "live-current-state"
+            ],
             "type": "string"
           },
           "from": {
@@ -6153,7 +7686,12 @@
           },
           "kind": {
             "description": "Which module owns this workspace. Fixed when the workspace is created.",
-            "enum": ["EVENT", "PROJECT", "PRODUCTION", "CAMPAIGN"],
+            "enum": [
+              "EVENT",
+              "PROJECT",
+              "PRODUCTION",
+              "CAMPAIGN"
+            ],
             "type": "string"
           },
           "manager": {
@@ -6208,7 +7746,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "name"],
+        "required": [
+          "id",
+          "name"
+        ],
         "type": "object"
       },
       "WorkspaceUserSummary": {
@@ -6234,7 +7775,12 @@
             "type": "string"
           }
         },
-        "required": ["id", "email", "firstName", "lastName"],
+        "required": [
+          "id",
+          "email",
+          "firstName",
+          "lastName"
+        ],
         "type": "object"
       }
     },
@@ -6302,7 +7848,10 @@
             "required": false,
             "schema": {
               "default": "MARKETING",
-              "enum": ["MARKETING", "PROMOTION"],
+              "enum": [
+                "MARKETING",
+                "PROMOTION"
+              ],
               "type": "string"
             }
           }
@@ -6365,7 +7914,9 @@
           }
         ],
         "summary": "Paginated current campaign activity progress; marketing by default",
-        "tags": ["Analytics"]
+        "tags": [
+          "Analytics"
+        ]
       }
     },
     "/api/v1/analytics/departments": {
@@ -6482,7 +8033,9 @@
           }
         ],
         "summary": "Paginated task performance for permitted departments",
-        "tags": ["Analytics"]
+        "tags": [
+          "Analytics"
+        ]
       }
     },
     "/api/v1/analytics/employees": {
@@ -6599,7 +8152,9 @@
           }
         ],
         "summary": "Paginated employee assignment counts, not additive employee scores",
-        "tags": ["Analytics"]
+        "tags": [
+          "Analytics"
+        ]
       }
     },
     "/api/v1/analytics/events": {
@@ -6696,7 +8251,9 @@
           }
         ],
         "summary": "Paginated current event-workspace task progress",
-        "tags": ["Analytics"]
+        "tags": [
+          "Analytics"
+        ]
       }
     },
     "/api/v1/analytics/monthly-activity": {
@@ -6782,7 +8339,9 @@
           }
         ],
         "summary": "Up to twelve UTC monthly creation buckets and task-completion throughput",
-        "tags": ["Analytics"]
+        "tags": [
+          "Analytics"
+        ]
       }
     },
     "/api/v1/analytics/promotion": {
@@ -6868,7 +8427,9 @@
           }
         ],
         "summary": "Current delivery progress by channel for one promotion campaign",
-        "tags": ["Analytics"]
+        "tags": [
+          "Analytics"
+        ]
       }
     },
     "/api/v1/analytics/task-completion": {
@@ -6954,7 +8515,9 @@
           }
         ],
         "summary": "Current task counts and completion rate for a UTC creation cohort",
-        "tags": ["Analytics"]
+        "tags": [
+          "Analytics"
+        ]
       }
     },
     "/api/v1/auth/login": {
@@ -7014,7 +8577,9 @@
           }
         },
         "summary": "Exchange email and password for session cookies",
-        "tags": ["Authentication"]
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/api/v1/auth/logout": {
@@ -7049,7 +8614,9 @@
           }
         ],
         "summary": "Revoke the current session and clear cookies",
-        "tags": ["Authentication"]
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/api/v1/auth/me": {
@@ -7094,7 +8661,9 @@
           }
         ],
         "summary": "Return the authenticated account",
-        "tags": ["Authentication"]
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/api/v1/auth/me/permissions": {
@@ -7139,7 +8708,9 @@
           }
         ],
         "summary": "Return the current account's effective permission scopes",
-        "tags": ["Authentication"]
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/api/v1/auth/refresh": {
@@ -7194,7 +8765,9 @@
           }
         ],
         "summary": "Rotate the refresh session and reissue cookies",
-        "tags": ["Authentication"]
+        "tags": [
+          "Authentication"
+        ]
       }
     },
     "/api/v1/calendar": {
@@ -7276,7 +8849,9 @@
           }
         ],
         "summary": "List the caller's calendar entries in an inclusive/exclusive range of at most 90 days",
-        "tags": ["Calendar and personal schedules"]
+        "tags": [
+          "Calendar and personal schedules"
+        ]
       },
       "post": {
         "operationId": "Calendar_create_v1",
@@ -7332,7 +8907,9 @@
           }
         ],
         "summary": "Create a personal schedule or reminder",
-        "tags": ["Calendar and personal schedules"]
+        "tags": [
+          "Calendar and personal schedules"
+        ]
       }
     },
     "/api/v1/calendar/{id}": {
@@ -7392,7 +8969,9 @@
           }
         ],
         "summary": "Delete a calendar-owned personal schedule or reminder",
-        "tags": ["Calendar and personal schedules"]
+        "tags": [
+          "Calendar and personal schedules"
+        ]
       },
       "get": {
         "operationId": "Calendar_get_v1",
@@ -7454,7 +9033,9 @@
           }
         ],
         "summary": "Get one calendar entry owned by the caller",
-        "tags": ["Calendar and personal schedules"]
+        "tags": [
+          "Calendar and personal schedules"
+        ]
       },
       "patch": {
         "operationId": "Calendar_update_v1",
@@ -7529,7 +9110,9 @@
           }
         ],
         "summary": "Update a calendar-owned personal schedule or reminder",
-        "tags": ["Calendar and personal schedules"]
+        "tags": [
+          "Calendar and personal schedules"
+        ]
       }
     },
     "/api/v1/campaigns": {
@@ -7541,7 +9124,12 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+              "enum": [
+                "PLANNED",
+                "ACTIVE",
+                "COMPLETED",
+                "CANCELLED"
+              ],
               "type": "string"
             }
           },
@@ -7550,7 +9138,10 @@
             "name": "campaignType",
             "required": false,
             "schema": {
-              "enum": ["MARKETING", "PROMOTION"],
+              "enum": [
+                "MARKETING",
+                "PROMOTION"
+              ],
               "type": "string"
             }
           },
@@ -7672,7 +9263,9 @@
           }
         ],
         "summary": "List campaigns the caller may see, with filters",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       },
       "post": {
         "operationId": "Campaigns_create_v1",
@@ -7748,7 +9341,68 @@
           }
         ],
         "summary": "Create a campaign and its connected workspace",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
+      }
+    },
+    "/api/v1/campaigns/for-event/{eventId}": {
+      "get": {
+        "operationId": "Campaigns_listForEvent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "eventId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CampaignResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the campaigns linked to one event (EOM-01 cross-department coordination)",
+        "tags": [
+          "Campaign platform"
+        ]
       }
     },
     "/api/v1/campaigns/{id}": {
@@ -7818,7 +9472,9 @@
           }
         ],
         "summary": "Remove a campaign, its activities, and its connected workspace",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       },
       "get": {
         "operationId": "Campaigns_get_v1",
@@ -7880,7 +9536,9 @@
           }
         ],
         "summary": "Get one campaign with its progress and connected workspace overview",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       },
       "patch": {
         "operationId": "Campaigns_update_v1",
@@ -7975,7 +9633,9 @@
           }
         ],
         "summary": "Update campaign details (not status, manager, teams, or budget)",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       }
     },
     "/api/v1/campaigns/{id}/activities": {
@@ -7995,7 +9655,12 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+              "enum": [
+                "PLANNED",
+                "IN_PROGRESS",
+                "COMPLETED",
+                "CANCELLED"
+              ],
               "type": "string"
             }
           },
@@ -8077,7 +9742,9 @@
           }
         ],
         "summary": "List a campaign's activities",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       },
       "post": {
         "operationId": "Campaigns_createActivity_v1",
@@ -8162,7 +9829,9 @@
           }
         ],
         "summary": "Add an activity to a campaign",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       }
     },
     "/api/v1/campaigns/{id}/activities/{activityId}": {
@@ -8230,7 +9899,9 @@
           }
         ],
         "summary": "Remove a campaign activity",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       },
       "patch": {
         "operationId": "Campaigns_updateActivity_v1",
@@ -8323,7 +9994,9 @@
           }
         ],
         "summary": "Update a campaign activity, including its status",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       }
     },
     "/api/v1/campaigns/{id}/budget": {
@@ -8387,7 +10060,9 @@
           }
         ],
         "summary": "Read the campaign budget (sensitive)",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       },
       "put": {
         "operationId": "Campaigns_setBudget_v1",
@@ -8472,7 +10147,9 @@
           }
         ],
         "summary": "Set or clear the campaign budget (sensitive)",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       }
     },
     "/api/v1/campaigns/{id}/manager": {
@@ -8549,7 +10226,9 @@
           }
         ],
         "summary": "Set, change, or clear the campaign manager",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       }
     },
     "/api/v1/campaigns/{id}/teams/{teamId}": {
@@ -8634,7 +10313,9 @@
           }
         ],
         "summary": "Unassign a team from this campaign",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       },
       "put": {
         "operationId": "Campaigns_assignTeam_v1",
@@ -8707,7 +10388,9 @@
           }
         ],
         "summary": "Assign a team to this campaign (idempotent)",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       }
     },
     "/api/v1/campaigns/{id}/transition": {
@@ -8794,7 +10477,9 @@
           }
         ],
         "summary": "Move a campaign to another lifecycle state",
-        "tags": ["Campaign platform"]
+        "tags": [
+          "Campaign platform"
+        ]
       }
     },
     "/api/v1/conversations": {
@@ -8835,7 +10520,11 @@
             "name": "type",
             "required": false,
             "schema": {
-              "enum": ["DIRECT", "GROUP", "CHANNEL"],
+              "enum": [
+                "DIRECT",
+                "GROUP",
+                "CHANNEL"
+              ],
               "type": "string"
             }
           },
@@ -8897,7 +10586,9 @@
           }
         ],
         "summary": "List conversations and channels visible to the caller",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       },
       "post": {
         "operationId": "Discuss_create_v1",
@@ -8973,7 +10664,9 @@
           }
         ],
         "summary": "Start a direct message or group conversation",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/channels": {
@@ -9051,7 +10744,9 @@
           }
         ],
         "summary": "Create a workspace, department, team, or general-purpose channel",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{conversationId}/files/upload-intents": {
@@ -9138,7 +10833,9 @@
           }
         ],
         "summary": "Create a direct-upload grant for a message attachment, before the message exists",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{conversationId}/messages/{messageId}/files": {
@@ -9241,7 +10938,9 @@
           }
         ],
         "summary": "List available files attached to a message",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{conversationId}/messages/{messageId}/files/{fileId}/download": {
@@ -9321,7 +11020,9 @@
           }
         ],
         "summary": "Issue a private download grant for a message file",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{conversationId}/messages/{messageId}/files/{fileId}/finalize": {
@@ -9424,7 +11125,9 @@
           }
         ],
         "summary": "Verify, scan, and attach a completed upload to a message",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{id}": {
@@ -9498,7 +11201,9 @@
           }
         ],
         "summary": "Get a conversation or channel and its members",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       },
       "patch": {
         "operationId": "Discuss_updateChannel_v1",
@@ -9583,7 +11288,9 @@
           }
         ],
         "summary": "Rename a channel or change its visibility",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{id}/members/{userId}": {
@@ -9668,7 +11375,9 @@
           }
         ],
         "summary": "Remove a member (self-leave, or a manager removing anyone)",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       },
       "put": {
         "operationId": "Discuss_addMember_v1",
@@ -9751,7 +11460,9 @@
           }
         ],
         "summary": "Add a member (self-join for a public channel, or a manager adding anyone)",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{id}/messages": {
@@ -9863,7 +11574,9 @@
           }
         ],
         "summary": "List messages, most recent first",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       },
       "post": {
         "operationId": "Discuss_createMessage_v1",
@@ -9958,7 +11671,9 @@
           }
         ],
         "summary": "Post a message, optionally a reply or with mentions",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{id}/messages/{messageId}": {
@@ -10043,7 +11758,9 @@
           }
         ],
         "summary": "Soft-delete a message, clearing its content (author only)",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       },
       "patch": {
         "operationId": "Discuss_updateMessage_v1",
@@ -10136,7 +11853,9 @@
           }
         ],
         "summary": "Edit a message's content (author only)",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{id}/messages/{messageId}/pin": {
@@ -10231,7 +11950,9 @@
           }
         ],
         "summary": "Unpin a message (any conversation member)",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       },
       "put": {
         "operationId": "Discuss_pinMessage_v1",
@@ -10324,7 +12045,9 @@
           }
         ],
         "summary": "Pin a message (any conversation member)",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/conversations/{id}/read-cursor": {
@@ -10414,7 +12137,9 @@
           }
         ],
         "summary": "Mark the conversation read up to a given message",
-        "tags": ["Discuss"]
+        "tags": [
+          "Discuss"
+        ]
       }
     },
     "/api/v1/dashboards/employee": {
@@ -10511,7 +12236,9 @@
           }
         ],
         "summary": "Caller-only actionable dashboard; never reads another user's personal work.",
-        "tags": ["Dashboards"]
+        "tags": [
+          "Dashboards"
+        ]
       }
     },
     "/api/v1/dashboards/management": {
@@ -10647,7 +12374,9 @@
           }
         ],
         "summary": "Permission-safe management dashboard; card failures are isolated.",
-        "tags": ["Dashboards"]
+        "tags": [
+          "Dashboards"
+        ]
       }
     },
     "/api/v1/departments": {
@@ -10659,7 +12388,10 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["ACTIVE", "INACTIVE"],
+              "enum": [
+                "ACTIVE",
+                "INACTIVE"
+              ],
               "type": "string"
             }
           },
@@ -10741,7 +12473,9 @@
           }
         ],
         "summary": "List departments the caller may see, with optional filters",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       },
       "post": {
         "operationId": "Departments_create_v1",
@@ -10817,7 +12551,9 @@
           }
         ],
         "summary": "Create a department",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       }
     },
     "/api/v1/departments/{id}": {
@@ -10887,7 +12623,9 @@
           }
         ],
         "summary": "Remove a department that has no employees or teams",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       },
       "get": {
         "operationId": "Departments_get_v1",
@@ -10949,7 +12687,9 @@
           }
         ],
         "summary": "Get one department and its composition",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       },
       "patch": {
         "operationId": "Departments_update_v1",
@@ -11034,7 +12774,9 @@
           }
         ],
         "summary": "Update a department's name or description",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       }
     },
     "/api/v1/departments/{id}/deactivate": {
@@ -11111,7 +12853,9 @@
           }
         ],
         "summary": "Deactivate a department (safe deactivation)",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       }
     },
     "/api/v1/departments/{id}/employees/{userId}": {
@@ -11196,7 +12940,9 @@
           }
         ],
         "summary": "Remove a user from this department",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       },
       "put": {
         "operationId": "Departments_assignEmployee_v1",
@@ -11269,7 +13015,9 @@
           }
         ],
         "summary": "Assign a user to this department (moving them if needed)",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       }
     },
     "/api/v1/departments/{id}/manager": {
@@ -11346,7 +13094,9 @@
           }
         ],
         "summary": "Set, change, or clear a department's manager",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       }
     },
     "/api/v1/departments/{id}/reactivate": {
@@ -11423,7 +13173,9 @@
           }
         ],
         "summary": "Reactivate a deactivated department",
-        "tags": ["Department management"]
+        "tags": [
+          "Department management"
+        ]
       }
     },
     "/api/v1/events": {
@@ -11570,7 +13322,9 @@
           }
         ],
         "summary": "List events the caller may see, with filters",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
       },
       "post": {
         "operationId": "Events_create_v1",
@@ -11636,7 +13390,9 @@
           }
         ],
         "summary": "Create an event and its connected workspace",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
       }
     },
     "/api/v1/events/{eventId}/files": {
@@ -11721,7 +13477,9 @@
           }
         ],
         "summary": "List available files attached to an event",
-        "tags": ["Managed files"]
+        "tags": [
+          "Managed files"
+        ]
       }
     },
     "/api/v1/events/{eventId}/files/upload-intents": {
@@ -11808,7 +13566,9 @@
           }
         ],
         "summary": "Create a 10-minute direct-upload grant for an event file",
-        "tags": ["Managed files"]
+        "tags": [
+          "Managed files"
+        ]
       }
     },
     "/api/v1/events/{eventId}/files/{fileId}": {
@@ -11876,7 +13636,9 @@
           }
         ],
         "summary": "Detach an event file and begin its 30-day retention window",
-        "tags": ["Managed files"]
+        "tags": [
+          "Managed files"
+        ]
       }
     },
     "/api/v1/events/{eventId}/files/{fileId}/download": {
@@ -11948,7 +13710,9 @@
           }
         ],
         "summary": "Issue a five-minute private download grant for an event file",
-        "tags": ["Managed files"]
+        "tags": [
+          "Managed files"
+        ]
       }
     },
     "/api/v1/events/{eventId}/files/{fileId}/finalize": {
@@ -12043,7 +13807,9 @@
           }
         ],
         "summary": "Verify, scan, and attach a completed direct upload",
-        "tags": ["Managed files"]
+        "tags": [
+          "Managed files"
+        ]
       }
     },
     "/api/v1/events/{id}": {
@@ -12113,7 +13879,9 @@
           }
         ],
         "summary": "Remove an event and its connected workspace",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
       },
       "get": {
         "operationId": "Events_get_v1",
@@ -12175,7 +13943,9 @@
           }
         ],
         "summary": "Get one event with its connected workspace overview",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
       },
       "patch": {
         "operationId": "Events_update_v1",
@@ -12250,7 +14020,9 @@
           }
         ],
         "summary": "Update event details (not status, manager, teams, or budget)",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
       }
     },
     "/api/v1/events/{id}/budget": {
@@ -12314,7 +14086,9 @@
           }
         ],
         "summary": "Read the event budget (sensitive)",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
       },
       "put": {
         "operationId": "Events_setBudget_v1",
@@ -12389,7 +14163,75 @@
           }
         ],
         "summary": "Set or clear the event budget (sensitive)",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
+      }
+    },
+    "/api/v1/events/{id}/budget-summary": {
+      "get": {
+        "operationId": "Events_getBudgetSummary_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventBudgetSummaryResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Planned vs. actual budget for an event (sensitive)",
+        "tags": [
+          "Event management"
+        ]
       }
     },
     "/api/v1/events/{id}/manager": {
@@ -12466,7 +14308,9 @@
           }
         ],
         "summary": "Set, change, or clear the event manager",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
       }
     },
     "/api/v1/events/{id}/teams/{teamId}": {
@@ -12551,7 +14395,9 @@
           }
         ],
         "summary": "Unassign a team from this event",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
       },
       "put": {
         "operationId": "Events_assignTeam_v1",
@@ -12624,7 +14470,9 @@
           }
         ],
         "summary": "Assign a team to this event (idempotent)",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
       }
     },
     "/api/v1/events/{id}/transition": {
@@ -12711,7 +14559,882 @@
           }
         ],
         "summary": "Move an event to another lifecycle state",
-        "tags": ["Event management"]
+        "tags": [
+          "Event management"
+        ]
+      }
+    },
+    "/api/v1/expenses": {
+      "get": {
+        "operationId": "Expenses_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "eventId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "DRAFT",
+                "SUBMITTED",
+                "APPROVED",
+                "REJECTED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "enum": [
+                "VENUE",
+                "CATERING",
+                "TALENT_FEES",
+                "MARKETING_MATERIALS",
+                "LOGISTICS",
+                "EQUIPMENT",
+                "STAFFING",
+                "MISCELLANEOUS"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "departmentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "supplierId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "maximum": 100000,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedExpensesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List expenses visible to the caller, with filters",
+        "tags": [
+          "Expense management"
+        ]
+      },
+      "post": {
+        "operationId": "Expenses_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExpenseDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Record a draft expense against an event",
+        "tags": [
+          "Expense management"
+        ]
+      }
+    },
+    "/api/v1/expenses/{expenseId}/files": {
+      "get": {
+        "operationId": "ExpenseFileManagement_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "expenseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedManagedFilesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid pagination query"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside expense scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Expense not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List available files attached to an expense",
+        "tags": [
+          "Expense management"
+        ]
+      }
+    },
+    "/api/v1/expenses/{expenseId}/files/upload-intents": {
+      "post": {
+        "operationId": "ExpenseFileManagement_createUploadIntent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "expenseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadIntentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadIntentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid upload declaration"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside expense scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Expense not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a direct-upload grant for an expense attachment (receipt or invoice)",
+        "tags": [
+          "Expense management"
+        ]
+      }
+    },
+    "/api/v1/expenses/{expenseId}/files/{fileId}/download": {
+      "get": {
+        "operationId": "ExpenseFileManagement_download_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "expenseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadGrantResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside expense scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Expense file not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Issue a private download grant for an expense file",
+        "tags": [
+          "Expense management"
+        ]
+      }
+    },
+    "/api/v1/expenses/{expenseId}/files/{fileId}/finalize": {
+      "post": {
+        "operationId": "ExpenseFileManagement_finalize_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "expenseId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedFileResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside expense scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Expense or intent not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Intent expired, upload missing, unsafe, or already finalized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "File scanner unavailable"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Verify, scan, and attach a completed expense upload",
+        "tags": [
+          "Expense management"
+        ]
+      }
+    },
+    "/api/v1/expenses/{id}": {
+      "get": {
+        "operationId": "Expenses_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get one expense and its full review history",
+        "tags": [
+          "Expense management"
+        ]
+      },
+      "patch": {
+        "operationId": "Expenses_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExpenseDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Edit a draft or rejected expense",
+        "tags": [
+          "Expense management"
+        ]
+      }
+    },
+    "/api/v1/expenses/{id}/reviews": {
+      "post": {
+        "operationId": "Expenses_review_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewExpenseDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Approve or reject a submitted expense (Super Admin only)",
+        "tags": [
+          "Expense management"
+        ]
+      }
+    },
+    "/api/v1/expenses/{id}/submit": {
+      "post": {
+        "operationId": "Expenses_submit_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpenseResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Submit a draft expense for Super Admin approval",
+        "tags": [
+          "Expense management"
+        ]
       }
     },
     "/api/v1/marketing/campaigns/{campaignId}/strategy": {
@@ -12771,7 +15494,9 @@
           }
         ],
         "summary": "Remove strategy content, retaining the campaign",
-        "tags": ["Marketing campaigns"]
+        "tags": [
+          "Marketing campaigns"
+        ]
       },
       "get": {
         "operationId": "Marketing_get_v1",
@@ -12833,7 +15558,9 @@
           }
         ],
         "summary": "Get the strategy of a marketing campaign",
-        "tags": ["Marketing campaigns"]
+        "tags": [
+          "Marketing campaigns"
+        ]
       },
       "patch": {
         "operationId": "Marketing_update_v1",
@@ -12918,7 +15645,9 @@
           }
         ],
         "summary": "Change a marketing campaign's strategy",
-        "tags": ["Marketing campaigns"]
+        "tags": [
+          "Marketing campaigns"
+        ]
       },
       "post": {
         "operationId": "Marketing_create_v1",
@@ -13013,7 +15742,9 @@
           }
         ],
         "summary": "Attach a strategy to a marketing campaign",
-        "tags": ["Marketing campaigns"]
+        "tags": [
+          "Marketing campaigns"
+        ]
       }
     },
     "/api/v1/meetings": {
@@ -13025,7 +15756,11 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["SCHEDULED", "COMPLETED", "CANCELLED"],
+              "enum": [
+                "SCHEDULED",
+                "COMPLETED",
+                "CANCELLED"
+              ],
               "type": "string"
             }
           },
@@ -13034,7 +15769,11 @@
             "name": "type",
             "required": false,
             "schema": {
-              "enum": ["PHYSICAL", "ONLINE", "HYBRID"],
+              "enum": [
+                "PHYSICAL",
+                "ONLINE",
+                "HYBRID"
+              ],
               "type": "string"
             }
           },
@@ -13152,7 +15891,9 @@
           }
         ],
         "summary": "List meetings visible to the current user",
-        "tags": ["Meetings"]
+        "tags": [
+          "Meetings"
+        ]
       },
       "post": {
         "operationId": "Meetings_create_v1",
@@ -13238,7 +15979,9 @@
           }
         ],
         "summary": "Schedule a meeting and invite its participants",
-        "tags": ["Meetings"]
+        "tags": [
+          "Meetings"
+        ]
       }
     },
     "/api/v1/meetings/availability": {
@@ -13316,7 +16059,9 @@
           }
         ],
         "summary": "Check participant availability for a UTC interval",
-        "tags": ["Meetings"]
+        "tags": [
+          "Meetings"
+        ]
       }
     },
     "/api/v1/meetings/{id}": {
@@ -13390,7 +16135,9 @@
           }
         ],
         "summary": "Get meeting details and participant responses",
-        "tags": ["Meetings"]
+        "tags": [
+          "Meetings"
+        ]
       },
       "patch": {
         "operationId": "Meetings_update_v1",
@@ -13485,7 +16232,197 @@
           }
         ],
         "summary": "Update a scheduled meeting as its organizer",
-        "tags": ["Meetings"]
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/action-items": {
+      "post": {
+        "operationId": "Meetings_createActionItem_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMeetingActionItemDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid fields, UTC interval, reminder, or venue details"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Meeting, department, or assignee not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a task action item from this meeting, as its organizer",
+        "tags": [
+          "Meetings"
+        ]
+      }
+    },
+    "/api/v1/meetings/{id}/minutes": {
+      "put": {
+        "operationId": "Meetings_setMinutes_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetMeetingMinutesDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetingResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid fields, UTC interval, reminder, or venue details"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Meeting not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Meeting is cancelled"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Record or edit a meeting's minutes as its organizer",
+        "tags": [
+          "Meetings"
+        ]
       }
     },
     "/api/v1/meetings/{id}/participants/{userId}": {
@@ -13580,7 +16517,9 @@
           }
         ],
         "summary": "Remove an invited participant from a scheduled meeting",
-        "tags": ["Meetings"]
+        "tags": [
+          "Meetings"
+        ]
       },
       "put": {
         "operationId": "Meetings_addParticipant_v1",
@@ -13673,7 +16612,9 @@
           }
         ],
         "summary": "Invite an active participant to a scheduled meeting",
-        "tags": ["Meetings"]
+        "tags": [
+          "Meetings"
+        ]
       }
     },
     "/api/v1/meetings/{id}/response": {
@@ -13770,7 +16711,9 @@
           }
         ],
         "summary": "Acknowledge an invitation as accepted or declined",
-        "tags": ["Meetings"]
+        "tags": [
+          "Meetings"
+        ]
       }
     },
     "/api/v1/meetings/{id}/transition": {
@@ -13867,7 +16810,9 @@
           }
         ],
         "summary": "Complete or cancel a scheduled meeting as its organizer",
-        "tags": ["Meetings"]
+        "tags": [
+          "Meetings"
+        ]
       }
     },
     "/api/v1/notifications": {
@@ -13937,7 +16882,9 @@
           }
         ],
         "summary": "List the caller's own notifications, newest first",
-        "tags": ["Notifications"]
+        "tags": [
+          "Notifications"
+        ]
       }
     },
     "/api/v1/notifications/preferences": {
@@ -13982,7 +16929,9 @@
           }
         ],
         "summary": "List the caller's mutable notification types and mute state",
-        "tags": ["Notifications"]
+        "tags": [
+          "Notifications"
+        ]
       }
     },
     "/api/v1/notifications/preferences/{type}": {
@@ -14042,7 +16991,9 @@
           }
         ],
         "summary": "Unmute a mutable notification type for the caller",
-        "tags": ["Notifications"]
+        "tags": [
+          "Notifications"
+        ]
       },
       "put": {
         "operationId": "Notifications_mute_v1",
@@ -14100,7 +17051,9 @@
           }
         ],
         "summary": "Mute a mutable notification type for the caller",
-        "tags": ["Notifications"]
+        "tags": [
+          "Notifications"
+        ]
       }
     },
     "/api/v1/notifications/unread-count": {
@@ -14145,7 +17098,9 @@
           }
         ],
         "summary": "Count the caller's unread notifications",
-        "tags": ["Notifications"]
+        "tags": [
+          "Notifications"
+        ]
       }
     },
     "/api/v1/notifications/{id}/read": {
@@ -14212,7 +17167,9 @@
           }
         ],
         "summary": "Mark one of the caller's notifications as read",
-        "tags": ["Notifications"]
+        "tags": [
+          "Notifications"
+        ]
       }
     },
     "/api/v1/permissions": {
@@ -14260,7 +17217,9 @@
           }
         ],
         "summary": "List the fixed permission catalog",
-        "tags": ["Roles and permissions"]
+        "tags": [
+          "Roles and permissions"
+        ]
       }
     },
     "/api/v1/productions": {
@@ -14272,7 +17231,12 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+              "enum": [
+                "PLANNED",
+                "ACTIVE",
+                "COMPLETED",
+                "CANCELLED"
+              ],
               "type": "string"
             }
           },
@@ -14373,7 +17337,9 @@
           }
         ],
         "summary": "List production projects",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       },
       "post": {
         "operationId": "Productions_create_v1",
@@ -14449,7 +17415,88 @@
           }
         ],
         "summary": "Create a production with its connected workspace",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
+      }
+    },
+    "/api/v1/productions/for-event/{eventId}": {
+      "get": {
+        "operationId": "Productions_listForEvent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "eventId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProductionResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the productions linked to one event (EOM-01 cross-department coordination)",
+        "tags": [
+          "Production management"
+        ]
       }
     },
     "/api/v1/productions/{id}": {
@@ -14519,7 +17566,9 @@
           }
         ],
         "summary": "Delete a production and its workspace",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       },
       "get": {
         "operationId": "Productions_get_v1",
@@ -14591,7 +17640,9 @@
           }
         ],
         "summary": "Get a production and connected workspace overview",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       },
       "patch": {
         "operationId": "Productions_update_v1",
@@ -14676,7 +17727,9 @@
           }
         ],
         "summary": "Update production details",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       }
     },
     "/api/v1/productions/{id}/manager": {
@@ -14763,7 +17816,9 @@
           }
         ],
         "summary": "Set or clear the production manager",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       }
     },
     "/api/v1/productions/{id}/participants/{userId}": {
@@ -14848,7 +17903,9 @@
           }
         ],
         "summary": "Remove a production participant",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       },
       "put": {
         "operationId": "Productions_addParticipant_v1",
@@ -14931,7 +17988,9 @@
           }
         ],
         "summary": "Add a production participant",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       }
     },
     "/api/v1/productions/{id}/talents/{talentId}": {
@@ -15016,7 +18075,9 @@
           }
         ],
         "summary": "Unassign talent from a production",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       },
       "put": {
         "operationId": "Productions_assignTalent_v1",
@@ -15109,7 +18170,9 @@
           }
         ],
         "summary": "Assign talent to a production",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       }
     },
     "/api/v1/productions/{id}/teams/{teamId}": {
@@ -15194,7 +18257,9 @@
           }
         ],
         "summary": "Unassign a team",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       },
       "put": {
         "operationId": "Productions_assignTeam_v1",
@@ -15277,7 +18342,9 @@
           }
         ],
         "summary": "Assign a team",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       }
     },
     "/api/v1/productions/{id}/transition": {
@@ -15364,7 +18431,9 @@
           }
         ],
         "summary": "Move a production through its lifecycle",
-        "tags": ["Production management"]
+        "tags": [
+          "Production management"
+        ]
       }
     },
     "/api/v1/projects": {
@@ -15376,7 +18445,12 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+              "enum": [
+                "PLANNED",
+                "ACTIVE",
+                "COMPLETED",
+                "CANCELLED"
+              ],
               "type": "string"
             }
           },
@@ -15498,7 +18572,9 @@
           }
         ],
         "summary": "List projects the caller may see, with filters",
-        "tags": ["General project management"]
+        "tags": [
+          "General project management"
+        ]
       },
       "post": {
         "operationId": "Projects_create_v1",
@@ -15564,7 +18640,9 @@
           }
         ],
         "summary": "Create a project and its connected workspace",
-        "tags": ["General project management"]
+        "tags": [
+          "General project management"
+        ]
       }
     },
     "/api/v1/projects/{id}": {
@@ -15634,7 +18712,9 @@
           }
         ],
         "summary": "Remove a project and its connected workspace",
-        "tags": ["General project management"]
+        "tags": [
+          "General project management"
+        ]
       },
       "get": {
         "operationId": "Projects_get_v1",
@@ -15696,7 +18776,9 @@
           }
         ],
         "summary": "Get one project with its connected workspace overview",
-        "tags": ["General project management"]
+        "tags": [
+          "General project management"
+        ]
       },
       "patch": {
         "operationId": "Projects_update_v1",
@@ -15771,7 +18853,9 @@
           }
         ],
         "summary": "Update project details (not status, manager, or teams)",
-        "tags": ["General project management"]
+        "tags": [
+          "General project management"
+        ]
       }
     },
     "/api/v1/projects/{id}/manager": {
@@ -15848,7 +18932,9 @@
           }
         ],
         "summary": "Set, change, or clear the project manager",
-        "tags": ["General project management"]
+        "tags": [
+          "General project management"
+        ]
       }
     },
     "/api/v1/projects/{id}/teams/{teamId}": {
@@ -15933,7 +19019,9 @@
           }
         ],
         "summary": "Unassign a team from this project",
-        "tags": ["General project management"]
+        "tags": [
+          "General project management"
+        ]
       },
       "put": {
         "operationId": "Projects_assignTeam_v1",
@@ -16006,7 +19094,9 @@
           }
         ],
         "summary": "Assign a team to this project (idempotent)",
-        "tags": ["General project management"]
+        "tags": [
+          "General project management"
+        ]
       }
     },
     "/api/v1/projects/{id}/transition": {
@@ -16093,7 +19183,9 @@
           }
         ],
         "summary": "Move a project to another lifecycle state",
-        "tags": ["General project management"]
+        "tags": [
+          "General project management"
+        ]
       }
     },
     "/api/v1/promotion/campaigns/{campaignId}/activities": {
@@ -16113,7 +19205,12 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+              "enum": [
+                "PLANNED",
+                "IN_PROGRESS",
+                "COMPLETED",
+                "CANCELLED"
+              ],
               "type": "string"
             }
           },
@@ -16195,7 +19292,9 @@
           }
         ],
         "summary": "List promotion activities in a promotion campaign",
-        "tags": ["Promotion operations"]
+        "tags": [
+          "Promotion operations"
+        ]
       }
     },
     "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}": {
@@ -16263,7 +19362,9 @@
           }
         ],
         "summary": "Remove promotion detail and talent links, retaining the shared activity",
-        "tags": ["Promotion operations"]
+        "tags": [
+          "Promotion operations"
+        ]
       },
       "get": {
         "operationId": "Promotion_get_v1",
@@ -16333,7 +19434,9 @@
           }
         ],
         "summary": "Get a promotion activity with channel and talent assignments",
-        "tags": ["Promotion operations"]
+        "tags": [
+          "Promotion operations"
+        ]
       },
       "patch": {
         "operationId": "Promotion_updateChannel_v1",
@@ -16416,7 +19519,9 @@
           }
         ],
         "summary": "Change a promotion activity's delivery channel",
-        "tags": ["Promotion operations"]
+        "tags": [
+          "Promotion operations"
+        ]
       },
       "post": {
         "operationId": "Promotion_attach_v1",
@@ -16519,7 +19624,9 @@
           }
         ],
         "summary": "Attach promotion channel and optional talents to an existing campaign activity",
-        "tags": ["Promotion operations"]
+        "tags": [
+          "Promotion operations"
+        ]
       }
     },
     "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/talents": {
@@ -16614,7 +19721,9 @@
           }
         ],
         "summary": "Assign one talent to a promotion activity",
-        "tags": ["Promotion operations"]
+        "tags": [
+          "Promotion operations"
+        ]
       }
     },
     "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/talents/{talentId}": {
@@ -16697,7 +19806,9 @@
           }
         ],
         "summary": "Unassign one talent from a promotion activity",
-        "tags": ["Promotion operations"]
+        "tags": [
+          "Promotion operations"
+        ]
       }
     },
     "/api/v1/reports": {
@@ -16709,7 +19820,12 @@
             "name": "type",
             "required": false,
             "schema": {
-              "enum": ["DAILY", "WEEKLY", "MONTHLY"],
+              "enum": [
+                "DAILY",
+                "WEEKLY",
+                "MONTHLY",
+                "POST_EVENT"
+              ],
               "type": "string"
             }
           },
@@ -16718,7 +19834,13 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["DRAFT", "SUBMITTED", "REVIEWED", "CHANGES_REQUESTED"],
+              "enum": [
+                "DRAFT",
+                "SUBMITTED",
+                "UNDER_REVIEW",
+                "REVIEWED",
+                "CHANGES_REQUESTED"
+              ],
               "type": "string"
             }
           },
@@ -16848,7 +19970,9 @@
           }
         ],
         "summary": "List reports visible to the caller, with bounded filters",
-        "tags": ["Reports"]
+        "tags": [
+          "Reports"
+        ]
       },
       "post": {
         "operationId": "Reports_create_v1",
@@ -16924,7 +20048,9 @@
           }
         ],
         "summary": "Create a report draft for the acting author",
-        "tags": ["Reports"]
+        "tags": [
+          "Reports"
+        ]
       }
     },
     "/api/v1/reports/{id}": {
@@ -16988,7 +20114,9 @@
           }
         ],
         "summary": "Get a report and its review history",
-        "tags": ["Reports"]
+        "tags": [
+          "Reports"
+        ]
       },
       "patch": {
         "operationId": "Reports_update_v1",
@@ -17073,7 +20201,9 @@
           }
         ],
         "summary": "Edit the author's draft or changes-requested report",
-        "tags": ["Reports"]
+        "tags": [
+          "Reports"
+        ]
       }
     },
     "/api/v1/reports/{id}/export": {
@@ -17137,7 +20267,9 @@
           }
         ],
         "summary": "Export an authorized report snapshot as JSON",
-        "tags": ["Reports"]
+        "tags": [
+          "Reports"
+        ]
       }
     },
     "/api/v1/reports/{id}/reviews": {
@@ -17214,7 +20346,78 @@
           }
         ],
         "summary": "Review a submitted report or request changes",
-        "tags": ["Reports"]
+        "tags": [
+          "Reports"
+        ]
+      }
+    },
+    "/api/v1/reports/{id}/start-review": {
+      "post": {
+        "operationId": "Reports_startReview_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Mark a submitted report 'Under Review' before the final decision (optional)",
+        "tags": [
+          "Reports"
+        ]
       }
     },
     "/api/v1/reports/{id}/submit": {
@@ -17291,7 +20494,9 @@
           }
         ],
         "summary": "Submit the author's complete report for review",
-        "tags": ["Reports"]
+        "tags": [
+          "Reports"
+        ]
       }
     },
     "/api/v1/roles": {
@@ -17339,7 +20544,9 @@
           }
         ],
         "summary": "List configurable roles",
-        "tags": ["Roles and permissions"]
+        "tags": [
+          "Roles and permissions"
+        ]
       },
       "post": {
         "operationId": "Roles_create_v1",
@@ -17405,7 +20612,9 @@
           }
         ],
         "summary": "Create a configurable role",
-        "tags": ["Roles and permissions"]
+        "tags": [
+          "Roles and permissions"
+        ]
       }
     },
     "/api/v1/roles/{id}": {
@@ -17472,7 +20681,9 @@
           }
         ],
         "summary": "Remove a role that is not built in or in use",
-        "tags": ["Roles and permissions"]
+        "tags": [
+          "Roles and permissions"
+        ]
       },
       "get": {
         "operationId": "Roles_get_v1",
@@ -17534,7 +20745,9 @@
           }
         ],
         "summary": "Get one role and its permission grants",
-        "tags": ["Roles and permissions"]
+        "tags": [
+          "Roles and permissions"
+        ]
       },
       "patch": {
         "operationId": "Roles_update_v1",
@@ -17619,7 +20832,9 @@
           }
         ],
         "summary": "Rename or describe a role",
-        "tags": ["Roles and permissions"]
+        "tags": [
+          "Roles and permissions"
+        ]
       }
     },
     "/api/v1/roles/{id}/permissions": {
@@ -17699,7 +20914,9 @@
           }
         ],
         "summary": "Grant a permission to a role at a scope",
-        "tags": ["Roles and permissions"]
+        "tags": [
+          "Roles and permissions"
+        ]
       }
     },
     "/api/v1/roles/{id}/permissions/{permissionKey}/{scope}": {
@@ -17772,7 +20989,329 @@
           }
         ],
         "summary": "Remove a permission grant from a role",
-        "tags": ["Roles and permissions"]
+        "tags": [
+          "Roles and permissions"
+        ]
+      }
+    },
+    "/api/v1/suppliers": {
+      "get": {
+        "operationId": "Suppliers_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "ACTIVE",
+                "INACTIVE"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "departmentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "maximum": 100000,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedSuppliersResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List suppliers visible to the caller",
+        "tags": [
+          "Supplier directory"
+        ]
+      },
+      "post": {
+        "operationId": "Suppliers_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupplierDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Register a supplier",
+        "tags": [
+          "Supplier directory"
+        ]
+      }
+    },
+    "/api/v1/suppliers/{id}": {
+      "get": {
+        "operationId": "Suppliers_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get one supplier",
+        "tags": [
+          "Supplier directory"
+        ]
+      },
+      "patch": {
+        "operationId": "Suppliers_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSupplierDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupplierResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Edit a supplier or change its status",
+        "tags": [
+          "Supplier directory"
+        ]
       }
     },
     "/api/v1/talents": {
@@ -17801,7 +21340,12 @@
             "name": "availability",
             "required": false,
             "schema": {
-              "enum": ["AVAILABLE", "ASSIGNED", "UNAVAILABLE", "INACTIVE"],
+              "enum": [
+                "AVAILABLE",
+                "ASSIGNED",
+                "UNAVAILABLE",
+                "INACTIVE"
+              ],
               "type": "string"
             }
           },
@@ -17891,7 +21435,9 @@
           }
         ],
         "summary": "List talent profiles",
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       },
       "post": {
         "operationId": "Talent_create_v1",
@@ -17946,7 +21492,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/talents/{id}": {
@@ -18000,7 +21548,9 @@
           }
         ],
         "summary": "Get a talent profile, schedule, and event assignments",
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       },
       "patch": {
         "operationId": "Talent_update_v1",
@@ -18064,7 +21614,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/talents/{id}/event-assignments": {
@@ -18130,7 +21682,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/talents/{id}/event-assignments/{assignmentId}/transition": {
@@ -18197,7 +21751,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/talents/{id}/manager": {
@@ -18256,7 +21812,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/talents/{id}/schedules": {
@@ -18322,7 +21880,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/talents/{id}/schedules/{scheduleId}": {
@@ -18379,7 +21939,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       },
       "patch": {
         "operationId": "Talent_updateSchedule_v1",
@@ -18444,7 +22006,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/talents/{id}/social-links": {
@@ -18510,7 +22074,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/talents/{id}/social-links/{socialLinkId}": {
@@ -18567,7 +22133,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/talents/{id}/transition": {
@@ -18626,7 +22194,9 @@
             "csrf-token": []
           }
         ],
-        "tags": ["Talent management"]
+        "tags": [
+          "Talent management"
+        ]
       }
     },
     "/api/v1/tasks": {
@@ -18654,7 +22224,12 @@
             "name": "priority",
             "required": false,
             "schema": {
-              "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+              "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "URGENT"
+              ],
               "type": "string"
             }
           },
@@ -18727,7 +22302,11 @@
             "required": false,
             "schema": {
               "default": "UPDATED",
-              "enum": ["UPDATED", "DUE_AT", "START_AT"],
+              "enum": [
+                "UPDATED",
+                "DUE_AT",
+                "START_AT"
+              ],
               "type": "string"
             }
           },
@@ -18809,7 +22388,9 @@
           }
         ],
         "summary": "List visible tasks for list, Kanban, and calendar projections",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       },
       "post": {
         "operationId": "Tasks_create_v1",
@@ -18885,7 +22466,9 @@
           }
         ],
         "summary": "Create a workspace or department task",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{id}": {
@@ -18959,7 +22542,9 @@
           }
         ],
         "summary": "Get task details and assignees",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       },
       "patch": {
         "operationId": "Tasks_update_v1",
@@ -19044,7 +22629,9 @@
           }
         ],
         "summary": "Update task fields other than owners, status, progress, and assignees",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{id}/activity": {
@@ -19147,7 +22734,9 @@
           }
         ],
         "summary": "List the append-only task activity feed",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{id}/assignees/{userId}": {
@@ -19242,7 +22831,9 @@
           }
         ],
         "summary": "Remove a task assignee",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       },
       "put": {
         "operationId": "Tasks_addAssignee_v1",
@@ -19325,7 +22916,9 @@
           }
         ],
         "summary": "Assign a user to a task (idempotent)",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{id}/comments": {
@@ -19428,7 +23021,9 @@
           }
         ],
         "summary": "List task comments and normalized mentions",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       },
       "post": {
         "operationId": "Tasks_createComment_v1",
@@ -19513,7 +23108,9 @@
           }
         ],
         "summary": "Add a task comment with explicit user mentions",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{id}/progress": {
@@ -19600,7 +23197,9 @@
           }
         ],
         "summary": "Set an assigned task's progress from 0 to 100",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{id}/reviews": {
@@ -19703,7 +23302,9 @@
           }
         ],
         "summary": "List immutable task review outcomes",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       },
       "post": {
         "operationId": "Tasks_review_v1",
@@ -19798,7 +23399,9 @@
           }
         ],
         "summary": "Approve a task under review or request changes",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{id}/submit": {
@@ -19885,7 +23488,9 @@
           }
         ],
         "summary": "Submit an in-progress assigned task for review",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{id}/transition": {
@@ -19982,7 +23587,9 @@
           }
         ],
         "summary": "Apply an allowed assignee lifecycle transition",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{taskId}/files": {
@@ -20077,7 +23684,9 @@
           }
         ],
         "summary": "List available files attached to a task",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{taskId}/files/upload-intents": {
@@ -20164,7 +23773,9 @@
           }
         ],
         "summary": "Create a direct-upload grant for a task attachment",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{taskId}/files/{fileId}/download": {
@@ -20236,7 +23847,9 @@
           }
         ],
         "summary": "Issue a private download grant for a task file",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/tasks/{taskId}/files/{fileId}/finalize": {
@@ -20331,7 +23944,9 @@
           }
         ],
         "summary": "Verify, scan, and attach a completed task upload",
-        "tags": ["Task management"]
+        "tags": [
+          "Task management"
+        ]
       }
     },
     "/api/v1/teams": {
@@ -20343,7 +23958,10 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["ACTIVE", "INACTIVE"],
+              "enum": [
+                "ACTIVE",
+                "INACTIVE"
+              ],
               "type": "string"
             }
           },
@@ -20435,7 +24053,9 @@
           }
         ],
         "summary": "List teams the caller may see, with optional filters",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       },
       "post": {
         "operationId": "Teams_create_v1",
@@ -20511,7 +24131,9 @@
           }
         ],
         "summary": "Create a team under a department",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       }
     },
     "/api/v1/teams/{id}": {
@@ -20581,7 +24203,9 @@
           }
         ],
         "summary": "Remove a team that has no members",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       },
       "get": {
         "operationId": "Teams_get_v1",
@@ -20643,7 +24267,9 @@
           }
         ],
         "summary": "Get one team and its composition",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       },
       "patch": {
         "operationId": "Teams_update_v1",
@@ -20728,7 +24354,9 @@
           }
         ],
         "summary": "Update a team's name or description",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       }
     },
     "/api/v1/teams/{id}/deactivate": {
@@ -20805,7 +24433,9 @@
           }
         ],
         "summary": "Deactivate a team (safe deactivation)",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       }
     },
     "/api/v1/teams/{id}/manager": {
@@ -20882,7 +24512,9 @@
           }
         ],
         "summary": "Set, change, or clear a team's manager",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       }
     },
     "/api/v1/teams/{id}/members/{userId}": {
@@ -20967,7 +24599,9 @@
           }
         ],
         "summary": "Remove a user from this team",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       },
       "put": {
         "operationId": "Teams_addMember_v1",
@@ -21040,7 +24674,9 @@
           }
         ],
         "summary": "Add a user to this team (idempotent)",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       }
     },
     "/api/v1/teams/{id}/reactivate": {
@@ -21117,7 +24753,9 @@
           }
         ],
         "summary": "Reactivate a deactivated team",
-        "tags": ["Team management"]
+        "tags": [
+          "Team management"
+        ]
       }
     },
     "/api/v1/todos": {
@@ -21129,7 +24767,11 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+              "enum": [
+                "NOT_STARTED",
+                "IN_PROGRESS",
+                "COMPLETED"
+              ],
               "type": "string"
             }
           },
@@ -21153,7 +24795,12 @@
             "name": "priority",
             "required": false,
             "schema": {
-              "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+              "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "URGENT"
+              ],
               "type": "string"
             }
           },
@@ -21216,7 +24863,9 @@
           }
         ],
         "summary": "List the caller's to-do items",
-        "tags": ["Personal to-do and reminders"]
+        "tags": [
+          "Personal to-do and reminders"
+        ]
       },
       "post": {
         "operationId": "Todo_create_v1",
@@ -21272,7 +24921,9 @@
           }
         ],
         "summary": "Create a personal to-do item",
-        "tags": ["Personal to-do and reminders"]
+        "tags": [
+          "Personal to-do and reminders"
+        ]
       }
     },
     "/api/v1/todos/{id}": {
@@ -21332,7 +24983,9 @@
           }
         ],
         "summary": "Delete a to-do item owned by the caller",
-        "tags": ["Personal to-do and reminders"]
+        "tags": [
+          "Personal to-do and reminders"
+        ]
       },
       "get": {
         "operationId": "Todo_get_v1",
@@ -21394,7 +25047,9 @@
           }
         ],
         "summary": "Get one to-do item owned by the caller",
-        "tags": ["Personal to-do and reminders"]
+        "tags": [
+          "Personal to-do and reminders"
+        ]
       },
       "patch": {
         "operationId": "Todo_update_v1",
@@ -21469,7 +25124,9 @@
           }
         ],
         "summary": "Update a to-do item owned by the caller",
-        "tags": ["Personal to-do and reminders"]
+        "tags": [
+          "Personal to-do and reminders"
+        ]
       }
     },
     "/api/v1/users": {
@@ -21481,7 +25138,10 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["ACTIVE", "INACTIVE"],
+              "enum": [
+                "ACTIVE",
+                "INACTIVE"
+              ],
               "type": "string"
             }
           },
@@ -21563,7 +25223,9 @@
           }
         ],
         "summary": "List users with optional status and text filters",
-        "tags": ["User administration"]
+        "tags": [
+          "User administration"
+        ]
       },
       "post": {
         "operationId": "Users_create_v1",
@@ -21639,7 +25301,9 @@
           }
         ],
         "summary": "Create a user with an operator-set initial password",
-        "tags": ["User administration"]
+        "tags": [
+          "User administration"
+        ]
       }
     },
     "/api/v1/users/{id}": {
@@ -21703,7 +25367,9 @@
           }
         ],
         "summary": "Get one user account and profile",
-        "tags": ["User administration"]
+        "tags": [
+          "User administration"
+        ]
       },
       "patch": {
         "operationId": "Users_update_v1",
@@ -21788,7 +25454,9 @@
           }
         ],
         "summary": "Update a user's email and profile fields",
-        "tags": ["User administration"]
+        "tags": [
+          "User administration"
+        ]
       }
     },
     "/api/v1/users/{id}/deactivate": {
@@ -21865,7 +25533,9 @@
           }
         ],
         "summary": "Deactivate a user (User access Active -> Inactive)",
-        "tags": ["User administration"]
+        "tags": [
+          "User administration"
+        ]
       }
     },
     "/api/v1/users/{id}/reactivate": {
@@ -21942,7 +25612,9 @@
           }
         ],
         "summary": "Reactivate a deactivated user (Inactive -> Active)",
-        "tags": ["User administration"]
+        "tags": [
+          "User administration"
+        ]
       }
     },
     "/api/v1/users/{id}/role": {
@@ -22019,7 +25691,9 @@
           }
         ],
         "summary": "Assign, change, or clear a user's role",
-        "tags": ["User administration"]
+        "tags": [
+          "User administration"
+        ]
       }
     },
     "/api/v1/workspaces": {
@@ -22032,7 +25706,12 @@
             "name": "kind",
             "required": true,
             "schema": {
-              "enum": ["EVENT", "PROJECT", "PRODUCTION", "CAMPAIGN"],
+              "enum": [
+                "EVENT",
+                "PROJECT",
+                "PRODUCTION",
+                "CAMPAIGN"
+              ],
               "type": "string"
             }
           },
@@ -22114,7 +25793,9 @@
           }
         ],
         "summary": "List workspaces of one kind the caller may see",
-        "tags": ["Connected workspace ownership"]
+        "tags": [
+          "Connected workspace ownership"
+        ]
       },
       "post": {
         "operationId": "Workspaces_create_v1",
@@ -22180,7 +25861,9 @@
           }
         ],
         "summary": "Create a workspace root of a given kind, optionally with a manager",
-        "tags": ["Connected workspace ownership"]
+        "tags": [
+          "Connected workspace ownership"
+        ]
       }
     },
     "/api/v1/workspaces/{id}": {
@@ -22250,7 +25933,9 @@
           }
         ],
         "summary": "Remove a workspace root",
-        "tags": ["Connected workspace ownership"]
+        "tags": [
+          "Connected workspace ownership"
+        ]
       },
       "get": {
         "operationId": "Workspaces_get_v1",
@@ -22312,7 +25997,9 @@
           }
         ],
         "summary": "Get one workspace root with its manager, teams, and participants",
-        "tags": ["Connected workspace ownership"]
+        "tags": [
+          "Connected workspace ownership"
+        ]
       }
     },
     "/api/v1/workspaces/{id}/manager": {
@@ -22389,7 +26076,9 @@
           }
         ],
         "summary": "Set, change, or clear a workspace's manager",
-        "tags": ["Connected workspace ownership"]
+        "tags": [
+          "Connected workspace ownership"
+        ]
       }
     },
     "/api/v1/workspaces/{id}/participants/{userId}": {
@@ -22474,7 +26163,9 @@
           }
         ],
         "summary": "Remove a participant from this workspace",
-        "tags": ["Connected workspace ownership"]
+        "tags": [
+          "Connected workspace ownership"
+        ]
       },
       "put": {
         "operationId": "Workspaces_addParticipant_v1",
@@ -22547,7 +26238,9 @@
           }
         ],
         "summary": "Add a user as a participant in this workspace (idempotent)",
-        "tags": ["Connected workspace ownership"]
+        "tags": [
+          "Connected workspace ownership"
+        ]
       }
     },
     "/api/v1/workspaces/{id}/teams/{teamId}": {
@@ -22632,7 +26325,9 @@
           }
         ],
         "summary": "Unassign a team from this workspace",
-        "tags": ["Connected workspace ownership"]
+        "tags": [
+          "Connected workspace ownership"
+        ]
       },
       "put": {
         "operationId": "Workspaces_assignTeam_v1",
@@ -22705,7 +26400,9 @@
           }
         ],
         "summary": "Assign a team to this workspace (idempotent)",
-        "tags": ["Connected workspace ownership"]
+        "tags": [
+          "Connected workspace ownership"
+        ]
       }
     },
     "/health/live": {
@@ -22725,7 +26422,9 @@
           }
         },
         "summary": "Verify that the API process is running",
-        "tags": ["Health"]
+        "tags": [
+          "Health"
+        ]
       }
     },
     "/health/ready": {
@@ -22748,7 +26447,9 @@
           }
         },
         "summary": "Verify that PostgreSQL is ready",
-        "tags": ["Health"]
+        "tags": [
+          "Health"
+        ]
       }
     }
   },
