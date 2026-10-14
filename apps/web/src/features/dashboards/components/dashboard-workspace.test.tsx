@@ -142,12 +142,12 @@ describe("dashboard presentation", () => {
     ).not.toBeInTheDocument();
   });
   it("contains every approved management and employee card", () => {
-    expect(managementCards).toHaveLength(23);
+    expect(managementCards).toHaveLength(27);
     expect(employeeCards).toHaveLength(7);
     expect(
       new Set([...managementCards, ...employeeCards].map((card) => card.key))
         .size,
-    ).toBe(30);
+    ).toBe(34);
   });
   it("requires entry and source scopes, not role names", () => {
     expect(
@@ -158,7 +158,7 @@ describe("dashboard presentation", () => {
       ["task.read", "DEPARTMENT"],
     ]);
     expect(visibleCards(limited, "management").map((card) => card.key)).toEqual(
-      ["todayDeadlines", "attentionTasks"],
+      ["todayDeadlines", "attentionTasks", "operationalIssues"],
     );
   });
   it("shows honest disconnected state, never fixture counts", () => {

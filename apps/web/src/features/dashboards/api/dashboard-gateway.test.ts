@@ -31,7 +31,7 @@ describe("dashboard generated-client gateway", () => {
       params: { query: filters },
     });
     expect(get.mock.calls[0]?.[1].params.query.cards.split(",")).toHaveLength(
-      23,
+      27,
     );
   });
   it("never sends management fields or caller identity to the employee endpoint", async () => {

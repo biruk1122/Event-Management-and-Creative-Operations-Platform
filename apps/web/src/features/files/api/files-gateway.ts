@@ -100,3 +100,76 @@ export async function downloadEventFile(eventId: string, fileId: string) {
   if (!data) return fail(error, response.status);
   window.location.assign(data.url);
 }
+
+/** Expense attachments (receipts/invoices) share the same upload/finalize/scan
+ * pipeline as event files, mounted at `expenses/:expenseId/files` instead -
+ * there is no remove route for an expense attachment, only an immutable record. */
+export async function listExpenseFiles(
+  expenseId: string,
+  page = 1,
+  signal?: AbortSignal,
+) {
+  const { data, error, response } = await browserApi.GET(
+    "/api/v1/expenses/{expenseId}/files",
+    {
+      params: { path: { expenseId }, query: { page, pageSize: 20 } as never },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) fail(error, response.status);
+  return data;
+}
+export async function uploadExpenseFile(
+  expenseId: string,
+  file: File,
+): Promise<EventFile> {
+  const {
+    data: intent,
+    error,
+    response,
+  } = await browserApi.POST(
+    "/api/v1/expenses/{expenseId}/files/upload-intents",
+    {
+      params: { path: { expenseId } },
+      body: {
+        filename: file.name,
+        mediaType: file.type,
+        sizeBytes: file.size,
+      } as never,
+      headers: headers(),
+    },
+  );
+  if (!intent) return fail(error, response.status);
+  const form = new FormData();
+  Object.entries(intent.upload.fields).forEach(([key, value]) =>
+    form.append(key, value),
+  );
+  form.append("file", file);
+  const uploaded = await fetch(intent.upload.url, {
+    method: "POST",
+    body: form,
+  });
+  if (!uploaded.ok)
+    throw new FilesRequestError(
+      uploaded.status,
+      "The file could not be uploaded. Your selection is still available to retry.",
+    );
+  const finalized = await browserApi.POST(
+    "/api/v1/expenses/{expenseId}/files/{fileId}/finalize",
+    {
+      params: { path: { expenseId, fileId: intent.id } },
+      headers: headers(),
+    },
+  );
+  if (!finalized.data) return fail(finalized.error, finalized.response.status);
+  return finalized.data as unknown as EventFile;
+}
+export async function downloadExpenseFile(expenseId: string, fileId: string) {
+  const { data, error, response } = await browserApi.GET(
+    "/api/v1/expenses/{expenseId}/files/{fileId}/download",
+    { params: { path: { expenseId, fileId } }, cache: "no-store" },
+  );
+  if (!data) return fail(error, response.status);
+  window.location.assign(data.url);
+}

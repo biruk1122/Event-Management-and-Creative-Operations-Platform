@@ -19,6 +19,9 @@ const org = ["ORGANIZATION"];
 const operational = ["ORGANIZATION", "DEPARTMENT", "SELF"];
 const personal = ["ORGANIZATION", "SELF"];
 const analytics = ["ORGANIZATION", "MANAGEMENT"];
+/** EOM-01: events (and anything scoped the same way, like their budget) are
+ * readable at organization or department scope, never SELF. */
+const orgOrDepartment = ["ORGANIZATION", "DEPARTMENT"];
 function card(
   key: string,
   title: string,
@@ -30,14 +33,45 @@ function card(
   return { key, title, group, permission, scopes, ...(href ? { href } : {}) };
 }
 export const managementCards: Definition[] = [
-  card("totalEvents", "Total events", "Overview", "event.read", org, "/events"),
+  card(
+    "totalEvents",
+    "Total events",
+    "Overview",
+    "event.read",
+    orgOrDepartment,
+    "/events",
+  ),
   card(
     "upcomingEvents",
     "Upcoming events",
     "Overview",
     "event.read",
-    org,
+    orgOrDepartment,
     "/events",
+  ),
+  card(
+    "completedEvents",
+    "Completed events",
+    "Overview",
+    "event.read",
+    orgOrDepartment,
+    "/events",
+  ),
+  card(
+    "pendingExpenseApprovals",
+    "Pending expense approvals",
+    "Overview",
+    "expense.approve",
+    org,
+    "/expenses",
+  ),
+  card(
+    "budgetPlannedVsApproved",
+    "Planned vs. approved budget",
+    "Overview",
+    "event.budget.read",
+    orgOrDepartment,
+    "/expenses",
   ),
   card(
     "activeProjects",
@@ -81,7 +115,14 @@ export const managementCards: Definition[] = [
     org,
     "/talent",
   ),
-  card("todayEvents", "Today's events", "Today", "event.read", org, "/events"),
+  card(
+    "todayEvents",
+    "Today's events",
+    "Today",
+    "event.read",
+    orgOrDepartment,
+    "/events",
+  ),
   card(
     "todayMeetings",
     "Today's meetings",
@@ -106,6 +147,14 @@ export const managementCards: Definition[] = [
     "campaign.read",
     org,
     "/campaigns",
+  ),
+  card(
+    "operationalIssues",
+    "Operational issues",
+    "Today",
+    "task.read",
+    operational,
+    "/tasks",
   ),
   card(
     "unreadMessages",
