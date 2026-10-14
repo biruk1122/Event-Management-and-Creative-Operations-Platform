@@ -261,7 +261,7 @@ describe("marketing strategy API", () => {
     ).toBe(0);
   });
 
-  it("allows read-only access but denies updates and deletes", async () => {
+  it("rejects unsupported roles even when they contain organization grants", async () => {
     const id = await createCampaign();
     const path = `/api/v1/marketing/campaigns/${id}/strategy`;
     expect(
@@ -299,8 +299,8 @@ describe("marketing strategy API", () => {
     const read = await request(app.getHttpServer())
       .get(path)
       .set("Cookie", readerCookies);
-    expect(read.status).toBe(200);
-    expect(body<StrategyBody>(read).strategy).toBe("Partner outreach");
+    expect(read.status).toBe(403);
+    expect(body<ProblemBody>(read).code).toBe("PERMISSION_DENIED");
     for (const method of ["patch", "delete"] as const) {
       const http = request(app.getHttpServer());
       const denied = await http[method](path)

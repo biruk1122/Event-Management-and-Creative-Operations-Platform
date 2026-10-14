@@ -20,7 +20,7 @@ test.describe("accessibility quality gates", () => {
     await expect(
       page.getByRole("heading", {
         level: 1,
-        name: "Dashboard",
+        name: "Super Admin dashboard",
         exact: true,
       }),
     ).toBeVisible();

@@ -9,6 +9,7 @@ import {
   canEnter,
 } from "@/features/dashboards";
 import { createServerApi } from "@/lib/api/server";
+import { dashboardContext } from "@/features/dashboards/lib/dashboard-context";
 
 export const metadata: Metadata = { title: "Dashboard" };
 export default async function DashboardPage() {
@@ -18,18 +19,27 @@ export default async function DashboardPage() {
   });
   if (response.status === 401) redirect("/login?next=%2Fdashboard");
   if (!data) throw new Error("We could not check your permissions. Try again.");
+  const context = dashboardContext(data);
   return (
     <main className="mx-auto w-full max-w-6xl min-w-0 px-4 py-8 sm:px-8">
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="my-5 text-3xl font-semibold tracking-tight">Dashboard</h1>
+      <h1 className="my-5 text-3xl font-semibold tracking-tight">
+        {context?.title ?? "Dashboard"}
+      </h1>
       <p className="text-muted-foreground bg-card mb-6 rounded-xl border p-4 text-sm leading-relaxed">
-        See current work, schedules, communication and delivery rates permitted
-        for your account. Management totals describe current organizational
-        state; personal work remains yours alone. Today uses UTC dates. Lists
-        are bounded previews; open the source workspace for full details.
-        Refresh to check the latest authoritative results.
+        {context ? (
+          context.description
+        ) : (
+          <>
+            See current work, schedules, communication and delivery rates
+            permitted for your account. Management totals describe current
+            organizational state; personal work remains yours alone. Today uses
+            UTC dates. Lists are bounded previews; open the source workspace for
+            full details. Refresh to check the latest authoritative results.
+          </>
+        )}
       </p>
       {canEnter(data, "management") || canEnter(data, "employee") ? (
         <Suspense fallback={<p role="status">Checking dashboard access…</p>}>

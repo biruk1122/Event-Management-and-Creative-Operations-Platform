@@ -266,7 +266,7 @@ describe("seeding the permission catalog and role matrix", () => {
     ).toBe(true);
 
     const teamMember = await prisma.role.findUniqueOrThrow({
-      where: { name: "Team Member" },
+      where: { name: "Department Member" },
       include: { rolePermissions: true },
     });
     expect(teamMember.rolePermissions).toHaveLength(10);
@@ -282,7 +282,7 @@ describe("seeding the permission catalog and role matrix", () => {
           grant.permissionKey === "task.read" && grant.scope === "SELF",
       ),
     ).toBe(true);
-    // A Team Member holds no grant for any sensitive-management key.
+    // A Department Member holds no grant for any sensitive-management key.
     expect(
       teamMember.rolePermissions.some((grant) =>
         ["user.read", "role.read", "settings.read", "audit.read"].includes(

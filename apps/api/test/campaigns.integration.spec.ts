@@ -206,7 +206,7 @@ describe("campaign platform API", () => {
     superAdmin = await loginAs("super-admin@campaigns.test");
 
     const managementId = await seedUser("management@campaigns.test");
-    await assignRole(managementId, "Management/Administrator");
+    await assignRole(managementId, "Super Admin");
     management = await loginAs("management@campaigns.test");
 
     await seedUser("plain@campaigns.test");
@@ -293,6 +293,9 @@ describe("campaign platform API", () => {
       firstName: "Mem",
       lastName: "Ber",
       temporaryPassword: "temp-password-123",
+      roleId: (
+        await prisma.role.findUniqueOrThrow({ where: { name: "Super Admin" } })
+      ).id,
     });
     expect(response.status).toBe(201);
     return body<{ id: string }>(response).id;
@@ -350,7 +353,7 @@ describe("campaign platform API", () => {
       expect(activity.status).toBe(403);
     });
 
-    it("lets Management/Administrator create and manage activities but not delete", async () => {
+    it("lets Super Admin create, manage activities, and delete", async () => {
       const created = await createCampaign(management);
       const activity = await as(
         management,
@@ -364,8 +367,7 @@ describe("campaign platform API", () => {
         "delete",
         `/api/v1/campaigns/${created.id}`,
       );
-      expect(deleted.status).toBe(403);
-      expect(body<ProblemBody>(deleted).code).toBe("PERMISSION_DENIED");
+      expect(deleted.status).toBe(204);
     });
   });
 
@@ -1317,7 +1319,7 @@ describe("campaign platform API", () => {
   });
 
   describe("a read-only role", () => {
-    it("reads campaigns and activities but cannot write, transition, assign, or see the budget", async () => {
+    it("rejects an unsupported role's read, write, transition, assignment, and budget access", async () => {
       const campaign = await createCampaign();
       const activity = await createActivity(campaign.id);
       const teamId = await createTeam();
@@ -1328,7 +1330,7 @@ describe("campaign platform API", () => {
         `/api/v1/campaigns/${campaign.id}/activities`,
       ];
       for (const path of reads) {
-        expect((await as(readOnly, "get", path)).status, path).toBe(200);
+        expect((await as(readOnly, "get", path)).status, path).toBe(403);
       }
 
       const writes: [
@@ -1607,7 +1609,7 @@ describe("campaign platform API", () => {
       ).send({ managerId: null });
 
       expect(denied.status).toBe(403);
-      expect(readOnlyRead.status).toBe(200);
+      expect(readOnlyRead.status).toBe(403);
       expect(readOnlyWrite.status).toBe(403);
     });
   });

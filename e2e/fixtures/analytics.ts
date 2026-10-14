@@ -23,7 +23,16 @@ export async function seedAnalyticsFixture() {
   const db = analyticsDatabaseUrl();
   const query = (sql: string, params: readonly unknown[] = []) =>
     queryInSchema(db, sql, params);
-  const departments = Array.from({ length: 29 }, () => randomUUID());
+  const canonical = await query(
+    "SELECT id FROM departments WHERE name IN ('Marketing', 'Promotion') ORDER BY name",
+  );
+  if (canonical.length !== 2)
+    throw new Error("Missing canonical analytics departments");
+  const departments = [
+    String(canonical[0]!.id),
+    String(canonical[1]!.id),
+    ...Array.from({ length: 27 }, () => randomUUID()),
+  ];
   const [departmentA, departmentB, emptyDepartment] = departments as [
     string,
     string,
@@ -53,11 +62,13 @@ export async function seedAnalyticsFixture() {
   const employee = users.find((row) => row.email === "member@e2e.test");
   if (!manager || !employee)
     throw new Error("Missing canonical analytics principals.");
-  for (const [index, id] of departments.entries())
+  for (const [index, id] of departments.entries()) {
+    if (index < 2) continue; // Keep supported department assignments for scoped principals.
     await query("INSERT INTO departments (id, name) VALUES ($1, $2)", [
       id,
       `ANA-06 ${id} ${index}`,
     ]);
+  }
   await query("UPDATE users SET department_id = $1 WHERE id = $2", [
     departmentA,
     manager.id,
@@ -176,7 +187,7 @@ export async function seedAnalyticsFixture() {
         workspaces,
       ]);
       await query("DELETE FROM departments WHERE id = ANY($1::uuid[])", [
-        departments,
+        departments.slice(2),
       ]);
     },
   };

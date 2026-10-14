@@ -1,3 +1,4 @@
+import { departmentIdFor } from "../fixtures/test-data.js";
 import { randomUUID } from "node:crypto";
 
 import { expect, request, test, type Page } from "@playwright/test";
@@ -68,7 +69,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
       const collaboratorSuffix = randomUUID().slice(0, 8);
       const assigneeEmail = `tasks-collaborator-${collaboratorSuffix}@e2e.test`;
       const assigneeName = `Task Collaborator ${collaboratorSuffix}`;
-      const teamMemberRoleId = await roleIdByName(page, "Team Member");
+      const teamMemberRoleId = await roleIdByName(page, "Department Member");
       const createAssignee = await page.request.post(
         `${apiBaseUrl}/api/v1/users`,
         {
@@ -79,6 +80,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
             lastName: `Collaborator ${collaboratorSuffix}`,
             temporaryPassword: TEST_USER_PASSWORD,
             roleId: teamMemberRoleId,
+            departmentId: await departmentIdFor(page.request),
           },
         },
       );
@@ -127,7 +129,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
         key: "tasks-collaborator",
         email: assigneeEmail,
         password: TEST_USER_PASSWORD,
-        role: "Team Member",
+        role: "Department Member",
         firstName: "Task",
         lastName: `Collaborator ${collaboratorSuffix}`,
       });
@@ -251,7 +253,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
         const email = `tasks-denied-${deniedSuffix}@e2e.test`;
         const teamMemberRoleId = await roleIdByName(
           { request: owner },
-          "Team Member",
+          "Department Member",
         );
         const disposableUser = await owner.post(`${apiBaseUrl}/api/v1/users`, {
           headers: { "x-csrf-token": ownerCsrf as string },
@@ -261,6 +263,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
             lastName: `Denied ${deniedSuffix}`,
             temporaryPassword: TEST_USER_PASSWORD,
             roleId: teamMemberRoleId,
+            departmentId: await departmentIdFor(owner),
           },
         });
         expect(disposableUser.status()).toBe(201);
@@ -270,7 +273,7 @@ test.describe("Task assignment and collaboration — end to end", () => {
           key: "tasks-denied",
           email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Tasks",
           lastName: `Denied ${deniedSuffix}`,
         });

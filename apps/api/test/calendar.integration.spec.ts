@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { PrismaClient } from "../src/generated/prisma/client.js";
 import { seedRbac } from "../src/rbac/seed-rbac.js";
+import { assignDepartmentMember } from "./support/department-member.js";
 import {
   createIsolatedDatabase,
   type IsolatedDatabase,
@@ -89,6 +90,7 @@ describe("calendar and personal schedules API", () => {
       const user = await prisma.user.create({
         data: { email, credential: { create: { passwordHash: hash } } },
       });
+      await assignDepartmentMember(prisma, user.id);
       const login = await request(http)
         .post("/api/v1/auth/login")
         .send({ email, password: PASSWORD });

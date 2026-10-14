@@ -83,10 +83,10 @@ export class RbacRepository {
    * the full grant list `findRoleById` returns. */
   async findRoleSummary(
     id: string,
-  ): Promise<{ id: string; isSystem: boolean } | null> {
+  ): Promise<{ id: string; name: string; isSystem: boolean } | null> {
     return this.db.role.findUnique({
       where: { id },
-      select: { id: true, isSystem: true },
+      select: { id: true, name: true, isSystem: true },
     });
   }
 

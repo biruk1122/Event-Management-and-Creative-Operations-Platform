@@ -119,12 +119,12 @@ describe("EVE-167 report verification", () => {
 
     departmentId = (
       await prisma.department.create({
-        data: { name: "Verification Production" },
+        data: { name: "Production" },
       })
     ).id;
     otherDepartmentId = (
       await prisma.department.create({
-        data: { name: "Verification Marketing" },
+        data: { name: "Marketing" },
       })
     ).id;
     async function principal(
@@ -158,7 +158,7 @@ describe("EVE-167 report verification", () => {
     }
     member = await principal(
       "fixture-member@reports.test",
-      "Team Member",
+      "Department Member",
       departmentId,
     );
     manager = await principal(
@@ -168,13 +168,10 @@ describe("EVE-167 report verification", () => {
     );
     outsider = await principal(
       "fixture-outsider@reports.test",
-      "Team Member",
+      "Department Member",
       otherDepartmentId,
     );
-    reviewer = await principal(
-      "fixture-reviewer@reports.test",
-      "Management/Administrator",
-    );
+    reviewer = await principal("fixture-reviewer@reports.test", "Super Admin");
     admin = await principal("fixture-admin@reports.test", "Super Admin");
 
     async function report(

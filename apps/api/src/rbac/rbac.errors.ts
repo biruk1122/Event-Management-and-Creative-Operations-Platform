@@ -36,7 +36,7 @@ export function roleIsSystem(): HttpException {
   return new ConflictException({
     code: RBAC_ERROR.roleIsSystem,
     error: "Conflict",
-    detail: "A built-in role cannot be removed.",
+    detail: "A built-in role cannot be renamed or removed.",
   });
 }
 

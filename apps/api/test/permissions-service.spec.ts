@@ -17,7 +17,14 @@ function makeDb(options: {
       ? null
       : options.roleGrants === null
         ? null
-        : { role: { rolePermissions: options.roleGrants } };
+        : {
+            role: {
+              name: "Super Admin",
+              isSystem: true,
+              rolePermissions: options.roleGrants,
+            },
+            user: { department: null },
+          };
 
   return {
     baselineGrant: {
@@ -103,17 +110,15 @@ describe("PermissionsService", () => {
       ).resolves.toBe(false);
     });
 
-    it("matches a baseline grant", async () => {
+    it("matches an allowed profile baseline grant without a role", async () => {
       const service = new PermissionsService(
         makeDb({
-          baseline: [
-            { permissionKey: "directory.read", scope: "ORGANIZATION" },
-          ],
+          baseline: [{ permissionKey: "profile.read", scope: "SELF" }],
         }),
       );
 
       await expect(
-        service.hasGrant("user-1", "directory.read", "ORGANIZATION"),
+        service.hasGrant("user-1", "profile.read", "SELF"),
       ).resolves.toBe(true);
     });
 

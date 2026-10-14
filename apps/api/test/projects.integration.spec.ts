@@ -169,7 +169,7 @@ describe("general project management API", () => {
     superAdmin = await loginAs("super-admin@projects.test");
 
     const managementId = await seedUser("management@projects.test");
-    await assignRole(managementId, "Management/Administrator");
+    await assignRole(managementId, "Super Admin");
     management = await loginAs("management@projects.test");
 
     await seedUser("plain@projects.test");
@@ -225,6 +225,9 @@ describe("general project management API", () => {
       firstName: "Mem",
       lastName: "Ber",
       temporaryPassword: "temp-password-123",
+      roleId: (
+        await prisma.role.findUniqueOrThrow({ where: { name: "Super Admin" } })
+      ).id,
     });
     expect(response.status).toBe(201);
     return body<{ id: string }>(response).id;
@@ -270,15 +273,14 @@ describe("general project management API", () => {
       expect(read.status).toBe(403);
     });
 
-    it("lets Management/Administrator create but not delete", async () => {
+    it("lets Super Admin create and delete", async () => {
       const created = await createProject(management);
       const deleted = await as(
         management,
         "delete",
         `/api/v1/projects/${created.id}`,
       );
-      expect(deleted.status).toBe(403);
-      expect(body<ProblemBody>(deleted).code).toBe("PERMISSION_DENIED");
+      expect(deleted.status).toBe(204);
     });
   });
 

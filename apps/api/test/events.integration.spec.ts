@@ -173,7 +173,7 @@ describe("event management API", () => {
     superAdmin = await loginAs("super-admin@events.test");
 
     const managementId = await seedUser("management@events.test");
-    await assignRole(managementId, "Management/Administrator");
+    await assignRole(managementId, "Super Admin");
     management = await loginAs("management@events.test");
 
     await seedUser("plain@events.test");
@@ -230,6 +230,9 @@ describe("event management API", () => {
       firstName: "Mem",
       lastName: "Ber",
       temporaryPassword: "temp-password-123",
+      roleId: (
+        await prisma.role.findUniqueOrThrow({ where: { name: "Super Admin" } })
+      ).id,
     });
     expect(response.status).toBe(201);
     return body<{ id: string }>(response).id;
@@ -267,15 +270,14 @@ describe("event management API", () => {
       expect(read.status).toBe(403);
     });
 
-    it("lets Management/Administrator create but not delete", async () => {
+    it("lets Super Admin create and delete", async () => {
       const created = await createEvent(management);
       const deleted = await as(
         management,
         "delete",
         `/api/v1/events/${created.id}`,
       );
-      expect(deleted.status).toBe(403);
-      expect(body<ProblemBody>(deleted).code).toBe("PERMISSION_DENIED");
+      expect(deleted.status).toBe(204);
     });
   });
 

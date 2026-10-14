@@ -142,7 +142,7 @@ describe("management analytics API (EVE-172 / EVE-173)", () => {
         ),
     ).toEqual([{ schema: db.schema }]);
     await db.query(
-      `INSERT INTO departments (id, name) VALUES ($1, 'A'), ($2, 'B'), ($3, 'Empty')`,
+      `INSERT INTO departments (id, name) VALUES ($1, 'Production'), ($2, 'Marketing'), ($3, 'Promotion')`,
       [id(1), id(2), id(3)],
     );
     async function principal(
@@ -172,10 +172,7 @@ describe("management analytics API (EVE-172 / EVE-173)", () => {
       };
     }
     admin = await principal("admin@analytics.test", "Super Admin");
-    management = await principal(
-      "management@analytics.test",
-      "Management/Administrator",
-    );
+    management = await principal("management@analytics.test", "Super Admin");
     manager = await principal(
       "manager@analytics.test",
       "Department Manager",
@@ -185,13 +182,17 @@ describe("management analytics API (EVE-172 / EVE-173)", () => {
       "unassigned@analytics.test",
       "Department Manager",
     );
-    member = await principal("member@analytics.test", "Team Member", id(2));
+    member = await principal(
+      "member@analytics.test",
+      "Department Member",
+      id(2),
+    );
     await db.query(
       `INSERT INTO workspaces (id, kind) VALUES ($1, 'EVENT'), ($2, 'EVENT'), ($3, 'CAMPAIGN'), ($4, 'CAMPAIGN');`,
       [id(21), id(22), id(23), id(24)],
     );
     await db.query(
-      `INSERT INTO events (id, workspace_id, name, event_type, created_at) VALUES ($1, $2, 'Event', 'CONCERT', '2026-09-01'), ($3, $4, 'Empty', 'CONCERT', '2026-09-01')`,
+      `INSERT INTO events (id, workspace_id, name, event_type, created_at) VALUES ($1, $2, 'Event', 'CONCERT', '2026-09-01'), ($3, $4, 'Promotion', 'CONCERT', '2026-09-01')`,
       [id(31), id(21), id(32), id(22)],
     );
     await db.query(
@@ -298,12 +299,12 @@ describe("management analytics API (EVE-172 / EVE-173)", () => {
     ]);
     for (const response of [
       await get("departments", { ...period, departmentId: id(2) }, manager),
-      await get("departments", period, noDepartment),
       await get("departments", { ...period, page: 2, pageSize: 1 }, manager),
     ]) {
       expect(response.status).toBe(200);
       expect(body(response).items).toEqual([]);
     }
+    expect((await get("departments", period, noDepartment)).status).toBe(403);
     expect(
       body(await get("departments", { ...period, departmentId: id(3) }))
         .items[0],
@@ -484,7 +485,7 @@ describe("management analytics API (EVE-172 / EVE-173)", () => {
     ["analytics.department_performance.read", "departments", "employees"],
     ["analytics.employee_performance.read", "employees", "task-completion"],
   ])(
-    "authorizes custom %s grants independently and revokes access with the same cookie",
+    "rejects unsupported role with custom %s grants and keeps the same cookie restricted",
     async (permissionKey, allowed, denied) => {
       const assignment = await prisma.userRoleAssignment.findUniqueOrThrow({
         where: { userId: manager.id },
@@ -500,7 +501,7 @@ describe("management analytics API (EVE-172 / EVE-173)", () => {
           where: { userId: manager.id },
           data: { roleId: role.id },
         });
-        expect((await get(allowed, period, manager)).status).toBe(200);
+        expect((await get(allowed, period, manager)).status).toBe(403);
         expect((await get(denied, period, manager)).status).toBe(403);
         await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
         expect((await get(allowed, period, manager)).status).toBe(403);

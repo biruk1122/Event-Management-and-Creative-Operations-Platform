@@ -309,12 +309,11 @@ test.describe("Connected workspace ownership — end to end", () => {
     });
   });
 
-  test.describe("privileged but not omnipotent journey", () => {
-    // Management/Administrator holds event.create and event.assign_* at
-    // organization scope, but not event.delete.
+  test.describe("organization management and department denial", () => {
+    // Super Admin manages organization resources; the department actor proves denial.
     test.use({ storageState: authStatePath("manager") });
 
-    test("a manager can create and assign but cannot delete a workspace", async ({
+    test("a Super Admin manages a workspace but a department caller cannot delete it", async ({
       page,
     }) => {
       const csrf = await csrfToken(page);
@@ -331,7 +330,7 @@ test.describe("Connected workspace ownership — end to end", () => {
       expect(create.status()).toBe(201);
       const workspaceId = ((await create.json()) as { id: string }).id;
 
-      // The detail dialog offers no delete affordance for this account.
+      // Super Admin retains the delete affordance.
       await page.reload();
       await page
         .getByRole("button", { name: `Event workspace, no manager` })
@@ -343,18 +342,25 @@ test.describe("Connected workspace ownership — end to end", () => {
       ).toBeVisible();
       await expect(
         detail.getByRole("button", { name: "Delete workspace" }),
-      ).toHaveCount(0);
+      ).toBeVisible();
 
       // Highest-risk failure path: a direct, correctly-formed delete is
       // refused with a stable code and the row survives.
-      const blocked = await page.request.delete(
+      const restricted = await request.newContext({
+        storageState: authStatePath("deptManager"),
+      });
+      const restrictedCsrf = (await restricted.storageState()).cookies.find(
+        (cookie) => cookie.name === "csrf_token",
+      )?.value;
+      const blocked = await restricted.delete(
         `${apiBaseUrl}/api/v1/workspaces/${workspaceId}`,
-        { headers: { "x-csrf-token": csrf } },
+        { headers: { "x-csrf-token": restrictedCsrf as string } },
       );
       expect(blocked.status()).toBe(403);
       expect((await blocked.json()) as { code: string }).toMatchObject({
         code: "PERMISSION_DENIED",
       });
+      await restricted.dispose();
       const stillThere = await queryInSchema(
         runDatabaseUrl(),
         `SELECT id FROM workspaces WHERE id = $1`,

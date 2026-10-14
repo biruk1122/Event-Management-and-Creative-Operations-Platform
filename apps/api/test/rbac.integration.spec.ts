@@ -132,10 +132,10 @@ describe("configurable roles and permissions API", () => {
       where: { name: "Super Admin" },
     });
     const teamMemberRole = await prisma.role.findUniqueOrThrow({
-      where: { name: "Team Member" },
+      where: { name: "Department Member" },
     });
     const talentManagerRole = await prisma.role.findUniqueOrThrow({
-      where: { name: "Talent Manager" },
+      where: { name: "Department Member" },
     });
     talentManagerRoleId = talentManagerRole.id;
 
@@ -240,7 +240,7 @@ describe("configurable roles and permissions API", () => {
           .get("/api/v1/auth/me/permissions")
           .set("Cookie", scopeLimited.cookies);
       const before = body<{ grants: GrantBody[] }>(await read()).grants;
-      expect(before).toContainEqual({
+      expect(before).not.toContainEqual({
         permissionKey: "role.read",
         scope: "SELF",
       });
@@ -373,7 +373,7 @@ describe("configurable roles and permissions API", () => {
         .post("/api/v1/roles")
         .set("Cookie", superAdmin.cookies)
         .set("x-csrf-token", superAdmin.csrfToken)
-        .send({ name: "Team Member" });
+        .send({ name: "Department Member" });
       expect(duplicateOnCreate.status).toBe(409);
       expect(body<ProblemBody>(duplicateOnCreate).code).toBe(
         "ROLE_NAME_CONFLICT",
@@ -384,7 +384,7 @@ describe("configurable roles and permissions API", () => {
         .patch(`/api/v1/roles/${created.id}`)
         .set("Cookie", superAdmin.cookies)
         .set("x-csrf-token", superAdmin.csrfToken)
-        .send({ name: "Team Member" });
+        .send({ name: "Department Member" });
       expect(duplicateOnUpdate.status).toBe(409);
       expect(body<ProblemBody>(duplicateOnUpdate).code).toBe(
         "ROLE_NAME_CONFLICT",

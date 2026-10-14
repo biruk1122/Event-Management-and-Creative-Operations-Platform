@@ -2346,6 +2346,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    AccessDepartmentResponse: {
+      active: boolean;
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
     AddRolePermissionDto: {
       /** @example task.review */
       permissionKey: string;
@@ -2425,7 +2431,7 @@ export interface components {
     AssignUserRoleDto: {
       /**
        * Format: uuid
-       * @description The role to assign, or null to remove the user's role.
+       * @description The platform role to assign. Legacy null input is rejected; accounts must retain a role.
        * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
        */
       roleId: string | null;
@@ -3068,6 +3074,8 @@ export interface components {
       sizeBytes: number;
     };
     CreateUserDto: {
+      /** Format: uuid */
+      departmentId?: string;
       /**
        * Format: email
        * @example regional.coordinator@example.com
@@ -3083,7 +3091,7 @@ export interface components {
       profileImage?: string;
       /**
        * Format: uuid
-       * @description Assign this role on creation. Omit for baseline-only access.
+       * @description Required platform role; validated with the department assignment.
        * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
        */
       roleId?: string;
@@ -3107,7 +3115,10 @@ export interface components {
       managerId?: string;
     };
     CurrentAccessResponse: {
+      department?: components["schemas"]["AccessDepartmentResponse"] | null;
       grants: components["schemas"]["EffectivePermissionResponse"][];
+      /** @enum {string|null} */
+      role?: "SUPER_ADMIN" | "DEPARTMENT_MANAGER" | "DEPARTMENT_MEMBER" | null;
       /** Format: uuid */
       userId: string;
     };
@@ -4830,6 +4841,8 @@ export interface components {
       type?: "PERSONAL" | "WORK" | "REMINDER" | "QUICK_NOTE" | "FOLLOW_UP";
     };
     UpdateUserDto: {
+      /** Format: uuid */
+      departmentId?: string | null;
       /**
        * Format: email
        * @example regional.coordinator@example.com
@@ -4843,6 +4856,8 @@ export interface components {
       phone?: string;
       /** @example avatars/ada.png */
       profileImage?: string;
+      /** Format: uuid */
+      roleId?: string;
     };
     UploadFormResponse: {
       /** @description One-use, short-lived form fields for direct object storage upload. Do not persist them. */
@@ -4882,6 +4897,7 @@ export interface components {
       createdAt: string;
       /** Format: date-time */
       deactivatedAt: string | null;
+      department?: components["schemas"]["UserRoleSummary"] | null;
       /**
        * Format: email
        * @example regional.coordinator@example.com

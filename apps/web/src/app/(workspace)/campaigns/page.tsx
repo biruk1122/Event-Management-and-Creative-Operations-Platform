@@ -22,7 +22,8 @@ export default async function CampaignsPage({
   searchParams: Promise<{ type?: string | string[] }>;
 }) {
   const { type } = await searchParams;
-  const initialType = type === "MARKETING" ? "MARKETING" : null;
+  const initialType =
+    type === "MARKETING" || type === "PROMOTION" ? type : null;
   const api = createServerApi({ cookie: (await cookies()).toString() });
   const { data, response } = await api.GET("/api/v1/auth/me/permissions", {
     cache: "no-store",

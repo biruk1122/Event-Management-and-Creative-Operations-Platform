@@ -1,3 +1,4 @@
+import { memberAssignmentFor } from "../fixtures/test-data.js";
 import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
@@ -24,6 +25,7 @@ test("long assignee menus stay bounded and their last option is selectable", asy
         firstName: "Overflow",
         lastName: `${suffix} ${index}`,
         temporaryPassword: TEST_USER_PASSWORD,
+        ...(await memberAssignmentFor(page.request)),
       },
     });
     expect(user.status()).toBe(201);

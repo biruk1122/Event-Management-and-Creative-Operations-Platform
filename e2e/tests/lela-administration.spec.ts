@@ -3,7 +3,11 @@ import { expect, test } from "@playwright/test";
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
 import { authStatePath } from "../fixtures/auth.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
-import { fixtureEmail, fixtureName } from "../fixtures/test-data.js";
+import {
+  fixtureEmail,
+  fixtureName,
+  memberAssignmentFor,
+} from "../fixtures/test-data.js";
 
 const areas = [
   { route: "/users", title: "Users", action: "New user", endpoint: "users" },
@@ -161,6 +165,7 @@ test.describe("Lela administration presentation", () => {
                   lastName: "LongNameWithoutSpacesForReflow",
                   email: fixtureEmail("ui08"),
                   temporaryPassword: "e2e-Passw0rd!",
+                  ...(await memberAssignmentFor(page.request)),
                 }
               : {
                   name,

@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  BadRequestException,
   NotFoundException,
   type HttpException,
 } from "@nestjs/common";
@@ -13,6 +14,14 @@ export const USER_ERROR = {
   /** Same code the roles surface uses for a missing role. */
   roleNotFound: "ROLE_NOT_FOUND",
 } as const;
+
+export function invalidUserAssignment(detail: string): HttpException {
+  return new BadRequestException({
+    code: "USER_ASSIGNMENT_INVALID",
+    error: "Bad Request",
+    detail,
+  });
+}
 
 export function userNotFound(): HttpException {
   return new NotFoundException({

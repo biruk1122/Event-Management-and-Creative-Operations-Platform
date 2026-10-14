@@ -164,10 +164,10 @@ describe("discuss (conversations, channels, and messages) API", () => {
     http = app.getHttpServer();
 
     const department = await prisma.department.create({
-      data: { name: "Discuss Production" },
+      data: { name: "Production" },
     });
     const otherDepartment = await prisma.department.create({
-      data: { name: "Discuss Marketing" },
+      data: { name: "Marketing" },
     });
     departmentId = department.id;
     otherDepartmentId = otherDepartment.id;
@@ -178,7 +178,7 @@ describe("discuss (conversations, channels, and messages) API", () => {
     );
     management = await createPrincipal(
       "management@discuss.test",
-      "Management/Administrator",
+      "Super Admin",
     );
     departmentManager = await createPrincipal(
       "department-manager@discuss.test",
@@ -192,17 +192,17 @@ describe("discuss (conversations, channels, and messages) API", () => {
     );
     member = await createPrincipal(
       "member@discuss.test",
-      "Team Member",
+      "Department Member",
       department.id,
     );
     secondMember = await createPrincipal(
       "second-member@discuss.test",
-      "Team Member",
+      "Department Member",
       department.id,
     );
     thirdMember = await createPrincipal(
       "third-member@discuss.test",
-      "Team Member",
+      "Department Member",
       otherDepartment.id,
     );
   });

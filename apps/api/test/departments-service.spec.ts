@@ -51,6 +51,7 @@ describe("DepartmentsService", () => {
     removeEmployee: ReturnType<typeof vi.fn>;
   };
   let permissions: {
+    getAccessContext: ReturnType<typeof vi.fn>;
     hasGrant: ReturnType<
       typeof vi.fn<
         (u: string, k: string, s: PermissionScope) => Promise<boolean>
@@ -72,7 +73,12 @@ describe("DepartmentsService", () => {
       assignEmployee: vi.fn(),
       removeEmployee: vi.fn(),
     };
-    permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
+    permissions = {
+      hasGrant: vi.fn().mockResolvedValue(true),
+      getAccessContext: vi
+        .fn()
+        .mockResolvedValue({ role: null, department: null }),
+    };
     service = new DepartmentsService(repository as never, permissions as never);
   });
 
@@ -83,6 +89,17 @@ describe("DepartmentsService", () => {
   }
 
   describe("read authorization and scope", () => {
+    it("does not allow clearing a department role's required assignment", async () => {
+      permissions.getAccessContext.mockResolvedValue({
+        role: "DEPARTMENT_MEMBER",
+        department: { id: "dep-1" },
+      });
+      await expectCode(
+        service.removeEmployee(ACTOR, "dep-1", "member-1"),
+        "USER_ASSIGNMENT_INVALID",
+      );
+      expect(repository.removeEmployee).not.toHaveBeenCalled();
+    });
     it("denies list and get without any department.read grant", async () => {
       grantOnly();
       await expectCode(
@@ -357,6 +374,26 @@ describe("DepartmentsService", () => {
   });
 
   describe("employee membership", () => {
+    beforeEach(() => {
+      repository.findById.mockResolvedValue(
+        makeDepartment({ name: "Marketing" }),
+      );
+    });
+
+    it.each([
+      makeDepartment({ name: "Marketing", deactivatedAt: new Date() }),
+      makeDepartment({ name: "Unsupported" }),
+    ])(
+      "rejects invalid departments through the membership endpoint",
+      async (department) => {
+        repository.findById.mockResolvedValue(department);
+        await expectCode(
+          service.assignEmployee(ACTOR, "dep-1", "user-2"),
+          "USER_ASSIGNMENT_INVALID",
+        );
+        expect(repository.assignEmployee).not.toHaveBeenCalled();
+      },
+    );
     it("assigns and removes members under user.assign_department", async () => {
       repository.assignEmployee.mockResolvedValue(
         makeDepartment({ employeeCount: 1 }),

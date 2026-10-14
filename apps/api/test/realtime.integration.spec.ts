@@ -444,15 +444,8 @@ describe("realtime gateway", () => {
   });
 
   it("denies the next subscribe once the caller's role is revoked mid-connection", async () => {
-    const role = await prisma.role.create({
-      data: { name: "Realtime Verification Reader" },
-    });
-    await prisma.rolePermission.create({
-      data: {
-        roleId: role.id,
-        permissionKey: "event.read",
-        scope: "ORGANIZATION",
-      },
+    const role = await prisma.role.findUniqueOrThrow({
+      where: { name: "Super Admin" },
     });
 
     const userId = await seedUser("realtime-revoked-grant@events.test");

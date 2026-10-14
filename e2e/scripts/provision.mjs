@@ -33,11 +33,12 @@ const RUN_ID_PATTERN = /^[a-z0-9_]+$/;
 // Keep the emails, password, and role names in sync with `fixtures/test-users.ts`.
 const TEST_USER_PASSWORD = "e2e-Passw0rd!";
 const TEST_USERS = [
+  { email: "restricted-member@e2e.test", role: "Department Member" },
   { email: "super-admin@e2e.test", role: "Super Admin" },
-  { email: "manager@e2e.test", role: "Management/Administrator" },
-  { email: "member@e2e.test", role: "Team Member" },
+  { email: "manager@e2e.test", role: "Super Admin" },
+  { email: "member@e2e.test", role: "Department Member" },
   { email: "dept-manager@e2e.test", role: "Department Manager" },
-  { email: "talent-manager@e2e.test", role: "Talent Manager" },
+  { email: "talent-manager@e2e.test", role: "Super Admin" },
 ];
 
 function baseDatabaseUrl() {
@@ -94,7 +95,7 @@ async function main() {
     stdio: "inherit",
   });
 
-  // Seed the permission catalog, the five SRS roles and their grants, and the
+  // Seed the permission catalog, the three supported system roles and their grants, and the
   // baseline grants from the canonical `rbac-catalog.ts` (the same `db:seed`
   // developers run). Migrations only create the tables; the RBAC journeys need
   // the rows. `db:seed` compiles the API, which needs a generated Prisma
@@ -115,8 +116,16 @@ async function main() {
     for (const { email, role } of TEST_USERS) {
       const passwordHash = await hash(TEST_USER_PASSWORD);
       const { rows } = await client.query(
-        `INSERT INTO users (email, status) VALUES ($1, 'ACTIVE') RETURNING id`,
-        [email.toLowerCase()],
+        `INSERT INTO users (email, status, department_id)
+         VALUES ($1, 'ACTIVE', (SELECT id FROM departments WHERE name = $2)) RETURNING id`,
+        [
+          email.toLowerCase(),
+          role === "Super Admin"
+            ? null
+            : role === "Department Manager"
+              ? "Marketing"
+              : "Production",
+        ],
       );
       const id = rows[0]?.id;
       if (!id) {

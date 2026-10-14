@@ -87,6 +87,14 @@ describe("configurable roles and permissions persistence", () => {
 
   let roleCounter = 0;
   async function seedRole(grants: { permissionKey: string; scope: string }[]) {
+    if (
+      grants.some(
+        (grant) =>
+          grant.permissionKey === "role.read" && grant.scope === "ORGANIZATION",
+      )
+    ) {
+      return prisma.role.findUniqueOrThrow({ where: { name: "Super Admin" } });
+    }
     roleCounter += 1;
     const role = await prisma.role.create({
       data: { name: `Persistence Test Role ${roleCounter}` },

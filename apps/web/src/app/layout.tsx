@@ -27,12 +27,29 @@ export const metadata: Metadata = {
     "The unified event management and creative operations workspace.",
 };
 
+const THEME_INIT_SCRIPT = `
+  try {
+    var t = localStorage.getItem("lela:theme");
+    var dark = t ? t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (dark) document.documentElement.classList.add("dark");
+  } catch (e) {}
+`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // The theme-init script below adds "dark" before hydration when that
+      // preference is stored/system-detected; this class diff is expected
+      // and does not affect any other rendered content.
+      suppressHydrationWarning
     >
+      <head>
+        {/* Applies the saved/system theme before first paint, avoiding a
+         * light-mode flash when the stored or system preference is dark. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col">
         <AppProviders>
           <Suspense fallback={children}>

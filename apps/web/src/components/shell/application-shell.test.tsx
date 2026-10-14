@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApplicationShell } from "./application-shell";
 
+// Theme behavior is independent of these shell/navigation tests.
+vi.mock("./theme-toggle", () => ({ ThemeToggle: () => null }));
+
 const mocks = vi.hoisted(() => ({
   pathname: "/tasks",
   replace: vi.fn(),

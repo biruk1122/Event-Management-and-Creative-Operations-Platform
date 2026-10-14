@@ -345,8 +345,7 @@ test.describe("Event management — end to end", () => {
   });
 
   test.describe("privileged but not omnipotent journey", () => {
-    // Management/Administrator holds every event.* key at organization scope
-    // except event.delete.
+    // Super Admin manages organization resources; the department actor proves denial.
     test.use({ storageState: authStatePath("manager") });
 
     test("a manager can create, assign, transition, and budget but cannot delete an event", async ({
@@ -378,9 +377,7 @@ test.describe("Event management — end to end", () => {
       );
       expect(budget.status()).toBe(200);
 
-      // The detail dialog offers no delete affordance for this account, but
-      // the budget editor is present - the manager holds both budget keys,
-      // only event.delete is absent.
+      // Super Admin sees the organization-level management controls.
       await page.goto("/events");
       await page.getByRole("button", { name: eventName }).first().click();
       const detail = page.getByRole("dialog");
@@ -389,21 +386,28 @@ test.describe("Event management — end to end", () => {
       ).toBeVisible();
       await expect(
         detail.getByRole("button", { name: "Delete event" }),
-      ).toHaveCount(0);
+      ).toBeVisible();
       await expect(
         detail.getByText("Current: 500.00 EUR", { exact: true }),
       ).toBeVisible();
 
       // Highest-risk failure path: a direct, correctly-formed delete is
       // refused with a stable code and the row survives.
-      const blocked = await page.request.delete(
+      const departmentCaller = await request.newContext({
+        storageState: authStatePath("deptManager"),
+      });
+      const departmentCsrf = (
+        await departmentCaller.storageState()
+      ).cookies.find((cookie) => cookie.name === "csrf_token")?.value;
+      const blocked = await departmentCaller.delete(
         `${apiBaseUrl}/api/v1/events/${eventId}`,
-        { headers: { "x-csrf-token": csrf } },
+        { headers: { "x-csrf-token": departmentCsrf! } },
       );
       expect(blocked.status()).toBe(403);
       expect((await blocked.json()) as { code: string }).toMatchObject({
         code: "PERMISSION_DENIED",
       });
+      await departmentCaller.dispose();
       const stillThere = await queryInSchema(
         runDatabaseUrl(),
         `SELECT id FROM events WHERE id = $1`,

@@ -11,6 +11,7 @@ export interface CreateUserValues {
   profileImage: string;
   temporaryPassword: string;
   roleId: string | null;
+  departmentId?: string | null;
 }
 
 export interface ProfileValues {
@@ -19,6 +20,7 @@ export interface ProfileValues {
   lastName: string;
   phone: string;
   profileImage: string;
+  departmentId?: string | null;
 }
 
 /**
@@ -30,6 +32,7 @@ export type SaveUserOutcome =
   | { status: "success"; user: User }
   | { status: "email_conflict" }
   | { status: "role_not_found" }
+  | { status: "assignment_invalid" }
   | { status: "not_found" }
   | {
       status: "field_errors";
@@ -67,6 +70,7 @@ export type ReactivateUser = (id: string) => Promise<ReactivateUserOutcome>;
 /** Result of `PUT /users/:id/role`. */
 export type AssignRoleOutcome =
   | { status: "success"; user: User }
+  | { status: "assignment_invalid" }
   | { status: "role_not_found" }
   | { status: "not_found" }
   | { status: "permission_denied" }

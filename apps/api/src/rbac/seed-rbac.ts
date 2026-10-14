@@ -20,7 +20,7 @@ export interface RbacSeedResult {
 }
 
 /**
- * Idempotently seed the permission catalog, the five SRS roles and their
+ * Idempotently seed the permission catalog, the three platform roles and their
  * grants, and the baseline grants from `rbac-catalog.ts`. Every write is an
  * upsert keyed on the row's natural identity, so running this repeatedly
  * against the same database converges on the same rows instead of erroring

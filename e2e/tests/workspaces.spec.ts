@@ -212,7 +212,9 @@ test.describe("Connected workspace ownership — end to end", () => {
       });
       await expect(participantPicker).toBeVisible();
       await participantPicker.click();
-      await page.getByRole("option", { name: participantEmail }).click();
+      await page
+        .getByRole("option", { name: participantEmail, exact: true })
+        .click();
       await expect(
         detailDialog.getByText(participantEmail, { exact: true }),
       ).toBeVisible();
@@ -314,7 +316,7 @@ test.describe("Connected workspace ownership — end to end", () => {
       page,
     }) => {
       // auth-session.spec intentionally signs this account out. Sign in again
-      // here so this journey continues to prove the Team Member boundary.
+      // here so this journey continues to prove the Department Member boundary.
       await signInThroughUi(page, member);
 
       await page.goto("/");

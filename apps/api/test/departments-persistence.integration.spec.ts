@@ -168,6 +168,9 @@ describe("department management persistence", () => {
       firstName: "P",
       lastName: "Erson",
       temporaryPassword: "temp-password-123",
+      roleId: (
+        await prisma.role.findUniqueOrThrow({ where: { name: "Super Admin" } })
+      ).id,
     });
     expect(response.status).toBe(201);
     return body<{ id: string }>(response).id;
@@ -248,7 +251,7 @@ describe("department management persistence", () => {
 
   describe("deletion is all-or-nothing", () => {
     it("refuses to delete a department with an employee, leaving it intact", async () => {
-      const deptId = await createDepartment();
+      const deptId = await createDepartment({ name: "Production" });
       const employeeId = await createUser();
       await put(`/api/v1/departments/${deptId}/employees/${employeeId}`).expect(
         200,
@@ -272,7 +275,7 @@ describe("department management persistence", () => {
 
     it("deletes an empty department without touching another one", async () => {
       const empty = await createDepartment();
-      const populated = await createDepartment();
+      const populated = await createDepartment({ name: "Marketing" });
       const employeeId = await createUser();
       await put(
         `/api/v1/departments/${populated}/employees/${employeeId}`,
@@ -294,7 +297,7 @@ describe("department management persistence", () => {
     });
 
     it("leaves no dangling reference when assign and delete race", async () => {
-      const deptId = await createDepartment();
+      const deptId = await createDepartment({ name: "Promotion" });
       const employeeId = await createUser();
 
       const [assign, remove] = await Promise.all([
@@ -356,13 +359,15 @@ describe("department management persistence", () => {
     });
 
     it("follows a Department Manager's department_id on their next request", async () => {
-      const deptId = await createDepartment();
+      const deptId = await createDepartment({
+        name: "Manager / Event & Office Manager",
+      });
 
       const before = await request(http)
         .get("/api/v1/departments")
         .set("Cookie", managerCookies)
-        .expect(200);
-      expect(body<{ items: unknown[] }>(before).items).toHaveLength(0);
+        .expect(403);
+      expect(body<ProblemBody>(before).code).toBe("PERMISSION_DENIED");
 
       await db.query(`UPDATE users SET department_id = $1 WHERE id = $2`, [
         deptId,
@@ -382,8 +387,8 @@ describe("department management persistence", () => {
       const after = await request(http)
         .get("/api/v1/departments")
         .set("Cookie", managerCookies)
-        .expect(200);
-      expect(body<{ items: unknown[] }>(after).items).toHaveLength(0);
+        .expect(403);
+      expect(body<ProblemBody>(after).code).toBe("PERMISSION_DENIED");
     });
 
     it("maps assignment to a just-deleted department as DEPARTMENT_NOT_FOUND", async () => {

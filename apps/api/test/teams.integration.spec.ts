@@ -169,10 +169,10 @@ describe("team management API", () => {
     deptManager = await loginAs("dept-manager@team.test");
 
     const home = await prisma.department.create({
-      data: { name: "Home Department" },
+      data: { name: "Production" },
     });
     const other = await prisma.department.create({
-      data: { name: "Other Department" },
+      data: { name: "Marketing" },
     });
     homeDepartmentId = home.id;
     otherDepartmentId = other.id;
@@ -212,6 +212,9 @@ describe("team management API", () => {
       firstName: "Mem",
       lastName: "Ber",
       temporaryPassword: "temp-password-123",
+      roleId: (
+        await prisma.role.findUniqueOrThrow({ where: { name: "Super Admin" } })
+      ).id,
     });
     expect(response.status).toBe(201);
     return body<{ id: string }>(response).id;
@@ -259,6 +262,11 @@ describe("team management API", () => {
         firstName: "Morgan",
         lastName: "Lead",
         temporaryPassword: "temp-password-123",
+        roleId: (
+          await prisma.role.findUniqueOrThrow({
+            where: { name: "Super Admin" },
+          })
+        ).id,
       });
       const response = await asAdmin("post", "/api/v1/teams").send({
         name: "  Production Team  ",
@@ -273,7 +281,7 @@ describe("team management API", () => {
       expect(created.description).toBe("Delivers production.");
       expect(created.department).toEqual({
         id: homeDepartmentId,
-        name: "Home Department",
+        name: "Production",
       });
       expect(created.manager).toMatchObject({
         email: "team-mgr@team.test",
@@ -552,7 +560,7 @@ describe("team management API", () => {
       expect(body<ProblemBody>(unknownGet).code).toBe("PERMISSION_DENIED");
     });
 
-    it("returns an empty page for a Department Manager with no department", async () => {
+    it("denies a Department Manager with no department", async () => {
       await prisma.user.update({
         where: { id: deptManagerId },
         data: { departmentId: null },
@@ -560,8 +568,8 @@ describe("team management API", () => {
       const list = await request(http)
         .get("/api/v1/teams")
         .set("Cookie", deptManager.cookies);
-      expect(list.status).toBe(200);
-      expect(body<PageBody>(list).items).toHaveLength(0);
+      expect(list.status).toBe(403);
+      expect(body<ProblemBody>(list).code).toBe("PERMISSION_DENIED");
     });
 
     it("forbids a Department Manager from creating a team", async () => {

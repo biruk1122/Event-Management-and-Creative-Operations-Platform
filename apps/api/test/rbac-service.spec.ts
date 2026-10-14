@@ -54,7 +54,11 @@ describe("RbacService", () => {
     repository = {
       listRoles: vi.fn(),
       findRoleById: vi.fn(),
-      findRoleSummary: vi.fn(),
+      findRoleSummary: vi.fn().mockResolvedValue({
+        id: "role-1",
+        name: "Regional Coordinator",
+        isSystem: false,
+      }),
       createRole: vi.fn(),
       updateRole: vi.fn(),
       deleteRole: vi.fn(),
@@ -159,6 +163,18 @@ describe("RbacService", () => {
   });
 
   describe("updateRole", () => {
+    it("does not allow renaming the Super Admin role", async () => {
+      repository.findRoleSummary.mockResolvedValue({
+        id: "admin-role",
+        name: "Super Admin",
+        isSystem: true,
+      });
+      await expectCode(
+        service.updateRole(ACTOR, "admin-role", { name: "Renamed" }),
+        "ROLE_IS_SYSTEM",
+      );
+      expect(repository.updateRole).not.toHaveBeenCalled();
+    });
     it("denies a caller without role.update", async () => {
       denyNextCheck();
       await expectCode(

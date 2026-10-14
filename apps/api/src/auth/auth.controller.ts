@@ -68,6 +68,7 @@ export class AuthController {
     return {
       userId,
       grants: await this.permissions.getEffectiveGrants(userId),
+      ...(await this.permissions.getAccessContext(userId)),
     };
   }
 

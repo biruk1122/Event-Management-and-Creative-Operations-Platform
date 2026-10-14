@@ -555,7 +555,10 @@ test.describe("ANA-06 department boundary", () => {
     try {
       await page.goto(selection("departments"));
       await expect(
-        page.getByText(/No matching data in your permitted scope/),
+        page.getByRole("heading", {
+          name: "Analytics access required",
+          exact: true,
+        }),
       ).toBeVisible();
       await fixture.setManagerDepartment(fixture.departmentB);
       await page.goto(selection("departments"));

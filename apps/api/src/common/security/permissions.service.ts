@@ -2,6 +2,11 @@ import { Injectable } from "@nestjs/common";
 
 import type { PermissionScope } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
+import {
+  constrainDepartmentGrants,
+  platformRole,
+  type DepartmentAccessContext,
+} from "./department-access.policy.js";
 
 export interface EffectiveGrant {
   permissionKey: string;
@@ -25,7 +30,10 @@ export class PermissionsService {
       }),
       this.db.userRoleAssignment.findUnique({
         where: { userId },
-        include: { role: { include: { rolePermissions: true } } },
+        include: {
+          role: { include: { rolePermissions: true } },
+          user: { include: { department: true } },
+        },
       }),
     ]);
 
@@ -35,7 +43,18 @@ export class PermissionsService {
         scope: grant.scope,
       })) ?? [];
 
-    return [...baseline, ...roleGrants];
+    return constrainDepartmentGrants(contextFromAssignment(assignment), [
+      ...baseline,
+      ...roleGrants,
+    ]);
+  }
+
+  async getAccessContext(userId: string): Promise<DepartmentAccessContext> {
+    const assignment = await this.db.userRoleAssignment.findUnique({
+      where: { userId },
+      include: { role: true, user: { include: { department: true } } },
+    });
+    return contextFromAssignment(assignment);
   }
 
   /**
@@ -61,4 +80,29 @@ export class PermissionsService {
       (grant) => grant.permissionKey === permissionKey && grant.scope === scope,
     );
   }
+}
+
+function contextFromAssignment(
+  assignment: {
+    role: { name: string; isSystem: boolean };
+    user: {
+      department: {
+        id: string;
+        name: string;
+        deactivatedAt: Date | null;
+      } | null;
+    };
+  } | null,
+): DepartmentAccessContext {
+  const department = assignment?.user.department;
+  return {
+    role: assignment?.role.isSystem ? platformRole(assignment.role.name) : null,
+    department: department
+      ? {
+          id: department.id,
+          name: department.name,
+          active: department.deactivatedAt === null,
+        }
+      : null,
+  };
 }

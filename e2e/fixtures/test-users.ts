@@ -14,12 +14,7 @@ export interface TestUser {
   /** Plain-text password; the seed hashes it once credential storage exists. */
   readonly password: string;
   /** Canonical role name from the permission catalogue (EVE-32). */
-  readonly role:
-    | "Super Admin"
-    | "Management/Administrator"
-    | "Department Manager"
-    | "Team Member"
-    | "Talent Manager";
+  readonly role: "Super Admin" | "Department Manager" | "Department Member";
   readonly firstName: string;
   readonly lastName: string;
 }
@@ -27,6 +22,14 @@ export interface TestUser {
 export const TEST_USER_PASSWORD = "e2e-Passw0rd!";
 
 export const TEST_USERS: readonly TestUser[] = [
+  {
+    key: "restrictedMember",
+    email: "restricted-member@e2e.test",
+    password: TEST_USER_PASSWORD,
+    role: "Department Member",
+    firstName: "Casey",
+    lastName: "Scoped",
+  },
   {
     key: "superAdmin",
     email: "super-admin@e2e.test",
@@ -39,7 +42,7 @@ export const TEST_USERS: readonly TestUser[] = [
     key: "manager",
     email: "manager@e2e.test",
     password: TEST_USER_PASSWORD,
-    role: "Management/Administrator",
+    role: "Super Admin",
     firstName: "Morgan",
     lastName: "Lead",
   },
@@ -47,7 +50,7 @@ export const TEST_USERS: readonly TestUser[] = [
     key: "member",
     email: "member@e2e.test",
     password: TEST_USER_PASSWORD,
-    role: "Team Member",
+    role: "Department Member",
     firstName: "Robin",
     lastName: "Doer",
   },
@@ -63,7 +66,7 @@ export const TEST_USERS: readonly TestUser[] = [
     key: "talentManager",
     email: "talent-manager@e2e.test",
     password: TEST_USER_PASSWORD,
-    role: "Talent Manager",
+    role: "Super Admin",
     firstName: "Taylor",
     lastName: "Cast",
   },

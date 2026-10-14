@@ -1,8 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 
 import type { PermissionScope } from "../generated/prisma/client.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
+import { supportedDepartment } from "../common/security/department-access.policy.js";
 import type { CreateDepartmentDto } from "./dto/create-department.dto.js";
 import {
   DepartmentActivityFilter,
@@ -246,6 +247,15 @@ export class DepartmentsService {
     userId: string,
   ): Promise<DepartmentResponse> {
     await this.requireGrant(actingUserId, "user.assign_department");
+    const department = await this.repository.findById(id);
+    if (!department) throw departmentNotFound();
+    if (department.deactivatedAt || !supportedDepartment(department.name)) {
+      throw new BadRequestException({
+        code: "USER_ASSIGNMENT_INVALID",
+        error: "Bad Request",
+        detail: "Choose an active platform department.",
+      });
+    }
 
     const result = await this.repository.assignEmployee(id, userId);
     if (result === "department_not_found") {
@@ -263,6 +273,19 @@ export class DepartmentsService {
     userId: string,
   ): Promise<DepartmentResponse> {
     await this.requireGrant(actingUserId, "user.assign_department");
+
+    const context = await this.permissions.getAccessContext(userId);
+    if (
+      context.role === "DEPARTMENT_MANAGER" ||
+      context.role === "DEPARTMENT_MEMBER"
+    ) {
+      throw new BadRequestException({
+        code: "USER_ASSIGNMENT_INVALID",
+        error: "Bad Request",
+        detail:
+          "Department managers and members must retain a department. Reassign them instead.",
+      });
+    }
 
     const result = await this.repository.removeEmployee(id, userId);
     if (result === "department_not_found") {

@@ -9,6 +9,8 @@ import {
   type DashboardAccess,
 } from "../lib/dashboard-presentation";
 
+vi.mock("@/lib/api/browser", () => ({ browserApi: { GET: vi.fn() } }));
+
 const access = (
   permissions: [string, DashboardAccess["grants"][number]["scope"]][],
 ): DashboardAccess => ({
@@ -29,6 +31,36 @@ const management = access([
   ["analytics.management.read", "MANAGEMENT"],
 ]);
 describe("dashboard presentation", () => {
+  it("shows the Super Admin role and all four department workspace shortcuts", () => {
+    const admin = access([
+      ["dashboard.management.read", "ORGANIZATION"],
+      ["project.read", "ORGANIZATION"],
+      ["campaign.read", "ORGANIZATION"],
+      ["event.read", "ORGANIZATION"],
+    ]);
+    render(
+      <DashboardWorkspace
+        access={{ ...admin, role: "SUPER_ADMIN", department: null }}
+        audience="management"
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Company overview" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Open Marketing" }),
+    ).toHaveAttribute("href", "/campaigns?type=MARKETING");
+    expect(
+      screen.getByRole("link", { name: "Open Promotion" }),
+    ).toHaveAttribute("href", "/campaigns?type=PROMOTION");
+    expect(screen.getByRole("link", { name: "Open Production" })).toBeVisible();
+    expect(
+      screen.getByRole("link", {
+        name: "Open Manager / Event & Office Manager",
+      }),
+    ).toBeVisible();
+  });
+
   it.each(["management", "employee"] as const)(
     "presents the complete %s catalog with authoritative scope and freshness",
     (audience) => {

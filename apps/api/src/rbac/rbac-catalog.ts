@@ -391,54 +391,6 @@ const SUPER_ADMIN_GRANTS: readonly GrantDefinition[] = PERMISSIONS.map(
   (permission) => ({ permissionKey: permission.key, scope: "ORGANIZATION" }),
 );
 
-const MANAGEMENT_ADMINISTRATOR_GRANTS: readonly GrantDefinition[] = [
-  { permissionKey: "event.create", scope: "ORGANIZATION" },
-  { permissionKey: "event.read", scope: "ORGANIZATION" },
-  { permissionKey: "event.update", scope: "ORGANIZATION" },
-  { permissionKey: "event.assign_manager", scope: "ORGANIZATION" },
-  { permissionKey: "event.assign_teams", scope: "ORGANIZATION" },
-  { permissionKey: "event.transition_status", scope: "ORGANIZATION" },
-  { permissionKey: "event.budget.read", scope: "ORGANIZATION" },
-  { permissionKey: "event.budget.update", scope: "ORGANIZATION" },
-  { permissionKey: "project.create", scope: "ORGANIZATION" },
-  { permissionKey: "project.read", scope: "ORGANIZATION" },
-  { permissionKey: "project.update", scope: "ORGANIZATION" },
-  { permissionKey: "project.assign", scope: "ORGANIZATION" },
-  { permissionKey: "project.transition_status", scope: "ORGANIZATION" },
-  { permissionKey: "campaign.create", scope: "ORGANIZATION" },
-  { permissionKey: "campaign.read", scope: "ORGANIZATION" },
-  { permissionKey: "campaign.update", scope: "ORGANIZATION" },
-  { permissionKey: "campaign.assign", scope: "ORGANIZATION" },
-  { permissionKey: "campaign.transition_status", scope: "ORGANIZATION" },
-  { permissionKey: "campaign.activity.manage", scope: "ORGANIZATION" },
-  { permissionKey: "campaign.budget.read", scope: "ORGANIZATION" },
-  { permissionKey: "campaign.budget.update", scope: "ORGANIZATION" },
-  { permissionKey: "team.assign_to_work", scope: "ORGANIZATION" },
-  { permissionKey: "task.create", scope: "ORGANIZATION" },
-  { permissionKey: "task.read", scope: "ORGANIZATION" },
-  { permissionKey: "task.assign", scope: "ORGANIZATION" },
-  { permissionKey: "task.update", scope: "ORGANIZATION" },
-  { permissionKey: "task.review", scope: "ORGANIZATION" },
-  { permissionKey: "meeting.create", scope: "ORGANIZATION" },
-  { permissionKey: "meeting.read", scope: "ORGANIZATION" },
-  { permissionKey: "meeting.update", scope: "ORGANIZATION" },
-  { permissionKey: "channel.create", scope: "ORGANIZATION" },
-  { permissionKey: "channel.manage", scope: "ORGANIZATION" },
-  { permissionKey: "report.read", scope: "ORGANIZATION" },
-  { permissionKey: "report.review", scope: "ORGANIZATION" },
-  { permissionKey: "analytics.management.read", scope: "MANAGEMENT" },
-  {
-    permissionKey: "analytics.department_performance.read",
-    scope: "MANAGEMENT",
-  },
-  {
-    permissionKey: "analytics.employee_performance.read",
-    scope: "MANAGEMENT",
-  },
-  { permissionKey: "dashboard.management.read", scope: "MANAGEMENT" },
-  { permissionKey: "activity.read", scope: "ORGANIZATION" },
-];
-
 const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "department.read", scope: "DEPARTMENT" },
   { permissionKey: "department.manage_activities", scope: "DEPARTMENT" },
@@ -479,24 +431,8 @@ const TEAM_MEMBER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "meeting.read", scope: "SELF" },
 ];
 
-const TALENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
-  { permissionKey: "talent.create", scope: "ORGANIZATION" },
-  { permissionKey: "talent.read", scope: "ORGANIZATION" },
-  { permissionKey: "talent.update", scope: "ORGANIZATION" },
-  { permissionKey: "talent.transition_status", scope: "ORGANIZATION" },
-  { permissionKey: "talent.assign", scope: "ORGANIZATION" },
-  { permissionKey: "talent.manage_activities", scope: "ORGANIZATION" },
-  { permissionKey: "calendar.read", scope: "ORGANIZATION" },
-  // The talent UI's manager and event-assignment pickers list users and
-  // events (GET /users, GET /events), which need their own read grants -
-  // without these, the one role dedicated to this module could not
-  // populate either picker.
-  { permissionKey: "user.read", scope: "ORGANIZATION" },
-  { permissionKey: "event.read", scope: "ORGANIZATION" },
-];
-
 /**
- * The five SRS roles (section 4), seeded as ordinary data - never a code
+ * The three approved platform roles, seeded as ordinary data - never a code
  * branch. Each role holds only the grants listed here in addition to
  * `BASELINE_GRANTS`; there is no inheritance between roles.
  */
@@ -508,24 +444,13 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
     grants: SUPER_ADMIN_GRANTS,
   },
   {
-    name: "Management/Administrator",
-    description:
-      "Manages events, projects, campaigns, and reporting across the organization.",
-    grants: MANAGEMENT_ADMINISTRATOR_GRANTS,
-  },
-  {
     name: "Department Manager",
     description: "Manages the work and reporting of one department.",
     grants: DEPARTMENT_MANAGER_GRANTS,
   },
   {
-    name: "Team Member",
+    name: "Department Member",
     description: "Works on assigned tasks and submits reports.",
     grants: TEAM_MEMBER_GRANTS,
-  },
-  {
-    name: "Talent Manager",
-    description: "Manages talent records, schedules, and assignments.",
-    grants: TALENT_MANAGER_GRANTS,
   },
 ];

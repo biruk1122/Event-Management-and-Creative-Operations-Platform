@@ -73,6 +73,7 @@ describe("user and profile administration API", () => {
   let plainUserId: string;
   let superAdminRoleId: string;
   let teamMemberRoleId: string;
+  let departmentId: string;
 
   beforeAll(async () => {
     db = await createIsolatedDatabase();
@@ -91,6 +92,9 @@ describe("user and profile administration API", () => {
       ),
     });
     await seedRbac(prisma);
+    departmentId = (
+      await prisma.department.create({ data: { name: "Production" } })
+    ).id;
 
     const [{ Test }, appModule, appSetup, hasherModule] = await Promise.all([
       import("@nestjs/testing"),
@@ -133,7 +137,9 @@ describe("user and profile administration API", () => {
     });
     superAdminRoleId = superAdminRole.id;
     teamMemberRoleId = (
-      await prisma.role.findUniqueOrThrow({ where: { name: "Team Member" } })
+      await prisma.role.findUniqueOrThrow({
+        where: { name: "Department Member" },
+      })
     ).id;
 
     const superAdminUserId = await seedUser("super-admin@usr.test");
@@ -167,6 +173,8 @@ describe("user and profile administration API", () => {
       firstName: "Test",
       lastName: "Person",
       temporaryPassword: "temp-password-123",
+      roleId: teamMemberRoleId,
+      departmentId,
       ...overrides,
     });
     expect(response.status).toBe(201);
@@ -197,6 +205,8 @@ describe("user and profile administration API", () => {
           firstName: "No",
           lastName: "Access",
           temporaryPassword: "temp-password-123",
+          roleId: teamMemberRoleId,
+          departmentId,
         });
       expect(response.status).toBe(403);
       expect(body<ProblemBody>(response).code).toBe("PERMISSION_DENIED");
@@ -215,6 +225,8 @@ describe("user and profile administration API", () => {
           firstName: "No",
           lastName: "Csrf",
           temporaryPassword: "temp-password-123",
+          roleId: teamMemberRoleId,
+          departmentId,
         });
       expect(response.status).toBe(403);
     });
@@ -229,6 +241,7 @@ describe("user and profile administration API", () => {
         phone: "+1 (555) 123-4567",
         temporaryPassword: "temp-password-123",
         roleId: teamMemberRoleId,
+        departmentId,
       });
       expect(response.status).toBe(201);
       const created = body<UserBody>(response);
@@ -239,10 +252,11 @@ describe("user and profile administration API", () => {
       expect(created.mustChangePassword).toBe(true);
       expect(created.role).toEqual({
         id: teamMemberRoleId,
-        name: "Team Member",
+        name: "Department Member",
       });
       expect(Object.keys(created).sort()).toEqual(
         [
+          "department",
           "createdAt",
           "deactivatedAt",
           "email",
@@ -266,6 +280,8 @@ describe("user and profile administration API", () => {
         firstName: "Second",
         lastName: "Dupe",
         temporaryPassword: "temp-password-123",
+        roleId: teamMemberRoleId,
+        departmentId,
       });
       expect(response.status).toBe(409);
       expect(body<ProblemBody>(response).code).toBe("USER_EMAIL_CONFLICT");
@@ -292,6 +308,8 @@ describe("user and profile administration API", () => {
         firstName: "Weak",
         lastName: "Pass",
         temporaryPassword: "short",
+        roleId: teamMemberRoleId,
+        departmentId,
       });
       expect(response.status).toBe(400);
       expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
@@ -407,7 +425,8 @@ describe("user and profile administration API", () => {
         firstName: "Lock",
         lastName: "Me",
         temporaryPassword: "temp-password-123",
-        roleId: superAdminRoleId,
+        roleId: teamMemberRoleId,
+        departmentId,
       });
       expect(created.status).toBe(201);
 
@@ -416,8 +435,11 @@ describe("user and profile administration API", () => {
         .send({ email, password: "temp-password-123" });
       const victimCookies = setCookies(victim);
       expect(
-        (await request(http).get("/api/v1/users").set("Cookie", victimCookies))
-          .status,
+        (
+          await request(http)
+            .get("/api/v1/auth/me")
+            .set("Cookie", victimCookies)
+        ).status,
       ).toBe(200);
 
       await asAdmin(
@@ -426,14 +448,17 @@ describe("user and profile administration API", () => {
       );
 
       expect(
-        (await request(http).get("/api/v1/users").set("Cookie", victimCookies))
-          .status,
+        (
+          await request(http)
+            .get("/api/v1/auth/me")
+            .set("Cookie", victimCookies)
+        ).status,
       ).toBe(401);
     });
   });
 
   describe("role assignment", () => {
-    it("assigns, changes, and clears a role, and the change takes effect", async () => {
+    it("assigns a role live and protects the resulting Super Admin from role removal", async () => {
       // Plain user has no user.* access.
       expect(
         (
@@ -466,8 +491,8 @@ describe("user and profile administration API", () => {
         "put",
         `/api/v1/users/${plainUserId}/role`,
       ).send({ roleId: null });
-      expect(clear.status).toBe(200);
-      expect(body<UserBody>(clear).role).toBeNull();
+      expect(clear.status).toBe(400);
+      expect(body<ProblemBody>(clear).code).toBe("USER_ASSIGNMENT_INVALID");
 
       expect(
         (
@@ -475,7 +500,7 @@ describe("user and profile administration API", () => {
             .get("/api/v1/users")
             .set("Cookie", plainUser.cookies)
         ).status,
-      ).toBe(403);
+      ).toBe(200);
     });
 
     it("404s an unknown user and an unknown role", async () => {
@@ -504,14 +529,14 @@ describe("user and profile administration API", () => {
       expect(body<ProblemBody>(response).code).toBe("VALIDATION_ERROR");
     });
 
-    it("clears a role idempotently when the user has none", async () => {
+    it("rejects clearing a required platform role", async () => {
       const created = await createUser();
       const response = await asAdmin(
         "put",
         `/api/v1/users/${created.id}/role`,
       ).send({ roleId: null });
-      expect(response.status).toBe(200);
-      expect(body<UserBody>(response).role).toBeNull();
+      expect(response.status).toBe(400);
+      expect(body<ProblemBody>(response).code).toBe("USER_ASSIGNMENT_INVALID");
     });
 
     it("requires the roleId key to be present", async () => {
@@ -586,6 +611,8 @@ describe("user and profile administration API", () => {
         firstName: "Race",
         lastName: "Create",
         temporaryPassword: "temp-password-123",
+        roleId: teamMemberRoleId,
+        departmentId,
       };
 
       const [first, second] = await Promise.all([
@@ -623,10 +650,10 @@ describe("user and profile administration API", () => {
     it("keeps a single role assignment under two simultaneous role writes", async () => {
       const created = await createUser();
       const roleA = await prisma.role.findUniqueOrThrow({
-        where: { name: "Team Member" },
+        where: { name: "Department Member" },
       });
       const roleB = await prisma.role.findUniqueOrThrow({
-        where: { name: "Talent Manager" },
+        where: { name: "Super Admin" },
       });
 
       const [first, second] = await Promise.all([

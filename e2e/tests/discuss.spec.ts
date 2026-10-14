@@ -1,3 +1,4 @@
+import { memberAssignmentFor } from "../fixtures/test-data.js";
 import { expect, request, test, type Page } from "@playwright/test";
 
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
@@ -541,6 +542,7 @@ test.describe("Direct messages and channels — end to end", () => {
           firstName: "Discuss",
           lastName: "Recovery",
           temporaryPassword: TEST_USER_PASSWORD,
+          ...(await memberAssignmentFor(page.request)),
         },
       });
       expect(created.status()).toBe(201);
@@ -551,7 +553,7 @@ test.describe("Direct messages and channels — end to end", () => {
           key: "discuss-recovery",
           email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Discuss",
           lastName: "Recovery",
         });

@@ -34,7 +34,7 @@ servers, database state, auth files, or artifacts.
 Each run then follows this lifecycle:
 
 1. `scripts/provision.mjs` creates `e2e_<timestamp>_<random>`, applies committed migrations to it
-   with `prisma migrate deploy`, seeds the RBAC catalog (permissions, the five SRS roles and their
+   with `prisma migrate deploy`, seeds the RBAC catalog (permissions, the three supported system roles and their
    grants, baseline grants) with `pnpm --filter @event-platform/api db:seed`, and seeds the
    canonical accounts - each assigned its catalog role via `user_role_assignments`.
 2. It writes the scoped connection string to
@@ -62,7 +62,7 @@ can't.
 assignment. `scripts/provision.mjs` seeds them into `users` / `user_credentials`, hashing the
 password with `@node-rs/argon2` (its defaults match the API's `PasswordHasher`), and assigns each
 to its catalog role in `user_role_assignments` so permission-aware journeys resolve real grants
-(Super Admin gets full `role.*` access; Team Member gets none, which the denied journey relies on).
+(Super Admin gets full `role.*` access; Department Member gets none, which the denied journey relies on).
 The email, password, and role-name literals are mirrored from `test-users.ts` (see that file's
 header comment - it cannot be imported from provisioning, so keep them in sync by hand).
 

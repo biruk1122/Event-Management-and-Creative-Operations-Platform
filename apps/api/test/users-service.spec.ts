@@ -17,6 +17,7 @@ function makeUser(overrides: Partial<UserRecord> = {}): UserRecord {
     status: "ACTIVE",
     deactivatedAt: null,
     role: null,
+    department: null,
     mustChangePassword: true,
     createdAt: new Date("2026-01-01T00:00:00Z"),
     updatedAt: new Date("2026-01-02T00:00:00Z"),
@@ -42,6 +43,8 @@ describe("UsersService", () => {
     list: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
     roleExists: ReturnType<typeof vi.fn>;
+    findRole: ReturnType<typeof vi.fn>;
+    findDepartment: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     setStatus: ReturnType<typeof vi.fn>;
@@ -56,6 +59,12 @@ describe("UsersService", () => {
       list: vi.fn(),
       findById: vi.fn(),
       roleExists: vi.fn(),
+      findRole: vi.fn().mockResolvedValue({
+        id: "role-admin",
+        name: "Super Admin",
+        isSystem: true,
+      }),
+      findDepartment: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
       setStatus: vi.fn(),
@@ -86,6 +95,7 @@ describe("UsersService", () => {
             firstName: "X",
             lastName: "Y",
             temporaryPassword: "password123",
+            roleId: "role-admin",
           }),
       ],
       ["update", () => service.update(ACTOR, "user-1", { firstName: "Z" })],
@@ -119,6 +129,7 @@ describe("UsersService", () => {
             firstName: "X",
             lastName: "Y",
             temporaryPassword: "password123",
+            roleId: "role-admin",
           }),
       ],
       [
@@ -162,8 +173,62 @@ describe("UsersService", () => {
   });
 
   describe("create", () => {
+    it("requires a role before hashing or writing", async () => {
+      await expectCode(
+        service.create(ACTOR, {
+          email: "new@example.com",
+          firstName: "New",
+          lastName: "User",
+          temporaryPassword: "password123",
+        }),
+        "USER_ASSIGNMENT_INVALID",
+      );
+      expect(passwordHasher.hash).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      null,
+      { name: "Marketing", deactivatedAt: new Date() },
+      { name: "Unsupported", deactivatedAt: null },
+    ])("rejects an invalid department: %j", async (department) => {
+      repository.findRole.mockResolvedValue({
+        name: "Department Manager",
+        isSystem: true,
+      });
+      repository.findDepartment.mockResolvedValue(department);
+      await expectCode(
+        service.create(ACTOR, {
+          email: "new@example.com",
+          firstName: "New",
+          lastName: "User",
+          temporaryPassword: "password123",
+          roleId: "role-manager",
+          departmentId: "dept-marketing",
+        }),
+        "USER_ASSIGNMENT_INVALID",
+      );
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it("requires separate role-assignment authority", async () => {
+      permissions.hasGrant
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+      await expectCode(
+        service.create(ACTOR, {
+          email: "new@example.com",
+          firstName: "New",
+          lastName: "User",
+          temporaryPassword: "password123",
+          roleId: "role-admin",
+        }),
+        "PERMISSION_DENIED",
+      );
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
     it("rejects an unknown roleId before hashing or writing", async () => {
-      repository.roleExists.mockResolvedValue(false);
+      repository.findRole.mockResolvedValue(null);
       await expectCode(
         service.create(ACTOR, {
           email: "new@example.com",
@@ -185,12 +250,14 @@ describe("UsersService", () => {
         firstName: "Ada",
         lastName: "Lovelace",
         temporaryPassword: "password123",
+        roleId: "role-admin",
       });
       expect(repository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           email: "ada@example.com",
           passwordHash: "argon2id$hash",
-          roleId: null,
+          roleId: "role-admin",
+          departmentId: null,
         }),
       );
     });
@@ -203,6 +270,7 @@ describe("UsersService", () => {
           firstName: "Dup",
           lastName: "Licate",
           temporaryPassword: "password123",
+          roleId: "role-admin",
         }),
         "USER_EMAIL_CONFLICT",
       );
@@ -210,6 +278,54 @@ describe("UsersService", () => {
   });
 
   describe("update", () => {
+    it("updates role and department together after checking both assignment permissions", async () => {
+      repository.findById.mockResolvedValue(makeUser());
+      repository.findRole.mockResolvedValue({
+        name: "Department Member",
+        isSystem: true,
+      });
+      repository.findDepartment.mockResolvedValue({
+        name: "Marketing",
+        deactivatedAt: null,
+      });
+      repository.update.mockResolvedValue(makeUser());
+      await service.update(ACTOR, "user-1", {
+        roleId: "role-member",
+        departmentId: "dept-marketing",
+      });
+      expect(permissions.hasGrant).toHaveBeenCalledWith(
+        ACTOR,
+        "user.assign_role",
+        "ORGANIZATION",
+      );
+      expect(permissions.hasGrant).toHaveBeenCalledWith(
+        ACTOR,
+        "user.assign_department",
+        "ORGANIZATION",
+      );
+      expect(repository.update).toHaveBeenCalledWith("user-1", {
+        roleId: "role-member",
+        departmentId: "dept-marketing",
+      });
+    });
+
+    it("does not allow clearing a member's department", async () => {
+      repository.findById.mockResolvedValue(
+        makeUser({
+          role: { id: "role-member", name: "Department Member" },
+          department: { id: "dept-marketing", name: "Marketing" },
+        }),
+      );
+      repository.findRole.mockResolvedValue({
+        name: "Department Member",
+        isSystem: true,
+      });
+      await expectCode(
+        service.update(ACTOR, "user-1", { departmentId: null }),
+        "USER_ASSIGNMENT_INVALID",
+      );
+      expect(repository.update).not.toHaveBeenCalled();
+    });
     it("maps not-found and email conflict", async () => {
       repository.update.mockResolvedValueOnce("not_found");
       await expectCode(
@@ -234,6 +350,16 @@ describe("UsersService", () => {
   });
 
   describe("deactivate", () => {
+    it("preserves an active Super Admin account", async () => {
+      repository.findById.mockResolvedValue(
+        makeUser({ role: { id: "role-admin", name: "Super Admin" } }),
+      );
+      await expectCode(
+        service.deactivate(ACTOR, "user-1"),
+        "USER_ASSIGNMENT_INVALID",
+      );
+      expect(repository.setStatus).not.toHaveBeenCalled();
+    });
     it("404s an unknown user", async () => {
       repository.findById.mockResolvedValue(null);
       await expectCode(service.deactivate(ACTOR, "missing"), "USER_NOT_FOUND");
@@ -286,37 +412,64 @@ describe("UsersService", () => {
   });
 
   describe("assignRole", () => {
-    it("maps a missing user and a missing role", async () => {
-      repository.setRole.mockResolvedValueOnce("user_not_found");
+    it("rejects a missing user before writing", async () => {
+      repository.findById.mockResolvedValue(null);
       await expectCode(
         service.assignRole(ACTOR, "missing", "role-1"),
         "USER_NOT_FOUND",
       );
+      expect(repository.setRole).not.toHaveBeenCalled();
+    });
 
-      repository.setRole.mockResolvedValueOnce("role_not_found");
+    it("does not allow clearing a user's required role", async () => {
+      repository.findById.mockResolvedValue(makeUser());
       await expectCode(
-        service.assignRole(ACTOR, "user-1", "role-x"),
-        "ROLE_NOT_FOUND",
+        service.assignRole(ACTOR, "user-1", null),
+        "USER_ASSIGNMENT_INVALID",
       );
+      expect(repository.setRole).not.toHaveBeenCalled();
     });
 
-    it("clears the role when given null", async () => {
-      repository.setRole.mockResolvedValue(makeUser({ role: null }));
-      const result = await service.assignRole(ACTOR, "user-1", null);
-      expect(repository.setRole).toHaveBeenCalledWith("user-1", null);
-      expect(result.role).toBeNull();
-    });
-
-    it("returns the assigned role summary on success", async () => {
-      repository.setRole.mockResolvedValue(
-        makeUser({ role: { id: "role-9", name: "Regional Coordinator" } }),
-      );
-      const result = await service.assignRole(ACTOR, "user-1", "role-9");
-      expect(repository.setRole).toHaveBeenCalledWith("user-1", "role-9");
-      expect(result.role).toEqual({
-        id: "role-9",
-        name: "Regional Coordinator",
+    it("rejects a department role without a department", async () => {
+      repository.findById.mockResolvedValue(makeUser());
+      repository.findRole.mockResolvedValue({
+        name: "Department Member",
+        isSystem: true,
       });
+      await expectCode(
+        service.assignRole(ACTOR, "user-1", "role-member"),
+        "USER_ASSIGNMENT_INVALID",
+      );
+    });
+
+    it("preserves an existing Super Admin role", async () => {
+      repository.findById.mockResolvedValue(
+        makeUser({ role: { id: "role-admin", name: "Super Admin" } }),
+      );
+      await expectCode(
+        service.assignRole(ACTOR, "user-1", "role-member"),
+        "USER_ASSIGNMENT_INVALID",
+      );
+      expect(repository.setRole).not.toHaveBeenCalled();
+    });
+
+    it("assigns a supported role with an active supported department", async () => {
+      repository.findById.mockResolvedValue(
+        makeUser({ department: { id: "dept-marketing", name: "Marketing" } }),
+      );
+      repository.findRole.mockResolvedValue({
+        name: "Department Member",
+        isSystem: true,
+      });
+      repository.findDepartment.mockResolvedValue({
+        name: "Marketing",
+        deactivatedAt: null,
+      });
+      repository.setRole.mockResolvedValue(
+        makeUser({ role: { id: "role-member", name: "Department Member" } }),
+      );
+      await service.assignRole(ACTOR, "user-1", "role-member");
+      expect(repository.setRole).toHaveBeenCalledWith("user-1", "role-member");
     });
   });
 
@@ -376,6 +529,7 @@ describe("UsersService", () => {
         status: "INACTIVE",
         deactivatedAt: "2026-02-03T04:05:06.000Z",
         role: { id: "role-9", name: "Regional Coordinator" },
+        department: null,
         mustChangePassword: true,
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-02T00:00:00.000Z",

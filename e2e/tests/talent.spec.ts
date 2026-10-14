@@ -61,11 +61,8 @@ async function userIdByEmail(
 }
 
 test.describe("Talent management — end to end", () => {
-  // Talent's RBAC surface has no middle tier: Management/Administrator holds
-  // no talent.* grants at all, and the dedicated "Talent Manager" role
-  // already holds every talent.* key with no gaps - so the principal whose
-  // lifecycle matters here is Talent Manager, not Super Admin.
-  test.describe("Talent Manager journey", () => {
+  // The legacy fixture key now represents a supported Super Admin account.
+  test.describe("Super Admin talent journey", () => {
     test.use({ storageState: authStatePath("talentManager") });
 
     test("creates a talent, assigns a manager, manages schedules and social links, assigns to an event, moves through availability and assignment lifecycles, persists through reload, then removes a schedule and a social link", async ({
@@ -81,11 +78,7 @@ test.describe("Talent management — end to end", () => {
       const managerEmail = "member@e2e.test";
       const socialUrl = `https://instagram.com/${suffix}`;
 
-      // Talent Manager holds no event.* grants (only the event.read this
-      // suite's RBAC fix added, so the assignment picker can list events -
-      // creating one is rightly out of scope for this role), so the
-      // prerequisite event is created through a separate Super Admin
-      // context rather than this test's own `page`.
+      // Build the prerequisite with a separate Super Admin context.
       const admin = await request.newContext({
         storageState: authStatePath("superAdmin"),
       });
@@ -104,7 +97,7 @@ test.describe("Talent management — end to end", () => {
       // The account holds talent.read at organization scope, so the nav
       // entry shows.
       await page.goto("/");
-      const navLink = page.getByRole("link", { name: "Talent" });
+      const navLink = page.getByRole("link", { name: "Talent", exact: true });
       await expect(navLink).toBeVisible();
       await navLink.click();
       await expect(page).toHaveURL("/talent");
@@ -404,19 +397,16 @@ test.describe("Talent management — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    // Management/Administrator holds no talent.* grants at all - Talent's
-    // surface is fully denied to every role except Super Admin and the
-    // dedicated Talent Manager role, so this account works as well as
-    // `member` would for proving denial. `member`'s saved session is
-    // invalidated by `auth-session.spec.ts` (runs earlier), so the denied
-    // journey uses an account no other spec signs out.
-    test.use({ storageState: authStatePath("manager") });
+    // Department Manager cannot use organization-scoped talent administration.
+    test.use({ storageState: authStatePath("deptManager") });
 
     test("a caller without talent grants cannot see, open, or drive talent management", async ({
       page,
     }) => {
       await page.goto("/");
-      await expect(page.getByRole("link", { name: "Talent" })).toHaveCount(0);
+      await expect(
+        page.getByRole("link", { name: "Talent", exact: true }),
+      ).toHaveCount(0);
 
       await page.goto("/talent");
       await expect(
