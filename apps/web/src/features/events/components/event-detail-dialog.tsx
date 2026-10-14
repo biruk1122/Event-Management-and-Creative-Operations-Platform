@@ -27,6 +27,9 @@ import {
 import {
   getEvent as defaultGetEvent,
   getEventBudget as defaultGetEventBudget,
+  getEventBudgetSummary as defaultGetEventBudgetSummary,
+  listCampaignsForEvent as defaultListCampaignsForEvent,
+  listProductionsForEvent as defaultListProductionsForEvent,
 } from "../api/events-gateway";
 import { EventFields, type EventFieldValues } from "./event-fields";
 import type {
@@ -46,12 +49,29 @@ import {
   eventTypeLabel,
   NEXT_STATUSES,
   personName,
+  plannedAmountSummary,
   scheduleSummary,
   type AssignableTeam,
   type AssignableUser,
   type Event,
   type EventBudget,
+  type EventBudgetSummary,
+  type LinkedCampaign,
+  type LinkedProduction,
 } from "../lib/events-types";
+
+type GetEventBudgetSummary = (
+  id: string,
+  signal?: AbortSignal,
+) => Promise<EventBudgetSummary | null>;
+type ListLinkedCampaigns = (
+  id: string,
+  signal?: AbortSignal,
+) => Promise<LinkedCampaign[]>;
+type ListLinkedProductions = (
+  id: string,
+  signal?: AbortSignal,
+) => Promise<LinkedProduction[]>;
 
 const NO_MANAGER = "NONE";
 const PICK_TEAM = "PICK_TEAM";
@@ -90,8 +110,13 @@ interface EventDetailDialogProps {
   canReadBudget: boolean;
   canUpdateBudget: boolean;
   canDelete: boolean;
+  canSeeLinkedCampaigns: boolean;
+  canSeeLinkedProductions: boolean;
   getEvent?: GetEvent;
   getBudget?: GetEventBudget;
+  getBudgetSummary?: GetEventBudgetSummary;
+  listLinkedCampaigns?: ListLinkedCampaigns;
+  listLinkedProductions?: ListLinkedProductions;
   onUpdate: UpdateEvent;
   onTransition: TransitionEvent;
   onAssignManager: AssignEventManager;
@@ -139,8 +164,13 @@ function EventDetailBody({
   canReadBudget,
   canUpdateBudget,
   canDelete,
+  canSeeLinkedCampaigns,
+  canSeeLinkedProductions,
   getEvent = defaultGetEvent,
   getBudget = defaultGetEventBudget,
+  getBudgetSummary = defaultGetEventBudgetSummary,
+  listLinkedCampaigns = defaultListCampaignsForEvent,
+  listLinkedProductions = defaultListProductionsForEvent,
   onUpdate,
   onTransition,
   onAssignManager,
@@ -165,6 +195,14 @@ function EventDetailBody({
   const [event, setEvent] = useState<Event | null>(null);
   const [budget, setBudget] = useState<EventBudget | null>(null);
   const [budgetReadable, setBudgetReadable] = useState(canReadBudget);
+  const [budgetSummaryData, setBudgetSummaryData] =
+    useState<EventBudgetSummary | null>(null);
+  const [linkedCampaigns, setLinkedCampaigns] = useState<
+    readonly LinkedCampaign[]
+  >([]);
+  const [linkedProductions, setLinkedProductions] = useState<
+    readonly LinkedProduction[]
+  >([]);
 
   const [fields, setFields] = useState<EventFieldValues | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
@@ -197,28 +235,64 @@ function EventDetailBody({
     const budgetPromise = canReadBudget
       ? getBudget(eventId)
       : Promise.resolve(null);
-    void Promise.all([getEvent(eventId), budgetPromise])
-      .then(([loaded, loadedBudget]) => {
-        if (cancelled) return;
-        if (!loaded) {
-          setStatus("error");
-          return;
-        }
-        setEvent(loaded);
-        setFields(fieldsFromEvent(loaded));
-        setBudget(loadedBudget);
-        setBudgetReadable(canReadBudget && loadedBudget !== null);
-        setAmount(loadedBudget?.amount ?? "");
-        setCurrency(loadedBudget?.currency ?? "");
-        setStatus("loaded");
-      })
+    const budgetSummaryPromise = canReadBudget
+      ? getBudgetSummary(eventId)
+      : Promise.resolve(null);
+    const campaignsPromise = canSeeLinkedCampaigns
+      ? listLinkedCampaigns(eventId)
+      : Promise.resolve([]);
+    const productionsPromise = canSeeLinkedProductions
+      ? listLinkedProductions(eventId)
+      : Promise.resolve([]);
+    void Promise.all([
+      getEvent(eventId),
+      budgetPromise,
+      budgetSummaryPromise,
+      campaignsPromise,
+      productionsPromise,
+    ])
+      .then(
+        ([
+          loaded,
+          loadedBudget,
+          loadedBudgetSummary,
+          campaigns,
+          productions,
+        ]) => {
+          if (cancelled) return;
+          if (!loaded) {
+            setStatus("error");
+            return;
+          }
+          setEvent(loaded);
+          setFields(fieldsFromEvent(loaded));
+          setBudget(loadedBudget);
+          setBudgetReadable(canReadBudget && loadedBudget !== null);
+          setAmount(loadedBudget?.amount ?? "");
+          setCurrency(loadedBudget?.currency ?? "");
+          setBudgetSummaryData(loadedBudgetSummary);
+          setLinkedCampaigns(campaigns);
+          setLinkedProductions(productions);
+          setStatus("loaded");
+        },
+      )
       .catch(() => {
         if (!cancelled) setStatus("error");
       });
     return () => {
       cancelled = true;
     };
-  }, [eventId, getEvent, getBudget, canReadBudget]);
+  }, [
+    eventId,
+    getEvent,
+    getBudget,
+    getBudgetSummary,
+    listLinkedCampaigns,
+    listLinkedProductions,
+    canReadBudget,
+    canSeeLinkedCampaigns,
+    canSeeLinkedProductions,
+  ]);
 
   useEffect(() => {
     if (confirmingDelete) confirmRef.current?.focus();
@@ -704,9 +778,54 @@ function EventDetailBody({
                 ) : null}
               </>
             ) : null}
+            {budgetSummaryData ? (
+              <div className="bg-muted/50 space-y-1 rounded-xl border p-3 text-sm">
+                <p className="font-medium">Planned vs. actual</p>
+                <p>Planned: {plannedAmountSummary(budgetSummaryData)}</p>
+                <p>
+                  Approved: {budgetSummaryData.actualApproved} · Pending:{" "}
+                  {budgetSummaryData.actualPending}
+                </p>
+              </div>
+            ) : null}
           </>
         )}
       </section>
+
+      {/* Linked work (EOM-01 cross-department coordination, read-only) */}
+      {canSeeLinkedCampaigns ? (
+        <section className="border-border space-y-2 border-t pt-4">
+          <p className="text-sm font-medium">Linked campaigns</p>
+          {linkedCampaigns.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No campaigns are linked to this event.
+            </p>
+          ) : (
+            <ul className="text-muted-foreground space-y-1 text-sm">
+              {linkedCampaigns.map((campaign) => (
+                <li key={campaign.id}>{campaign.name}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
+
+      {canSeeLinkedProductions ? (
+        <section className="border-border space-y-2 border-t pt-4">
+          <p className="text-sm font-medium">Linked productions</p>
+          {linkedProductions.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No productions are linked to this event.
+            </p>
+          ) : (
+            <ul className="text-muted-foreground space-y-1 text-sm">
+              {linkedProductions.map((production) => (
+                <li key={production.id}>{production.name}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
       <EventFilesPanel eventId={event.id} canRead canUpdate={canUpdate} />
 

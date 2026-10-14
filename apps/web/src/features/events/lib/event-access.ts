@@ -33,12 +33,19 @@ export interface EventAbilities {
   canReadBudget: boolean;
   canUpdateBudget: boolean;
   canDelete: boolean;
+  /** EOM-01 cross-department coordination: "you can already read this event"
+   * plus "you hold campaign.read/project.read at any scope" - narrower than,
+   * and independent from, the Campaigns/Projects pages' own org-only gate. */
+  canSeeLinkedCampaigns: boolean;
+  canSeeLinkedProductions: boolean;
 }
 
 /** The caller's write abilities across the event surface (organization or
  * department scope - see the module doc comment). */
 export function eventAbilities(access: CurrentAccess): EventAbilities {
   const can = (key: string) => holdsAny(access.grants, key);
+  const holdsAnyScope = (key: string) =>
+    access.grants.some((grant) => grant.permissionKey === key);
   return {
     canCreate: can("event.create"),
     canUpdate: can("event.update"),
@@ -48,5 +55,7 @@ export function eventAbilities(access: CurrentAccess): EventAbilities {
     canReadBudget: can("event.budget.read"),
     canUpdateBudget: can("event.budget.update"),
     canDelete: can("event.delete"),
+    canSeeLinkedCampaigns: holdsAnyScope("campaign.read"),
+    canSeeLinkedProductions: holdsAnyScope("project.read"),
   };
 }

@@ -211,6 +211,8 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
         canReadBudget={abilities.canReadBudget}
         canUpdateBudget={abilities.canUpdateBudget}
         canDelete={abilities.canDelete}
+        canSeeLinkedCampaigns={abilities.canSeeLinkedCampaigns}
+        canSeeLinkedProductions={abilities.canSeeLinkedProductions}
         getEvent={getEvent}
         getBudget={getEventBudget}
         onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}

@@ -28,7 +28,10 @@ import type {
   AssignableUser,
   Event,
   EventBudget,
+  EventBudgetSummary,
   EventStatus,
+  LinkedCampaign,
+  LinkedProduction,
   PaginatedEvents,
 } from "../lib/events-types";
 
@@ -288,6 +291,59 @@ export async function getEventBudget(
     cache: "no-store",
   });
   return data ?? null;
+}
+
+/**
+ * Planned vs. actual budget for an event. Resolves `null` on any non-OK
+ * response - in particular a 403 when the caller lacks `event.budget.read` -
+ * so the section can render its restricted state instead of an error.
+ */
+export async function getEventBudgetSummary(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EventBudgetSummary | null> {
+  const { data } = await browserApi.GET("/api/v1/events/{id}/budget-summary", {
+    params: { path: { id } },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return data ?? null;
+}
+
+/** The campaigns linked to this event (EOM-01 cross-department coordination).
+ * Resolves `[]` on any non-OK response, in particular a 403 when the caller
+ * lacks `campaign.read`. */
+export async function listCampaignsForEvent(
+  id: string,
+  signal?: AbortSignal,
+): Promise<LinkedCampaign[]> {
+  const { data } = await browserApi.GET(
+    "/api/v1/campaigns/for-event/{eventId}",
+    {
+      params: { path: { eventId: id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  return data ?? [];
+}
+
+/** The productions linked to this event (EOM-01 cross-department
+ * coordination). Resolves `[]` on any non-OK response, in particular a 403
+ * when the caller lacks `project.read`. */
+export async function listProductionsForEvent(
+  id: string,
+  signal?: AbortSignal,
+): Promise<LinkedProduction[]> {
+  const { data } = await browserApi.GET(
+    "/api/v1/productions/for-event/{eventId}",
+    {
+      params: { path: { eventId: id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  return data ?? [];
 }
 
 /**

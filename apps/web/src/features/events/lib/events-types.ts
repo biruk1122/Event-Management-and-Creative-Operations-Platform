@@ -3,8 +3,14 @@ import type { components } from "@event-platform/api-client";
 export type Event = components["schemas"]["EventResponse"];
 export type PaginatedEvents = components["schemas"]["PaginatedEventsResponse"];
 export type EventBudget = components["schemas"]["EventBudgetResponse"];
+export type EventBudgetSummary =
+  components["schemas"]["EventBudgetSummaryResponse"];
 export type EventPersonSummary = components["schemas"]["EventPersonSummary"];
 export type EventTeamSummary = components["schemas"]["EventTeamSummary"];
+/** EOM-01 cross-department coordination: the campaigns/productions linked to
+ * an event, shown read-only on its detail dialog. */
+export type LinkedCampaign = components["schemas"]["CampaignResponse"];
+export type LinkedProduction = components["schemas"]["ProductionResponse"];
 
 /** The classification of an event. Mirrors the API `eventType` enum (SRS 5.5). */
 export type EventType = Event["eventType"];
@@ -131,4 +137,10 @@ export function budgetSummary(budget: EventBudget | null): string {
     return "—";
   }
   return `${budget.amount} ${budget.currency}`;
+}
+
+/** Formats the planned amount of a budget summary, or a dash when unset. */
+export function plannedAmountSummary(summary: EventBudgetSummary): string {
+  if (summary.plannedAmount === null) return "—";
+  return `${summary.plannedAmount} ${summary.currency ?? ""}`.trim();
 }
