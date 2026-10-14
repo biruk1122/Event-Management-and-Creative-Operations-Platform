@@ -46,6 +46,10 @@ export interface MeetingRecord {
   location: string | null;
   onlineLink: string | null;
   reminderAt: Date | null;
+  /** Plain text, set by the organizer; action items are real `Task` rows via
+   * `sourceMeetingId`, not stored here (EOM-01). */
+  agenda: string | null;
+  minutes: string | null;
   participants: MeetingParticipantRecord[];
   createdAt: Date;
   updatedAt: Date;
@@ -80,6 +84,7 @@ export interface CreateMeetingInput {
   location?: string;
   onlineLink?: string;
   reminderAt?: Date;
+  agenda?: string;
   participantIds: string[];
   correlationId: string;
 }
@@ -93,6 +98,8 @@ export interface UpdateMeetingFields {
   location?: string | null;
   onlineLink?: string | null;
   reminderAt?: Date | null;
+  agenda?: string | null;
+  minutes?: string | null;
 }
 
 const PERSON_SELECT = {
@@ -115,6 +122,8 @@ const MEETING_SELECT = {
   location: true,
   onlineLink: true,
   reminderAt: true,
+  agenda: true,
+  minutes: true,
   participants: {
     select: {
       response: true,
@@ -183,6 +192,8 @@ function updateData(fields: UpdateMeetingFields): Prisma.MeetingUpdateInput {
   if (fields.location !== undefined) data.location = fields.location;
   if (fields.onlineLink !== undefined) data.onlineLink = fields.onlineLink;
   if (fields.reminderAt !== undefined) data.reminderAt = fields.reminderAt;
+  if (fields.agenda !== undefined) data.agenda = fields.agenda;
+  if (fields.minutes !== undefined) data.minutes = fields.minutes;
   return data;
 }
 
@@ -210,6 +221,18 @@ export class MeetingsRepository {
       select: { departmentId: true },
     });
     return user?.departmentId ?? null;
+  }
+
+  /** Links an existing task as this meeting's action item (EOM-01). A thin,
+   * module-owned FK write - the same shape as this repository's own
+   * `calendarEntry` writes - not a duplicate of Tasks' own create/authorize
+   * logic, which `MeetingsService.createActionItem` already went through. */
+  async linkActionItem(taskId: string, meetingId: string): Promise<void> {
+    if (!isUuid(taskId) || !isUuid(meetingId)) return;
+    await this.db.task.update({
+      where: { id: taskId },
+      data: { sourceMeetingId: meetingId },
+    });
   }
 
   async workspaceExists(id: string): Promise<boolean> {
@@ -335,6 +358,7 @@ export class MeetingsRepository {
           ...(input.reminderAt !== undefined
             ? { reminderAt: input.reminderAt }
             : {}),
+          ...(input.agenda !== undefined ? { agenda: input.agenda } : {}),
           participants: {
             create: input.participantIds.map((userId) => ({ userId })),
           },
@@ -403,6 +427,33 @@ export class MeetingsRepository {
           ...(fields.startAt !== undefined ? { startAt: fields.startAt } : {}),
           ...(fields.endAt !== undefined ? { endAt: fields.endAt } : {}),
         },
+      });
+      return toRecord(updated);
+    });
+  }
+
+  /** Minutes are recorded once a meeting has happened - unlike `update()`,
+   * this is allowed for a SCHEDULED or COMPLETED meeting, only blocked once
+   * CANCELLED (EOM-01: agenda/minutes are plain text, action items are real
+   * `Task` rows via `sourceMeetingId`). */
+  async setMinutes(
+    id: string,
+    organizerId: string,
+    minutes: string | null,
+  ): Promise<MeetingRecord | "not_found" | "forbidden" | "cancelled"> {
+    return this.db.$transaction(async (tx) => {
+      if (!(await lockMeeting(tx, id))) return "not_found";
+      const current = await tx.meeting.findUnique({
+        where: { id },
+        select: { organizerId: true, status: true },
+      });
+      if (!current) return "not_found";
+      if (current.organizerId !== organizerId) return "forbidden";
+      if (current.status === MeetingStatus.CANCELLED) return "cancelled";
+      const updated = await tx.meeting.update({
+        where: { id },
+        data: { minutes },
+        select: MEETING_SELECT,
       });
       return toRecord(updated);
     });

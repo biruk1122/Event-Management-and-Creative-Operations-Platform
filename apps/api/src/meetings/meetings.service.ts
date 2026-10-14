@@ -7,7 +7,10 @@ import {
 } from "../generated/prisma/client.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
+import type { TaskResponse } from "../tasks/tasks.contracts.js";
+import { TasksService } from "../tasks/tasks.service.js";
 import type { CheckMeetingAvailabilityDto } from "./dto/check-meeting-availability.dto.js";
+import type { CreateMeetingActionItemDto } from "./dto/create-meeting-action-item.dto.js";
 import type { CreateMeetingDto } from "./dto/create-meeting.dto.js";
 import type { ListMeetingsQueryDto } from "./dto/list-meetings-query.dto.js";
 import type { UpdateMeetingDto } from "./dto/update-meeting.dto.js";
@@ -18,6 +21,7 @@ import type {
   PaginatedMeetingsResponse,
 } from "./meetings.contracts.js";
 import {
+  meetingCancelled,
   meetingInvalidTransition,
   meetingNotFound,
   meetingNotScheduled,
@@ -43,6 +47,7 @@ export class MeetingsService {
   constructor(
     private readonly repository: MeetingsRepository,
     private readonly permissions: PermissionsService,
+    private readonly tasks: TasksService,
   ) {}
 
   private hasGrant(
@@ -176,6 +181,7 @@ export class MeetingsService {
       ...(dto.location ? { location: dto.location.trim() } : {}),
       ...(dto.onlineLink ? { onlineLink: dto.onlineLink } : {}),
       ...(reminderAt ? { reminderAt } : {}),
+      ...(dto.agenda !== undefined ? { agenda: dto.agenda.trim() } : {}),
       participantIds: dto.participantIds,
       correlationId: requestId,
     });
@@ -215,11 +221,31 @@ export class MeetingsService {
       ...(dto.location !== undefined ? { location } : {}),
       ...(dto.onlineLink !== undefined ? { onlineLink } : {}),
       ...(dto.reminderAt !== undefined ? { reminderAt } : {}),
+      ...(dto.agenda !== undefined
+        ? { agenda: cleanNullable(dto.agenda, null) }
+        : {}),
     };
     const result = await this.repository.update(id, userId, fields);
     if (result === "not_found") throw meetingNotFound();
     if (result === "forbidden") throw permissionDenied();
     if (result === "not_scheduled") throw meetingNotScheduled();
+    return toMeetingResponse(result);
+  }
+
+  /** Minutes are recorded once a meeting has happened (EOM-01); unlike
+   * `update()`, this is allowed for a SCHEDULED or COMPLETED meeting. */
+  async setMinutes(
+    userId: string,
+    id: string,
+    minutes: string,
+  ): Promise<MeetingResponse> {
+    const meeting = await this.repository.findById(id);
+    if (!meeting) throw meetingNotFound();
+    await this.requireOrganizerUpdateGrant(userId, meeting);
+    const result = await this.repository.setMinutes(id, userId, minutes.trim());
+    if (result === "not_found") throw meetingNotFound();
+    if (result === "forbidden") throw permissionDenied();
+    if (result === "cancelled") throw meetingCancelled();
     return toMeetingResponse(result);
   }
 
@@ -302,6 +328,38 @@ export class MeetingsService {
     if (result === "forbidden") throw permissionDenied();
     if (result === "invalid_transition") throw meetingInvalidTransition();
     return toMeetingResponse(result);
+  }
+
+  /** A thin wrapper over `TasksService.create` (EOM-01): the task's
+   * workspace/department is resolved server-side - the meeting's own
+   * workspace if it has one, otherwise the organizer's own department -
+   * never from client input. Linked back via `Task.sourceMeetingId`. */
+  async createActionItem(
+    userId: string,
+    meetingId: string,
+    dto: CreateMeetingActionItemDto,
+    requestId: string,
+  ): Promise<TaskResponse> {
+    const meeting = await this.repository.findById(meetingId);
+    if (!meeting) throw meetingNotFound();
+    await this.requireOrganizerUpdateGrant(userId, meeting);
+    const departmentId = meeting.workspaceId
+      ? undefined
+      : ((await this.repository.findUserDepartmentId(userId)) ?? undefined);
+    if (!meeting.workspaceId && !departmentId) throw permissionDenied();
+    const task = await this.tasks.create(userId, {
+      title: dto.title,
+      ...(dto.description !== undefined
+        ? { description: dto.description }
+        : {}),
+      ...(dto.priority ? { priority: dto.priority } : {}),
+      ...(meeting.workspaceId ? { workspaceId: meeting.workspaceId } : {}),
+      ...(departmentId ? { departmentId } : {}),
+      ...(dto.dueAt ? { dueAt: dto.dueAt } : {}),
+    });
+    await this.repository.linkActionItem(task.id, meetingId);
+    if (!dto.assigneeId) return task;
+    return this.tasks.addAssignee(userId, task.id, dto.assigneeId, requestId);
   }
 
   async availability(
@@ -403,6 +461,8 @@ function toMeetingResponse(meeting: MeetingRecord): MeetingResponse {
     location: meeting.location,
     onlineLink: meeting.onlineLink,
     reminderAt: meeting.reminderAt?.toISOString() ?? null,
+    agenda: meeting.agenda,
+    minutes: meeting.minutes,
     participants: meeting.participants.map((participant) => ({
       id: participant.id,
       email: participant.email,

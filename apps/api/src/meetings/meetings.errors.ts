@@ -92,3 +92,11 @@ export const meetingNotScheduled = () =>
       "Participants and schedule fields cannot be changed after the meeting reaches a terminal status.",
     ),
   );
+export const meetingCancelled = () =>
+  new ConflictException(
+    details(
+      "MEETING_CANCELLED",
+      "Conflict",
+      "Minutes cannot be recorded for a cancelled meeting.",
+    ),
+  );

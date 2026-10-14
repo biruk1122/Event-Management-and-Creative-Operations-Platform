@@ -40,6 +40,18 @@ export class MeetingResponse {
     string | null;
   @ApiProperty({ type: String, format: "date-time", nullable: true })
   reminderAt!: string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Plain text, set by the organizer.",
+  })
+  agenda!: string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Plain text, recorded once the meeting has happened.",
+  })
+  minutes!: string | null;
   @ApiProperty({ type: [MeetingParticipantResponseContract] })
   participants!: MeetingParticipantResponseContract[];
   @ApiProperty({ format: "date-time" }) createdAt!: string;

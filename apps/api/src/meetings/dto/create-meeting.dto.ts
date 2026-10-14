@@ -65,6 +65,17 @@ export class CreateMeetingDto {
   @IsISO8601({ strict: true })
   reminderAt?: string;
 
+  @ApiPropertyOptional({
+    maxLength: 10000,
+    description: "Plain text, set by the organizer.",
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(10000)
+  @Matches(NOT_BLANK, { message: "agenda must not be blank" })
+  agenda?: string;
+
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()

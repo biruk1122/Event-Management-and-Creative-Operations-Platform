@@ -34,10 +34,13 @@ import { ProblemDetails } from "../common/http/problem-details.js";
 import type { RequestWithContext } from "../common/http/request-with-context.js";
 import { RequirePermissions } from "../common/security/permissions.decorator.js";
 import { PermissionsGuard } from "../common/security/permissions.guard.js";
+import { TaskResponse } from "../tasks/tasks.contracts.js";
 import { CheckMeetingAvailabilityDto } from "./dto/check-meeting-availability.dto.js";
 import { CreateMeetingDto } from "./dto/create-meeting.dto.js";
 import { ListMeetingsQueryDto } from "./dto/list-meetings-query.dto.js";
+import { CreateMeetingActionItemDto } from "./dto/create-meeting-action-item.dto.js";
 import { RespondToMeetingDto } from "./dto/respond-to-meeting.dto.js";
+import { SetMeetingMinutesDto } from "./dto/set-meeting-minutes.dto.js";
 import { TransitionMeetingDto } from "./dto/transition-meeting.dto.js";
 import { UpdateMeetingDto } from "./dto/update-meeting.dto.js";
 import {
@@ -161,6 +164,56 @@ export class MeetingsController {
     @Body() body: UpdateMeetingDto,
   ): Promise<MeetingResponse> {
     return this.meetings.update(actingUserId(request), id, body);
+  }
+
+  @Put(":id/minutes")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("meeting.update")
+  @ApiOperation({
+    summary: "Record or edit a meeting's minutes as its organizer",
+  })
+  @ApiOkResponse({ type: MeetingResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Meeting not found",
+  })
+  @ApiConflictResponse({
+    type: ProblemDetails,
+    description: "Meeting is cancelled",
+  })
+  setMinutes(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: SetMeetingMinutesDto,
+  ): Promise<MeetingResponse> {
+    return this.meetings.setMinutes(actingUserId(request), id, body.minutes);
+  }
+
+  @Post(":id/action-items")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("meeting.update")
+  @ApiOperation({
+    summary: "Create a task action item from this meeting, as its organizer",
+  })
+  @ApiCreatedResponse({ type: TaskResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Meeting, department, or assignee not found",
+  })
+  createActionItem(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: CreateMeetingActionItemDto,
+  ): Promise<TaskResponse> {
+    return this.meetings.createActionItem(
+      actingUserId(request),
+      id,
+      body,
+      request.id,
+    );
   }
 
   @Put(":id/participants/:userId")
