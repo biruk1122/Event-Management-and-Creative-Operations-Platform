@@ -1,10 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   accessKey,
   type CurrentAccess,
@@ -119,6 +128,12 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
     participant?.response === "PENDING" &&
     selected?.status === "SCHEDULED" &&
     access.grants.some((grant) => grant.permissionKey === "meeting.respond");
+  // "as its organizer" (EOM-01): the backend enforces this; hiding the
+  // controls for anyone else avoids a confusing 403 after a submit.
+  const canOrganize =
+    selected?.organizer.id === access.userId &&
+    selected?.status !== "CANCELLED" &&
+    access.grants.some((grant) => grant.permissionKey === "meeting.update");
 
   async function respond(response: "ACCEPTED" | "DECLINED") {
     if (!selected) return;
@@ -132,6 +147,41 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
           ? error.message
           : "We could not update your response. Try again.",
       );
+    }
+  }
+
+  async function saveMinutes(minutes: string) {
+    if (!selected) return;
+    setNotice(null);
+    try {
+      await mutations.setMinutes.mutateAsync({ id: selected.id, minutes });
+      setNotice("Minutes saved.");
+    } catch (error) {
+      setNotice(
+        error instanceof MeetingsRequestError
+          ? error.message
+          : "We could not save the minutes. Try again.",
+      );
+    }
+  }
+
+  async function addActionItem(title: string) {
+    if (!selected) return false;
+    setNotice(null);
+    try {
+      await mutations.createActionItem.mutateAsync({
+        id: selected.id,
+        input: { title },
+      });
+      setNotice("Action item created.");
+      return true;
+    } catch (error) {
+      setNotice(
+        error instanceof MeetingsRequestError
+          ? error.message
+          : "We could not create that action item. Try again.",
+      );
+      return false;
     }
   }
 
@@ -217,11 +267,17 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
           </section>
           {selected ? (
             <MeetingDetail
+              key={selected.id}
               meeting={selected}
               participant={participant ?? null}
               canRespond={canRespond}
               submitting={mutations.respond.isPending}
               onRespond={respond}
+              canOrganize={canOrganize}
+              savingMinutes={mutations.setMinutes.isPending}
+              onSaveMinutes={saveMinutes}
+              creatingActionItem={mutations.createActionItem.isPending}
+              onAddActionItem={addActionItem}
             />
           ) : null}
         </div>
@@ -236,13 +292,39 @@ function MeetingDetail({
   canRespond,
   submitting,
   onRespond,
+  canOrganize,
+  savingMinutes,
+  onSaveMinutes,
+  creatingActionItem,
+  onAddActionItem,
 }: {
   meeting: Meeting;
   participant: Meeting["participants"][number] | null;
   canRespond: boolean;
   submitting: boolean;
   onRespond: (response: "ACCEPTED" | "DECLINED") => void;
+  canOrganize: boolean;
+  savingMinutes: boolean;
+  onSaveMinutes: (minutes: string) => void;
+  creatingActionItem: boolean;
+  onAddActionItem: (title: string) => Promise<boolean>;
 }) {
+  const minutesId = useId();
+  const actionItemId = useId();
+  const [minutesDraft, setMinutesDraft] = useState(meeting.minutes ?? "");
+  const [addingActionItem, setAddingActionItem] = useState(false);
+  const [actionItemTitle, setActionItemTitle] = useState("");
+
+  async function submitActionItem() {
+    const title = actionItemTitle.trim();
+    if (!title) return;
+    const created = await onAddActionItem(title);
+    if (created) {
+      setActionItemTitle("");
+      setAddingActionItem(false);
+    }
+  }
+
   return (
     <section
       data-meeting-detail
@@ -265,6 +347,14 @@ function MeetingDetail({
       </div>
       {meeting.description ? (
         <p className="mt-4 text-sm">{meeting.description}</p>
+      ) : null}
+      {meeting.agenda ? (
+        <div className="mt-4">
+          <h3 className="font-medium">Agenda</h3>
+          <p className="text-muted-foreground mt-1 text-sm whitespace-pre-wrap">
+            {meeting.agenda}
+          </p>
+        </div>
       ) : null}
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div>
@@ -311,6 +401,86 @@ function MeetingDetail({
           ))}
         </ul>
       </div>
+      {meeting.minutes && !canOrganize ? (
+        <div className="mt-5">
+          <h3 className="font-medium">Minutes</h3>
+          <p className="text-muted-foreground mt-1 text-sm whitespace-pre-wrap">
+            {meeting.minutes}
+          </p>
+        </div>
+      ) : null}
+      {canOrganize ? (
+        <div className="mt-5 space-y-2">
+          <Label htmlFor={minutesId}>Minutes</Label>
+          <textarea
+            id={minutesId}
+            rows={4}
+            value={minutesDraft}
+            disabled={savingMinutes}
+            className="border-input placeholder:text-muted-foreground focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-3 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            onChange={(event) => setMinutesDraft(event.target.value)}
+          />
+          <Button
+            type="button"
+            size="sm"
+            disabled={savingMinutes || minutesDraft.trim() === ""}
+            aria-busy={savingMinutes}
+            onClick={() => onSaveMinutes(minutesDraft)}
+          >
+            {savingMinutes ? "Saving…" : "Save minutes"}
+          </Button>
+        </div>
+      ) : null}
+      {canOrganize ? (
+        <div className="mt-5 space-y-2">
+          <h3 className="font-medium">Action items</h3>
+          {addingActionItem ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor={actionItemId}>Title</Label>
+                <Input
+                  id={actionItemId}
+                  value={actionItemTitle}
+                  disabled={creatingActionItem}
+                  onChange={(event) => setActionItemTitle(event.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={creatingActionItem || actionItemTitle.trim() === ""}
+                  aria-busy={creatingActionItem}
+                  onClick={() => void submitActionItem()}
+                >
+                  {creatingActionItem ? "Adding…" : "Add"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={creatingActionItem}
+                  onClick={() => {
+                    setAddingActionItem(false);
+                    setActionItemTitle("");
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setAddingActionItem(true)}
+            >
+              Add action item
+            </Button>
+          )}
+        </div>
+      ) : null}
       {participant ? (
         <div className="mt-5">
           <p className="text-sm font-medium">
