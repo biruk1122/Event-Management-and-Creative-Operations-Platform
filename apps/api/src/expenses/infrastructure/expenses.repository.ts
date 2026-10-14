@@ -151,6 +151,72 @@ export class ExpensesRepository {
     });
   }
 
+  /** `SELECT ... FOR UPDATE` + a re-check against the current visibility,
+   * inside the caller's open transaction - the same concurrency-safe
+   * attachment-finalization lock `tasks.repository.ts` uses, so a finalize
+   * can never race a concurrent department reassignment past the caller's
+   * earlier authorization check. */
+  async lockAttachmentAccess(
+    tx: Prisma.TransactionClient,
+    expenseId: string,
+    visibility: ExpenseVisibility,
+  ): Promise<"visible" | "forbidden" | "not_found"> {
+    if (!isUuid(expenseId)) return "not_found";
+    const locked = await tx.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT id FROM expenses WHERE id = ${expenseId}::uuid FOR UPDATE`,
+    );
+    if (locked.length !== 1) return "not_found";
+    const visible = await tx.expense.count({
+      where: { AND: [{ id: expenseId }, visibleWhere(visibility)] },
+    });
+    return visible === 1 ? "visible" : "forbidden";
+  }
+
+  async createAttachment(
+    tx: Prisma.TransactionClient,
+    input: { expenseId: string; fileId: string; attachedById: string },
+  ): Promise<void> {
+    await tx.expenseAttachment.create({
+      data: {
+        attachedById: input.attachedById,
+        managedFileId: input.fileId,
+        expenseId: input.expenseId,
+      },
+    });
+  }
+
+  async hasAttachment(expenseId: string, fileId: string): Promise<boolean> {
+    if (!isUuid(expenseId) || !isUuid(fileId)) return false;
+    return (
+      (await this.db.expenseAttachment.count({
+        where: { expenseId, managedFileId: fileId },
+      })) === 1
+    );
+  }
+
+  async listAttachmentFileIds(
+    expenseId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ fileIds: string[]; total: number }> {
+    if (!isUuid(expenseId)) return { fileIds: [], total: 0 };
+    const where: Prisma.ExpenseAttachmentWhereInput = { expenseId };
+    const [attachments, total] = await Promise.all([
+      this.db.expenseAttachment.findMany({
+        where,
+        select: { managedFileId: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.expenseAttachment.count({ where }),
+    ]);
+    return {
+      fileIds: attachments.map(({ managedFileId }) => managedFileId),
+      total,
+    };
+  }
+
   async list(
     input: ListExpensesInput,
   ): Promise<{ items: ExpenseRecord[]; total: number }> {

@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
+import type { Prisma } from "../generated/prisma/client.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import type { CreateExpenseDto } from "./dto/create-expense.dto.js";
@@ -238,5 +239,68 @@ export class ExpensesService {
         dto.note,
       ),
     );
+  }
+
+  /** Internal authorization boundary reused by the explicit expense-file
+   * surface (mirrors `TasksService.authorize`). */
+  async authorize(
+    actingUserId: string,
+    expenseId: string,
+    permissionKey: string,
+  ): Promise<ExpenseRecord> {
+    return this.load(actingUserId, expenseId, permissionKey);
+  }
+
+  /** Rechecks expense attachment scope while the shared unit of work is
+   * open (mirrors `TasksService.lockAttachmentFinalization`). */
+  async lockAttachmentFinalization(
+    tx: Prisma.TransactionClient,
+    input: { actingUserId: string; expenseId: string },
+  ): Promise<void> {
+    const visibility = await this.visibility(
+      input.actingUserId,
+      "expense.attachment.create",
+    );
+    const access = await this.repo.lockAttachmentAccess(
+      tx,
+      input.expenseId,
+      visibility,
+    );
+    if (access === "forbidden" || access === "not_found") {
+      if (access === "forbidden" || !visibility.organization)
+        throw permissionDenied();
+      throw expenseNotFound();
+    }
+  }
+
+  /** Persists only the expense-owned attachment association. */
+  async recordAttachment(
+    tx: Prisma.TransactionClient,
+    input: { actingUserId: string; expenseId: string; fileId: string },
+  ): Promise<void> {
+    await this.repo.createAttachment(tx, {
+      attachedById: input.actingUserId,
+      expenseId: input.expenseId,
+      fileId: input.fileId,
+    });
+  }
+
+  async listAttachmentFileIds(
+    actingUserId: string,
+    expenseId: string,
+    pageNumber: number,
+    pageSize: number,
+  ): Promise<{ fileIds: string[]; total: number }> {
+    await this.authorize(actingUserId, expenseId, "expense.read");
+    return this.repo.listAttachmentFileIds(expenseId, pageNumber, pageSize);
+  }
+
+  async readAttachmentContext(
+    actingUserId: string,
+    expenseId: string,
+    fileId: string,
+  ): Promise<Record<string, never> | null> {
+    await this.authorize(actingUserId, expenseId, "expense.read");
+    return (await this.repo.hasAttachment(expenseId, fileId)) ? {} : null;
   }
 }

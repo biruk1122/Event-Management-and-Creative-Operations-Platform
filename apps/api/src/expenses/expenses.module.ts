@@ -12,6 +12,6 @@ import { ExpensesRepository } from "./infrastructure/expenses.repository.js";
   imports: [AuditModule, AuthModule, OutboxModule, PermissionsModule],
   controllers: [ExpensesController],
   providers: [ExpensesService, ExpensesRepository],
-  exports: [ExpensesRepository],
+  exports: [ExpensesService, ExpensesRepository],
 })
 export class ExpensesModule {}
