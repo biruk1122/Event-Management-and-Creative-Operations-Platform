@@ -499,6 +499,7 @@ describe("event management persistence", () => {
       await create({ name: "Unrelated", eventType: "CONCERT" });
 
       const byType = await repository.list({
+        visibility: { organization: true },
         eventType: "CORPORATE_EVENT",
         page: 1,
         pageSize: 100,
@@ -508,6 +509,7 @@ describe("event management persistence", () => {
       );
 
       const byStatus = await repository.list({
+        visibility: { organization: true },
         status: "READY",
         eventType: "CORPORATE_EVENT",
         page: 1,
@@ -517,6 +519,7 @@ describe("event management persistence", () => {
       expect(byStatus.items.every((e) => e.status === "READY")).toBe(true);
 
       const byManager = await repository.list({
+        visibility: { organization: true },
         managerId,
         page: 1,
         pageSize: 100,
@@ -524,6 +527,7 @@ describe("event management persistence", () => {
       expect(byManager.items.map((e) => e.id)).toEqual([tagged.id]);
 
       const bySearch = await repository.list({
+        visibility: { organization: true },
         search: "filter marker",
         page: 1,
         pageSize: 100,
@@ -531,6 +535,7 @@ describe("event management persistence", () => {
       expect(bySearch.items.map((e) => e.id)).toEqual([tagged.id]);
 
       const inWindow = await repository.list({
+        visibility: { organization: true },
         startingAfter: new Date("2028-01-01T00:00:00.000Z"),
         startingBefore: new Date("2028-12-31T00:00:00.000Z"),
         page: 1,
@@ -539,6 +544,7 @@ describe("event management persistence", () => {
       expect(inWindow.items.map((e) => e.id)).toEqual([tagged.id]);
 
       const outOfWindow = await repository.list({
+        visibility: { organization: true },
         startingAfter: new Date("2029-01-01T00:00:00.000Z"),
         page: 1,
         pageSize: 100,
@@ -549,6 +555,7 @@ describe("event management persistence", () => {
     it("matches the name case-insensitively", async () => {
       const event = await create({ name: "MiXeD CaSe Marker" });
       const found = await repository.list({
+        visibility: { organization: true },
         search: "mixed case marker",
         page: 1,
         pageSize: 100,
@@ -573,6 +580,7 @@ describe("event management persistence", () => {
       let total = -1;
       for (let page = 1; page <= 7; page += 1) {
         const result = await repository.list({
+          visibility: { organization: true },
           search: marker,
           page,
           pageSize: 1,
@@ -588,6 +596,7 @@ describe("event management persistence", () => {
       for (const id of ids) expect(seen).toContain(id);
 
       const beyond = await repository.list({
+        visibility: { organization: true },
         search: marker,
         page: 8,
         pageSize: 1,
@@ -597,7 +606,11 @@ describe("event management persistence", () => {
     });
 
     it("orders by created_at then id", async () => {
-      const page = await repository.list({ page: 1, pageSize: 200 });
+      const page = await repository.list({
+        visibility: { organization: true },
+        page: 1,
+        pageSize: 200,
+      });
       const keys = page.items.map(
         (e) => `${e.createdAt.toISOString()}#${e.id}`,
       );

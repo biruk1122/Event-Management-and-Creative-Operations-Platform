@@ -36,6 +36,7 @@ import { RequirePermissions } from "../common/security/permissions.decorator.js"
 import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import {
   EventBudgetResponse,
+  EventBudgetSummaryResponse,
   EventResponse,
   PaginatedEventsResponse,
 } from "./events.contracts.js";
@@ -230,6 +231,20 @@ export class EventsController {
     @Param("id") id: string,
   ): Promise<EventBudgetResponse> {
     return this.events.getBudget(actingUserId(request), id);
+  }
+
+  @Get(":id/budget-summary")
+  @RequirePermissions("event.budget.read")
+  @ApiOperation({
+    summary: "Planned vs. actual budget for an event (sensitive)",
+  })
+  @ApiOkResponse({ type: EventBudgetSummaryResponse })
+  @ApiNotFoundResponse({ type: ProblemDetails, description: "Event not found" })
+  async getBudgetSummary(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+  ): Promise<EventBudgetSummaryResponse> {
+    return this.events.getBudgetSummary(actingUserId(request), id);
   }
 
   @Put(":id/budget")

@@ -1844,6 +1844,11 @@ enum NotificationType {
   EVENT_REMINDER
   TODO_REMINDER
   REPORT_REMINDER
+  /// EOM-01: a submitted expense notifies every user holding
+  /// `expense.approve` at ORGANIZATION scope (today, Super Admin only).
+  EXPENSE_SUBMITTED
+  /// EOM-01: an expense decision (approved or rejected) notifies its author.
+  EXPENSE_REVIEWED
 
   @@map("notification_type")
 }
@@ -1956,10 +1961,11 @@ model ScheduledOccurrenceClaim {
 /// The durable, per-recipient notification record (ADR 0003 section 1) - the
 /// system of record a client's REST feed reads and reconciles against; a
 /// real-time frame is only ever an advisory nudge to refetch it. `taskId`,
-/// `messageId`, and `eventId` are the typed target union ADR 0003 requires
-/// ("not an unchecked entityType/entityId reference... must resolve through
-/// an approved module relation") - real foreign keys, not a polymorphic
-/// pair, for the four target domains that exist today. A CHECK constraint
+/// `messageId`, `eventId`, `meetingId`, and `expenseId` are the typed target
+/// union ADR 0003 requires ("not an unchecked entityType/entityId
+/// reference... must resolve through an approved module relation") - real
+/// foreign keys, not a polymorphic pair, for the five target domains that
+/// exist today. A CHECK constraint
 /// (added by hand; see the migration) keeps at most one set. A
 /// Meeting notifications use the concrete meeting target. To-Do and report
 /// reminders carry no target until those domains provide an approved concrete
@@ -1981,6 +1987,8 @@ model Notification {
   messageId       String?          @map("message_id") @db.Uuid
   eventId         String?          @map("event_id") @db.Uuid
   meetingId       String?          @map("meeting_id") @db.Uuid
+  /// EOM-01: the fifth typed target, added for EXPENSE_SUBMITTED/REVIEWED.
+  expenseId       String?          @map("expense_id") @db.Uuid
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   readAt          DateTime?        @map("read_at") @db.Timestamptz(6)
 
@@ -1990,6 +1998,7 @@ model Notification {
   message     Message?    @relation(fields: [messageId], references: [id], onDelete: Cascade)
   event       Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   meeting     Meeting?    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  expense     Expense?    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 
   // The cursor feed reads a recipient's own notifications newest first
   // (ADR 0003 section 5); the second index supports the unread count.
@@ -2239,9 +2248,10 @@ model Expense {
   supplier    Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   createdBy   User?               @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   reviewer    User?               @relation("ExpenseCurrentReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
-  reviews     ExpenseReview[]
-  attachments ExpenseAttachment[]
-  fileIntents ManagedFile[]       @relation("ManagedFileIntentExpense")
+  reviews       ExpenseReview[]
+  attachments   ExpenseAttachment[]
+  fileIntents   ManagedFile[]       @relation("ManagedFileIntentExpense")
+  notifications Notification[]
 
   // Planned-vs-actual summaries and approval queues filter by event/
   // department and status; this mirrors Task's own `[owner, status]` shape.

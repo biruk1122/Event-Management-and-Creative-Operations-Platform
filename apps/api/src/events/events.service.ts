@@ -9,6 +9,7 @@ import { PermissionsService } from "../common/security/permissions.service.js";
 import { WorkspacesRepository } from "../workspaces/infrastructure/workspaces.repository.js";
 import type {
   EventBudgetResponse,
+  EventBudgetSummaryResponse,
   EventResponse,
   PaginatedEventsResponse,
 } from "./events.contracts.js";
@@ -30,6 +31,7 @@ import type { UpdateEventDto } from "./dto/update-event.dto.js";
 import {
   EventsRepository,
   type EventRecord,
+  type EventVisibility,
 } from "./infrastructure/events.repository.js";
 
 /**
@@ -38,15 +40,19 @@ import {
  * some scope), the lifecycle and schedule policy, and the mapping from
  * persistence records to public response shapes.
  *
- * Every event route is for a known `kind = EVENT`, so the static
- * `@RequirePermissions` on the controller names the exact key and this service
- * re-checks it at ORGANIZATION scope - matching WSP-02, where organization scope
- * is the boundary for every connected-workspace operation. Manager and team
- * assignment reuse `WorkspacesRepository` so that composition logic
- * (idempotency, "not assigned") lives in one place; the workspace row lifecycle
- * (create with the event, delete with it) lives in `EventsRepository`, the
- * pairing EVT-01 assigned here. The budget is sensitive (PC-04) and is reachable
- * only through the two budget routes and their own keys.
+ * EOM-01 made events department-scoped: `visibilityFor` mirrors the pattern
+ * already proven in `tasks.service.ts`/`reports.service.ts` - an
+ * organization-scoped caller (Super Admin) sees every event, a
+ * department-scoped caller (the Event & Office Manager / another department
+ * manager) sees only events carrying their own `departmentId`. A pre-existing
+ * event with `departmentId = null` is visible only at ORGANIZATION scope,
+ * exactly as before this change, until someone explicitly assigns it a
+ * department. Manager and team assignment reuse `WorkspacesRepository` so that
+ * composition logic (idempotency, "not assigned") lives in one place; the
+ * workspace row lifecycle (create with the event, delete with it) lives in
+ * `EventsRepository`, the pairing EVT-01 assigned here. The budget is
+ * sensitive (PC-04) and is reachable only through the two budget routes and
+ * their own keys.
  */
 @Injectable()
 export class EventsService {
@@ -56,33 +62,55 @@ export class EventsService {
     private readonly permissions: PermissionsService,
   ) {}
 
-  private async requireGrant(
+  private async hasGrant(
     actingUserId: string,
     permissionKey: string,
-    scope: PermissionScope = "ORGANIZATION",
-  ): Promise<void> {
-    if (
-      !(await this.permissions.hasGrant(actingUserId, permissionKey, scope))
-    ) {
-      throw permissionDenied();
-    }
+    scope: PermissionScope,
+  ): Promise<boolean> {
+    return this.permissions.hasGrant(actingUserId, permissionKey, scope);
   }
 
-  /** Loads an event or throws 404; used before a permission check on `:id` routes. */
-  private async loadOrThrow(id: string): Promise<EventRecord> {
-    const event = await this.repository.findById(id);
+  private async visibilityFor(
+    actingUserId: string,
+    permissionKey: string,
+  ): Promise<EventVisibility> {
+    const [organization, department] = await Promise.all([
+      this.hasGrant(actingUserId, permissionKey, "ORGANIZATION"),
+      this.hasGrant(actingUserId, permissionKey, "DEPARTMENT"),
+    ]);
+    if (!organization && !department) throw permissionDenied();
+    const departmentId = department
+      ? await this.repository.findUserDepartmentId(actingUserId)
+      : null;
+    return { organization, ...(departmentId ? { departmentId } : {}) };
+  }
+
+  /** Resolves visibility for `permissionKey` and loads the event only if it
+   * is visible under that grant; an organization-scoped caller gets a real
+   * 404 for an unknown id, a narrower caller gets the same denial for an
+   * absent id and an out-of-scope id, so ids cannot be used to probe events
+   * outside their department. */
+  private async loadAuthorized(
+    actingUserId: string,
+    id: string,
+    permissionKey: string,
+  ): Promise<EventRecord> {
+    const visibility = await this.visibilityFor(actingUserId, permissionKey);
+    const event = await this.repository.findVisibleById(id, visibility);
     if (!event) {
-      throw eventNotFound();
+      if (visibility.organization) throw eventNotFound();
+      throw permissionDenied();
     }
     return event;
   }
 
-  /** Re-reads an event that must exist; a `null` here means it was raced away. */
+  /** Re-reads an event that must exist right after an authorized mutation on
+   * it; the mutation's own `loadAuthorized` call already proved the caller
+   * may act on this id, so this is a raw fetch, not a second authorization
+   * check (matching the pre-retrofit `reload()` this replaces). */
   private async reload(id: string): Promise<EventResponse> {
     const event = await this.repository.findById(id);
-    if (!event) {
-      throw eventNotFound();
-    }
+    if (!event) throw eventNotFound();
     return toEventResponse(event);
   }
 
@@ -90,9 +118,10 @@ export class EventsService {
     actingUserId: string,
     query: ListEventsQueryDto,
   ): Promise<PaginatedEventsResponse> {
-    await this.requireGrant(actingUserId, "event.read");
+    const visibility = await this.visibilityFor(actingUserId, "event.read");
 
     const { items, total } = await this.repository.list({
+      visibility,
       ...(query.status ? { status: query.status } : {}),
       ...(query.eventType ? { eventType: query.eventType } : {}),
       ...(query.managerId ? { managerId: query.managerId } : {}),
@@ -116,16 +145,16 @@ export class EventsService {
   }
 
   async get(actingUserId: string, id: string): Promise<EventResponse> {
-    const event = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "event.read");
-    return toEventResponse(event);
+    return toEventResponse(
+      await this.loadAuthorized(actingUserId, id, "event.read"),
+    );
   }
 
   async create(
     actingUserId: string,
     dto: CreateEventDto,
   ): Promise<EventResponse> {
-    await this.requireGrant(actingUserId, "event.create");
+    const visibility = await this.visibilityFor(actingUserId, "event.create");
 
     const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
     const endAt = dto.endAt ? new Date(dto.endAt) : undefined;
@@ -145,6 +174,12 @@ export class EventsService {
         ? { organizerName: dto.organizerName.trim() }
         : {}),
       ...(dto.managerId ? { managerId: dto.managerId } : {}),
+      // A department-scoped creator's event is scoped to their own
+      // department (never from client input); an organization-scoped
+      // creator leaves it unset (decision 2: no department is ever guessed).
+      ...(!visibility.organization && visibility.departmentId
+        ? { departmentId: visibility.departmentId }
+        : {}),
     });
 
     if (result === "manager_not_found") {
@@ -158,8 +193,7 @@ export class EventsService {
     id: string,
     dto: UpdateEventDto,
   ): Promise<EventResponse> {
-    const event = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "event.update");
+    const event = await this.loadAuthorized(actingUserId, id, "event.update");
 
     const nextStart = resolveInstant(dto.startAt, event.startAt);
     const nextEnd = resolveInstant(dto.endAt, event.endAt);
@@ -202,8 +236,11 @@ export class EventsService {
     id: string,
     target: EventStatus,
   ): Promise<EventResponse> {
-    const event = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "event.transition_status");
+    const event = await this.loadAuthorized(
+      actingUserId,
+      id,
+      "event.transition_status",
+    );
 
     if (!canTransition(event.status, target)) {
       throw eventInvalidTransition(event.status, target);
@@ -216,7 +253,8 @@ export class EventsService {
     if (result === "status_changed") {
       // Another request moved the event after we read it. Report the move
       // that is no longer legal against the status it now has.
-      const current = await this.loadOrThrow(id);
+      const current = await this.repository.findById(id);
+      if (!current) throw eventNotFound();
       throw eventInvalidTransition(current.status, target);
     }
     return toEventResponse(result);
@@ -227,8 +265,11 @@ export class EventsService {
     id: string,
     managerId: string | null,
   ): Promise<EventResponse> {
-    const event = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "event.assign_manager");
+    const event = await this.loadAuthorized(
+      actingUserId,
+      id,
+      "event.assign_manager",
+    );
 
     const result = await this.workspaces.setManager(
       event.workspaceId,
@@ -248,8 +289,11 @@ export class EventsService {
     id: string,
     teamId: string,
   ): Promise<EventResponse> {
-    const event = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "event.assign_teams");
+    const event = await this.loadAuthorized(
+      actingUserId,
+      id,
+      "event.assign_teams",
+    );
 
     const result = await this.workspaces.assignTeam(event.workspaceId, teamId);
     if (result === "workspace_not_found") {
@@ -266,8 +310,11 @@ export class EventsService {
     id: string,
     teamId: string,
   ): Promise<EventResponse> {
-    const event = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "event.assign_teams");
+    const event = await this.loadAuthorized(
+      actingUserId,
+      id,
+      "event.assign_teams",
+    );
 
     const result = await this.workspaces.unassignTeam(
       event.workspaceId,
@@ -286,9 +333,22 @@ export class EventsService {
     actingUserId: string,
     id: string,
   ): Promise<EventBudgetResponse> {
-    const event = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "event.budget.read");
+    const event = await this.loadAuthorized(
+      actingUserId,
+      id,
+      "event.budget.read",
+    );
     return { amount: event.budgetAmount, currency: event.budgetCurrency };
+  }
+
+  async getBudgetSummary(
+    actingUserId: string,
+    id: string,
+  ): Promise<EventBudgetSummaryResponse> {
+    await this.loadAuthorized(actingUserId, id, "event.budget.read");
+    const summary = await this.repository.budgetSummary(id);
+    if (!summary) throw eventNotFound();
+    return summary;
   }
 
   async setBudget(
@@ -296,8 +356,7 @@ export class EventsService {
     id: string,
     dto: SetEventBudgetDto,
   ): Promise<EventBudgetResponse> {
-    await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "event.budget.update");
+    await this.loadAuthorized(actingUserId, id, "event.budget.update");
 
     if ((dto.amount === null) !== (dto.currency === null)) {
       throw eventBudgetIncomplete();
@@ -312,8 +371,7 @@ export class EventsService {
   }
 
   async remove(actingUserId: string, id: string): Promise<void> {
-    await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "event.delete");
+    await this.loadAuthorized(actingUserId, id, "event.delete");
 
     const result = await this.repository.delete(id);
     if (result === "not_found") {
@@ -354,6 +412,7 @@ function toEventResponse(record: EventRecord): EventResponse {
     endAt: record.endAt ? record.endAt.toISOString() : null,
     location: record.location,
     organizerName: record.organizerName,
+    departmentId: record.departmentId,
     manager: record.manager,
     teams: record.teams,
     participants: record.participants,

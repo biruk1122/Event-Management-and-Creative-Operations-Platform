@@ -26,6 +26,7 @@ function makeNotification(
     messageId: null,
     eventId: null,
     meetingId: null,
+    expenseId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     readAt: null,
     ...overrides,

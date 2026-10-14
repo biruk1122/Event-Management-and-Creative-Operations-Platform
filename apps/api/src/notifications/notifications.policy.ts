@@ -68,6 +68,24 @@ export function meetingReminderContent(
   return { title: "Meeting reminder", body: meetingTitle };
 }
 
+export function expenseSubmittedContent(
+  description: string,
+): NotificationContent {
+  return { title: "Expense submitted for approval", body: description };
+}
+
+export function expenseApprovedContent(
+  description: string,
+): NotificationContent {
+  return { title: "Expense approved", body: description };
+}
+
+export function expenseRejectedContent(
+  description: string,
+): NotificationContent {
+  return { title: "Expense rejected", body: description };
+}
+
 /** Server-derived body text is bounded, never the raw message verbatim past
  * this length (ADR 0003 §1: title/body are server-derived, not client input). */
 export function previewText(content: string, maxLength = 140): string {

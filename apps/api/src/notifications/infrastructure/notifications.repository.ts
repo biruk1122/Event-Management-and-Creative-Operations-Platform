@@ -5,6 +5,7 @@ import {
   MeetingStatus,
   NotificationType,
   Prisma,
+  type PermissionScope,
   UserAccountStatus,
 } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
@@ -26,6 +27,7 @@ export interface NotificationRecord {
   messageId: string | null;
   eventId: string | null;
   meetingId: string | null;
+  expenseId: string | null;
   createdAt: Date;
   readAt: Date | null;
 }
@@ -39,6 +41,7 @@ const NOTIFICATION_SELECT = {
   messageId: true,
   eventId: true,
   meetingId: true,
+  expenseId: true,
   createdAt: true,
   readAt: true,
 } as const;
@@ -54,6 +57,7 @@ export interface CreateNotificationInput {
   messageId?: string;
   eventId?: string;
   meetingId?: string;
+  expenseId?: string;
 }
 
 interface FeedCursor {
@@ -126,6 +130,7 @@ export class NotificationsRepository {
           ...(input.messageId ? { messageId: input.messageId } : {}),
           ...(input.eventId ? { eventId: input.eventId } : {}),
           ...(input.meetingId ? { meetingId: input.meetingId } : {}),
+          ...(input.expenseId ? { expenseId: input.expenseId } : {}),
         },
         select: NOTIFICATION_SELECT,
       });
@@ -344,6 +349,37 @@ export class NotificationsRepository {
   async getMessageMentionUserIds(messageId: string): Promise<string[]> {
     const rows = await this.db.messageMention.findMany({
       where: { messageId, user: { status: UserAccountStatus.ACTIVE } },
+      select: { userId: true },
+    });
+    return rows.map((row) => row.userId);
+  }
+
+  async getExpense(
+    expenseId: string,
+  ): Promise<{
+    eventId: string;
+    description: string;
+    createdById: string | null;
+  } | null> {
+    return this.db.expense.findUnique({
+      where: { id: expenseId },
+      select: { eventId: true, description: true, createdById: true },
+    });
+  }
+
+  /** Every active user holding `permissionKey` at `scope` through their role -
+   * resolved at process time (ADR 0003 §1), never a hardcoded role name, so
+   * `expense.submitted` keeps notifying whoever the catalog grants
+   * `expense.approve` to at ORGANIZATION scope (Super Admin today). */
+  async getUsersWithGrant(
+    permissionKey: string,
+    scope: PermissionScope,
+  ): Promise<string[]> {
+    const rows = await this.db.userRoleAssignment.findMany({
+      where: {
+        role: { rolePermissions: { some: { permissionKey, scope } } },
+        user: { status: UserAccountStatus.ACTIVE },
+      },
       select: { userId: true },
     });
     return rows.map((row) => row.userId);

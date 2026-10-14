@@ -19,6 +19,7 @@ function makeEvent(overrides: Partial<EventRecord> = {}): EventRecord {
     endAt: null,
     location: null,
     organizerName: null,
+    departmentId: null,
     budgetAmount: null,
     budgetCurrency: null,
     manager: null,
@@ -48,6 +49,11 @@ describe("EventsService", () => {
   let repository: {
     list: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
+    findVisibleById: ReturnType<
+      typeof vi.fn<(id: string) => Promise<EventRecord | null>>
+    >;
+    findUserDepartmentId: ReturnType<typeof vi.fn>;
+    budgetSummary: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     updateStatus: ReturnType<typeof vi.fn>;
@@ -72,12 +78,29 @@ describe("EventsService", () => {
     repository = {
       list: vi.fn().mockResolvedValue({ items: [], total: 0 }),
       findById: vi.fn().mockResolvedValue(makeEvent()),
+      // Mirrors `findById` for every test that only ever drives
+      // `findById.mockResolvedValue(...)` - visibility filtering itself is
+      // covered by the dedicated department-scoping tests below.
+      findVisibleById: vi.fn(),
+      findUserDepartmentId: vi.fn().mockResolvedValue(null),
+      budgetSummary: vi.fn().mockResolvedValue({
+        plannedAmount: null,
+        currency: null,
+        actualApproved: "0.00",
+        actualPending: "0.00",
+      }),
       create: vi.fn().mockResolvedValue(makeEvent()),
       update: vi.fn().mockResolvedValue(makeEvent()),
       updateStatus: vi.fn().mockResolvedValue(makeEvent()),
       setBudget: vi.fn().mockResolvedValue(makeEvent()),
       delete: vi.fn().mockResolvedValue("deleted"),
     };
+    function forwardToFindById(id: string): Promise<EventRecord | null> {
+      return (
+        repository.findById as (id: string) => Promise<EventRecord | null>
+      )(id);
+    }
+    repository.findVisibleById.mockImplementation(forwardToFindById);
     workspaces = {
       setManager: vi.fn().mockResolvedValue({}),
       assignTeam: vi.fn().mockResolvedValue({}),
@@ -132,19 +155,26 @@ describe("EventsService", () => {
       await expectCode(call(service), "PERMISSION_DENIED");
     });
 
-    it.each([
-      ["event.read", "DEPARTMENT"],
-      ["event.read", "SELF"],
-    ] as const)(
-      "read is denied for an %s grant at %s scope",
-      async (key, scope) => {
-        grantOnly([key, scope]);
-        await expectCode(
-          service.list(ACTOR, { page: 1, pageSize: 25 }),
-          "PERMISSION_DENIED",
-        );
-      },
-    );
+    it("read is denied for an event.read grant at SELF scope (Events never grant SELF)", async () => {
+      grantOnly(["event.read", "SELF"]);
+      await expectCode(
+        service.list(ACTOR, { page: 1, pageSize: 25 }),
+        "PERMISSION_DENIED",
+      );
+    });
+
+    it("read succeeds, department-scoped, for an event.read grant at DEPARTMENT scope (EOM-01)", async () => {
+      grantOnly(["event.read", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue("dept-1");
+      await expect(
+        service.list(ACTOR, { page: 1, pageSize: 25 }),
+      ).resolves.toBeDefined();
+      expect(repository.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visibility: { organization: false, departmentId: "dept-1" },
+        }),
+      );
+    });
 
     it("each write path checks its own key", async () => {
       const table: [string, () => Promise<unknown>][] = [
@@ -182,35 +212,89 @@ describe("EventsService", () => {
     });
   });
 
-  describe("not-found precedes authorization on :id routes", () => {
+  describe("visibility is resolved before an :id route's own lookup", () => {
+    // EOM-01: unlike the pre-retrofit behavior, visibility (and so a grant
+    // check) must be resolved before the record lookup, since the lookup
+    // itself is filtered by that visibility. An organization-scoped caller
+    // still gets a real 404 for an unknown id; a department-scoped caller
+    // gets the same denial for an absent id and an out-of-department id, so
+    // ids cannot be used to probe events outside their own department.
     it.each([
-      ["get", (s: EventsService) => s.get(ACTOR, "missing")],
-      ["update", (s: EventsService) => s.update(ACTOR, "missing", {})],
+      ["get", "event.read", (s: EventsService) => s.get(ACTOR, "missing")],
+      [
+        "update",
+        "event.update",
+        (s: EventsService) => s.update(ACTOR, "missing", {}),
+      ],
       [
         "transition",
+        "event.transition_status",
         (s: EventsService) => s.transition(ACTOR, "missing", "READY"),
       ],
       [
         "setManager",
+        "event.assign_manager",
         (s: EventsService) => s.setManager(ACTOR, "missing", null),
       ],
-      ["assignTeam", (s: EventsService) => s.assignTeam(ACTOR, "missing", "t")],
+      [
+        "assignTeam",
+        "event.assign_teams",
+        (s: EventsService) => s.assignTeam(ACTOR, "missing", "t"),
+      ],
       [
         "unassignTeam",
+        "event.assign_teams",
         (s: EventsService) => s.unassignTeam(ACTOR, "missing", "t"),
       ],
-      ["getBudget", (s: EventsService) => s.getBudget(ACTOR, "missing")],
+      [
+        "getBudget",
+        "event.budget.read",
+        (s: EventsService) => s.getBudget(ACTOR, "missing"),
+      ],
       [
         "setBudget",
+        "event.budget.update",
         (s: EventsService) =>
           s.setBudget(ACTOR, "missing", { amount: null, currency: null }),
       ],
-      ["remove", (s: EventsService) => s.remove(ACTOR, "missing")],
-    ] as const)("%s 404s before any grant check", async (_label, call) => {
+      [
+        "remove",
+        "event.delete",
+        (s: EventsService) => s.remove(ACTOR, "missing"),
+      ],
+    ] as const)(
+      "%s 404s for an organization-scoped caller on an unknown id",
+      async (_label, key, call) => {
+        repository.findById.mockResolvedValue(null);
+        grantOnly([key, "ORGANIZATION"]);
+        await expectCode(call(service), "EVENT_NOT_FOUND");
+      },
+    );
+
+    it("get is denied, not 404, for a department-scoped caller on an unknown id", async () => {
       repository.findById.mockResolvedValue(null);
-      grantOnly();
-      await expectCode(call(service), "EVENT_NOT_FOUND");
-      expect(permissions.hasGrant).not.toHaveBeenCalled();
+      grantOnly(["event.read", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue("dept-1");
+      await expectCode(service.get(ACTOR, "missing"), "PERMISSION_DENIED");
+    });
+
+    it("get is denied for a department-scoped caller on another department's event", async () => {
+      repository.findVisibleById.mockResolvedValue(null);
+      repository.findById.mockResolvedValue(
+        makeEvent({ departmentId: "dept-other" }),
+      );
+      grantOnly(["event.read", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue("dept-1");
+      await expectCode(service.get(ACTOR, "evt-1"), "PERMISSION_DENIED");
+    });
+
+    it("get succeeds for a department-scoped caller on their own department's event", async () => {
+      repository.findById.mockResolvedValue(
+        makeEvent({ departmentId: "dept-1" }),
+      );
+      grantOnly(["event.read", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue("dept-1");
+      await expect(service.get(ACTOR, "evt-1")).resolves.toBeDefined();
     });
   });
 
@@ -491,6 +575,7 @@ describe("EventsService", () => {
         [
           "createdAt",
           "createdBy",
+          "departmentId",
           "description",
           "endAt",
           "eventType",

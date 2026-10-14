@@ -90,6 +90,15 @@ export class EventResponse {
   organizerName!: string | null;
 
   @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description:
+      "The department this event belongs to (EOM-01). Null for a pre-existing, organization-only event that has not been assigned one.",
+  })
+  departmentId!: string | null;
+
+  @ApiProperty({
     type: EventPersonSummary,
     nullable: true,
     description: "The event manager, from the connected workspace.",
@@ -160,4 +169,32 @@ export class EventBudgetResponse {
     description: "ISO-4217 alphabetic code. Null when no budget is set.",
   })
   currency!: string | null;
+}
+
+/**
+ * Planned vs. actual for one event (EOM-01 budget comparison). `actualApproved`
+ * and `actualPending` are always reported separately - a pending expense is
+ * never counted as approved spending.
+ */
+export class EventBudgetSummaryResponse {
+  @ApiProperty({ type: String, nullable: true, example: "15000.00" })
+  plannedAmount!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: "USD" })
+  currency!: string | null;
+
+  @ApiProperty({
+    type: String,
+    example: "9800.00",
+    description: "Sum of APPROVED expenses' actual amounts for this event.",
+  })
+  actualApproved!: string;
+
+  @ApiProperty({
+    type: String,
+    example: "1350.00",
+    description:
+      "Sum of SUBMITTED (pending) expenses' actual amounts for this event.",
+  })
+  actualPending!: string;
 }

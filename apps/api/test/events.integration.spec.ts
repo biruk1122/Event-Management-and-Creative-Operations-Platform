@@ -58,6 +58,7 @@ interface PageBody {
 const EVENT_KEYS = [
   "createdAt",
   "createdBy",
+  "departmentId",
   "description",
   "endAt",
   "eventType",
