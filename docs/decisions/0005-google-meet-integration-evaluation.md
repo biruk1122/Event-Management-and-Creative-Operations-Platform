@@ -1,11 +1,11 @@
 # 0005 - Google Meet integration evaluation
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-10-14
 - Deciders: Product owner (policy approval); independent architecture review (no findings)
 - Linear issue: EVE-197 (OPT-03)
 - Supersedes: none
-- Superseded by: none
+- Superseded by: [0006 - Free manual Google Meet links](0006-free-manual-google-meet-links.md)
 
 ## Decision and approval boundary
 
