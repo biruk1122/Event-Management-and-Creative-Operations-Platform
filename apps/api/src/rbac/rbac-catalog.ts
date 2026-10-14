@@ -413,6 +413,14 @@ const SUPER_ADMIN_GRANTS: readonly GrantDefinition[] = PERMISSIONS.map(
 );
 
 const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
+  // EOM-01: without this, a Department Manager cannot reach the
+  // "management" dashboard audience at all (requireAudience gated it to
+  // MANAGEMENT/ORGANIZATION only), so none of the operational-monitoring
+  // cards below are reachable regardless of their own per-card scope.
+  // Each existing card's own sourceScope(...) allow-list is unaffected by
+  // this - only cards already listing "department" (or newly widened for
+  // EOM-01) become visible; every organization-only card still denies.
+  { permissionKey: "dashboard.management.read", scope: "DEPARTMENT" },
   { permissionKey: "department.read", scope: "DEPARTMENT" },
   { permissionKey: "department.manage_activities", scope: "DEPARTMENT" },
   { permissionKey: "team.read", scope: "DEPARTMENT" },

@@ -16,6 +16,7 @@ import type { UsersAnalyticsQuery } from "../users/users-analytics.query.js";
 import type { DatabaseService } from "../database/database.service.js";
 import type { AnalyticsService } from "../analytics/analytics.service.js";
 import type { EventsDashboardQuery } from "../events/events-dashboard.query.js";
+import type { ExpensesDashboardQuery } from "../expenses/expenses-dashboard.query.js";
 import type { ProjectsDashboardQuery } from "../projects/projects-dashboard.query.js";
 import type { CampaignsDashboardQuery } from "../campaigns/campaigns-dashboard.query.js";
 import type { TasksDashboardQuery } from "../tasks/tasks-dashboard.query.js";
@@ -27,11 +28,11 @@ import type { UsersDashboardQuery } from "../users/users-dashboard.query.js";
 import type { TalentDashboardQuery } from "../talent/talent-dashboard.query.js";
 const now = new Date("2026-10-06T12:00:00.000Z");
 describe("dashboard query contract", () => {
-  it("has exactly 30 unique SRS cards", () =>
-    expect(new Set([...managementCards, ...employeeCards]).size).toBe(30));
+  it("has exactly 34 unique cards (30 SRS plus 4 EOM-01 operational cards)", () =>
+    expect(new Set([...managementCards, ...employeeCards]).size).toBe(34));
   it("defaults UTC day, month, upcoming and bounded lists", () => {
     const q = dashboardQuery("management", { limit: 5 }, now);
-    expect(q.cards).toHaveLength(23);
+    expect(q.cards).toHaveLength(27);
     expect(q.day).toBe("2026-10-06");
     expect(q.today.to.toISOString()).toBe("2026-10-07T00:00:00.000Z");
     expect(q.upcoming.to.toISOString()).toBe("2026-10-13T12:00:00.000Z");
@@ -93,6 +94,24 @@ describe("dashboard query contract", () => {
       ),
     ).toThrow();
   });
+  it("admits a Department Manager to the management audience (EOM-01), but leaves each card's own scope gate unchanged", () => {
+    const departmentGrants: EffectiveGrant[] = [
+      { permissionKey: "dashboard.management.read", scope: "DEPARTMENT" },
+    ];
+    expect(() => requireAudience(departmentGrants, "management")).not.toThrow();
+    expect(() =>
+      sourceScope(
+        {
+          userId: "a",
+          grants: departmentGrants,
+          departmentId: "dept-1",
+          selfOnly: false,
+        },
+        "analytics.management.read",
+        ["organization"],
+      ),
+    ).toThrow();
+  });
 });
 describe("dashboard composition", () => {
   const setup = (extra: EffectiveGrant[] = []) => {
@@ -114,9 +133,23 @@ describe("dashboard composition", () => {
     const events = {
       counts: vi.fn().mockResolvedValue({
         scope: "organization",
-        data: { totalEvents: 2, upcomingEvents: 1 },
+        data: { totalEvents: 2, upcomingEvents: 1, completedEvents: 1 },
       }),
       list: vi.fn().mockResolvedValue({
+        scope: "organization",
+        data: { items: [], hasMore: false },
+      }),
+    };
+    const expenses = {
+      pendingApprovals: vi.fn().mockResolvedValue({
+        scope: "organization",
+        data: { items: [], hasMore: false },
+      }),
+      rejected: vi.fn().mockResolvedValue({
+        scope: "organization",
+        data: { items: [], hasMore: false },
+      }),
+      budgetSummary: vi.fn().mockResolvedValue({
         scope: "organization",
         data: { items: [], hasMore: false },
       }),
@@ -156,6 +189,7 @@ describe("dashboard composition", () => {
       db as unknown as DatabaseService,
       analytics as unknown as AnalyticsService,
       events as unknown as EventsDashboardQuery,
+      expenses as unknown as ExpensesDashboardQuery,
       projects as unknown as ProjectsDashboardQuery,
       {} as CampaignsDashboardQuery,
       tasks as unknown as TasksDashboardQuery,
@@ -171,6 +205,7 @@ describe("dashboard composition", () => {
       permissions,
       users,
       events,
+      expenses,
       tasks,
       projects,
       discuss,
@@ -328,5 +363,86 @@ describe("dashboard composition", () => {
       (r.cards.todayDeadlines?.data as { items: unknown[] }).items,
     ).toHaveLength(2);
     expect(r.cards.todayDeadlines?.sources?.tasks?.data).toBeUndefined();
+  });
+
+  describe("EOM-01 operational cards", () => {
+    it("surfaces completedEvents from the same cached events-count read", async () => {
+      const s = setup();
+      const r = await s.service.read(
+        "actor",
+        "management",
+        { limit: 5, cards: "totalEvents,completedEvents" },
+        "req",
+      );
+      expect(s.events.counts).toHaveBeenCalledTimes(1);
+      expect(r.cards.completedEvents?.data).toEqual({ count: 1 });
+    });
+
+    it("reads pendingExpenseApprovals and budgetPlannedVsApproved through ExpensesDashboardQuery", async () => {
+      const s = setup();
+      const r = await s.service.read(
+        "actor",
+        "management",
+        { limit: 5, cards: "pendingExpenseApprovals,budgetPlannedVsApproved" },
+        "req",
+      );
+      expect(s.expenses.pendingApprovals).toHaveBeenCalledTimes(1);
+      expect(s.expenses.budgetSummary).toHaveBeenCalledTimes(1);
+      expect(r.cards.pendingExpenseApprovals?.state).toBe("empty");
+      expect(r.cards.budgetPlannedVsApproved?.state).toBe("empty");
+    });
+
+    it("merges blocked/overdue tasks with rejected expenses into operationalIssues", async () => {
+      const s = setup();
+      s.tasks.list.mockResolvedValue({
+        scope: "department",
+        data: {
+          items: [
+            { id: "t1", title: "Blocked task", kind: "TASK", dueAt: null },
+          ],
+          hasMore: false,
+        },
+      });
+      s.expenses.rejected.mockResolvedValue({
+        scope: "department",
+        data: {
+          items: [
+            {
+              id: "x1",
+              title: "Catering invoice",
+              kind: "EXPENSE",
+              dueAt: "2026-10-05T00:00:00.000Z",
+            },
+          ],
+          hasMore: false,
+        },
+      });
+      const r = await s.service.read(
+        "actor",
+        "management",
+        { limit: 5, cards: "operationalIssues" },
+        "req",
+      );
+      const data = r.cards.operationalIssues?.data as {
+        items: { id: string }[];
+      };
+      expect(data.items.map((i) => i.id).sort()).toEqual(["t1", "x1"]);
+      expect(r.cards.operationalIssues?.state).toBe("ready");
+    });
+
+    it("isolates a failed expenses source and keeps the task source visible", async () => {
+      const s = setup();
+      s.expenses.rejected.mockRejectedValue(new Error("boom"));
+      const r = await s.service.read(
+        "actor",
+        "management",
+        { limit: 5, cards: "operationalIssues" },
+        "req",
+      );
+      expect(r.partial).toBe(true);
+      expect(r.cards.operationalIssues?.sources?.expenses?.state).toBe(
+        "unavailable",
+      );
+    });
   });
 });

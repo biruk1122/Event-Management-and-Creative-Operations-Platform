@@ -10,6 +10,10 @@ import type {
 export const managementCards = [
   "totalEvents",
   "upcomingEvents",
+  "completedEvents",
+  "pendingExpenseApprovals",
+  "budgetPlannedVsApproved",
+  "operationalIssues",
   "activeProjects",
   "activeCampaigns",
   "pendingTasks",
@@ -61,8 +65,12 @@ export function requireAudience(
           (audience === "management"
             ? "dashboard.management.read"
             : "dashboard.read") &&
+        // EOM-01: a Department Manager holds `dashboard.management.read` at
+        // DEPARTMENT scope so they can reach this audience's operational
+        // cards; each card's own sourceScope(...) allow-list is the real
+        // data boundary, unaffected by this gate.
         (audience === "management"
-          ? ["MANAGEMENT", "ORGANIZATION"].includes(g.scope)
+          ? ["MANAGEMENT", "ORGANIZATION", "DEPARTMENT"].includes(g.scope)
           : g.scope === "SELF"),
     )
   )
