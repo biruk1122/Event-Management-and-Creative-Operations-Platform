@@ -192,5 +192,13 @@ ALTER TABLE "expense_attachments" ADD CONSTRAINT "expense_attachments_managed_fi
 -- AddForeignKey
 ALTER TABLE "expense_attachments" ADD CONSTRAINT "expense_attachments_attached_by_id_fkey" FOREIGN KEY ("attached_by_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- RenameIndex
-ALTER INDEX "audit_records_resource_lookup_idx" RENAME TO "audit_records_resource_type_resource_id_occurred_at_idx";
+-- Deliberately omitted: `prisma migrate dev` auto-generated a stray
+-- `RenameIndex` here for `audit_records_resource_lookup_idx`, unrelated to
+-- EOM-01. It comes from a pre-existing drift between schema.prisma's
+-- unnamed AuditRecord index and its originating migration's custom index
+-- name (not introduced by this migration) - see the "Audit records index
+-- name drift" note. Leaving the rename in broke
+-- task-schema.integration.spec.ts's exact-name assertion on that index, a
+-- real regression attributable to this migration even though the
+-- underlying name drift is not; removing it keeps this migration scoped to
+-- EOM-01's own schema changes and restores the pre-existing index name.
