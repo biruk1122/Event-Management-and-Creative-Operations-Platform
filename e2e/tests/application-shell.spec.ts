@@ -53,7 +53,7 @@ for (const role of [
       if (role === "manager")
         await expect(
           primary.getByRole("link", { name: "Talent", exact: true }),
-        ).toHaveCount(0);
+        ).toBeVisible();
       await expect(
         page.getByRole("link", { name: "Account", exact: true }),
       ).toHaveCount(0);

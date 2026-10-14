@@ -10,7 +10,7 @@ import { ROLE_DEFINITIONS } from "../src/rbac/rbac-catalog.js";
 describe("department RBAC catalog migration", () => {
   let db: IsolatedDatabase;
   beforeAll(async () => {
-    db = await createIsolatedDatabase();
+    db = await createIsolatedDatabase({ preserveMigrationData: true });
   });
   afterAll(async () => {
     await db?.drop();

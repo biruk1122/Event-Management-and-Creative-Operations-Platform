@@ -261,23 +261,23 @@ test.describe("Department administration — end to end", () => {
       page,
     }) => {
       const csrf = await csrfToken(page);
-      const name = fixtureName("E2E Populated");
+      const name = "Promotion";
 
       const memberLookup = await page.request.get(
-        `${apiBaseUrl}/api/v1/users?search=${encodeURIComponent("member@e2e.test")}`,
+        `${apiBaseUrl}/api/v1/users?search=${encodeURIComponent("manager@e2e.test")}`,
       );
       const memberId = (
         (await memberLookup.json()) as {
           items: { id: string; email: string }[];
         }
-      ).items.find((user) => user.email === "member@e2e.test")!.id;
+      ).items.find((user) => user.email === "manager@e2e.test")!.id;
 
-      const create = await page.request.post(
-        `${apiBaseUrl}/api/v1/departments`,
-        { headers: { "x-csrf-token": csrf }, data: { name } },
+      const existing = await page.request.get(
+        `${apiBaseUrl}/api/v1/departments?search=${name}`,
       );
-      expect(create.status()).toBe(201);
-      const populatedId = ((await create.json()) as ApiDepartment).id;
+      const populatedId = (
+        (await existing.json()) as { items: ApiDepartment[] }
+      ).items.find((item) => item.name === name)!.id;
 
       const assign = await page.request.put(
         `${apiBaseUrl}/api/v1/departments/${populatedId}/employees/${memberId}`,
@@ -300,28 +300,21 @@ test.describe("Department administration — end to end", () => {
       );
       expect(stillThere).toHaveLength(1);
 
-      // Free the member and remove the fixture so the caption is not inflated.
+      // Clear only the temporary Super Admin membership; preserve the catalog.
       await page.request.delete(
         `${apiBaseUrl}/api/v1/departments/${populatedId}/employees/${memberId}`,
         { headers: { "x-csrf-token": csrf } },
       );
-      const cleanup = await page.request.delete(
-        `${apiBaseUrl}/api/v1/departments/${populatedId}`,
-        { headers: { "x-csrf-token": csrf } },
-      );
-      expect(cleanup.status()).toBe(204);
     });
   });
 
   test.describe("denied journey", () => {
-    // A management account that holds no `department.*` grant. `member`'s saved
-    // session is invalidated by `auth-session.spec.ts` (runs earlier), so the
-    // denied journey uses an account no other spec signs out.
-    test.use({ storageState: authStatePath("manager") });
+    // Dedicated member account is not signed out by session-lifecycle tests.
+    test.use({ storageState: authStatePath("restrictedMember") });
 
-    const manager = testUser("manager");
+    const manager = testUser("restrictedMember");
 
-    test("a management account cannot see, open, or drive department administration", async ({
+    test("a department member cannot see, open, or drive department administration", async ({
       page,
     }) => {
       // The nav entry is not offered.
@@ -382,9 +375,8 @@ test.describe("Department administration — end to end", () => {
     test("a Department Manager sees only their own department", async ({
       page,
     }) => {
-      const suffix = fixtureName("scoped");
-      const homeName = `Scoped Home ${suffix}`;
-      const otherName = `Scoped Other ${suffix}`;
+      const homeName = "Marketing";
+      const otherName = "Production";
 
       // Build the fixture as the administrator over a throwaway API context.
       const admin = await request.newContext({
@@ -408,19 +400,21 @@ test.describe("Department administration — end to end", () => {
         }
       ).items.find((user) => user.email === "dept-manager@e2e.test")!.id;
 
-      const home = await admin.post(`${apiBaseUrl}/api/v1/departments`, {
-        headers: adminHeaders,
-        data: { name: homeName },
-      });
-      expect(home.status()).toBe(201);
-      const homeId = ((await home.json()) as ApiDepartment).id;
+      const home = await admin.get(
+        `${apiBaseUrl}/api/v1/departments?search=${homeName}`,
+      );
+      expect(home.status()).toBe(200);
+      const homeId = (
+        (await home.json()) as { items: ApiDepartment[] }
+      ).items.find((item) => item.name === homeName)!.id;
 
-      const other = await admin.post(`${apiBaseUrl}/api/v1/departments`, {
-        headers: adminHeaders,
-        data: { name: otherName },
-      });
-      expect(other.status()).toBe(201);
-      const otherId = ((await other.json()) as ApiDepartment).id;
+      const other = await admin.get(
+        `${apiBaseUrl}/api/v1/departments?search=${otherName}`,
+      );
+      expect(other.status()).toBe(200);
+      const otherId = (
+        (await other.json()) as { items: ApiDepartment[] }
+      ).items.find((item) => item.name === otherName)!.id;
 
       const assign = await admin.put(
         `${apiBaseUrl}/api/v1/departments/${homeId}/employees/${managerUserId}`,

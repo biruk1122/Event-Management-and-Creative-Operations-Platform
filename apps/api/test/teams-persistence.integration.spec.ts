@@ -126,10 +126,10 @@ describe("team management persistence", () => {
     managerCookies = await loginAs("persistence-manager@team.test");
 
     const department = await prisma.department.create({
-      data: { name: "Persistence Home Department" },
+      data: { name: "Production" },
     });
     const otherDepartment = await prisma.department.create({
-      data: { name: "Persistence Other Department" },
+      data: { name: "Marketing" },
     });
     departmentId = department.id;
     otherDepartmentId = otherDepartment.id;
@@ -190,6 +190,9 @@ describe("team management persistence", () => {
       firstName: "P",
       lastName: "Erson",
       temporaryPassword: "temp-password-123",
+      roleId: (
+        await prisma.role.findUniqueOrThrow({ where: { name: "Super Admin" } })
+      ).id,
     });
     expect(response.status).toBe(201);
     return body<{ id: string }>(response).id;
@@ -499,8 +502,8 @@ describe("team management persistence", () => {
       const before = await request(http)
         .get("/api/v1/teams")
         .set("Cookie", managerCookies)
-        .expect(200);
-      expect(body<{ items: unknown[] }>(before).items).toHaveLength(0);
+        .expect(403);
+      expect(body<ProblemBody>(before).code).toBe("PERMISSION_DENIED");
 
       await db.query(`UPDATE users SET department_id = $1 WHERE id = $2`, [
         departmentId,
@@ -530,8 +533,8 @@ describe("team management persistence", () => {
       const after = await request(http)
         .get("/api/v1/teams")
         .set("Cookie", managerCookies)
-        .expect(200);
-      expect(body<{ items: unknown[] }>(after).items).toHaveLength(0);
+        .expect(403);
+      expect(body<ProblemBody>(after).code).toBe("PERMISSION_DENIED");
     });
 
     it("maps a member add for a just-deleted team as TEAM_NOT_FOUND", async () => {

@@ -110,7 +110,7 @@ describe("dashboard persistence and API verification (EVE-178 / EVE-179)", () =>
     db = new DatabaseService({ DATABASE_URL: isolated.url } as Environment);
     queries = await makeQueries();
     await isolated.query(
-      "INSERT INTO departments(id,name) VALUES ($1,'A'),($2,'B')",
+      "INSERT INTO departments(id,name) VALUES ($1,'Production'),($2,'Marketing')",
       [id(10), id(11)],
     );
     await isolated.query(
@@ -547,7 +547,7 @@ describe("dashboard persistence and API verification (EVE-178 / EVE-179)", () =>
     const passwordHash = await new PasswordHasher().hash(password);
     for (const [n, roleName] of [
       [1, "Super Admin"],
-      [2, "Team Member"],
+      [2, "Department Member"],
     ] as const) {
       const role = await db.role.findUniqueOrThrow({
         where: { name: roleName },
@@ -906,14 +906,12 @@ describe("dashboard persistence and API verification (EVE-178 / EVE-179)", () =>
       });
       try {
         const deniedReads = vi.spyOn(database, "readModel");
-        const denied = await get("management", member, {
-          cards: "totalEvents,promotionPerformance",
-        });
-        expect(denied.cards).toEqual({
-          totalEvents: { state: "denied" },
-          promotionPerformance: { state: "denied" },
-        });
-        expect(denied.partial).toBe(false);
+        await request(http)
+          .get(
+            "/api/v1/dashboards/management?cards=totalEvents,promotionPerformance",
+          )
+          .set("Cookie", member)
+          .expect(403);
         expect(deniedReads).not.toHaveBeenCalled();
         deniedReads.mockRestore();
         await db.rolePermission.create({
@@ -923,36 +921,11 @@ describe("dashboard persistence and API verification (EVE-178 / EVE-179)", () =>
             scope: "DEPARTMENT",
           },
         });
-        expect(
-          (
-            await get("management", member, {
-              cards: "departmentPerformance",
-              from: "2026-09-01",
-              toExclusive: "2026-10-01",
-            })
-          ).cards.departmentPerformance?.data,
-        ).toHaveProperty("items.0.id", id(11));
-        await db.user.update({
-          where: { id: id(2) },
-          data: { departmentId: null },
-        });
-        expect(
-          (await get("management", member, { cards: "departmentPerformance" }))
-            .cards.departmentPerformance?.data,
-        ).toHaveProperty("items", []);
-        await db.user.update({
-          where: { id: id(2) },
-          data: { departmentId: id(10) },
-        });
-        expect(
-          (
-            await get("management", member, {
-              cards: "departmentPerformance",
-              from: "2026-09-01",
-              toExclusive: "2026-10-01",
-            })
-          ).cards.departmentPerformance?.data,
-        ).toHaveProperty("items.0.id", id(10));
+        // An unsupported role cannot regain access by adding a scoped grant.
+        await request(http)
+          .get("/api/v1/dashboards/management?cards=departmentPerformance")
+          .set("Cookie", member)
+          .expect(403);
       } finally {
         await db.user.update({
           where: { id: id(2) },

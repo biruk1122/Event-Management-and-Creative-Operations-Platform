@@ -66,7 +66,9 @@ function quoteIdentifier(identifier: string): string {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
 
-export async function createIsolatedDatabase(): Promise<IsolatedDatabase> {
+export async function createIsolatedDatabase(
+  options: { preserveMigrationData?: boolean } = {},
+): Promise<IsolatedDatabase> {
   const baseUrl = process.env.DATABASE_URL;
   if (!baseUrl) {
     throw new Error("DATABASE_URL is required for database integration tests.");
@@ -99,7 +101,7 @@ export async function createIsolatedDatabase(): Promise<IsolatedDatabase> {
     }
   }
 
-  return {
+  const database: IsolatedDatabase = {
     schema,
     url,
     async query(text, values) {
@@ -140,6 +142,10 @@ export async function createIsolatedDatabase(): Promise<IsolatedDatabase> {
       await runOnce(adminUrl, `DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
     },
   };
+  // Application tests own their fixtures; migration seed data must not collide
+  // with them. Migration verification explicitly opts in to preserving it.
+  if (!options.preserveMigrationData) await database.reset();
+  return database;
 }
 
 /** PostgreSQL SQLSTATE codes asserted by the integration tests. */

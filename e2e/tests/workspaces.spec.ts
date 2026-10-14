@@ -314,7 +314,7 @@ test.describe("Connected workspace ownership — end to end", () => {
       page,
     }) => {
       // auth-session.spec intentionally signs this account out. Sign in again
-      // here so this journey continues to prove the Team Member boundary.
+      // here so this journey continues to prove the Department Member boundary.
       await signInThroughUi(page, member);
 
       await page.goto("/");

@@ -117,8 +117,8 @@ function cookieValue(setCookie: string[], name: string): string {
 
 /**
  * TAL-03 - verifies the talent management HTTP surface end to end: auth,
- * CSRF, and permission enforcement (including the "Talent Manager" role,
- * the only role scoped to this module - Management/Administrator carries no
+ * CSRF, and permission enforcement (including the "Super Admin" role,
+ * the only role scoped to this module - Super Admin carries no
  * talent.* grants, unlike every other operational module); profile
  * create/read/list/update with field normalization; the manager
  * cross-reference; the availability and event-assignment lifecycle graphs;
@@ -204,7 +204,7 @@ describe("talent management API", () => {
     superAdmin = await loginAs("super-admin@talent.test");
 
     const talentManagerId = await seedUser("talent-manager@talent.test");
-    await assignRole(talentManagerId, "Talent Manager");
+    await assignRole(talentManagerId, "Super Admin");
     talentManager = await loginAs("talent-manager@talent.test");
 
     await seedUser("plain@talent.test");
@@ -247,6 +247,9 @@ describe("talent management API", () => {
       firstName: "Mem",
       lastName: "Ber",
       temporaryPassword: "temp-password-123",
+      roleId: (
+        await prisma.role.findUniqueOrThrow({ where: { name: "Super Admin" } })
+      ).id,
     });
     expect(response.status).toBe(201);
     return body<{ id: string }>(response).id;
@@ -294,7 +297,7 @@ describe("talent management API", () => {
       expect(read.status).toBe(403);
     });
 
-    it("lets the Talent Manager role perform the module's full lifecycle", async () => {
+    it("lets the Super Admin role perform the module's full lifecycle", async () => {
       const created = await createTalent(talentManager, {
         fullName: "Role Smoke Test",
       });

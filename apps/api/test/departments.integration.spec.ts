@@ -234,6 +234,11 @@ describe("department management API", () => {
         firstName: "Morgan",
         lastName: "Lead",
         temporaryPassword: "temp-password-123",
+        roleId: (
+          await prisma.role.findUniqueOrThrow({
+            where: { name: "Super Admin" },
+          })
+        ).id,
       });
       const response = await asAdmin("post", "/api/v1/departments").send({
         name: "  Event Management  ",
@@ -384,12 +389,17 @@ describe("department management API", () => {
 
   describe("employees and deletion", () => {
     it("assigns an employee, blocks deletion, then frees and deletes", async () => {
-      const created = await createDepartment();
+      const created = await createDepartment({ name: "Promotion" });
       const employee = await asAdmin("post", "/api/v1/users").send({
         email: `emp-${Math.random().toString(36).slice(2)}@dep.test`,
         firstName: "Ed",
         lastName: "Employee",
         temporaryPassword: "temp-password-123",
+        roleId: (
+          await prisma.role.findUniqueOrThrow({
+            where: { name: "Super Admin" },
+          })
+        ).id,
       });
       const employeeId = body<{ id: string }>(employee).id;
 
@@ -443,7 +453,7 @@ describe("department management API", () => {
 
   describe("scoped visibility", () => {
     it("limits a Department Manager to their own department", async () => {
-      const own = await createDepartment({ name: "Manager Home Dept" });
+      const own = await createDepartment({ name: "Marketing" });
       const other = await createDepartment({ name: "Someone Elses Dept" });
       await prisma.user.update({
         where: { id: deptManagerId },
@@ -470,7 +480,7 @@ describe("department management API", () => {
       expect(body<ProblemBody>(otherGet).code).toBe("PERMISSION_DENIED");
     });
 
-    it("returns an empty page for a Department Manager with no department", async () => {
+    it("denies a Department Manager with no department", async () => {
       await prisma.user.update({
         where: { id: deptManagerId },
         data: { departmentId: null },
@@ -478,8 +488,8 @@ describe("department management API", () => {
       const list = await request(http)
         .get("/api/v1/departments")
         .set("Cookie", deptManager.cookies);
-      expect(list.status).toBe(200);
-      expect(body<PageBody>(list).items).toHaveLength(0);
+      expect(list.status).toBe(403);
+      expect(body<ProblemBody>(list).code).toBe("PERMISSION_DENIED");
     });
   });
 
@@ -522,7 +532,7 @@ describe("department management API", () => {
   describe("granular authorization", () => {
     let readerCookies: string[];
 
-    it("allows a reader with only department.read to list but not create", async () => {
+    it("rejects an unsupported role even with department.read grants", async () => {
       const role = await prisma.role.create({
         data: { name: `Dept Reader ${Math.random().toString(36).slice(2)}` },
       });
@@ -552,7 +562,7 @@ describe("department management API", () => {
             .get("/api/v1/departments")
             .set("Cookie", readerCookies)
         ).status,
-      ).toBe(200);
+      ).toBe(403);
 
       const csrf = cookieValue(readerCookies, "csrf_token");
       const create = await request(http)
@@ -591,7 +601,9 @@ describe("department management API", () => {
     });
 
     it("404s employee assignment for an unknown department or user", async () => {
-      const created = await createDepartment();
+      const created = await createDepartment({
+        name: "Manager / Event & Office Manager",
+      });
       const unknownDept = await asAdmin(
         "put",
         `/api/v1/departments/${UUID}/employees/${plainUserId}`,

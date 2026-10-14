@@ -87,10 +87,10 @@ describe("report API", () => {
     http = app.getHttpServer();
 
     const department = await prisma.department.create({
-      data: { name: "Reporting" },
+      data: { name: "Production" },
     });
     const other = await prisma.department.create({
-      data: { name: "Other Reporting" },
+      data: { name: "Marketing" },
     });
     departmentId = department.id;
     async function principal(
@@ -127,18 +127,15 @@ describe("report API", () => {
       department.id,
     );
     admin = await principal("admin@reports.test", "Super Admin");
-    reviewer = await principal(
-      "reviewer@reports.test",
-      "Management/Administrator",
-    );
+    reviewer = await principal("reviewer@reports.test", "Super Admin");
     member = await principal(
       "member@reports.test",
-      "Team Member",
+      "Department Member",
       department.id,
     );
     outsider = await principal(
       "outsider@reports.test",
-      "Team Member",
+      "Department Member",
       other.id,
     );
   });

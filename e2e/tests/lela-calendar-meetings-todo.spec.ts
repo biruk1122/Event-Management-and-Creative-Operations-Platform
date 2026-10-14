@@ -1,3 +1,4 @@
+import { departmentIdFor } from "../fixtures/test-data.js";
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 
@@ -23,7 +24,7 @@ async function roleIdByName(page: Page, name: string): Promise<string> {
   return role!.id;
 }
 
-/** A disposable "Team Member" account, created through the real API. Owner-
+/** A disposable "Department Member" account, created through the real API. Owner-
  * scoped calendar entries and to-dos must not be created under the shared
  * `superAdmin` fixture - that account's personal to-do/calendar records are
  * also read by other specs (e.g. todo.spec.ts's own "Completed" view), and a
@@ -36,7 +37,7 @@ async function createDisposableUser(
   label: string,
 ): Promise<{ email: string; id: string; firstName: string; lastName: string }> {
   const suffix = randomUUID().slice(0, 8);
-  const roleId = await roleIdByName(page, "Team Member");
+  const roleId = await roleIdByName(page, "Department Member");
   const firstName = "UI10";
   const lastName = `${label} ${suffix}`;
   const email = `ui10-${label}-${suffix}@e2e.test`;
@@ -48,6 +49,7 @@ async function createDisposableUser(
       lastName,
       temporaryPassword: TEST_USER_PASSWORD,
       roleId,
+      departmentId: await departmentIdFor(page.request),
     },
   });
   expect(created.status()).toBe(201);
@@ -191,7 +193,7 @@ test.describe("Lela calendar, meetings and to-do presentation", () => {
         key: "ui10-owner",
         email: owner.email,
         password: TEST_USER_PASSWORD,
-        role: "Team Member",
+        role: "Department Member",
         firstName: owner.firstName,
         lastName: owner.lastName,
       });

@@ -46,6 +46,8 @@ describe("user and profile administration persistence", () => {
   let adminCookies: string[];
   let adminCsrf: string;
   let superAdminRoleId: string;
+  let memberRoleId: string;
+  let departmentId: string;
 
   beforeAll(async () => {
     db = await createIsolatedDatabase();
@@ -64,6 +66,14 @@ describe("user and profile administration persistence", () => {
       ),
     });
     await seedRbac(prisma);
+    memberRoleId = (
+      await prisma.role.findUniqueOrThrow({
+        where: { name: "Department Member" },
+      })
+    ).id;
+    departmentId = (
+      await prisma.department.create({ data: { name: "Production" } })
+    ).id;
 
     const [{ Test }, appModule, appSetup, hasherModule] = await Promise.all([
       import("@nestjs/testing"),
@@ -132,7 +142,8 @@ describe("user and profile administration persistence", () => {
       firstName: "P",
       lastName: "Erson",
       temporaryPassword: "temp-password-123",
-      ...(roleId ? { roleId } : {}),
+      roleId: roleId ?? memberRoleId,
+      departmentId,
     });
     expect(response.status).toBe(201);
     return body<{ id: string }>(response).id;
@@ -170,9 +181,11 @@ describe("user and profile administration persistence", () => {
       const role = await prisma.role.create({
         data: { name: `Persistence In-Use Role ${(counter += 1)}` },
       });
-      await put(`/api/v1/users/${await createUser()}/role`)
-        .send({ roleId: role.id })
-        .expect(200);
+      // The API rejects unsupported roles; exercise the underlying FK directly.
+      await prisma.userRoleAssignment.update({
+        where: { userId: await createUser() },
+        data: { roleId: role.id },
+      });
 
       await expect(
         db.query(`DELETE FROM roles WHERE id = $1`, [role.id]),
@@ -249,7 +262,8 @@ describe("user and profile administration persistence", () => {
         firstName: "Round",
         lastName: "Trip",
         temporaryPassword: "temp-password-123",
-        roleId: superAdminRoleId,
+        roleId: memberRoleId,
+        departmentId,
       });
       expect(created.status).toBe(201);
       const id = body<{ id: string }>(created).id;
@@ -260,13 +274,13 @@ describe("user and profile administration persistence", () => {
       const cookies = setCookies(login);
 
       expect(
-        (await request(http).get("/api/v1/users").set("Cookie", cookies))
+        (await request(http).get("/api/v1/auth/me").set("Cookie", cookies))
           .status,
       ).toBe(200);
 
       await post(`/api/v1/users/${id}/deactivate`).expect(200);
       expect(
-        (await request(http).get("/api/v1/users").set("Cookie", cookies))
+        (await request(http).get("/api/v1/auth/me").set("Cookie", cookies))
           .status,
       ).toBe(401);
 
@@ -274,7 +288,7 @@ describe("user and profile administration persistence", () => {
       // so the original cookies authenticate again with no re-login.
       await post(`/api/v1/users/${id}/reactivate`).expect(200);
       expect(
-        (await request(http).get("/api/v1/users").set("Cookie", cookies))
+        (await request(http).get("/api/v1/auth/me").set("Cookie", cookies))
           .status,
       ).toBe(200);
     });
@@ -286,6 +300,8 @@ describe("user and profile administration persistence", () => {
         firstName: "Gains",
         lastName: "Access",
         temporaryPassword: "temp-password-123",
+        roleId: memberRoleId,
+        departmentId,
       });
       const id = body<{ id: string }>(created).id;
       const cookies = setCookies(

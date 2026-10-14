@@ -364,14 +364,12 @@ test.describe("Team administration — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    // A management account that holds no `team.*` read/write grant. `member`'s
-    // saved session is invalidated by `auth-session.spec.ts` (runs earlier),
-    // so the denied journey uses an account no other spec signs out.
-    test.use({ storageState: authStatePath("manager") });
+    // Dedicated member account is not signed out by session-lifecycle tests.
+    test.use({ storageState: authStatePath("restrictedMember") });
 
-    const manager = testUser("manager");
+    const manager = testUser("restrictedMember");
 
-    test("a management account cannot see, open, or drive team administration", async ({
+    test("a department member cannot see, open, or drive team administration", async ({
       page,
     }) => {
       await page.goto("/");
@@ -427,8 +425,8 @@ test.describe("Team administration — end to end", () => {
       page,
     }) => {
       const suffix = fixtureName("scoped");
-      const homeDeptName = `Scoped Team Home ${suffix}`;
-      const otherDeptName = `Scoped Team Other ${suffix}`;
+      const homeDeptName = "Marketing";
+      const otherDeptName = "Production";
       const homeTeamName = `Scoped Home Team ${suffix}`;
       const otherTeamName = `Scoped Other Team ${suffix}`;
 
@@ -453,19 +451,21 @@ test.describe("Team administration — end to end", () => {
         }
       ).items.find((user) => user.email === "dept-manager@e2e.test")!.id;
 
-      const homeDept = await admin.post(`${apiBaseUrl}/api/v1/departments`, {
-        headers: adminHeaders,
-        data: { name: homeDeptName },
-      });
-      expect(homeDept.status()).toBe(201);
-      const homeDeptId = ((await homeDept.json()) as { id: string }).id;
+      const homeDept = await admin.get(
+        `${apiBaseUrl}/api/v1/departments?search=${homeDeptName}`,
+      );
+      expect(homeDept.status()).toBe(200);
+      const homeDeptId = (
+        (await homeDept.json()) as { items: { id: string; name: string }[] }
+      ).items.find((item) => item.name === homeDeptName)!.id;
 
-      const otherDept = await admin.post(`${apiBaseUrl}/api/v1/departments`, {
-        headers: adminHeaders,
-        data: { name: otherDeptName },
-      });
-      expect(otherDept.status()).toBe(201);
-      const otherDeptId = ((await otherDept.json()) as { id: string }).id;
+      const otherDept = await admin.get(
+        `${apiBaseUrl}/api/v1/departments?search=${otherDeptName}`,
+      );
+      expect(otherDept.status()).toBe(200);
+      const otherDeptId = (
+        (await otherDept.json()) as { items: { id: string; name: string }[] }
+      ).items.find((item) => item.name === otherDeptName)!.id;
 
       const assign = await admin.put(
         `${apiBaseUrl}/api/v1/departments/${homeDeptId}/employees/${managerUserId}`,

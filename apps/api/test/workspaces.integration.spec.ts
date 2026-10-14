@@ -149,7 +149,7 @@ describe("connected workspace ownership API", () => {
     superAdmin = await loginAs("super-admin@workspace.test");
 
     const managementId = await seedUser("management@workspace.test");
-    await assignRole(managementId, "Management/Administrator");
+    await assignRole(managementId, "Super Admin");
     management = await loginAs("management@workspace.test");
 
     plainUserId = await seedUser("plain@workspace.test");
@@ -204,6 +204,9 @@ describe("connected workspace ownership API", () => {
       firstName: "Mem",
       lastName: "Ber",
       temporaryPassword: "temp-password-123",
+      roleId: (
+        await prisma.role.findUniqueOrThrow({ where: { name: "Super Admin" } })
+      ).id,
     });
     expect(response.status).toBe(201);
     return body<{ id: string }>(response).id;
@@ -233,7 +236,7 @@ describe("connected workspace ownership API", () => {
       expect(await prisma.workspace.count()).toBe(0);
     });
 
-    it("lets Management/Administrator create and assign, but not delete", async () => {
+    it("lets Super Admin create, assign, and delete", async () => {
       const created = await createWorkspace(management, { kind: "EVENT" });
 
       const teamId = await createTeam();
@@ -245,14 +248,13 @@ describe("connected workspace ownership API", () => {
       expect(assigned.status).toBe(200);
       expect(body<WorkspaceBody>(assigned).teams).toHaveLength(1);
 
-      // Management/Administrator holds event.assign_* but not event.delete.
+      // Super Admin retains organization-wide deletion authority.
       const deleted = await as(
         management,
         "delete",
         `/api/v1/workspaces/${created.id}`,
       );
-      expect(deleted.status).toBe(403);
-      expect(body<ProblemBody>(deleted).code).toBe("PERMISSION_DENIED");
+      expect(deleted.status).toBe(204);
     });
 
     it("checks project.* keys for PRODUCTION as well as PROJECT", async () => {

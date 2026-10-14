@@ -1,3 +1,4 @@
+import { departmentIdFor } from "../fixtures/test-data.js";
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 
@@ -46,7 +47,7 @@ async function csrfToken(page: Page): Promise<string> {
 
 async function createReportUser(
   admin: Page,
-  roleName: "Team Member" | "Super Admin" = "Team Member",
+  roleName: "Department Member" | "Super Admin" = "Department Member",
 ) {
   const suffix = randomUUID().slice(0, 8);
   const email = `report-${suffix}@e2e.test`;
@@ -63,6 +64,7 @@ async function createReportUser(
       lastName: suffix,
       temporaryPassword: TEST_USER_PASSWORD,
       roleId,
+      departmentId: await departmentIdFor(admin.request),
     },
   });
   expect(response.status()).toBe(201);

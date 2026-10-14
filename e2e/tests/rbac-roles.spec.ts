@@ -40,12 +40,12 @@ test.describe("RBAC — configurable roles and permissions", () => {
       await navLink.click();
       await expect(page).toHaveURL("/settings/roles");
 
-      // The management surface renders from real API data (the five seeded roles).
+      // The management surface renders the three supported system roles.
       await expect(
         page.getByRole("heading", { level: 1, name: "Roles and permissions" }),
       ).toBeVisible();
       await expect(page.getByLabel("Search roles")).toBeVisible();
-      await expect(page.getByText("5 roles")).toBeVisible();
+      await expect(page.getByText("3 roles")).toBeVisible();
       await expectNoWcag22AaViolations(page, "roles list");
 
       // Create a role through the dialog.

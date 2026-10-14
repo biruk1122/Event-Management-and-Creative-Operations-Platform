@@ -47,7 +47,7 @@ test.describe("User administration — end to end", () => {
       password: "e2e-Passw0rd!",
       phone: "+1 (555) 987-6543",
       profileImage: "avatars/usr06.png",
-      role: "Team Member",
+      role: "Department Manager",
     };
 
     test("creates, edits, assigns a role, deactivates, reloads, and reactivates a user", async ({
@@ -95,6 +95,18 @@ test.describe("User administration — end to end", () => {
       await createDialog
         .getByLabel("Temporary password")
         .fill(NEW_USER.password);
+      await createDialog
+        .getByRole("combobox", { name: "Role", exact: true })
+        .click();
+      await page
+        .getByRole("option", { name: "Department Member", exact: true })
+        .click();
+      await createDialog
+        .getByRole("combobox", { name: "Department", exact: true })
+        .click();
+      await page
+        .getByRole("option", { name: "Production", exact: true })
+        .click();
       await createDialog.getByRole("button", { name: "Create user" }).click();
 
       // Wait for the write's authoritative result before checking the
@@ -144,7 +156,7 @@ test.describe("User administration — end to end", () => {
       expect(created).toMatchObject({
         status: "ACTIVE",
         mustChangePassword: true,
-        role: null,
+        role: { name: "Department Member" },
       });
 
       // The credential the operator set is flagged for rotation in the database.
@@ -301,14 +313,12 @@ test.describe("User administration — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    // A management account that holds no `user.*` grant. `member`'s saved
-    // session is invalidated by `auth-session.spec.ts` (runs earlier), so the
-    // denied journey uses an account no other spec signs out.
-    test.use({ storageState: authStatePath("manager") });
+    // Dedicated member account is not signed out by session-lifecycle tests.
+    test.use({ storageState: authStatePath("restrictedMember") });
 
-    const manager = testUser("manager");
+    const manager = testUser("restrictedMember");
 
-    test("a management account cannot see, open, or drive user administration", async ({
+    test("a department member cannot see, open, or drive user administration", async ({
       page,
     }) => {
       // The nav entry is not offered.

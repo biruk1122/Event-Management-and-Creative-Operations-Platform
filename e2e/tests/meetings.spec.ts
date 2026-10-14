@@ -1,3 +1,4 @@
+import { departmentIdFor } from "../fixtures/test-data.js";
 import { randomUUID } from "node:crypto";
 
 import { expect, test, type Page } from "@playwright/test";
@@ -25,9 +26,9 @@ async function teamMemberRoleId(page: Page): Promise<string> {
   const roles = await page.request.get(`${apiBaseUrl}/api/v1/roles`);
   expect(roles.ok()).toBe(true);
   const role = ((await roles.json()) as { id: string; name: string }[]).find(
-    (candidate) => candidate.name === "Team Member",
+    (candidate) => candidate.name === "Department Member",
   );
-  expect(role, "Team Member role should exist").toBeTruthy();
+  expect(role, "Department Member role should exist").toBeTruthy();
   return role!.id;
 }
 
@@ -41,6 +42,7 @@ async function createTeamMember(page: Page, suffix: string) {
       lastName: suffix,
       temporaryPassword: TEST_USER_PASSWORD,
       roleId: await teamMemberRoleId(page),
+      departmentId: await departmentIdFor(page.request),
     },
   });
   expect(user.status()).toBe(201);
@@ -89,7 +91,7 @@ test.describe("Meeting participant responses — end to end", () => {
         key: `meeting-${suffix}`,
         email: participant.email,
         password: TEST_USER_PASSWORD,
-        role: "Team Member",
+        role: "Department Member",
         firstName: "Meeting",
         lastName: suffix,
       });
@@ -183,7 +185,7 @@ test.describe("Meeting participant responses — end to end", () => {
         key: `meeting-recovery-${suffix}`,
         email: participant.email,
         password: TEST_USER_PASSWORD,
-        role: "Team Member",
+        role: "Department Member",
         firstName: "Meeting",
         lastName: `recovery-${suffix}`,
       });
@@ -216,7 +218,7 @@ test.describe("Meeting participant responses — end to end", () => {
         key: `meeting-recovery-${suffix}`,
         email: participant.email,
         password: TEST_USER_PASSWORD,
-        role: "Team Member",
+        role: "Department Member",
         firstName: "Meeting",
         lastName: `recovery-${suffix}`,
       });

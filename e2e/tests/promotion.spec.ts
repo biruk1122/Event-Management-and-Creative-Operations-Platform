@@ -193,10 +193,10 @@ test.describe("Promotion operations — real-service workflow", () => {
     });
   });
 
-  test.describe("Management/Administrator permission boundary", () => {
-    test.use({ storageState: authStatePath("manager") });
+  test.describe("Department Manager permission boundary", () => {
+    test.use({ storageState: authStatePath("deptManager") });
 
-    test("can manage a channel but cannot assign talent without talent.assign", async ({
+    test("cannot modify organization-scoped promotion or assign talent", async ({
       page,
     }) => {
       test.setTimeout(60_000);
@@ -206,15 +206,14 @@ test.describe("Promotion operations — real-service workflow", () => {
       const fixture = await seedPromotion(admin);
       await admin.dispose();
 
-      const dialog = await openPromotion(page, fixture.campaignName);
-      await dialog
-        .getByRole("button", { name: new RegExp(fixture.activityName) })
-        .click();
-      await dialog.getByRole("button", { name: "Add channel" }).click();
-      await expect(dialog.getByText("Promotion channel added.")).toBeAttached();
-      await expect(dialog.getByRole("button", { name: "Assign" })).toHaveCount(
-        0,
+      const channel = await page.request.post(
+        `${apiBaseUrl}/api/v1/promotion/campaigns/${fixture.campaignId}/activities/${fixture.activityId}`,
+        {
+          headers: { "x-csrf-token": await csrfToken(page.request) },
+          data: { channel: "ADVERTISING" },
+        },
       );
+      expect(channel.status()).toBe(403);
 
       const blocked = await page.request.post(
         `${apiBaseUrl}/api/v1/promotion/campaigns/${fixture.campaignId}/activities/${fixture.activityId}/talents`,

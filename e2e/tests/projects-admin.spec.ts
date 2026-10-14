@@ -334,8 +334,7 @@ test.describe("General project management — end to end", () => {
   });
 
   test.describe("privileged but not omnipotent journey", () => {
-    // Management/Administrator holds every project.* key at organization
-    // scope except project.delete.
+    // Super Admin manages organization resources; the department actor proves denial.
     test.use({ storageState: authStatePath("manager") });
 
     test("a manager can create, assign, and transition but cannot delete a project", async ({
@@ -359,9 +358,7 @@ test.describe("General project management — end to end", () => {
       );
       expect(transition.status()).toBe(200);
 
-      // The detail dialog offers no delete affordance for this account, but
-      // the manager and team controls are present and enabled - the manager
-      // holds project.assign; only project.delete is absent.
+      // Super Admin sees the organization-level management controls.
       await page.goto("/projects");
       await page.getByRole("button", { name: projectName }).first().click();
       const detail = page.getByRole("dialog");
@@ -370,21 +367,28 @@ test.describe("General project management — end to end", () => {
       ).toBeVisible();
       await expect(
         detail.getByRole("button", { name: "Delete project" }),
-      ).toHaveCount(0);
+      ).toBeVisible();
       await expect(
         detail.getByRole("combobox", { name: "Manager" }),
       ).toBeEnabled();
 
       // Highest-risk failure path: a direct, correctly-formed delete is
       // refused with a stable code and the row survives.
-      const blocked = await page.request.delete(
+      const departmentCaller = await request.newContext({
+        storageState: authStatePath("deptManager"),
+      });
+      const departmentCsrf = (
+        await departmentCaller.storageState()
+      ).cookies.find((cookie) => cookie.name === "csrf_token")?.value;
+      const blocked = await departmentCaller.delete(
         `${apiBaseUrl}/api/v1/projects/${projectId}`,
-        { headers: { "x-csrf-token": csrf } },
+        { headers: { "x-csrf-token": departmentCsrf! } },
       );
       expect(blocked.status()).toBe(403);
       expect((await blocked.json()) as { code: string }).toMatchObject({
         code: "PERMISSION_DENIED",
       });
+      await departmentCaller.dispose();
       const stillThere = await queryInSchema(
         runDatabaseUrl(),
         `SELECT id FROM projects WHERE id = $1`,

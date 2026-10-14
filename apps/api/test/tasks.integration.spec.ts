@@ -159,10 +159,10 @@ describe("task assignment and collaboration API", () => {
     http = app.getHttpServer();
 
     const department = await prisma.department.create({
-      data: { name: "Task Production" },
+      data: { name: "Production" },
     });
     const otherDepartment = await prisma.department.create({
-      data: { name: "Task Marketing" },
+      data: { name: "Marketing" },
     });
     const workspace = await prisma.workspace.create({
       data: { kind: "EVENT" },
@@ -170,10 +170,7 @@ describe("task assignment and collaboration API", () => {
     departmentId = department.id;
     workspaceId = workspace.id;
 
-    management = await createPrincipal(
-      "management@tasks.test",
-      "Management/Administrator",
-    );
+    management = await createPrincipal("management@tasks.test", "Super Admin");
     departmentManager = await createPrincipal(
       "department-manager@tasks.test",
       "Department Manager",
@@ -186,12 +183,12 @@ describe("task assignment and collaboration API", () => {
     );
     member = await createPrincipal(
       "member@tasks.test",
-      "Team Member",
+      "Department Member",
       department.id,
     );
     secondMember = await createPrincipal(
       "second-member@tasks.test",
-      "Team Member",
+      "Department Member",
       department.id,
     );
   });

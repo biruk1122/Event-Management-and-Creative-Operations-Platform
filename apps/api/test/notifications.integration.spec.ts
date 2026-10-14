@@ -151,7 +151,7 @@ describe("notifications API and delivery pipeline", () => {
     http = app.getHttpServer();
 
     const department = await prisma.department.create({
-      data: { name: "Notifications Production" },
+      data: { name: "Production" },
     });
     const workspace = await prisma.workspace.create({
       data: { kind: "EVENT" },
@@ -161,7 +161,7 @@ describe("notifications API and delivery pipeline", () => {
 
     management = await createPrincipal(
       "management@notifications.test",
-      "Management/Administrator",
+      "Super Admin",
     );
     departmentManager = await createPrincipal(
       "department-manager@notifications.test",
@@ -170,12 +170,12 @@ describe("notifications API and delivery pipeline", () => {
     );
     member = await createPrincipal(
       "member@notifications.test",
-      "Team Member",
+      "Department Member",
       department.id,
     );
     secondMember = await createPrincipal(
       "second-member@notifications.test",
-      "Team Member",
+      "Department Member",
       department.id,
     );
   });

@@ -1,3 +1,4 @@
+import { departmentIdFor } from "../fixtures/test-data.js";
 import { randomUUID } from "node:crypto";
 
 import { expect, test, type Page } from "@playwright/test";
@@ -23,7 +24,7 @@ async function csrfToken(page: Page): Promise<string> {
 }
 
 /** `POST /api/v1/users` grants baseline-only access unless a `roleId` is
- * given explicitly - so a disposable "Team Member" account needs this
+ * given explicitly - so a disposable "Department Member" account needs this
  * looked up and passed at creation time. */
 async function roleIdByName(
   requester: Pick<Page, "request">,
@@ -42,7 +43,7 @@ interface DisposableAssignee {
   name: string;
 }
 
-/** Creates a disposable "Team Member" account and a workspace-scoped task,
+/** Creates a disposable "Department Member" account and a workspace-scoped task,
  * both through the real API - matching tasks-collaboration.spec.ts's own
  * convention - so this spec starts from a clean, unrelated notification
  * recipient rather than the shared `member` fixture (already signed out
@@ -55,7 +56,7 @@ async function createAssignee(
   const suffix = randomUUID().slice(0, 8);
   const email = `notif-${label}-${suffix}@e2e.test`;
   const name = `Notif ${label} ${suffix}`;
-  const teamMemberRoleId = await roleIdByName(page, "Team Member");
+  const teamMemberRoleId = await roleIdByName(page, "Department Member");
   const created = await page.request.post(`${apiBaseUrl}/api/v1/users`, {
     headers: { "x-csrf-token": csrf },
     data: {
@@ -64,6 +65,7 @@ async function createAssignee(
       lastName: `${label} ${suffix}`,
       temporaryPassword: TEST_USER_PASSWORD,
       roleId: teamMemberRoleId,
+      departmentId: await departmentIdFor(page.request),
     },
   });
   expect(created.status()).toBe(201);
@@ -186,7 +188,7 @@ test.describe("In-app notifications — end to end", () => {
           key: "notif-recipient",
           email: assignee.email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Notif",
           lastName: "Recipient",
         });
@@ -305,7 +307,7 @@ test.describe("In-app notifications — end to end", () => {
           key: "notif-isolation-a",
           email: assigneeA.email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Notif",
           lastName: "Isolation A",
         });
@@ -313,7 +315,7 @@ test.describe("In-app notifications — end to end", () => {
           key: "notif-isolation-b",
           email: assigneeB.email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Notif",
           lastName: "Isolation B",
         });
@@ -357,7 +359,7 @@ test.describe("In-app notifications — end to end", () => {
       const csrf = await csrfToken(page);
       const suffix = randomUUID().slice(0, 8);
       const email = `notif-denied-${suffix}@e2e.test`;
-      const teamMemberRoleId = await roleIdByName(page, "Team Member");
+      const teamMemberRoleId = await roleIdByName(page, "Department Member");
       const created = await page.request.post(`${apiBaseUrl}/api/v1/users`, {
         headers: { "x-csrf-token": csrf },
         data: {
@@ -366,6 +368,7 @@ test.describe("In-app notifications — end to end", () => {
           lastName: `Denied ${suffix}`,
           temporaryPassword: TEST_USER_PASSWORD,
           roleId: teamMemberRoleId,
+          departmentId: await departmentIdFor(page.request),
         },
       });
       expect(created.status()).toBe(201);
@@ -376,7 +379,7 @@ test.describe("In-app notifications — end to end", () => {
           key: "notif-denied",
           email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Notif",
           lastName: `Denied ${suffix}`,
         });
@@ -426,7 +429,7 @@ test.describe("In-app notifications — end to end", () => {
           key: "notif-denied",
           email,
           password: TEST_USER_PASSWORD,
-          role: "Team Member",
+          role: "Department Member",
           firstName: "Notif",
           lastName: `Denied ${suffix}`,
         });
