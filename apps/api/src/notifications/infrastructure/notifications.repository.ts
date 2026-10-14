@@ -354,9 +354,7 @@ export class NotificationsRepository {
     return rows.map((row) => row.userId);
   }
 
-  async getExpense(
-    expenseId: string,
-  ): Promise<{
+  async getExpense(expenseId: string): Promise<{
     eventId: string;
     description: string;
     createdById: string | null;
