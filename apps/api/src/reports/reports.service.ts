@@ -9,6 +9,8 @@ import {
   type ReportType,
 } from "../generated/prisma/client.js";
 import { WorkspacesService } from "../workspaces/workspaces.service.js";
+import { EventsReportFactsQuery } from "../events/events-report-facts.query.js";
+import { ExpensesReportFactsQuery } from "../expenses/expenses-report-facts.query.js";
 import { ProjectsReportFactsQuery } from "../projects/projects-report-facts.query.js";
 import { TasksReportFactsQuery } from "../tasks/tasks-report-facts.query.js";
 import type {
@@ -65,6 +67,8 @@ function toResponse(report: ReportRecord): ReportResponse {
     nextWeekPlan: report.nextWeekPlan,
     departmentPerformance: report.departmentPerformance,
     employeePerformance: report.employeePerformance,
+    lessonsLearned: report.lessonsLearned,
+    recommendations: report.recommendations,
     submittedAt: report.submittedAt?.toISOString() ?? null,
     reviewedAt: report.reviewedAt?.toISOString() ?? null,
     reviewerId: report.reviewerId,
@@ -101,6 +105,8 @@ export class ReportsService {
     private readonly audit: AuditWriterService,
     private readonly taskFacts: TasksReportFactsQuery,
     private readonly projectFacts: ProjectsReportFactsQuery,
+    private readonly eventFacts: EventsReportFactsQuery,
+    private readonly expenseFacts: ExpensesReportFactsQuery,
   ) {}
 
   private async visibility(
@@ -261,7 +267,14 @@ export class ReportsService {
     const report = await this.load(userId, id, "report.read");
     const asOf = new Date();
     const endExclusive = new Date(report.periodEnd.getTime() + 86_400_000);
-    const [tasks, projects] = await Promise.all([
+    // A post-event report's event is the workspace it links, resolved
+    // live through the existing ReportWorkspace join - never a stored
+    // snapshot (EOM-01).
+    const eventWorkspaceId =
+      report.type === "POST_EVENT"
+        ? (report.workspaces[0]?.workspaceId ?? null)
+        : null;
+    const [tasks, projects, event, expense] = await Promise.all([
       this.taskFacts.forAuthor(
         report.authorId,
         report.periodStart,
@@ -270,6 +283,12 @@ export class ReportsService {
       ),
       report.type === "MONTHLY"
         ? this.projectFacts.forAuthor(report.authorId)
+        : Promise.resolve(null),
+      eventWorkspaceId
+        ? this.eventFacts.forWorkspace(eventWorkspaceId)
+        : Promise.resolve(null),
+      eventWorkspaceId
+        ? this.expenseFacts.forWorkspace(eventWorkspaceId)
         : Promise.resolve(null),
     ]);
     return {
@@ -283,6 +302,13 @@ export class ReportsService {
         totalProjectsNow: projects?.totalNow ?? null,
         completedProjectsNow: projects?.completedNow ?? null,
         activeProjectsNow: projects?.activeNow ?? null,
+        eventTotalTasksNow: event?.totalTasksNow ?? null,
+        eventCompletedTasksNow: event?.completedTasksNow ?? null,
+        eventIncompleteTasksNow: event?.incompleteTasksNow ?? null,
+        eventPlannedAmount: expense?.plannedAmount ?? null,
+        eventBudgetCurrency: expense?.currency ?? null,
+        eventActualApproved: expense?.actualApproved ?? null,
+        eventActualPending: expense?.actualPending ?? null,
       },
     };
   }

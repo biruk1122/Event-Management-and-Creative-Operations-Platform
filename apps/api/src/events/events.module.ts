@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { EventsDashboardQuery } from "./events-dashboard.query.js";
 import { EventsAnalyticsQuery } from "./events-analytics.query.js";
+import { EventsReportFactsQuery } from "./events-report-facts.query.js";
 
 import { AuthModule } from "../auth/auth.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
@@ -16,6 +17,7 @@ import { EventsRepository } from "./infrastructure/events.repository.js";
     EventsDashboardQuery,
     EventsRepository,
     EventsAnalyticsQuery,
+    EventsReportFactsQuery,
     EventsService,
   ],
   providers: [
@@ -23,6 +25,7 @@ import { EventsRepository } from "./infrastructure/events.repository.js";
     EventsService,
     EventsRepository,
     EventsAnalyticsQuery,
+    EventsReportFactsQuery,
   ],
 })
 export class EventsModule {}

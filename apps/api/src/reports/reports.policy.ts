@@ -36,7 +36,12 @@ const APPLICABLE: Record<ReportType, readonly SectionKey[]> = {
   // Budget figures and completed/incomplete task counts are live-computed at
   // read time (EventsReportFactsQuery/ExpensesReportFactsQuery), not stored
   // narrative input, so they are not section keys here.
-  POST_EVENT: ["majorAchievements", "challenges", "lessonsLearned", "recommendations"],
+  POST_EVENT: [
+    "majorAchievements",
+    "challenges",
+    "lessonsLearned",
+    "recommendations",
+  ],
 };
 
 export function parsePeriod(type: ReportType, start: string, end: string) {

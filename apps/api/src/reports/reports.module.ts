@@ -3,6 +3,8 @@ import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
 import { AuditModule } from "../audit/audit.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
+import { EventsModule } from "../events/events.module.js";
+import { ExpensesModule } from "../expenses/expenses.module.js";
 import { ProjectsModule } from "../projects/projects.module.js";
 import { TasksModule } from "../tasks/tasks.module.js";
 import { WorkspacesModule } from "../workspaces/workspaces.module.js";
@@ -14,6 +16,8 @@ import { ReportsService } from "./reports.service.js";
   imports: [
     AuditModule,
     AuthModule,
+    EventsModule,
+    ExpensesModule,
     PermissionsModule,
     ProjectsModule,
     TasksModule,
