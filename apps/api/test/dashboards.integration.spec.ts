@@ -638,7 +638,7 @@ describe("dashboard persistence and API verification (EVE-178 / EVE-179)", () =>
         .expect(200);
       expect(management.headers["cache-control"]).toBe("no-store");
       const result = management.body as DashboardResponse;
-      expect(Object.keys(result.cards)).toHaveLength(23);
+      expect(Object.keys(result.cards)).toHaveLength(27);
       expect(result.partial).toBe(false);
       expect(result.cards.totalEvents?.data).toEqual({ count: 1 });
       expect(result.cards.promotionPerformance?.state).toBe(
@@ -1057,7 +1057,7 @@ describe("dashboard persistence and API verification (EVE-178 / EVE-179)", () =>
               ),
             ).toBe(false);
             expect(Object.keys(response.cards)).toHaveLength(
-              audience === "management" ? 23 : 7,
+              audience === "management" ? 27 : 7,
             );
             for (const [key, value] of Object.entries(response.cards)) {
               expect(value.state, key).not.toBe("unavailable");
