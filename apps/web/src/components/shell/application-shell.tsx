@@ -47,6 +47,7 @@ import {
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { NotificationsBell } from "@/features/notifications/components/notifications-navigation";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "./theme-toggle";
 import {
   activeDestination,
   destinations,
@@ -54,6 +55,7 @@ import {
   type Destination,
 } from "./navigation";
 import { useSidebarPreference } from "./sidebar-preference";
+import { dashboardContext } from "@/features/dashboards/lib/dashboard-context";
 
 const icons = {
   dashboard: LayoutDashboard,
@@ -190,6 +192,7 @@ function ShellFrame({
   pathname: string;
 }) {
   const items = access ? destinations(access) : [];
+  const context = access ? dashboardContext(access) : null;
   const active = activeDestination(items, pathname);
   const title =
     pathname === "/"
@@ -283,6 +286,11 @@ function ShellFrame({
                 Lela Creative Management
               </p>
               <p className="font-semibold break-words">{title}</p>
+              {context ? (
+                <p className="text-primary text-xs break-words">
+                  {context.role} · {context.scope}
+                </p>
+              ) : null}
             </div>
           </div>
           <nav
@@ -402,6 +410,7 @@ function AuthorizedShell({
       accountName={verified ? account.data?.email : undefined}
       utility={
         <>
+          <ThemeToggle />
           {verified?.grants.some(
             (g) => g.permissionKey === "notification.read",
           ) ? (

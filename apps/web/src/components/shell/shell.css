@@ -212,3 +212,31 @@
     justify-content: center;
   }
 }
+
+.theme-toggle-button {
+  border-radius: 9999px;
+}
+.theme-toggle-sun,
+.theme-toggle-moon {
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+}
+.theme-toggle-sun {
+  color: var(--chart-3);
+  rotate: 0deg;
+  opacity: 1;
+}
+.theme-toggle-moon {
+  color: var(--chart-4);
+  rotate: 90deg;
+  opacity: 0;
+}
+.dark .theme-toggle-sun {
+  rotate: -90deg;
+  opacity: 0;
+}
+.dark .theme-toggle-moon {
+  rotate: 0deg;
+  opacity: 1;
+}
