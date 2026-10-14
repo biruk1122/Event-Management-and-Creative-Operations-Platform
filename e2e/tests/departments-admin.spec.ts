@@ -62,7 +62,10 @@ test.describe("Department administration — end to end", () => {
 
       // The account holds `department.read`, so the nav entry shows.
       await page.goto("/");
-      const navLink = page.getByRole("link", { name: "Departments" });
+      const navLink = page.getByRole("link", {
+        name: "Departments",
+        exact: true,
+      });
       await expect(navLink).toBeVisible();
       await navLink.click();
       await expect(page).toHaveURL("/departments");
@@ -319,9 +322,9 @@ test.describe("Department administration — end to end", () => {
     }) => {
       // The nav entry is not offered.
       await page.goto("/");
-      await expect(page.getByRole("link", { name: "Departments" })).toHaveCount(
-        0,
-      );
+      await expect(
+        page.getByRole("link", { name: "Departments", exact: true }),
+      ).toHaveCount(0);
 
       // A direct visit renders the access gate, not the management UI.
       await page.goto("/departments");
@@ -426,7 +429,7 @@ test.describe("Department administration — end to end", () => {
       // The Department Manager: nav entry offered, list limited to their own.
       await page.goto("/");
       await expect(
-        page.getByRole("link", { name: "Departments" }),
+        page.getByRole("link", { name: "Departments", exact: true }),
       ).toBeVisible();
       await page.goto("/departments");
 

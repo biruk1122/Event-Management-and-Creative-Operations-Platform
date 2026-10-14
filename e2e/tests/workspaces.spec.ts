@@ -212,7 +212,9 @@ test.describe("Connected workspace ownership — end to end", () => {
       });
       await expect(participantPicker).toBeVisible();
       await participantPicker.click();
-      await page.getByRole("option", { name: participantEmail }).click();
+      await page
+        .getByRole("option", { name: participantEmail, exact: true })
+        .click();
       await expect(
         detailDialog.getByText(participantEmail, { exact: true }),
       ).toBeVisible();

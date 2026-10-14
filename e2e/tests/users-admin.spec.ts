@@ -65,7 +65,9 @@ test.describe("User administration — end to end", () => {
 
       // The account holds `user.read`, so the permission-aware nav entry shows.
       await page.goto("/");
-      const navLink = page.getByRole("link", { name: "Users" });
+      const navLink = page
+        .getByRole("navigation", { name: "Primary", exact: true })
+        .getByRole("link", { name: "Users", exact: true });
       await expect(navLink).toBeVisible();
       await navLink.click();
       await expect(page).toHaveURL("/users");
@@ -323,7 +325,9 @@ test.describe("User administration — end to end", () => {
     }) => {
       // The nav entry is not offered.
       await page.goto("/");
-      await expect(page.getByRole("link", { name: "Users" })).toHaveCount(0);
+      await expect(
+        page.getByRole("link", { name: "Users", exact: true }),
+      ).toHaveCount(0);
 
       // A direct visit renders the access gate, not the management UI.
       await page.goto("/users");

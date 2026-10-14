@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
@@ -27,12 +28,14 @@ test.describe("RBAC — configurable roles and permissions", () => {
   test.describe("administrator success journey", () => {
     test.use({ storageState: authStatePath("superAdmin") });
 
-    const ROLE_NAME = "E2E Coordinator";
-    const RENAMED = "E2E Coordinator (renamed)";
-
     test("creates, grants, persists across reload, renames, and deletes a role", async ({
       page,
     }) => {
+      const ROLE_NAME = `E2E Coordinator ${randomUUID().slice(0, 8)}`;
+      const RENAMED = `${ROLE_NAME} (renamed)`;
+      const initialRoles = await page.request.get(`${apiBaseUrl}/api/v1/roles`);
+      expect(initialRoles.ok()).toBe(true);
+      const baseline = ((await initialRoles.json()) as { id: string }[]).length;
       // The account holds `role.read`, so the account-menu entry is offered.
       await page.goto("/");
       const navLink = page.getByRole("link", { name: "Roles and permissions" });
@@ -45,7 +48,9 @@ test.describe("RBAC — configurable roles and permissions", () => {
         page.getByRole("heading", { level: 1, name: "Roles and permissions" }),
       ).toBeVisible();
       await expect(page.getByLabel("Search roles")).toBeVisible();
-      await expect(page.getByText("3 roles")).toBeVisible();
+      await expect(
+        page.getByText(`${baseline} roles`, { exact: true }),
+      ).toBeVisible();
       await expectNoWcag22AaViolations(page, "roles list");
 
       // Create a role through the dialog.
@@ -62,7 +67,9 @@ test.describe("RBAC — configurable roles and permissions", () => {
       await createDialog.getByRole("button", { name: "Create role" }).click();
 
       // It lands in the list and in the authoritative store.
-      await expect(page.getByText("6 roles")).toBeVisible();
+      await expect(
+        page.getByText(`${baseline + 1} roles`, { exact: true }),
+      ).toBeVisible();
       const rolesList = await page.request.get(`${apiBaseUrl}/api/v1/roles`);
       expect(rolesList.ok()).toBe(true);
       const created = (
@@ -121,7 +128,9 @@ test.describe("RBAC — configurable roles and permissions", () => {
 
       // AC: the full workflow persists and reloads authoritative data.
       await page.reload();
-      await expect(page.getByText("6 roles")).toBeVisible();
+      await expect(
+        page.getByText(`${baseline + 1} roles`, { exact: true }),
+      ).toBeVisible();
       await page.getByRole("button", { name: ROLE_NAME }).click();
       const reopened = page.getByRole("dialog");
       await reopened.getByLabel("Search permissions").fill("event.read");
@@ -152,7 +161,9 @@ test.describe("RBAC — configurable roles and permissions", () => {
       const toDelete = page.getByRole("dialog");
       await toDelete.getByRole("button", { name: "Delete role" }).click();
       await toDelete.getByRole("button", { name: "Confirm delete" }).click();
-      await expect(page.getByText("5 roles")).toBeVisible();
+      await expect(
+        page.getByText(`${baseline} roles`, { exact: true }),
+      ).toBeVisible();
       await expect(page.getByRole("button", { name: RENAMED })).toHaveCount(0);
       const afterDelete = await page.request.get(
         `${apiBaseUrl}/api/v1/roles/${roleId}`,
@@ -168,14 +179,12 @@ test.describe("RBAC — configurable roles and permissions", () => {
   });
 
   test.describe("denied journey", () => {
-    // A management account that still holds no `role.*` grant. `member`'s saved
-    // session is invalidated by `auth-session.spec.ts` (which runs earlier),
-    // so this journey needs an account no other spec signs out.
-    test.use({ storageState: authStatePath("manager") });
+    // Dedicated member account retains its session and has no role administration grant.
+    test.use({ storageState: authStatePath("restrictedMember") });
 
-    const manager = testUser("manager");
+    const manager = testUser("restrictedMember");
 
-    test("a management account cannot see, open, or drive role administration", async ({
+    test("a department member cannot see, open, or drive role administration", async ({
       page,
     }) => {
       // The account-menu entry is not offered.

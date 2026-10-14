@@ -102,7 +102,7 @@ test.describe("responsive shell", () => {
         await page.goto("/dashboard");
         await expect(
           page.getByRole("heading", {
-            name: "Dashboard",
+            name: "Super Admin dashboard",
             exact: true,
             level: 1,
           }),

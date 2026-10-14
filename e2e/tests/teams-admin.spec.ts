@@ -182,12 +182,16 @@ test.describe("Team administration — end to end", () => {
         name: "Manager",
       });
       await managerCombobox.click();
-      await page.getByRole("option", { name: team.manager }).click();
+      await page
+        .getByRole("option", { name: team.manager, exact: true })
+        .click();
       await expect(managerCombobox).toContainText(team.manager);
 
       // Add a member through the member control, then read it back.
       await detailDialog.getByRole("combobox", { name: "Add member" }).click();
-      await page.getByRole("option", { name: team.member }).click();
+      await page
+        .getByRole("option", { name: team.member, exact: true })
+        .click();
       const roster = detailDialog.getByRole("list", { name: "Team members" });
       await expect(roster).toContainText(team.member);
 

@@ -21,7 +21,11 @@ test("root login and authenticated login visits reach dashboard without loops", 
   await submit(page);
   await expect(page).toHaveURL("/dashboard");
   await expect(
-    page.getByRole("heading", { name: "Dashboard", exact: true, level: 1 }),
+    page.getByRole("heading", {
+      name: "Production dashboard",
+      exact: true,
+      level: 1,
+    }),
   ).toBeVisible();
   await page.goto("/");
   await expect(page).toHaveURL("/dashboard");
@@ -99,7 +103,14 @@ for (const key of ["superAdmin", "member"]) {
     test.setTimeout(60_000);
     await signInThroughUi(page, testUser(key));
     await expect(
-      page.getByRole("heading", { name: "Dashboard", exact: true, level: 1 }),
+      page.getByRole("heading", {
+        name:
+          key === "superAdmin"
+            ? "Super Admin dashboard"
+            : "Production dashboard",
+        exact: true,
+        level: 1,
+      }),
     ).toBeVisible();
     const grantsResponse = await page.request.get(
       `${apiBaseUrl}/api/v1/auth/me/permissions`,

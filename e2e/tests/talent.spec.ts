@@ -97,7 +97,7 @@ test.describe("Talent management — end to end", () => {
       // The account holds talent.read at organization scope, so the nav
       // entry shows.
       await page.goto("/");
-      const navLink = page.getByRole("link", { name: "Talent" });
+      const navLink = page.getByRole("link", { name: "Talent", exact: true });
       await expect(navLink).toBeVisible();
       await navLink.click();
       await expect(page).toHaveURL("/talent");
@@ -404,7 +404,9 @@ test.describe("Talent management — end to end", () => {
       page,
     }) => {
       await page.goto("/");
-      await expect(page.getByRole("link", { name: "Talent" })).toHaveCount(0);
+      await expect(
+        page.getByRole("link", { name: "Talent", exact: true }),
+      ).toHaveCount(0);
 
       await page.goto("/talent");
       await expect(
