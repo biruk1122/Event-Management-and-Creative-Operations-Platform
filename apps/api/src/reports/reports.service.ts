@@ -347,6 +347,22 @@ export class ReportsService {
     );
   }
 
+  /** Optional: marks a submitted report "Under Review" before the final
+   * decision (EOM-01). Every report type may still go straight from
+   * SUBMITTED to review() without ever calling this. */
+  async startReview(
+    userId: string,
+    id: string,
+    requestId: string,
+  ): Promise<ReportResponse> {
+    const report = await this.load(userId, id, "report.review");
+    if (report.status !== "SUBMITTED") throw reportInvalidTransition();
+    if (report.authorId === userId) throw permissionDenied();
+    return toResponse(
+      await this.repo.startReview(id, report.updatedAt, userId, requestId),
+    );
+  }
+
   async review(
     userId: string,
     id: string,
@@ -354,7 +370,8 @@ export class ReportsService {
     requestId: string,
   ): Promise<ReportResponse> {
     const report = await this.load(userId, id, "report.review");
-    if (report.status !== "SUBMITTED") throw reportInvalidTransition();
+    if (report.status !== "SUBMITTED" && report.status !== "UNDER_REVIEW")
+      throw reportInvalidTransition();
     if (report.authorId === userId) throw permissionDenied();
     return toResponse(
       await this.repo.review(

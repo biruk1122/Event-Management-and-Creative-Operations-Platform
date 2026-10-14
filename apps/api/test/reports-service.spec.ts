@@ -1,9 +1,11 @@
+import { HttpException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ReportRecord } from "../src/reports/infrastructure/reports.repository.js";
 import { ReportsService } from "../src/reports/reports.service.js";
 
 const ACTOR = "actor-1";
+const OTHER = "actor-2";
 
 function makeReport(overrides: Partial<ReportRecord> = {}): ReportRecord {
   return {
@@ -144,5 +146,121 @@ describe("ReportsService.get - EOM-01 post-event facts", () => {
     const result = await service.get(ACTOR, "report-1");
     expect(result.lessonsLearned).toBe("Book the venue earlier.");
     expect(result.recommendations).toBe("Add a buffer day.");
+  });
+});
+
+async function expectCode(promise: Promise<unknown>, code: string) {
+  await expect(promise).rejects.toBeInstanceOf(HttpException);
+  await promise.catch((error: unknown) => {
+    expect(
+      ((error as HttpException).getResponse() as { code: string }).code,
+    ).toBe(code);
+  });
+}
+
+describe("ReportsService - optional Under Review step (EOM-01)", () => {
+  let repo: Record<string, ReturnType<typeof vi.fn>>;
+  let permissions: { getEffectiveGrants: ReturnType<typeof vi.fn> };
+  let service: ReportsService;
+
+  beforeEach(() => {
+    repo = {
+      findById: vi
+        .fn()
+        .mockResolvedValue(
+          makeReport({ status: "SUBMITTED", authorId: OTHER }),
+        ),
+      findUserDepartmentId: vi.fn().mockResolvedValue(null),
+      startReview: vi
+        .fn()
+        .mockResolvedValue(makeReport({ status: "UNDER_REVIEW" })),
+      review: vi.fn().mockResolvedValue(makeReport({ status: "REVIEWED" })),
+    };
+    permissions = {
+      getEffectiveGrants: vi
+        .fn()
+        .mockResolvedValue([
+          { permissionKey: "report.review", scope: "ORGANIZATION" },
+        ]),
+    };
+    service = new ReportsService(
+      repo as never,
+      permissions as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+  });
+
+  it("moves a submitted report to Under Review", async () => {
+    const result = await service.startReview(ACTOR, "report-1", "req-1");
+    expect(result.status).toBe("UNDER_REVIEW");
+    expect(repo.startReview).toHaveBeenCalledWith(
+      "report-1",
+      expect.any(Date),
+      ACTOR,
+      "req-1",
+    );
+  });
+
+  it("rejects starting review on a non-submitted report", async () => {
+    repo.findById!.mockResolvedValue(
+      makeReport({ status: "DRAFT", authorId: OTHER }),
+    );
+    await expectCode(
+      service.startReview(ACTOR, "report-1", "req-1"),
+      "REPORT_INVALID_TRANSITION",
+    );
+    expect(repo.startReview).not.toHaveBeenCalled();
+  });
+
+  it("blocks the author from starting review on their own report", async () => {
+    repo.findById!.mockResolvedValue(
+      makeReport({ status: "SUBMITTED", authorId: ACTOR }),
+    );
+    await expectCode(
+      service.startReview(ACTOR, "report-1", "req-1"),
+      "PERMISSION_DENIED",
+    );
+  });
+
+  it("allows the final decision to be made directly from SUBMITTED, skipping Under Review", async () => {
+    repo.findById!.mockResolvedValue(
+      makeReport({ status: "SUBMITTED", authorId: OTHER }),
+    );
+    const result = await service.review(
+      ACTOR,
+      "report-1",
+      { outcome: "REVIEWED" },
+      "req-1",
+    );
+    expect(result.status).toBe("REVIEWED");
+  });
+
+  it("allows the final decision to be made from Under Review", async () => {
+    repo.findById!.mockResolvedValue(
+      makeReport({ status: "UNDER_REVIEW", authorId: OTHER }),
+    );
+    const result = await service.review(
+      ACTOR,
+      "report-1",
+      { outcome: "REVIEWED" },
+      "req-1",
+    );
+    expect(result.status).toBe("REVIEWED");
+  });
+
+  it("rejects a final decision on a draft report", async () => {
+    repo.findById!.mockResolvedValue(
+      makeReport({ status: "DRAFT", authorId: OTHER }),
+    );
+    await expectCode(
+      service.review(ACTOR, "report-1", { outcome: "REVIEWED" }, "req-1"),
+      "REPORT_INVALID_TRANSITION",
+    );
+    expect(repo.review).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,7 @@ export type SupportedAuditAction =
   | "task.review.approved"
   | "task.review.changes_requested"
   | "report.submitted"
+  | "report.review_started"
   | "report.reviewed"
   | "report.changes_requested"
   | "managed_file.downloaded"

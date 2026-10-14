@@ -245,6 +245,39 @@ export class ReportsRepository {
     });
   }
 
+  /** Marks a submitted report as actively being looked at (EOM-01's
+   * "Under Review" state) - optional for every report type: a reviewer may
+   * still move straight from SUBMITTED to a final decision via review()
+   * without ever calling this. */
+  async startReview(
+    id: string,
+    expectedUpdatedAt: Date,
+    reviewerId: string,
+    requestId: string,
+  ): Promise<ReportRecord> {
+    return this.db.$transaction(async (tx) => {
+      const changed = await tx.report.updateMany({
+        where: { id, updatedAt: expectedUpdatedAt, status: "SUBMITTED" },
+        data: {
+          status: "UNDER_REVIEW",
+          reviewerId,
+          updatedAt: new Date(),
+        },
+      });
+      if (changed.count !== 1) throw reportInvalidTransition();
+      await this.audit.append(tx, {
+        action: "report.review_started",
+        actorKind: AuditActorKind.USER,
+        actorUserId: reviewerId,
+        requestId,
+        resourceType: "report",
+        resourceId: id,
+        outcome: AuditOutcome.SUCCEEDED,
+      });
+      return tx.report.findUniqueOrThrow({ where: { id }, include });
+    });
+  }
+
   async review(
     id: string,
     expectedUpdatedAt: Date,
@@ -256,7 +289,11 @@ export class ReportsRepository {
     return this.db.$transaction(async (tx) => {
       const reviewedAt = new Date();
       const changed = await tx.report.updateMany({
-        where: { id, updatedAt: expectedUpdatedAt, status: "SUBMITTED" },
+        where: {
+          id,
+          updatedAt: expectedUpdatedAt,
+          status: { in: ["SUBMITTED", "UNDER_REVIEW"] },
+        },
         data: {
           status: outcome,
           reviewerId,
