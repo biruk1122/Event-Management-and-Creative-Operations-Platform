@@ -231,6 +231,19 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
     }
   }
 
+  async function startReview(id: string) {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
+    try {
+      await mutations.startReview.mutateAsync(id);
+      setNotice({ kind: "success", message: "Marked as under review." });
+    } catch (error) {
+      setNotice({ kind: "error", message: messageOf(error) });
+    } finally {
+      requestInFlight.current = false;
+    }
+  }
+
   async function review(id: string, outcome: ReviewOutcome, note: string) {
     if (requestInFlight.current) return;
     requestInFlight.current = true;
@@ -324,6 +337,13 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
         abilities.canSubmit
           ? (id) => {
               void submit(id);
+            }
+          : undefined
+      }
+      onStartReview={
+        abilities.canReview
+          ? (id) => {
+              void startReview(id);
             }
           : undefined
       }
