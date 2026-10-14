@@ -13,6 +13,8 @@ export const SECTION_KEYS = [
   "nextWeekPlan",
   "departmentPerformance",
   "employeePerformance",
+  "lessonsLearned",
+  "recommendations",
 ] as const;
 export type SectionKey = (typeof SECTION_KEYS)[number];
 export type Sections = Partial<Record<SectionKey, string | null>>;
@@ -31,6 +33,10 @@ const APPLICABLE: Record<ReportType, readonly SectionKey[]> = {
     "departmentPerformance",
     "employeePerformance",
   ],
+  // Budget figures and completed/incomplete task counts are live-computed at
+  // read time (EventsReportFactsQuery/ExpensesReportFactsQuery), not stored
+  // narrative input, so they are not section keys here.
+  POST_EVENT: ["majorAchievements", "challenges", "lessonsLearned", "recommendations"],
 };
 
 export function parsePeriod(type: ReportType, start: string, end: string) {

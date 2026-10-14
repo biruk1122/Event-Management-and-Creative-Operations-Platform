@@ -103,6 +103,18 @@ export class CreateReportDto {
   @MaxLength(5000)
   @Matches(NONBLANK)
   employeePerformance?: string;
+  @ApiPropertyOptional({ maxLength: 5000, description: "Post-event only." })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  @Matches(NONBLANK)
+  lessonsLearned?: string;
+  @ApiPropertyOptional({ maxLength: 5000, description: "Post-event only." })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  @Matches(NONBLANK)
+  recommendations?: string;
 }
 
 export class UpdateReportDto extends PartialType(CreateReportDto) {}
