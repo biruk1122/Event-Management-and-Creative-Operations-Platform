@@ -21,6 +21,7 @@ import {
   type DashboardPanel,
 } from "../lib/dashboard-presentation";
 import { DashboardResults } from "./dashboard-results";
+import { dashboardContext } from "../lib/dashboard-context";
 import styles from "./dashboard-workspace.module.css";
 import {
   dashboardFilterError,
@@ -128,17 +129,49 @@ export function DashboardWorkspace({
         ) : null}
       </section>
     );
+  const context = dashboardContext(access);
   if (!canEnter(access, audience))
     return (
-      <p role="alert" className="rounded-xl border p-5">
-        You do not have access to this dashboard.
-      </p>
+      <section role="alert" className="bg-card space-y-3 rounded-xl border p-5">
+        <h2 className="text-xl font-semibold">
+          {context?.scope === "Not assigned"
+            ? context.title
+            : "Dashboard access unavailable"}
+        </h2>
+        <p>
+          {context?.scope === "Not assigned"
+            ? context.description
+            : "You do not have access to this dashboard."}
+        </p>
+      </section>
     );
   const cards = visibleCards(access, audience).filter(
     (item) => panels[item.key]?.state !== "denied",
   );
   const groups = [...new Set(cards.map((item) => item.group))];
   const routes = destinations(access);
+  const departmentAreas = [
+    {
+      name: "Production",
+      description: "Production projects and delivery",
+      href: "/projects/production",
+    },
+    {
+      name: "Marketing",
+      description: "Marketing campaigns and creative work",
+      href: "/campaigns?type=MARKETING",
+    },
+    {
+      name: "Promotion",
+      description: "Promotion campaigns and activities",
+      href: "/campaigns?type=PROMOTION",
+    },
+    {
+      name: "Manager / Event & Office Manager",
+      description: "Events and office coordination",
+      href: "/events",
+    },
+  ] as const;
   const permittedRoutes = new Set(routes.map((item) => item.href));
   const disconnected = cards.some(
     (item) => !panels[item.key] || panels[item.key]?.state === "disconnected",
@@ -157,20 +190,25 @@ export function DashboardWorkspace({
       >
         <div>
           <p className="text-primary mb-2 text-sm font-semibold">
-            Your dashboard
+            {context ? `${context.role} · ${context.scope}` : "Your dashboard"}
           </p>
           <h2
             id={`${id}-view-title`}
             className="text-2xl font-semibold tracking-tight sm:text-3xl"
           >
-            {audience === "management"
-              ? "Management overview"
-              : "Your work today"}
+            {context
+              ? context.role === "Super Admin"
+                ? "Company overview"
+                : "Your department workspace"
+              : audience === "management"
+                ? "Management overview"
+                : "Your work today"}
           </h2>
           <p className="text-muted-foreground mt-3 max-w-2xl text-sm leading-relaxed">
-            {audience === "management"
-              ? "Review permitted organizational results and scoped operational work. Each card identifies its own scope and refresh time."
-              : "Focus on what needs your attention. These results remain limited to your own assignments, records and conversation memberships."}
+            {context?.description ??
+              (audience === "management"
+                ? "Review permitted organizational results and scoped operational work. Each card identifies its own scope and refresh time."
+                : "Focus on what needs your attention. These results remain limited to your own assignments, records and conversation memberships.")}
           </p>
         </div>
         {routes.some(
@@ -197,6 +235,68 @@ export function DashboardWorkspace({
           </nav>
         ) : null}
       </section>
+      {access.role === "SUPER_ADMIN" ? (
+        <section aria-labelledby={`${id}-departments`} className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 id={`${id}-departments`} className="text-lg font-semibold">
+                Department workspaces
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                Choose an area of the company to manage.
+              </p>
+            </div>
+            {routes.some((route) => route.href === "/departments") ? (
+              <Link href="/departments" className={styles.destination}>
+                Manage departments
+              </Link>
+            ) : null}
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {departmentAreas.map((area) => {
+              const available = routes.some(
+                (route) => route.href === area.href.split("?")[0],
+              );
+              return (
+                <div key={area.name} className={styles.departmentCard}>
+                  <Layers3
+                    aria-hidden="true"
+                    className="text-primary mb-4 size-6"
+                  />
+                  <h4 className="font-semibold">{area.name}</h4>
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    {area.description}
+                  </p>
+                  {available ? (
+                    <Link
+                      href={area.href}
+                      className={`${styles.destination} mt-4`}
+                    >
+                      Open {area.name}
+                    </Link>
+                  ) : (
+                    <p className="text-muted-foreground mt-4 text-sm">
+                      Module access is not granted.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {routes.some((route) => route.href === "/users") ? (
+            <p className="text-muted-foreground text-sm">
+              Assign each manager or member a role and department in{" "}
+              <Link
+                href="/users"
+                className="text-primary underline underline-offset-4"
+              >
+                Users
+              </Link>
+              .
+            </p>
+          ) : null}
+        </section>
+      ) : null}
       <section
         aria-label="Dashboard controls"
         className={`${styles.controls} bg-card space-y-4 rounded-2xl border p-4 sm:p-6`}

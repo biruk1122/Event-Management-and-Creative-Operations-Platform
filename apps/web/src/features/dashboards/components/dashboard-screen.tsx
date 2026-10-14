@@ -27,6 +27,7 @@ import {
   type DashboardFilters,
 } from "../lib/dashboard-selection";
 import { DashboardWorkspace } from "./dashboard-workspace";
+import { dashboardContext } from "../lib/dashboard-context";
 type SavedDraft = {
   owner: string;
   selection: string;
@@ -40,7 +41,8 @@ export function dashboardIdentity(access: DashboardAccess, epoch: number) {
     access.grants
       .map((grant) => `${grant.permissionKey}:${grant.scope}`)
       .sort()
-      .join(","),
+      .join(",") +
+      `:${access.role ?? "legacy"}:${access.department?.id ?? "none"}:${access.department?.active ?? false}`,
     epoch,
   ] as const;
 }
@@ -126,7 +128,21 @@ export function DashboardScreen() {
     !canEnter(access.data, "management") &&
     !canEnter(access.data, "employee")
   )
-    return <p role="alert">You do not have access to dashboards.</p>;
+    return (
+      <section
+        role="alert"
+        className="bg-card space-y-3 rounded-2xl border p-6"
+      >
+        <h2 className="text-xl font-semibold">
+          {dashboardContext(access.data)?.title ??
+            "Dashboard access unavailable"}
+        </h2>
+        <p className="text-muted-foreground">
+          {dashboardContext(access.data)?.description ??
+            "You do not have access to dashboards."}
+        </p>
+      </section>
+    );
   return (
     <DashboardManager
       key={`${access.data.userId}:${access.dataUpdatedAt}`}
