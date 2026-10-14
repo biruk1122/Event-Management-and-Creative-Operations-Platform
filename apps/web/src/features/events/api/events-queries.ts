@@ -29,6 +29,7 @@ export function eventKeys(access: CurrentAccess) {
       [...all, "list", params] as const,
     users: [...all, "assignable-users"] as const,
     teams: [...all, "assignable-teams"] as const,
+    departments: [...all, "assignable-departments"] as const,
     detail: (id: string) => [...all, "event", id] as const,
     budget: (id: string) => [...all, "event", id, "budget"] as const,
   };

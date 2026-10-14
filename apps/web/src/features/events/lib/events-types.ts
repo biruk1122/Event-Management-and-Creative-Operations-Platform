@@ -89,6 +89,15 @@ export interface AssignableTeam {
   name: string;
 }
 
+/** A department name to resolve `Event.departmentId` for display (EOM-01).
+ * Sourced from `GET /departments`, which a department-scoped caller sees
+ * scoped to their own department - the lookup never shows more than the
+ * caller could already read directly. */
+export interface AssignableDepartment {
+  id: string;
+  name: string;
+}
+
 /** The person's name, or their email when no name is on file. */
 export function personName(
   person: Pick<EventPersonSummary, "firstName" | "lastName" | "email">,

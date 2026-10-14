@@ -24,6 +24,7 @@ import type {
   UpdateEventOutcome,
 } from "../lib/events-outcome";
 import type {
+  AssignableDepartment,
   AssignableTeam,
   AssignableUser,
   Event,
@@ -377,6 +378,23 @@ export async function listAssignableTeams(
     cache: "no-store",
   });
   return (data?.items ?? []).map((team) => ({ id: team.id, name: team.name }));
+}
+
+/** Department names to resolve `Event.departmentId` for display (EOM-01),
+ * from the first page of `GET /api/v1/departments`. Resolves `[]` when the
+ * caller cannot read departments. */
+export async function listAssignableDepartments(
+  signal?: AbortSignal,
+): Promise<AssignableDepartment[]> {
+  const { data } = await browserApi.GET("/api/v1/departments", {
+    params: { query: { pageSize: 100 } as never },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return (data?.items ?? []).map((department) => ({
+    id: department.id,
+    name: department.name,
+  }));
 }
 
 export const createEvent: CreateEvent = async (values) => {

@@ -51,6 +51,7 @@ import {
   personName,
   plannedAmountSummary,
   scheduleSummary,
+  type AssignableDepartment,
   type AssignableTeam,
   type AssignableUser,
   type Event,
@@ -103,6 +104,7 @@ interface EventDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   users: readonly AssignableUser[];
   teams: readonly AssignableTeam[];
+  departments: readonly AssignableDepartment[];
   canUpdate: boolean;
   canTransition: boolean;
   canAssignManager: boolean;
@@ -157,6 +159,7 @@ function EventDetailBody({
   eventId,
   users,
   teams,
+  departments,
   canUpdate,
   canTransition,
   canAssignManager,
@@ -511,6 +514,9 @@ function EventDetailBody({
           <Badge>{eventStatusLabel(event.status)}</Badge>
         </div>
         <DialogDescription>{scheduleSummary(event)}</DialogDescription>
+        <p className="text-muted-foreground text-sm">
+          Department: {departmentName(departments, event.departmentId)}
+        </p>
       </DialogHeader>
 
       {/* Details */}
@@ -878,6 +884,20 @@ function EventDetailBody({
         {announcement}
       </p>
     </>
+  );
+}
+
+/** Resolves `Event.departmentId` to a name (EOM-01); `null` means no
+ * department is assigned (always true for a pre-EOM-01 event, see events
+ * migration notes), never "unknown" unless the lookup itself failed. */
+function departmentName(
+  departments: readonly AssignableDepartment[],
+  departmentId: string | null,
+): string {
+  if (departmentId === null) return "None assigned";
+  return (
+    departments.find((department) => department.id === departmentId)?.name ??
+    "Unknown department"
   );
 }
 

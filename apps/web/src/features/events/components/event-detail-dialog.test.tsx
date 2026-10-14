@@ -82,6 +82,7 @@ function renderDialog(
     onOpenChange: vi.fn(),
     users: USERS,
     teams: TEAMS,
+    departments: [],
     canUpdate: true,
     canTransition: true,
     canAssignManager: true,
