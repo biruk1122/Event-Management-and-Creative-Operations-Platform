@@ -115,6 +115,39 @@ Keys are grouped by resource. Every key traces to one or more SRS abilities; see
 | `event.budget.read`       | View an event budget. Sensitive; see PC-04.              |
 | `event.budget.update`     | Set or change an event budget. Sensitive; see PC-04.     |
 
+An event optionally belongs to one department (`event.departmentId`). An organization-scoped grant
+covers every event; a department-scoped grant covers only the acting user's own department's events.
+A pre-existing event with no department assigned is visible only at organization scope, until an
+organization-scoped `event.update` holder assigns it one (EOM-01).
+
+### Expenses
+
+| Key                         | Operation                                                                                               |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `expense.create`            | Record a planned or actual expense against an event.                                                    |
+| `expense.read`              | View an expense, its planned/actual amounts, and review history.                                        |
+| `expense.update`            | Edit an expense while it is a draft or has been rejected.                                               |
+| `expense.submit`            | Submit a draft or rejected expense for approval.                                                        |
+| `expense.approve`           | Approve or reject a submitted expense. Sensitive; Super Admin only - never granted at department scope. |
+| `expense.attachment.create` | Attach a receipt or invoice file to an expense.                                                         |
+
+An expense belongs to the department of the event it is recorded against; its department-scope
+visibility mirrors the Events row above. `expense.approve` is deliberately never granted below
+organization scope, the same "sensitive, approval-gated" idiom `event.budget.*` already uses, so a
+Department Manager can submit expenses but never approve their own or another manager's (EOM-01).
+
+### Suppliers
+
+| Key               | Operation                                                                       |
+| ----------------- | ------------------------------------------------------------------------------- |
+| `supplier.create` | Register a supplier, either to the shared directory or to one's own department. |
+| `supplier.read`   | View the supplier directory.                                                    |
+| `supplier.update` | Edit a supplier's details or change its active/inactive status.                 |
+
+A supplier with no department assigned is in the shared, organization-wide directory, visible to
+every scope. A supplier assigned to a department is private to it: visible at organization scope or
+to that department's own grant, never to another department's (EOM-01).
+
 ### Projects and campaigns
 
 | Key                          | Operation                                                        |
@@ -251,23 +284,30 @@ whether Department Managers may also review reports is part of EVE-30 open decis
 
 ### Department Manager
 
-| Permission key                                           | Scope      |
-| -------------------------------------------------------- | ---------- |
-| `department.read`, `department.manage_activities`        | department |
-| `team.read`                                              | department |
-| `task.create`, `task.read`, `task.assign`, `task.update` | department |
-| `task.review`                                            | department |
-| `event.read`, `project.read`, `campaign.read`            | department |
-| `meeting.create`, `meeting.read`, `meeting.update`       | department |
-| `channel.create`, `channel.manage`                       | department |
-| `calendar.read`                                          | department |
-| `report.create`, `report.submit`                         | department |
-| `report.read`                                            | department |
-| `analytics.department_performance.read`                  | department |
+| Permission key                                                                                    | Scope      |
+| ------------------------------------------------------------------------------------------------- | ---------- |
+| `department.read`, `department.manage_activities`                                                 | department |
+| `team.read`                                                                                       | department |
+| `task.create`, `task.read`, `task.assign`, `task.update`                                          | department |
+| `task.review`                                                                                     | department |
+| `project.read`, `campaign.read`                                                                   | department |
+| `event.create`, `event.read`, `event.update`, `event.delete`                                      | department |
+| `event.assign_manager`, `event.assign_teams`, `event.transition_status`                           | department |
+| `event.budget.read`, `event.budget.update`                                                        | department |
+| `expense.create`, `expense.read`, `expense.update`, `expense.submit`, `expense.attachment.create` | department |
+| `supplier.create`, `supplier.read`, `supplier.update`                                             | department |
+| `meeting.create`, `meeting.read`, `meeting.update`                                                | department |
+| `channel.create`, `channel.manage`                                                                | department |
+| `calendar.read`                                                                                   | department |
+| `report.create`, `report.submit`                                                                  | department |
+| `report.read`                                                                                     | department |
+| `analytics.department_performance.read`                                                           | department |
 
 `department` scope is the acting user's assigned department. Multi-department and cross-department
-behavior is open in [PC-01](#open-authorization-decisions). Whether a Department Manager may read
-budgets for their department's work is open in [PC-04](#open-authorization-decisions).
+behavior is open in [PC-01](#open-authorization-decisions). PC-04's open question of whether a
+Department Manager may read budgets for their department's work is now resolved for events: they
+hold `event.budget.read`/`event.budget.update` at department scope (EOM-01). `expense.approve` is
+not in this row by design - see the Expenses catalog entry above.
 
 ### Team Member
 
@@ -316,21 +356,23 @@ Admin and, where shown, Management/Administrator, and are never part of the base
 Team Member or Talent Manager matrix. Every listed operation is denied unless the acting user holds
 the specific key at the required scope.
 
-| Sensitive area                     | Gating key                                                    | Roles with access                                              |
-| ---------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
-| Organization-wide task visibility  | `task.read` at `organization`                                 | Super Admin, Management                                        |
-| All reports across departments     | `report.read` at `organization`                               | Super Admin, Management                                        |
-| Reports across one department      | `report.read` at `department`                                 | Department Manager (own department)                            |
-| Department performance measures    | `analytics.department_performance.read`                       | Super Admin, Management; Department Manager for own department |
-| Employee performance measures      | `analytics.employee_performance.read`                         | Super Admin, Management                                        |
-| Management analytics               | `analytics.management.read`                                   | Super Admin, Management                                        |
-| Management dashboard               | `dashboard.management.read`                                   | Super Admin, Management                                        |
-| Event and campaign budgets         | `event.budget.read`, `campaign.budget.read`                   | Super Admin, Management; others open in PC-04                  |
-| System settings                    | `settings.read`, `settings.update`                            | Super Admin                                                    |
-| Roles and permission configuration | `role.read`, `role.configure_permissions`, and other `role.*` | Super Admin                                                    |
-| User administration                | `user.*`                                                      | Super Admin; Management open in PC-02                          |
-| Security and governance audit log  | `audit.read`                                                  | Super Admin; Management open in PC-05                          |
-| Cross-user activity history        | `activity.read`                                               | Super Admin, Management                                        |
+| Sensitive area                     | Gating key                                                    | Roles with access                                                    |
+| ---------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Organization-wide task visibility  | `task.read` at `organization`                                 | Super Admin, Management                                              |
+| All reports across departments     | `report.read` at `organization`                               | Super Admin, Management                                              |
+| Reports across one department      | `report.read` at `department`                                 | Department Manager (own department)                                  |
+| Department performance measures    | `analytics.department_performance.read`                       | Super Admin, Management; Department Manager for own department       |
+| Employee performance measures      | `analytics.employee_performance.read`                         | Super Admin, Management                                              |
+| Management analytics               | `analytics.management.read`                                   | Super Admin, Management                                              |
+| Management dashboard               | `dashboard.management.read`                                   | Super Admin, Management                                              |
+| Event budgets                      | `event.budget.read`                                           | Super Admin, Management, Department Manager (own department, EOM-01) |
+| Campaign budgets                   | `campaign.budget.read`                                        | Super Admin, Management; others open in PC-04                        |
+| Expense approval                   | `expense.approve`                                             | Super Admin only - never granted below organization scope (EOM-01)   |
+| System settings                    | `settings.read`, `settings.update`                            | Super Admin                                                          |
+| Roles and permission configuration | `role.read`, `role.configure_permissions`, and other `role.*` | Super Admin                                                          |
+| User administration                | `user.*`                                                      | Super Admin; Management open in PC-02                                |
+| Security and governance audit log  | `audit.read`                                                  | Super Admin; Management open in PC-05                                |
+| Cross-user activity history        | `activity.read`                                               | Super Admin, Management                                              |
 
 ## Configurability
 
@@ -371,19 +413,19 @@ The acceptance criterion that future roles can be added without code changes is 
 
 ## Open authorization decisions
 
-| ID    | Decision required                                                                                                                                                                                         |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PC-01 | Define scope resolution: how `department`, `team`, `workspace`, and `self` are computed per request; single versus multiple department assignment; cross-department delegation.                           |
-| PC-02 | Decide whether Management/Administrator may perform `user.*` and `role.*` operations, or whether those remain exclusive to Super Admin. SRS 5.2 says "authorized administrators" without naming the role. |
-| PC-03 | Decide whether events, projects, and campaigns are deleted or archived, and which roles may do so. Coordinate with EVE-30 open decisions OD-02 and OD-03.                                                 |
-| PC-04 | Define budget visibility for Department Managers and for assigned event, project, and campaign managers.                                                                                                  |
-| PC-05 | Decide audit-log read access for Management and Department Manager roles. Coordinate with EN-07 (EVE-33).                                                                                                 |
-| PC-06 | Define the Talent Manager boundary: whether the role may create tasks, channels, or meetings for talent activities, or only manage talent records and assignments.                                        |
-| PC-07 | Define the entity-manager assignment: its `workspace`-scoped key set, and whether it is a grant or a separate assignment concept, for event, project, campaign, and team managers.                        |
-| PC-08 | Decide the Super Admin representation: an explicit full grant set in seed data versus a superuser bypass flag.                                                                                            |
-| PC-09 | Define which profile fields a Team Member may change through `profile.update` on their own account.                                                                                                       |
-| PC-10 | Confirm the contents of `directory.read`: the minimum user attributes visible to every authenticated user for assignment and mentions.                                                                    |
-| PC-11 | Decide whether an assigned Team Member receives `event.read`, `project.read`, or `campaign.read` scoped to the records they are assigned to, and the scope value used for that grant.                     |
+| ID    | Decision required                                                                                                                                                                                                                                              |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PC-01 | Define scope resolution: how `department`, `team`, `workspace`, and `self` are computed per request; single versus multiple department assignment; cross-department delegation.                                                                                |
+| PC-02 | Decide whether Management/Administrator may perform `user.*` and `role.*` operations, or whether those remain exclusive to Super Admin. SRS 5.2 says "authorized administrators" without naming the role.                                                      |
+| PC-03 | Decide whether events, projects, and campaigns are deleted or archived, and which roles may do so. Coordinate with EVE-30 open decisions OD-02 and OD-03.                                                                                                      |
+| PC-04 | Define budget visibility for Department Managers and for assigned event, project, and campaign managers. Resolved for events: Department Manager holds `event.budget.read`/`update` at department scope (EOM-01). Still open for project and campaign budgets. |
+| PC-05 | Decide audit-log read access for Management and Department Manager roles. Coordinate with EN-07 (EVE-33).                                                                                                                                                      |
+| PC-06 | Define the Talent Manager boundary: whether the role may create tasks, channels, or meetings for talent activities, or only manage talent records and assignments.                                                                                             |
+| PC-07 | Define the entity-manager assignment: its `workspace`-scoped key set, and whether it is a grant or a separate assignment concept, for event, project, campaign, and team managers.                                                                             |
+| PC-08 | Decide the Super Admin representation: an explicit full grant set in seed data versus a superuser bypass flag.                                                                                                                                                 |
+| PC-09 | Define which profile fields a Team Member may change through `profile.update` on their own account.                                                                                                                                                            |
+| PC-10 | Confirm the contents of `directory.read`: the minimum user attributes visible to every authenticated user for assignment and mentions.                                                                                                                         |
+| PC-11 | Decide whether an assigned Team Member receives `event.read`, `project.read`, or `campaign.read` scoped to the records they are assigned to, and the scope value used for that grant.                                                                          |
 
 ## SRS traceability
 
