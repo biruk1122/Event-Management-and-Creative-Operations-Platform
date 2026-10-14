@@ -55,6 +55,7 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     endAt: null,
     location: "Grand Hall",
     organizerName: "Arts Council",
+    departmentId: null,
     manager: null,
     teams: [{ id: "t1", name: "Stage Crew" }],
     participants: [

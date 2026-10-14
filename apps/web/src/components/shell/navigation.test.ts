@@ -18,14 +18,14 @@ describe("shell destinations", () => {
     );
     expect(items.map((i) => i.href)).toEqual(["/settings/roles"]);
   });
-  it("matches current organization-only event/project/campaign/talent screens", () => {
+  it("matches current project/campaign/talent (organization-only) and event (EOM-01 department-scoped) screens", () => {
     const keys = ["event.read", "project.read", "campaign.read", "talent.read"];
     const narrow = destinations(
       access(
         keys.map((permissionKey) => ({ permissionKey, scope: "DEPARTMENT" })),
       ),
     );
-    expect(narrow.map((i) => i.href)).toEqual([]);
+    expect(narrow.map((i) => i.href)).toEqual(["/events"]);
     const wide = destinations(
       access(
         keys.map((permissionKey) => ({ permissionKey, scope: "ORGANIZATION" })),

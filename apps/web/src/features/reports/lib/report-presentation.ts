@@ -22,10 +22,12 @@ export const REPORT_TYPES: readonly ReportType[] = [
   "DAILY",
   "WEEKLY",
   "MONTHLY",
+  "POST_EVENT",
 ];
 export const REPORT_STATUSES: readonly ReportStatus[] = [
   "DRAFT",
   "SUBMITTED",
+  "UNDER_REVIEW",
   "CHANGES_REQUESTED",
   "REVIEWED",
 ];
@@ -34,12 +36,16 @@ export const TYPE_LABELS: Record<ReportType, string> = {
   DAILY: "Daily",
   WEEKLY: "Weekly",
   MONTHLY: "Monthly",
+  POST_EVENT: "Post-event",
 };
 
+/** `CHANGES_REQUESTED` displays as "Revision requested" (EOM-01) - a label
+ * change only, the stored enum value never changes. */
 export const STATUS_LABELS: Record<ReportStatus, string> = {
   DRAFT: "Draft",
   SUBMITTED: "Submitted",
-  CHANGES_REQUESTED: "Changes requested",
+  UNDER_REVIEW: "Under review",
+  CHANGES_REQUESTED: "Revision requested",
   REVIEWED: "Reviewed",
 };
 
@@ -63,6 +69,12 @@ export const NARRATIVE_FIELDS: Record<
     { key: "majorAchievements", label: "Major achievements" },
     { key: "challenges", label: "Challenges" },
   ],
+  POST_EVENT: [
+    { key: "majorAchievements", label: "Outcomes" },
+    { key: "challenges", label: "Challenges" },
+    { key: "lessonsLearned", label: "Lessons learned" },
+    { key: "recommendations", label: "Recommendations" },
+  ],
 };
 
 export function periodLabel(report: Pick<Report, "periodStart" | "periodEnd">) {
@@ -73,6 +85,7 @@ export function periodLabel(report: Pick<Report, "periodStart" | "periodEnd">) {
 
 export function statusVariant(status: ReportStatus) {
   if (status === "CHANGES_REQUESTED") return "destructive" as const;
-  if (status === "SUBMITTED") return "default" as const;
+  if (status === "SUBMITTED" || status === "UNDER_REVIEW")
+    return "default" as const;
   return "secondary" as const;
 }

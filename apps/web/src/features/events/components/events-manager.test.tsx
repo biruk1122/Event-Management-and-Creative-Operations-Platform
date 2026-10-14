@@ -33,6 +33,7 @@ function makeEvent(
     endAt: null,
     location: null,
     organizerName: null,
+    departmentId: null,
     manager: null,
     teams: [],
     participants: [],

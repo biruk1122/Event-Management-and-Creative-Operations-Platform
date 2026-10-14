@@ -43,24 +43,61 @@ export function DashboardResults({
       />
     );
   }
-  if ("items" in data && "hasMore" in data) {
+  if (cardKey === "budgetPlannedVsApproved" && "items" in data) {
+    const budget = data as Schemas["DashboardBudgetList"];
     return (
       <div className="space-y-3">
-        {"count" in data ? (
+        {budget.items.length === 0 ? (
+          <p>No event budgets in scope.</p>
+        ) : (
+          <ul className="space-y-2">
+            {budget.items.map((item) => (
+              <li
+                key={item.eventId}
+                className="bg-muted/50 space-y-1 rounded-xl border p-3"
+              >
+                <p className="font-medium break-words">{item.eventName}</p>
+                <p className="text-muted-foreground text-sm">
+                  Planned:{" "}
+                  {item.plannedAmount
+                    ? `${item.plannedAmount} ${item.currency ?? ""}`
+                    : "not set"}
+                </p>
+                <p className="text-sm">
+                  Approved: {item.actualApproved} · Pending:{" "}
+                  {item.actualPending}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+        {budget.hasMore ? (
+          <p className="text-muted-foreground text-sm">
+            More items available in the source workspace.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+  if ("items" in data && "hasMore" in data) {
+    const list = data as Exclude<typeof data, Schemas["DashboardBudgetList"]>;
+    return (
+      <div className="space-y-3">
+        {"count" in list ? (
           <p className="text-2xl font-semibold tabular-nums">
-            {data.count}{" "}
+            {list.count}{" "}
             <span className="text-sm font-normal">
-              {"totalConversations" in data
-                ? `unread across ${data.totalConversations} conversations`
+              {"totalConversations" in list
+                ? `unread across ${list.totalConversations} conversations`
                 : "active channels"}
             </span>
           </p>
         ) : null}
-        {data.items.length === 0 ? (
+        {list.items.length === 0 ? (
           <p>No matching items.</p>
         ) : (
           <ul className="space-y-2">
-            {data.items.map((item) =>
+            {list.items.map((item) =>
               "conversationId" in item ? (
                 <li
                   key={item.conversationId}
@@ -114,7 +151,7 @@ export function DashboardResults({
             )}
           </ul>
         )}
-        {data.hasMore ? (
+        {list.hasMore ? (
           <p className="text-muted-foreground text-sm">
             More items available in the source workspace.
           </p>

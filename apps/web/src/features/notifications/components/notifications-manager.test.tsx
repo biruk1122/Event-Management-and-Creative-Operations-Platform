@@ -48,6 +48,7 @@ function notification(
     messageId: null,
     eventId: null,
     meetingId: null,
+    expenseId: null,
     ...overrides,
   };
 }
