@@ -432,11 +432,11 @@ test.describe("Event management — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    // A Department Manager holds event.read at DEPARTMENT scope only. Event
-    // reads are organization-scoped, so the surface is fully denied.
-    test.use({ storageState: authStatePath("deptManager") });
+    // Department Managers can now read their department's events (EOM-01).
+    // Exercise full denial with a Department Member that has no event grants.
+    test.use({ storageState: authStatePath("restrictedMember") });
 
-    test("a department-scoped account cannot see, open, or drive event management", async ({
+    test("a member without event grants cannot see, open, or drive event management", async ({
       page,
     }) => {
       await page.goto("/");
