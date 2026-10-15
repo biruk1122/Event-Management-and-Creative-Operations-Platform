@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { WorkSurface } from "@/components/ui/work-surface";
 
 import { createServerApi } from "@/lib/api/server";
 import { DiscussScreen } from "@/features/discuss";
@@ -31,26 +32,25 @@ export default async function DirectMessagesPage({
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
-        Direct messages
-      </h1>
-      {allowed ? (
-        <>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Message one person directly, or start a group.
-          </p>
-          <div className="mt-6">
+      <WorkSurface
+        title="Direct messages"
+        description={
+          allowed ? "Message one person directly, or start a group." : undefined
+        }
+      >
+        {allowed ? (
+          <div>
             <DiscussScreen
               kind="dm"
               initialConversationId={conversationId?.[0] ?? null}
             />
           </div>
-        </>
-      ) : (
-        <p role="alert" className="mt-6">
-          You do not have access to this area.
-        </p>
-      )}
+        ) : (
+          <p role="alert" className="mt-6">
+            You do not have access to this area.
+          </p>
+        )}
+      </WorkSurface>
     </main>
   );
 }

@@ -8,12 +8,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
+import styles from "./notifications-presentation.module.css";
 import {
   accessKey,
   useCurrentAccess,
@@ -72,7 +73,9 @@ export function NotificationsBell({
             <Bell aria-hidden="true" />
           </Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent
+          className={`${styles.surface} max-h-[90vh] overflow-y-auto`}
+        >
           <DialogHeader>
             <DialogTitle>Notifications</DialogTitle>
             <DialogDescription>
@@ -106,11 +109,15 @@ export function NotificationsBell({
             <ul aria-label="Recent notifications" className="space-y-3">
               {recent.map((item) => (
                 <li
+                  data-notification-unread={item.readAt === null}
                   key={item.id}
                   className="border-border rounded-lg border p-3 text-sm"
                 >
                   <p className="font-medium">{item.title}</p>
                   <p className="text-muted-foreground">{item.body}</p>
+                  <span className="text-muted-foreground text-sm">
+                    {item.readAt === null ? "Unread" : "Read"}
+                  </span>
                 </li>
               ))}
             </ul>

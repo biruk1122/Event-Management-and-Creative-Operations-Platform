@@ -16,6 +16,8 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  // Keep the font available to code views without preloading it on every route.
+  preload: false,
 });
 
 export const metadata: Metadata = {

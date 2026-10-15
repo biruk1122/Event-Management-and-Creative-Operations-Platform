@@ -9,7 +9,7 @@ export function BrandLogo({
 }: {
   compact?: boolean;
   decorative?: boolean;
-  /** Right-sized, source-derived encoding for the critical login paint. */
+  /** Right-sized, source-derived encoding for critical login and shell paint. */
   optimized?: boolean;
   className?: string;
 }) {

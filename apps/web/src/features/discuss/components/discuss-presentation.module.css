@@ -1,0 +1,67 @@
+.surface {
+  min-width: 0;
+}
+.surface :is([data-conversation-list], [data-conversation-detail]) {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+}
+.surface [data-conversation-item] {
+  flex-wrap: wrap;
+  min-height: 3.5rem;
+}
+.surface [data-conversation-item] :global(.truncate) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.surface [data-conversation-item][aria-current] {
+  border-inline-start: 3px solid var(--primary);
+  font-weight: 600;
+}
+.surface [data-message-item] {
+  margin-block: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  background: var(--muted);
+}
+.surface [data-message-item][data-owned="true"] {
+  border-inline-start: 3px solid var(--primary);
+  background: var(--accent);
+}
+.surface [data-message-mentions] {
+  padding: 0.5rem;
+  background: var(--card);
+  border-radius: 0.5rem;
+}
+.surface :is(p, span, button, li) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.surface [data-message-item] :global(.flex) {
+  flex-wrap: wrap;
+}
+.surface :global(.text-xs) {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.surface form[aria-label="Send a message"] {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--muted);
+}
+.surface textarea {
+  min-height: 6rem;
+}
+.surface :is(button, input) {
+  min-height: 2.75rem;
+}
+.surface [data-message-item] button {
+  min-width: 2.75rem;
+}
+.surface button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}

@@ -37,10 +37,17 @@ for (const profile of [
     try {
       const page = await context.newPage();
       await page.addInitScript(() => {
-        const metrics = { lcp: 0, interactions: [] as number[] };
+        const metrics = { lcp: 0, lcpTarget: "", interactions: [] as number[] };
         Object.defineProperty(window, "campaignMetrics", { value: metrics });
         new PerformanceObserver((list) => {
-          for (const entry of list.getEntries()) metrics.lcp = entry.startTime;
+          for (const entry of list.getEntries()) {
+            metrics.lcp = entry.startTime;
+            const element = (entry as PerformanceEntry & { element?: Element })
+              .element;
+            metrics.lcpTarget = element
+              ? `${element.tagName}.${element.className}`
+              : "unknown";
+          }
         }).observe({ type: "largest-contentful-paint", buffered: true });
         new PerformanceObserver((list) => {
           for (const entry of list.getEntries()) {

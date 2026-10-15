@@ -247,8 +247,8 @@ function ShellFrame({
       </a>
       <aside className="shell-sidebar">
         <div className="shell-brand">
-          <BrandLogo compact className="shell-rail-logo" />
-          <BrandLogo compact={collapsed} className="shell-logo" />
+          <BrandLogo optimized compact className="shell-rail-logo" />
+          <BrandLogo optimized compact={collapsed} className="shell-logo" />
           <p className="shell-brand-caption">Creative management</p>
         </div>
         <nav aria-label="Primary" className="shell-sidebar-navigation">
@@ -283,7 +283,7 @@ function ShellFrame({
         <header className="shell-header">
           <div className="flex min-w-0 items-center gap-3">
             <div className="shell-header-logo">
-              <BrandLogo compact className="h-10 w-7" />
+              <BrandLogo optimized compact className="h-10 w-7" />
             </div>
             <div className="min-w-0">
               <p className="text-muted-foreground text-xs">

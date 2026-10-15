@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { WorkSurface } from "@/components/ui/work-surface";
 import { NotificationsScreen } from "@/features/notifications";
 export const metadata: Metadata = { title: "Notifications" };
 export default function NotificationsPage() {
@@ -8,15 +9,12 @@ export default function NotificationsPage() {
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight">
-        Notifications
-      </h1>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Review your updates and control reminder preferences.
-      </p>
-      <div className="mt-6">
+      <WorkSurface
+        title="Notifications"
+        description="Review your updates and control reminder preferences."
+      >
         <NotificationsScreen />
-      </div>
+      </WorkSurface>
     </main>
   );
 }
