@@ -49,6 +49,7 @@ export interface ReportsWorkspaceProps {
   departmentNames?: Readonly<Record<string, string>>;
   canCreate?: boolean;
   canReview?: boolean;
+  canAttach?: boolean;
   busy?: boolean;
   notice?: { kind: "success" | "error"; message: string } | null;
   errorMessage?: string | undefined;
@@ -57,7 +58,11 @@ export interface ReportsWorkspaceProps {
   onPageChange?: (page: number) => void;
   onSelect?: (id: string | null) => void;
   onSaveDraft?:
-    | ((values: CreateReport, reportId?: string) => boolean | Promise<boolean>)
+    | ((
+        values: CreateReport,
+        reportId: string | undefined,
+        files: readonly File[],
+      ) => boolean | Promise<boolean>)
     | undefined;
   onSubmit?: ((id: string) => void) | undefined;
   onStartReview?: ((id: string) => void) | undefined;
@@ -76,7 +81,10 @@ const EMPTY_FILTERS: ReportFilters = {
 function metric(label: string, value: number | null) {
   if (value === null) return null;
   return (
-    <div key={label} className="bg-muted rounded-xl border p-4">
+    <div
+      key={label}
+      className="bg-muted w-full shrink grow-0 basis-40 rounded-xl border p-4 @min-[36rem]:basis-48"
+    >
       <dt className="text-muted-foreground text-xs">{label}</dt>
       <dd className="text-primary mt-2 text-2xl font-semibold tabular-nums">
         {value}
@@ -166,6 +174,9 @@ function ReportDetailPanel({
                     ? "Read the review notes and update your draft."
                     : "Review complete. Your report and review history are available below."}
           </p>
+          {report.description ? (
+            <p className="mt-3 text-sm">{report.description}</p>
+          ) : null}
         </div>
         {onClose ? (
           <ReportActionButton
@@ -227,7 +238,7 @@ function ReportDetailPanel({
           Completed tasks are for this UTC period. Open tasks and projects are
           current as of {report.facts.asOf}.
         </p>
-        <dl className="grid grid-cols-2 gap-2 md:grid-cols-3">
+        <dl className="flex flex-wrap justify-center gap-2">
           {metric(
             "Tasks completed in period",
             report.facts.completedTasksInPeriod,
@@ -271,11 +282,11 @@ function ReportDetailPanel({
         <h3 id="report-narrative-title" className="font-medium">
           Report sections
         </h3>
-        <dl className="grid gap-3 sm:grid-cols-2">
+        <dl className="flex flex-wrap justify-center gap-3">
           {NARRATIVE_FIELDS[report.type].map(({ key, label }) => (
             <div
               key={key}
-              className={`${styles.narrative} min-w-0 rounded-xl p-4`}
+              className={`${styles.narrative} w-full min-w-0 shrink grow-0 basis-80 rounded-xl p-4 @min-[48rem]:basis-96`}
             >
               <dt className="text-muted-foreground text-sm">{label}</dt>
               <dd className="mt-1 text-sm whitespace-pre-wrap">
@@ -511,6 +522,7 @@ export function ReportsWorkspace({
   departmentNames = {},
   canCreate = false,
   canReview = false,
+  canAttach = false,
   busy = false,
   notice,
   errorMessage,
@@ -626,11 +638,14 @@ export function ReportsWorkspace({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3" aria-label="Reporting periods">
+      <div
+        className="flex flex-wrap justify-center gap-3"
+        aria-label="Reporting periods"
+      >
         {REPORT_TYPES.map((type) => (
           <div
             key={type}
-            className={`${styles.panel} flex items-start gap-3 p-4`}
+            className={`${styles.panel} flex w-full shrink grow-0 basis-64 items-start gap-3 p-4 @min-[48rem]:basis-72`}
           >
             <span className="bg-secondary text-secondary-foreground rounded-lg p-2">
               <CalendarDays aria-hidden="true" className="size-5" />
@@ -958,10 +973,15 @@ export function ReportsWorkspace({
             workspaces={workspaces}
             warning={workspaceWarning}
             busy={busy}
+            canAttach={canAttach}
             onCancel={closeEditor}
-            onSave={(values) => {
+            onSave={(values, files) => {
               void Promise.resolve(
-                onSaveDraft(values, editing === "new" ? undefined : editing.id),
+                onSaveDraft(
+                  values,
+                  editing === "new" ? undefined : editing.id,
+                  files,
+                ),
               ).then((saved) => {
                 if (saved) closeEditor();
               });

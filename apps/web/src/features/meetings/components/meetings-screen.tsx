@@ -46,7 +46,7 @@ export function MeetingsScreen({ connect }: MeetingsScreenProps = {}) {
     return <p role="alert">You do not have access to these meetings.</p>;
 
   return (
-    <main className="mx-auto max-w-5xl p-4 sm:p-6">
+    <main className="@container mx-auto max-w-7xl p-4 sm:p-6">
       <WorkSurface
         title="Meetings"
         description="Your schedule, and the meetings you've been invited to."

@@ -8,9 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { CurrentAccess } from "@/features/auth/api/access-queries";
 import styles from "./production-presentation.module.css";
 
 import { ProductionForm, type ProductionValues } from "./production-form";
+import { ProductionBudgetPanel } from "./production-budget-panel";
+import { ProductionLocationsPanel } from "./production-locations-panel";
+import { ProductionOverviewPanel } from "./production-overview-panel";
+import { ProductionSchedulePanel } from "./production-schedule-panel";
 import type { ProductionArea } from "../lib/production-access";
 import {
   nextProductionStatuses,
@@ -23,9 +28,11 @@ import {
 
 const defaultAreas: ProductionArea[] = [
   "Overview",
+  "Schedule",
+  "Locations",
+  "Budget",
   "Team",
   "Talent",
-  "Tasks",
   "Calendar",
   "Discussion",
   "Meetings",
@@ -35,13 +42,13 @@ const defaultAreas: ProductionArea[] = [
 const destinations: Partial<Record<ProductionArea, Route>> = {
   Team: "/teams",
   Talent: "/talent",
-  Tasks: "/tasks",
   Calendar: "/calendar",
   Discussion: "/discuss/channels" as Route,
   Meetings: "/meetings",
 };
 
 export interface ProductionsBoardProps {
+  access: CurrentAccess;
   productions: readonly Production[];
   state: "loading" | "ready" | "error" | "denied";
   onRetry?: () => void;
@@ -63,10 +70,14 @@ export interface ProductionsBoardProps {
   onDetailRetry?: () => void;
   areas?: readonly ProductionArea[];
   canCreate?: boolean;
+  canCreateForAnyDepartment?: boolean;
   canUpdate?: boolean;
   canTransition?: boolean;
   canAssign?: boolean;
   canDelete?: boolean;
+  canReadBudget?: boolean;
+  canUpdateBudget?: boolean;
+  availableDepartments?: readonly { id: string; name: string }[];
   availablePeople?: readonly NonNullable<Production["manager"]>[];
   peopleUnavailable?: boolean;
   availableTeams?: readonly Production["teams"][number][];
@@ -108,10 +119,12 @@ function editValues(production: Production): ProductionValues {
     startAt: production.startAt?.slice(0, 10) ?? "",
     endAt: production.endAt?.slice(0, 10) ?? "",
     deadlineAt: production.deadlineAt?.slice(0, 10) ?? "",
+    departmentId: production.departmentId ?? "",
   };
 }
 
 export function ProductionsBoard({
+  access,
   productions,
   state,
   onRetry,
@@ -133,10 +146,14 @@ export function ProductionsBoard({
   onDetailRetry,
   areas = defaultAreas,
   canCreate,
+  canCreateForAnyDepartment,
   canUpdate,
   canTransition,
   canAssign,
   canDelete,
+  canReadBudget,
+  canUpdateBudget,
+  availableDepartments = [],
   availablePeople = [],
   peopleUnavailable,
   availableTeams = [],
@@ -309,9 +326,12 @@ export function ProductionsBoard({
           ) : null}
         </div>
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="flex flex-wrap justify-center gap-3">
           {filtered.map((item) => (
-            <li key={item.id}>
+            <li
+              key={item.id}
+              className="w-full shrink grow-0 basis-80 @min-[56rem]:basis-96"
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -784,10 +804,35 @@ export function ProductionsBoard({
               className="text-muted-foreground space-y-2 text-sm"
             >
               {activeArea === "Overview" ? (
-                <p>
-                  Workspace {selected.workspaceId}. Its team and talent
-                  assignments are shown above.
-                </p>
+                <ProductionOverviewPanel
+                  access={access}
+                  production={selected}
+                  canReadBudget={Boolean(canReadBudget)}
+                />
+              ) : activeArea === "Schedule" ? (
+                <ProductionSchedulePanel
+                  access={access}
+                  production={selected}
+                  canCreate={Boolean(canCreate)}
+                />
+              ) : activeArea === "Locations" ? (
+                <ProductionLocationsPanel
+                  productionId={selected.id}
+                  canManage={Boolean(canUpdate)}
+                />
+              ) : activeArea === "Budget" ? (
+                canReadBudget ? (
+                  <ProductionBudgetPanel
+                    access={access}
+                    productionId={selected.id}
+                    canUpdate={Boolean(canUpdateBudget)}
+                  />
+                ) : (
+                  <p role="alert">
+                    You do not have permission to view this production&apos;s
+                    budget.
+                  </p>
+                )
               ) : activeArea === "Team" ? (
                 <p>
                   {selected.teams.length} assigned team
@@ -911,6 +956,8 @@ export function ProductionsBoard({
       {form === "create" && onCreate ? (
         <ProductionForm
           open
+          departments={availableDepartments}
+          departmentLocked={!canCreateForAnyDepartment}
           onOpenChange={(open) => {
             if (!open) setForm(null);
           }}

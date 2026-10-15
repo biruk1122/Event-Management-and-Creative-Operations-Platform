@@ -25,6 +25,16 @@ export const productionEventNotFound = () =>
     code: "EVENT_NOT_FOUND",
     detail: "No event exists with that id.",
   });
+export const productionDepartmentNotFound = () =>
+  new NotFoundException({
+    code: "PRODUCTION_DEPARTMENT_NOT_FOUND",
+    detail: "No department exists with that id.",
+  });
+export const productionBudgetIncomplete = () =>
+  new BadRequestException({
+    code: "PRODUCTION_BUDGET_INCOMPLETE",
+    detail: "Set both the amount and currency together, or clear both.",
+  });
 export const productionInvalidSchedule = () =>
   new BadRequestException({
     code: "PRODUCTION_SCHEDULE_INVALID",

@@ -44,7 +44,8 @@ function headers() {
 
 function createBody(values: CreateExpenseValues) {
   return {
-    eventId: values.eventId,
+    ...(values.eventId ? { eventId: values.eventId } : {}),
+    ...(values.productionId ? { productionId: values.productionId } : {}),
     ...(values.supplierId ? { supplierId: values.supplierId } : {}),
     category: values.category,
     description: values.description.trim(),
@@ -75,6 +76,12 @@ function createFailure(error: unknown, status: number): CreateExpenseOutcome {
       return { status: "event_not_found" };
     if (error.code === "EXPENSE_EVENT_HAS_NO_DEPARTMENT")
       return { status: "event_has_no_department" };
+    if (error.code === "EXPENSE_PRODUCTION_NOT_FOUND")
+      return { status: "production_not_found" };
+    if (error.code === "EXPENSE_PRODUCTION_HAS_NO_DEPARTMENT")
+      return { status: "production_has_no_department" };
+    if (error.code === "EXPENSE_OWNER_REQUIRED")
+      return { status: "owner_required" };
     if (error.code === "EXPENSE_SUPPLIER_NOT_FOUND")
       return { status: "supplier_not_found" };
     if (error.code === "VALIDATION_ERROR") {
@@ -83,6 +90,7 @@ function createFailure(error: unknown, status: number): CreateExpenseOutcome {
         {};
       for (const key of [
         "eventId",
+        "productionId",
         "supplierId",
         "category",
         "description",

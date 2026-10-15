@@ -5,7 +5,7 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -44,6 +44,10 @@ const stamp = {
   asOf: "2026-10-06T08:00:00.000Z",
   freshness: "live-current-state",
 };
+// Tasks, departments, and monthly activity are permanently pinned on the
+// Analytics page (see `PinnedAnalyticsPanel`); this fixture grants all three
+// plus the general management grant that unlocks the dropdown-selectable
+// measures (events/campaigns/promotion).
 const reader = {
   userId: "reader-1",
   grants: [
@@ -62,7 +66,10 @@ const fail = (status: number, code = "ANALYTICS_UNAVAILABLE") => ({
 });
 beforeEach(() => {
   access = reader;
-  state.url = "measure=tasks&from=2026-09-01&toExclusive=2026-10-01";
+  // No `measure` param: the dropdown below the pinned panels falls back to
+  // its own first allowed choice (tasks/departments/monthly are excluded
+  // from it, since they are pinned - see `AnalyticsManager`).
+  state.url = "";
   state.listeners.clear();
   state.get.mockReset();
   state.get.mockImplementation(
@@ -75,7 +82,11 @@ beforeEach(() => {
       const query = options.params?.query ?? {};
       if (path.endsWith("task-completion"))
         return ok({ ...stamp, ...query, counts });
-      if (path.endsWith("departments"))
+      if (
+        path.endsWith("departments") ||
+        path.endsWith("events") ||
+        path.endsWith("campaigns")
+      )
         return ok({
           ...stamp,
           ...query,
@@ -101,6 +112,25 @@ const metricCalls = () =>
   state.get.mock.calls.filter(([path]) =>
     path.startsWith("/api/v1/analytics/"),
   );
+const callsTo = (suffix: string) =>
+  metricCalls().filter(([path]) => path.endsWith(suffix));
+/** Scopes queries to one of the three permanently pinned panels, by its
+ * card heading. */
+function pinnedPanel(title: string) {
+  return within(
+    screen.getByRole("heading", { name: title }).closest('[data-slot="card"]') as HTMLElement,
+  );
+}
+/** Scopes queries to the single-measure dropdown's own results section
+ * (an ARIA region, since `AnalyticsWorkspace` labels it). */
+function dropdownResults(measureLabel: string) {
+  return within(screen.getByRole("region", { name: measureLabel }));
+}
+/** Scopes queries to the single-measure dropdown's own filter form (a
+ * labelled `<form>`, exposed with role "form"). */
+function dropdownForm(measureLabel: string) {
+  return within(screen.getByRole("form", { name: `${measureLabel} filters` }));
+}
 describe("live analytics integration", () => {
   it("server-renders useful public context while keeping controls and metrics permission-gated", () => {
     const client = new QueryClient();
@@ -116,40 +146,47 @@ describe("live analytics integration", () => {
     expect(html).not.toContain("<select");
     expect(metricCalls()).toHaveLength(0);
   });
-  it("fetches only the selected authorized measure with authoritative counts", async () => {
+  it("shows all three pinned panels plus the dropdown's own first allowed measure, and never lists a pinned measure as a dropdown option", async () => {
     const client = setup();
     const heading = screen.getByRole("heading", {
       name: "Work delivery analytics",
     });
-    const scope = screen.getByText(
-      /Each measure requires its own scoped grant/,
-    );
-    expect(await screen.findByText("50%", { selector: "p" })).toBeVisible();
+    await screen.findByRole("heading", { name: "Task completion rate" });
+    expect(
+      await pinnedPanel("Task completion rate").findByText("50%"),
+    ).toBeVisible();
+    pinnedPanel("Department performance");
+    pinnedPanel("Monthly activity");
+    await waitFor(() => expect(callsTo("task-completion")).toHaveLength(1));
+    await waitFor(() => expect(callsTo("departments")).toHaveLength(1));
+    await waitFor(() => expect(callsTo("monthly-activity")).toHaveLength(1));
+    await waitFor(() => expect(callsTo("events")).toHaveLength(1));
+    expect(callsTo("campaigns")).toHaveLength(0);
+    expect(callsTo("promotion")).toHaveLength(0);
+    const select = screen.getByLabelText("Analytics measure");
+    expect(select).toHaveValue("events");
+    for (const excluded of [
+      "Task completion",
+      "Department performance",
+      "Monthly activity",
+      "Employee performance",
+    ])
+      expect(
+        screen.queryByRole("option", { name: excluded }),
+      ).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Work delivery analytics" }),
     ).toBe(heading);
-    expect(screen.getByText(/Each measure requires its own scoped grant/)).toBe(
-      scope,
-    );
-    expect(metricCalls()).toHaveLength(1);
-    expect(metricCalls()[0]?.[0]).toBe("/api/v1/analytics/task-completion");
-    expect(
-      screen.queryByRole("option", { name: "Employee performance" }),
-    ).not.toBeInTheDocument();
     await act(async () => {
       await client.invalidateQueries({ queryKey: accessKey });
     });
     await waitFor(() =>
-      expect(screen.getByText("50%", { selector: "p" })).toBeVisible(),
-    );
-    expect(
-      screen.getByRole("heading", { name: "Work delivery analytics" }),
-    ).toBe(heading);
-    expect(screen.getByText(/Each measure requires its own scoped grant/)).toBe(
-      scope,
+      expect(
+        pinnedPanel("Task completion rate").getByText("50%"),
+      ).toBeVisible(),
     );
   });
-  it("never requests metrics for ordinary employees, forbidden deep links or malformed ranges", async () => {
+  it("never requests metrics for ordinary employees or forbidden deep links, and validates pinned-panel dates client-side", async () => {
     access = { ...reader, grants: [] };
     const client = setup();
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -166,70 +203,85 @@ describe("live analytics integration", () => {
         "requested analytics measure",
       ),
     );
-    expect(metricCalls()).toHaveLength(0);
-    act(() => {
-      state.url = "measure=tasks&from=2026-02-30";
-      state.listeners.forEach((listener) => listener());
-    });
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Enter two valid UTC dates.",
+    expect(callsTo("employees")).toHaveLength(0);
+    // Date validation for a pinned measure now happens inside its own panel,
+    // never via a URL parameter (pinned panels hold no router state).
+    const monthly = pinnedPanel("Monthly activity");
+    await monthly.findByLabelText("Activity month start (UTC)");
+    await waitFor(() =>
+      expect(
+        monthly.getByRole("button", { name: "Apply filters" }),
+      ).not.toBeDisabled(),
     );
-    expect(metricCalls()).toHaveLength(0);
-  });
-  it("sends new filters to the server, resets paging and retains draft filters on retry", async () => {
-    state.url =
-      "measure=departments&from=2026-09-01&toExclusive=2026-10-01&page=2&pageSize=25";
-    setup();
-    expect(
-      await screen.findByText("Page 2 of 3 · 51 authorized subjects"),
-    ).toBeVisible();
-    await userEvent.selectOptions(screen.getByLabelText("Rows per page"), "50");
+    await userEvent.clear(monthly.getByLabelText("End (exclusive, UTC)"));
+    await userEvent.type(
+      monthly.getByLabelText("End (exclusive, UTC)"),
+      "2026-09-01",
+    );
     await userEvent.click(
-      screen.getByRole("button", { name: "Apply filters" }),
+      monthly.getByRole("button", { name: "Apply filters" }),
     );
+    expect(monthly.getByRole("alert")).toHaveTextContent(
+      "End (exclusive) must be after start.",
+    );
+  });
+  it("sends new filters to the pinned department panel, resets paging and retains draft filters on retry", async () => {
+    setup();
+    await screen.findByRole("heading", { name: "Department performance" });
+    const panel = pinnedPanel("Department performance");
     expect(
-      await screen.findByText("Page 1 of 2 · 51 authorized subjects"),
+      await panel.findByText("Page 1 of 3 · 51 authorized subjects"),
     ).toBeVisible();
-    expect(metricCalls().at(-1)?.[1].params.query).toMatchObject({
+    await userEvent.selectOptions(panel.getByLabelText("Rows per page"), "50");
+    await userEvent.click(panel.getByRole("button", { name: "Apply filters" }));
+    expect(
+      await panel.findByText("Page 1 of 2 · 51 authorized subjects"),
+    ).toBeVisible();
+    expect(callsTo("departments").at(-1)?.[1].params.query).toMatchObject({
       page: 1,
       pageSize: 50,
     });
-    await userEvent.click(screen.getByRole("button", { name: "Next page" }));
+    await userEvent.click(panel.getByRole("button", { name: "Next page" }));
     expect(
-      await screen.findByText("Page 2 of 2 · 51 authorized subjects"),
+      await panel.findByText("Page 2 of 2 · 51 authorized subjects"),
     ).toBeVisible();
     await userEvent.type(
-      screen.getByLabelText("Subject ID (optional)"),
+      panel.getByLabelText("Department ID (optional)"),
       "draft-id",
     );
     await userEvent.click(
-      screen.getByRole("button", { name: "Refresh measure" }),
+      panel.getByRole("button", { name: "Refresh measure" }),
     );
     expect(
-      await screen.findByText(
+      await panel.findByText(
         /Department performance refreshed from authoritative data/,
       ),
     ).toBeVisible();
-    expect(screen.getByLabelText("Subject ID (optional)")).toHaveValue(
+    expect(panel.getByLabelText("Department ID (optional)")).toHaveValue(
       "draft-id",
     );
-    expect(metricCalls().at(-1)?.[1].params.query.departmentId).toBeUndefined();
+    expect(callsTo("departments").at(-1)?.[1].params.query.departmentId).toBe(
+      undefined,
+    );
   });
   it("does not turn a partial service failure into zeros or retain stale successful counts", async () => {
     setup();
-    expect(await screen.findByText("50%", { selector: "p" })).toBeVisible();
+    await waitFor(() => expect(callsTo("events")).toHaveLength(1));
     state.get.mockImplementation(async (path: string) =>
       path.includes("permissions") ? ok(access) : fail(503),
     );
     await userEvent.selectOptions(
       screen.getByLabelText("Analytics measure"),
-      "departments",
+      "campaigns",
     );
-    expect(await screen.findByRole("alert")).toHaveTextContent(
+    const results = dropdownResults("Marketing campaign progress");
+    expect(await results.findByRole("alert")).toHaveTextContent(
       "temporarily unavailable",
     );
-    expect(screen.getByText(/Some measures are unavailable/)).toBeVisible();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Some measures are unavailable/),
+    ).toBeVisible();
+    expect(results.queryByRole("table")).not.toBeInTheDocument();
     state.get.mockImplementation(
       async (
         path: string,
@@ -239,9 +291,9 @@ describe("live analytics integration", () => {
           ? ok(access)
           : ok({ ...stamp, ...options.params?.query, total: 0, items: [] }),
     );
-    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await userEvent.click(results.getByRole("button", { name: "Try again" }));
     expect(
-      await screen.findByText(/No matching data in your permitted scope/),
+      await results.findByText(/No matching data in your permitted scope/),
     ).toBeVisible();
     expect(screen.queryByText(/private SQL/)).not.toBeInTheDocument();
   });
@@ -271,12 +323,14 @@ describe("live analytics integration", () => {
     "fails closed and evicts metrics on an authoritative HTTP %s",
     async (status) => {
       const client = setup();
-      expect(await screen.findByText("50%", { selector: "p" })).toBeVisible();
+      await waitFor(() => expect(callsTo("task-completion")).toHaveLength(1));
       state.get.mockImplementation(async (path: string) =>
         path.includes("permissions") ? ok(access) : fail(status),
       );
       await userEvent.click(
-        screen.getByRole("button", { name: "Refresh measure" }),
+        pinnedPanel("Task completion rate").getByRole("button", {
+          name: "Refresh measure",
+        }),
       );
       expect(await screen.findByRole("alert")).toHaveTextContent(
         status === 401 ? "session expired" : "access changed",
@@ -289,42 +343,37 @@ describe("live analytics integration", () => {
       expect(screen.queryByRole("meter")).not.toBeInTheDocument();
     },
   );
-  it("re-fetches after a same-grant permission epoch change, rather than showing old department data", async () => {
+  it("re-fetches after a same-grant permission epoch change, rather than showing old data", async () => {
     const client = setup();
-    expect(await screen.findByText("50%", { selector: "p" })).toBeVisible();
+    await waitFor(() => expect(metricCalls()).toHaveLength(4));
     await act(async () => {
       await client.invalidateQueries({ queryKey: accessKey });
     });
     await waitFor(() => {
-      expect(screen.getByText("50%", { selector: "p" })).toBeVisible();
-      expect(metricCalls()).toHaveLength(2);
+      expect(metricCalls()).toHaveLength(8);
     });
     expect(
       client.getQueryCache().findAll({ queryKey: ["analytics"] }),
-    ).toHaveLength(1);
+    ).toHaveLength(4);
   });
   it.each(["revalidation", "focus"])(
-    "preserves unapplied filters after %s without applying them",
+    "preserves unapplied dropdown filters after %s without applying them",
     async (trigger) => {
-      state.url = "measure=departments&from=2026-09-01&toExclusive=2026-10-01";
+      state.url = "measure=events";
       const client = setup();
-      await screen.findByText("Page 1 of 3 · 51 authorized subjects");
+      await screen.findByText("Page 1 of 3 · 51 authorized subjects", {
+        selector: "p",
+      });
       const subject = "11111111-1111-4111-8111-111111111111";
       await userEvent.type(
         screen.getByLabelText("Subject ID (optional)"),
         subject,
       );
-      await userEvent.clear(
-        screen.getByLabelText("Creation period start (UTC)"),
-      );
-      await userEvent.type(
-        screen.getByLabelText("Creation period start (UTC)"),
-        "2026-08-01",
-      );
       await userEvent.selectOptions(
-        screen.getByLabelText("Rows per page"),
+        dropdownForm("Event progress").getByLabelText("Rows per page"),
         "50",
       );
+      await waitFor(() => expect(metricCalls()).toHaveLength(4));
       if (trigger === "focus") {
         await act(async () => {
           focusManager.setFocused(false);
@@ -336,32 +385,30 @@ describe("live analytics integration", () => {
           await client.invalidateQueries({ queryKey: accessKey });
         });
       }
-      await waitFor(() => expect(metricCalls()).toHaveLength(2));
+      await waitFor(() => expect(metricCalls()).toHaveLength(8));
       await waitFor(() =>
         expect(screen.getByLabelText("Subject ID (optional)")).toHaveValue(
           subject,
         ),
       );
-      expect(screen.getByLabelText("Creation period start (UTC)")).toHaveValue(
-        "2026-08-01",
-      );
-      expect(screen.getByLabelText("Rows per page")).toHaveValue("50");
-      expect(metricCalls().at(-1)?.[1].params.query).toMatchObject({
-        from: "2026-09-01",
+      expect(
+        dropdownForm("Event progress").getByLabelText("Rows per page"),
+      ).toHaveValue("50");
+      expect(callsTo("events").at(-1)?.[1].params.query).toMatchObject({
         pageSize: 25,
       });
-      expect(
-        metricCalls().at(-1)?.[1].params.query.departmentId,
-      ).toBeUndefined();
+      expect(callsTo("events").at(-1)?.[1].params.query.eventId).toBeUndefined();
       expect(
         client.getQueryCache().findAll({ queryKey: ["analytics"] }),
-      ).toHaveLength(1);
+      ).toHaveLength(4);
     },
   );
   it("preserves drafts through an in-flight permission check but never across users", async () => {
-    state.url = "measure=departments&from=2026-09-01&toExclusive=2026-10-01";
+    state.url = "measure=events";
     const client = setup();
-    await screen.findByText("Page 1 of 3 · 51 authorized subjects");
+    await screen.findByText("Page 1 of 3 · 51 authorized subjects", {
+      selector: "p",
+    });
     await userEvent.type(
       screen.getByLabelText("Subject ID (optional)"),
       "unfinished-draft",
@@ -397,49 +444,51 @@ describe("live analytics integration", () => {
       expect(screen.getByLabelText("Subject ID (optional)")).toHaveValue(""),
     );
   });
-  it("does not let a late old-filter response replace the newly selected measure", async () => {
+  it("does not let a late old-measure response replace the newly selected dropdown measure", async () => {
     let complete: (value: unknown) => void = () => {};
     let signal: AbortSignal | undefined;
     state.get.mockImplementation(
       (path: string, options: { signal?: AbortSignal }) => {
         if (path.includes("permissions")) return Promise.resolve(ok(access));
-        if (path.endsWith("task-completion")) {
+        if (path.endsWith("/events")) {
           signal = options.signal;
           return new Promise((resolve) => {
             complete = resolve;
           });
         }
-        return Promise.resolve(
-          ok({
-            ...stamp,
-            from: "2026-09-01",
-            toExclusive: "2026-10-01",
-            page: 1,
-            pageSize: 25,
-            total: 0,
-            items: [],
-          }),
-        );
+        return Promise.resolve(ok({ ...stamp, total: 0, items: [] }));
       },
     );
     setup();
-    expect(await screen.findByText("Loading task completion…")).toBeVisible();
+    expect(await screen.findByText("Loading event progress…")).toBeVisible();
     await userEvent.selectOptions(
       screen.getByLabelText("Analytics measure"),
-      "departments",
+      "campaigns",
     );
     expect(
-      await screen.findByText(/No matching data in your permitted scope/),
+      await dropdownResults("Marketing campaign progress").findByText(
+        /No matching data in your permitted scope/,
+      ),
     ).toBeVisible();
     await act(async () => {
       complete(
-        ok({ ...stamp, from: "2026-09-01", toExclusive: "2026-10-01", counts }),
+        ok({
+          ...stamp,
+          page: 1,
+          pageSize: 25,
+          total: 1,
+          items: [{ id: "event-1", ...counts }],
+        }),
       );
     });
     expect(signal?.aborted).toBe(true);
-    expect(screen.queryByRole("meter")).not.toBeInTheDocument();
+    expect(
+      dropdownResults("Marketing campaign progress").queryByText(
+        "event-1",
+      ),
+    ).not.toBeInTheDocument();
     expect(screen.getByLabelText("Analytics measure")).toHaveValue(
-      "departments",
+      "campaigns",
     );
   });
   it("removes all metrics after session expiry and uses the sign-in recovery path", async () => {

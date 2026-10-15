@@ -20,6 +20,7 @@ function makeTask(overrides: Partial<TaskRecord> = {}): TaskRecord {
     title: "Permits",
     description: null,
     priority: "MEDIUM",
+    type: "GENERAL",
     status: TaskStatus.TODO,
     progress: 0,
     startAt: null,
@@ -82,6 +83,7 @@ describe("TasksService", () => {
         task: makeTask({ status: TaskStatus.COMPLETED }),
         review: {},
       }),
+      listEligibleAssignees: vi.fn().mockResolvedValue([]),
       createComment: vi.fn().mockResolvedValue({
         id: "comment-1",
         content: "done",
@@ -242,12 +244,16 @@ describe("TasksService", () => {
   it("rejects an invalid create schedule before persistence", async () => {
     grantOnly(["task.create", "ORGANIZATION"]);
     await expectCode(
-      service.create(ACTOR, {
-        title: "x",
-        departmentId: "department-1",
-        startAt: "2026-04-02T00:00:00.000Z",
-        dueAt: "2026-04-01T00:00:00.000Z",
-      }),
+      service.create(
+        ACTOR,
+        {
+          title: "x",
+          departmentId: "department-1",
+          startAt: "2026-04-02T00:00:00.000Z",
+          dueAt: "2026-04-01T00:00:00.000Z",
+        },
+        "request-1",
+      ),
       "TASK_SCHEDULE_INVALID",
     );
     expect(repository.create).not.toHaveBeenCalled();
@@ -256,7 +262,7 @@ describe("TasksService", () => {
   it("requires an explicit workspace or department owner", async () => {
     grantOnly(["task.create", "ORGANIZATION"]);
     await expectCode(
-      service.create(ACTOR, { title: "ownerless" }),
+      service.create(ACTOR, { title: "ownerless" }, "request-1"),
       "TASK_OWNER_REQUIRED",
     );
   });
@@ -418,10 +424,14 @@ describe("TasksService", () => {
     grantOnly(["task.create", "DEPARTMENT"]);
     repository.findUserDepartmentId!.mockResolvedValue("department-1");
     await expectCode(
-      service.create(ACTOR, {
-        title: "Other department task",
-        departmentId: "department-2",
-      }),
+      service.create(
+        ACTOR,
+        {
+          title: "Other department task",
+          departmentId: "department-2",
+        },
+        "request-1",
+      ),
       "PERMISSION_DENIED",
     );
     expect(repository.create).not.toHaveBeenCalled();
@@ -429,11 +439,103 @@ describe("TasksService", () => {
     grantOnly(["task.create", "ORGANIZATION"]);
     repository.workspaceExists!.mockResolvedValue(false);
     await expectCode(
-      service.create(ACTOR, {
-        title: "Missing workspace task",
-        workspaceId: "workspace-1",
-      }),
+      service.create(
+        ACTOR,
+        {
+          title: "Missing workspace task",
+          workspaceId: "workspace-1",
+        },
+        "request-2",
+      ),
       "TASK_WORKSPACE_NOT_FOUND",
     );
+  });
+
+  it("rejects creating a task for an assignee outside the chosen department", async () => {
+    grantOnly(["task.create", "ORGANIZATION"], ["task.assign", "ORGANIZATION"]);
+    repository.listEligibleAssignees!.mockResolvedValue([
+      {
+        id: "eligible-user",
+        email: "e@example.com",
+        firstName: null,
+        lastName: null,
+      },
+    ]);
+    await expectCode(
+      service.create(
+        ACTOR,
+        {
+          title: "Cross-department assignment",
+          departmentId: "department-1",
+          assigneeId: "outside-user",
+        },
+        "request-3",
+      ),
+      "TASK_ASSIGNEE_OUTSIDE_DEPARTMENT",
+    );
+    expect(repository.create).not.toHaveBeenCalled();
+  });
+
+  it("creates and assigns a task in one call when the assignee is eligible", async () => {
+    grantOnly(
+      ["task.create", "ORGANIZATION"],
+      ["task.assign", "ORGANIZATION"],
+      ["task.read", "ORGANIZATION"],
+    );
+    repository.listEligibleAssignees!.mockResolvedValue([
+      {
+        id: "eligible-user",
+        email: "e@example.com",
+        firstName: null,
+        lastName: null,
+      },
+    ]);
+    await service.create(
+      ACTOR,
+      {
+        title: "Confirm venue",
+        departmentId: "department-1",
+        assigneeId: "eligible-user",
+        type: "LOGISTICS",
+      },
+      "request-4",
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "LOGISTICS" }),
+    );
+    expect(repository.addAssignee).toHaveBeenCalledWith(
+      "task-1",
+      "eligible-user",
+      ACTOR,
+      expect.anything(),
+      "request-4",
+    );
+  });
+
+  it("maps a cross-department assignee to TASK_ASSIGNEE_OUTSIDE_DEPARTMENT on direct assignment", async () => {
+    grantOnly(["task.assign", "DEPARTMENT"]);
+    repository.addAssignee!.mockResolvedValue("assignee_outside_department");
+    await expectCode(
+      service.addAssignee(ACTOR, "task-1", "outside-user", "request-5"),
+      "TASK_ASSIGNEE_OUTSIDE_DEPARTMENT",
+    );
+  });
+
+  it("scopes listEligibleAssignees to the actor's own department for a Department Manager", async () => {
+    grantOnly(["task.create", "DEPARTMENT"]);
+    repository.findUserDepartmentId!.mockResolvedValue("department-1");
+    await expectCode(
+      service.listEligibleAssignees(ACTOR, "department-2"),
+      "PERMISSION_DENIED",
+    );
+
+    repository.listEligibleAssignees!.mockResolvedValue([
+      { id: "user-1", email: "u@example.com", firstName: null, lastName: null },
+    ]);
+    await expect(
+      service.listEligibleAssignees(ACTOR, "department-1"),
+    ).resolves.toEqual([
+      { id: "user-1", email: "u@example.com", firstName: null, lastName: null },
+    ]);
   });
 });

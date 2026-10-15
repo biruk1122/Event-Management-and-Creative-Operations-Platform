@@ -11,6 +11,7 @@ export function reportAbilities(access: CurrentAccess) {
     canRead: holds(access.grants, "report.read"),
     canCreate: holds(access.grants, "report.create"),
     canSubmit: holds(access.grants, "report.submit"),
+    canAttach: holds(access.grants, "report.attachment.create"),
     canReview: access.grants.some(
       (grant) =>
         grant.permissionKey === "report.review" &&

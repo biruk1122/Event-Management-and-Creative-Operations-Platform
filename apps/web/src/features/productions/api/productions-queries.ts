@@ -28,6 +28,10 @@ export function productionKeys(access: CurrentAccess) {
     people: [...all, "people"] as const,
     teams: [...all, "teams"] as const,
     talents: [...all, "talents"] as const,
+    departments: [...all, "departments"] as const,
+    budget: (id: string) => [...all, "budget", id] as const,
+    budgetSummary: (id: string) => [...all, "budget-summary", id] as const,
+    locations: (id: string) => [...all, "locations", id] as const,
   };
 }
 
@@ -132,6 +136,65 @@ export function useProductionMutations(access: CurrentAccess) {
     onSuccess: (_, id) => client.removeQueries({ queryKey: keys.detail(id) }),
     onSettled: reconcile,
   });
+  const setBudget = useMutation({
+    mutationFn: ({
+      id,
+      amount,
+      currency,
+    }: {
+      id: string;
+      amount: number | null;
+      currency: string | null;
+    }) => gateway.setProductionBudget(id, amount, currency),
+    onSettled: (_data, _error, variables) =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: keys.budget(variables.id) }),
+        client.invalidateQueries({
+          queryKey: keys.budgetSummary(variables.id),
+        }),
+      ]),
+  });
+  const createLocation = useMutation({
+    mutationFn: ({
+      productionId,
+      values,
+    }: {
+      productionId: string;
+      values: gateway.ProductionLocationValues;
+    }) => gateway.createProductionLocation(productionId, values),
+    onSettled: (_data, _error, variables) =>
+      client.invalidateQueries({
+        queryKey: keys.locations(variables.productionId),
+      }),
+  });
+  const updateLocation = useMutation({
+    mutationFn: ({
+      productionId,
+      id,
+      values,
+    }: {
+      productionId: string;
+      id: string;
+      values: gateway.ProductionLocationValues;
+    }) => gateway.updateProductionLocation(productionId, id, values),
+    onSettled: (_data, _error, variables) =>
+      client.invalidateQueries({
+        queryKey: keys.locations(variables.productionId),
+      }),
+  });
+  const removeLocation = useMutation({
+    mutationFn: ({
+      productionId,
+      id,
+    }: {
+      productionId: string;
+      id: string;
+    }) => gateway.deleteProductionLocation(productionId, id),
+    onSettled: (_data, _error, variables) =>
+      client.invalidateQueries({
+        queryKey: keys.locations(variables.productionId),
+      }),
+  });
   return {
     create,
     update,
@@ -144,5 +207,9 @@ export function useProductionMutations(access: CurrentAccess) {
     assignTalent,
     removeTalent,
     remove,
+    setBudget,
+    createLocation,
+    updateLocation,
+    removeLocation,
   };
 }

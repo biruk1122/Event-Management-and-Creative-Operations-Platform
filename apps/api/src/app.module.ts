@@ -22,6 +22,7 @@ import { MarketingModule } from "./marketing/marketing.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
 import { PromotionModule } from "./promotion/promotion.module.js";
+import { ProductionLocationsModule } from "./production-locations/production-locations.module.js";
 import { ProductionsModule } from "./productions/productions.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
@@ -80,6 +81,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     TalentModule,
     ProjectsModule,
     ProductionsModule,
+    ProductionLocationsModule,
     CampaignsModule,
     MarketingModule,
     PromotionModule,

@@ -8,7 +8,14 @@ import {
   ProductionMutationError,
   ProductionRequestError,
 } from "../lib/production-errors";
-import type { Production, ProductionStatus } from "../lib/production-types";
+import type {
+  Production,
+  ProductionBudget,
+  ProductionBudgetSummary,
+  ProductionLocation,
+  ProductionLocationStatus,
+  ProductionStatus,
+} from "../lib/production-types";
 
 export {
   ProductionMutationError,
@@ -40,6 +47,7 @@ function createBody(values: ProductionValues) {
     ...(iso(values.startAt) ? { startAt: iso(values.startAt)! } : {}),
     ...(iso(values.endAt) ? { endAt: iso(values.endAt)! } : {}),
     ...(iso(values.deadlineAt) ? { deadlineAt: iso(values.deadlineAt)! } : {}),
+    ...(values.departmentId ? { departmentId: values.departmentId } : {}),
   };
 }
 
@@ -270,6 +278,166 @@ export async function deleteProduction(id: string): Promise<void> {
     "/api/v1/productions/{id}",
     {
       params: { path: { id } },
+      headers: headers(),
+    },
+  );
+  if (!response.ok) throw new ProductionMutationError(response.status, error);
+}
+
+export interface AssignableDepartment {
+  id: string;
+  name: string;
+}
+
+/** Departments the "department" control can offer, from the first page of
+ * `GET /api/v1/departments` (already scope-resolved server-side: Super Admin
+ * sees every department, a Production Department Manager only their own). */
+export async function listAssignableDepartments(
+  signal?: AbortSignal,
+): Promise<AssignableDepartment[]> {
+  const { data } = await browserApi.GET("/api/v1/departments", {
+    params: { query: { pageSize: 100 } as never },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return (data?.items ?? []).map((department) => ({
+    id: department.id,
+    name: department.name,
+  }));
+}
+
+export async function getProductionBudget(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ProductionBudget> {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/productions/{id}/budget",
+    {
+      params: { path: { id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new ProductionRequestError(response.status);
+  return data;
+}
+
+export async function getProductionBudgetSummary(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ProductionBudgetSummary> {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/productions/{id}/budget-summary",
+    {
+      params: { path: { id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new ProductionRequestError(response.status);
+  return data;
+}
+
+export async function setProductionBudget(
+  id: string,
+  amount: number | null,
+  currency: string | null,
+): Promise<ProductionBudget> {
+  return required(
+    await browserApi.PUT("/api/v1/productions/{id}/budget", {
+      params: { path: { id } },
+      body: { amount, currency },
+      headers: headers(),
+    }),
+  );
+}
+
+export async function listProductionLocations(
+  productionId: string,
+  signal?: AbortSignal,
+): Promise<ProductionLocation[]> {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/productions/{productionId}/locations",
+    {
+      params: { path: { productionId } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new ProductionRequestError(response.status);
+  return data.items;
+}
+
+export interface ProductionLocationValues {
+  name: string;
+  address: string;
+  description: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  status: ProductionLocationStatus;
+  notes: string;
+}
+
+function locationBody(values: ProductionLocationValues) {
+  return {
+    name: values.name.trim(),
+    status: values.status,
+    ...(values.address.trim() ? { address: values.address.trim() } : {}),
+    ...(values.description.trim()
+      ? { description: values.description.trim() }
+      : {}),
+    ...(values.contactName.trim()
+      ? { contactName: values.contactName.trim() }
+      : {}),
+    ...(values.contactEmail.trim()
+      ? { contactEmail: values.contactEmail.trim() }
+      : {}),
+    ...(values.contactPhone.trim()
+      ? { contactPhone: values.contactPhone.trim() }
+      : {}),
+    ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
+  };
+}
+
+export async function createProductionLocation(
+  productionId: string,
+  values: ProductionLocationValues,
+): Promise<ProductionLocation> {
+  return required(
+    await browserApi.POST("/api/v1/productions/{productionId}/locations", {
+      params: { path: { productionId } },
+      body: locationBody(values),
+      headers: headers(),
+    }),
+  );
+}
+
+export async function updateProductionLocation(
+  productionId: string,
+  id: string,
+  values: ProductionLocationValues,
+): Promise<ProductionLocation> {
+  return required(
+    await browserApi.PATCH(
+      "/api/v1/productions/{productionId}/locations/{id}",
+      {
+        params: { path: { productionId, id } },
+        body: locationBody(values),
+        headers: headers(),
+      },
+    ),
+  );
+}
+
+export async function deleteProductionLocation(
+  productionId: string,
+  id: string,
+): Promise<void> {
+  const { error, response } = await browserApi.DELETE(
+    "/api/v1/productions/{productionId}/locations/{id}",
+    {
+      params: { path: { productionId, id } },
       headers: headers(),
     },
   );

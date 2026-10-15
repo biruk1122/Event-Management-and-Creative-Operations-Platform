@@ -51,4 +51,12 @@ export class CreateProductionDto {
   @IsOptional()
   @IsUUID()
   eventId?: string;
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Defaults to the caller's own department; organization-scoped creators may choose another.",
+  })
+  @IsOptional()
+  @IsUUID()
+  departmentId?: string;
 }

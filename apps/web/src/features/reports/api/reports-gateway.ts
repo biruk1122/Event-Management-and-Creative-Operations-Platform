@@ -171,6 +171,57 @@ export async function reviewReport(
   return data;
 }
 
+export async function uploadReportFile(id: string, file: File) {
+  const {
+    data: intent,
+    error,
+    response,
+  } = await browserApi.POST("/api/v1/reports/{reportId}/files/upload-intents", {
+    params: { path: { reportId: id } },
+    body: {
+      filename: file.name,
+      mediaType: file.type,
+      sizeBytes: file.size,
+    } as never,
+    headers: csrfHeaders(),
+  });
+  if (!intent) throw requestError(error, response.status);
+  const form = new FormData();
+  Object.entries(intent.upload.fields).forEach(([key, value]) =>
+    form.append(key, value),
+  );
+  form.append("file", file);
+  const uploaded = await fetch(intent.upload.url, {
+    method: "POST",
+    body: form,
+  });
+  if (!uploaded.ok)
+    throw new ReportsRequestError(uploaded.status, null, {});
+  const finalized = await browserApi.POST(
+    "/api/v1/reports/{reportId}/files/{fileId}/finalize",
+    {
+      params: { path: { reportId: id, fileId: intent.id } },
+      headers: csrfHeaders(),
+    },
+  );
+  if (!finalized.data)
+    throw requestError(finalized.error, finalized.response.status);
+  return finalized.data;
+}
+
+export async function listReportFiles(id: string, signal?: AbortSignal) {
+  const { data, error, response } = await browserApi.GET(
+    "/api/v1/reports/{reportId}/files",
+    {
+      params: { path: { reportId: id }, query: { page: 1, pageSize: 50 } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw requestError(error, response.status);
+  return data.items;
+}
+
 export async function exportReport(id: string): Promise<ReportDetail> {
   const { data, error, response } = await browserApi.GET(
     "/api/v1/reports/{id}/export",

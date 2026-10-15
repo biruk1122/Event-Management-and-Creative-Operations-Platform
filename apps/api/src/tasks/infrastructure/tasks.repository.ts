@@ -7,8 +7,10 @@ import {
   Prisma,
   TaskActivityType,
   TaskStatus,
+  UserAccountStatus,
   type TaskPriority,
   type TaskReviewOutcome,
+  type TaskType,
 } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
 import { AuditWriterService } from "../../audit/audit-writer.service.js";
@@ -40,6 +42,7 @@ export interface TaskRecord {
   title: string;
   description: string | null;
   priority: TaskPriority;
+  type: TaskType;
   status: TaskStatus;
   progress: number;
   startAt: Date | null;
@@ -80,6 +83,7 @@ export interface CreateTaskInput {
   title: string;
   description?: string;
   priority?: TaskPriority;
+  type?: TaskType;
   startAt?: Date;
   dueAt?: Date;
   createdById: string;
@@ -89,6 +93,7 @@ export interface UpdateTaskFields {
   title?: string;
   description?: string | null;
   priority?: TaskPriority;
+  type?: TaskType;
   startAt?: Date | null;
   dueAt?: Date | null;
 }
@@ -132,6 +137,7 @@ const TASK_SELECT = {
   title: true,
   description: true,
   priority: true,
+  type: true,
   status: true,
   progress: true,
   startAt: true,
@@ -194,6 +200,7 @@ function toTaskRecord(raw: RawTask): TaskRecord {
     title: raw.title,
     description: raw.description,
     priority: raw.priority,
+    type: raw.type,
     status: raw.status,
     progress: raw.progress,
     startAt: raw.startAt,
@@ -267,6 +274,7 @@ function updateData(fields: UpdateTaskFields): Prisma.TaskUpdateInput {
   if (fields.title !== undefined) data.title = fields.title;
   if (fields.description !== undefined) data.description = fields.description;
   if (fields.priority !== undefined) data.priority = fields.priority;
+  if (fields.type !== undefined) data.type = fields.type;
   if (fields.startAt !== undefined) data.startAt = fields.startAt;
   if (fields.dueAt !== undefined) data.dueAt = fields.dueAt;
   return data;
@@ -417,6 +425,18 @@ export class TasksRepository {
     return (await this.db.department.count({ where: { id } })) === 1;
   }
 
+  /** Active staff of one department, for the create-task assignee picker. */
+  async listEligibleAssignees(
+    departmentId: string,
+  ): Promise<TaskPersonRecord[]> {
+    if (!isUuid(departmentId)) return [];
+    return this.db.user.findMany({
+      where: { departmentId, status: UserAccountStatus.ACTIVE },
+      select: PERSON_SELECT,
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    });
+  }
+
   async create(input: CreateTaskInput): Promise<TaskRecord> {
     return this.db.$transaction(async (tx) => {
       const task = await tx.task.create({
@@ -429,6 +449,7 @@ export class TasksRepository {
             ? { description: input.description }
             : {}),
           ...(input.priority ? { priority: input.priority } : {}),
+          ...(input.type ? { type: input.type } : {}),
           ...(input.startAt ? { startAt: input.startAt } : {}),
           ...(input.dueAt ? { dueAt: input.dueAt } : {}),
         },
@@ -572,14 +593,39 @@ export class TasksRepository {
     actorId: string,
     visibility: TaskVisibility,
     requestId: string,
-  ): Promise<TaskRecord | "forbidden" | "user_not_found" | null> {
+  ): Promise<
+    | TaskRecord
+    | "forbidden"
+    | "user_not_found"
+    | "assignee_outside_department"
+    | null
+  > {
     if (!isUuid(taskId) || !isUuid(userId)) return "user_not_found";
     return this.db.$transaction(async (tx) => {
       const access = await this.lockMutationAccess(tx, taskId, visibility);
       if (access === "not_found") return null;
       if (access === "forbidden") return "forbidden";
-      if ((await tx.user.count({ where: { id: userId } })) !== 1)
-        return "user_not_found";
+      const [taskOwner, user] = await Promise.all([
+        tx.task.findUnique({
+          where: { id: taskId },
+          select: { departmentId: true },
+        }),
+        tx.user.findUnique({
+          where: { id: userId },
+          select: { departmentId: true },
+        }),
+      ]);
+      if (!user) return "user_not_found";
+      // A department-owned task can only be assigned to that department's
+      // own staff - never trust the caller's scope alone, since `task.assign`
+      // at DEPARTMENT scope only proves the actor's own department, not the
+      // target user's.
+      if (
+        taskOwner?.departmentId &&
+        user.departmentId !== taskOwner.departmentId
+      ) {
+        return "assignee_outside_department";
+      }
       const inserted = await tx.taskAssignment.createMany({
         data: [{ taskId, userId, assignedById: actorId }],
         skipDuplicates: true,

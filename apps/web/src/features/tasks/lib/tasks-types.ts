@@ -3,6 +3,7 @@ import type { components } from "@event-platform/api-client";
 export type Task = components["schemas"]["TaskResponse"];
 export type TaskStatus = Task["status"];
 export type TaskPriority = Task["priority"];
+export type TaskType = Task["type"];
 export type TaskPerson = components["schemas"]["TaskPersonSummary"];
 export type TaskComment = components["schemas"]["TaskCommentResponse"];
 export type TaskActivity = components["schemas"]["TaskActivityResponse"];
@@ -43,6 +44,26 @@ export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
   URGENT: "Urgent",
 };
 
+export const TASK_TYPES: readonly TaskType[] = [
+  "GENERAL",
+  "PLANNING",
+  "LOGISTICS",
+  "CREATIVE",
+  "TECHNICAL",
+  "ADMINISTRATIVE",
+  "REVIEW",
+];
+
+export const TASK_TYPE_LABELS: Record<TaskType, string> = {
+  GENERAL: "General",
+  PLANNING: "Planning",
+  LOGISTICS: "Logistics",
+  CREATIVE: "Creative",
+  TECHNICAL: "Technical",
+  ADMINISTRATIVE: "Administrative",
+  REVIEW: "Review",
+};
+
 export interface TaskCollaborationPreview {
   task: Task;
   comments: readonly TaskComment[];
@@ -62,6 +83,10 @@ export function taskStatusLabel(status: TaskStatus): string {
 
 export function taskPriorityLabel(priority: TaskPriority): string {
   return TASK_PRIORITY_LABELS[priority];
+}
+
+export function taskTypeLabel(type: TaskType): string {
+  return TASK_TYPE_LABELS[type];
 }
 
 export function personName(

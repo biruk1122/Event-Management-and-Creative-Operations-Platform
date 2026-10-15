@@ -10,26 +10,51 @@ export function hasProductionGrant(
   );
 }
 
+/** Department-scoped productions (PROD-WS): a Production Department Manager
+ * holds these same `project.*` keys at `DEPARTMENT` scope, not just
+ * `ORGANIZATION` - the server re-validates department ownership regardless
+ * of what this reports. */
+function canAny(access: CurrentAccess, key: string): boolean {
+  return access.grants.some(
+    (grant) =>
+      grant.permissionKey === key &&
+      (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
+  );
+}
+
+function holdsOrg(access: CurrentAccess, key: string): boolean {
+  return access.grants.some(
+    (grant) => grant.permissionKey === key && grant.scope === "ORGANIZATION",
+  );
+}
+
 export function productionAbilities(access: CurrentAccess) {
-  const can = (key: string) => hasProductionGrant(access, key, "ORGANIZATION");
   return {
-    canRead: can("project.read"),
-    canCreate: can("project.create"),
-    canUpdate: can("project.update"),
-    canTransition: can("project.transition_status"),
-    canAssign: can("project.assign"),
-    canDelete: can("project.delete"),
-    canListPeople: can("user.read"),
-    canListTeams: can("team.read"),
-    canListTalent: can("talent.read"),
+    canRead: canAny(access, "project.read"),
+    canCreate: canAny(access, "project.create"),
+    /** Whether the caller holds every department's production scope (Super
+     * Admin), as opposed to only their own department's (a Production
+     * Department Manager). */
+    canCreateForAnyDepartment: holdsOrg(access, "project.create"),
+    canUpdate: canAny(access, "project.update"),
+    canTransition: canAny(access, "project.transition_status"),
+    canAssign: canAny(access, "project.assign"),
+    canDelete: canAny(access, "project.delete"),
+    canReadBudget: canAny(access, "production.budget.read"),
+    canUpdateBudget: canAny(access, "production.budget.update"),
+    canListPeople: hasProductionGrant(access, "user.read", "ORGANIZATION"),
+    canListTeams: canAny(access, "team.read"),
+    canListTalent: hasProductionGrant(access, "talent.read", "ORGANIZATION"),
   };
 }
 
 export type ProductionArea =
   | "Overview"
+  | "Schedule"
+  | "Locations"
+  | "Budget"
   | "Team"
   | "Talent"
-  | "Tasks"
   | "Calendar"
   | "Discussion"
   | "Meetings"
@@ -38,9 +63,11 @@ export type ProductionArea =
 
 const areaGrant: Record<ProductionArea, string | null> = {
   Overview: null,
+  Schedule: "task.read",
+  Locations: "project.read",
+  Budget: "production.budget.read",
   Team: "team.read",
   Talent: "talent.read",
-  Tasks: "task.read",
   Calendar: "calendar.read",
   Discussion: "channel.participate",
   Meetings: "meeting.read",
@@ -50,9 +77,11 @@ const areaGrant: Record<ProductionArea, string | null> = {
 
 const order: ProductionArea[] = [
   "Overview",
+  "Schedule",
+  "Locations",
+  "Budget",
   "Team",
   "Talent",
-  "Tasks",
   "Calendar",
   "Discussion",
   "Meetings",

@@ -14,6 +14,7 @@ import {
 
 import {
   getProduction,
+  listAssignableDepartments,
   listProductionPeople,
   listProductionTalents,
   listProductionTeams,
@@ -86,6 +87,13 @@ export function ProductionsManager({ access }: { access: CurrentAccess }) {
     retry: false,
     staleTime: 60_000,
   });
+  const departments = useQuery({
+    queryKey: keys.departments,
+    queryFn: ({ signal }) => listAssignableDepartments(signal),
+    enabled: abilities.canCreate,
+    retry: false,
+    staleTime: 60_000,
+  });
   const mutations = useProductionMutations(access);
 
   useEffect(() => {
@@ -111,6 +119,7 @@ export function ProductionsManager({ access }: { access: CurrentAccess }) {
   const pageCount = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
   return (
     <ProductionsBoard
+      access={access}
       productions={data?.items ?? []}
       state={list.isPending ? "loading" : list.isError ? "error" : "ready"}
       onRetry={() => void list.refetch()}
@@ -142,10 +151,14 @@ export function ProductionsManager({ access }: { access: CurrentAccess }) {
       onDetailRetry={() => void detail.refetch()}
       areas={productionAreas(access)}
       canCreate={abilities.canCreate}
+      canCreateForAnyDepartment={abilities.canCreateForAnyDepartment}
       canUpdate={abilities.canUpdate}
       canTransition={abilities.canTransition}
       canAssign={abilities.canAssign}
       canDelete={abilities.canDelete}
+      canReadBudget={abilities.canReadBudget}
+      canUpdateBudget={abilities.canUpdateBudget}
+      availableDepartments={departments.data ?? []}
       availablePeople={people.data ?? []}
       peopleUnavailable={
         abilities.canAssign && (!abilities.canListPeople || people.isError)

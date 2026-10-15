@@ -20,6 +20,7 @@ export interface ManagedFileRecord {
   intentTaskId: string | null;
   intentConversationId: string | null;
   intentExpenseId: string | null;
+  intentReportId: string | null;
   availableAt: Date | null;
   createdAt: Date;
 }
@@ -38,6 +39,7 @@ const FILE_SELECT = {
   intentTaskId: true,
   intentConversationId: true,
   intentExpenseId: true,
+  intentReportId: true,
   availableAt: true,
   createdAt: true,
 } as const;
@@ -64,24 +66,35 @@ export class ManagedFilesRepository {
           intentTaskId?: never;
           intentConversationId?: never;
           intentExpenseId?: never;
+          intentReportId?: never;
         }
       | {
           intentTaskId: string;
           intentWorkspaceId?: never;
           intentConversationId?: never;
           intentExpenseId?: never;
+          intentReportId?: never;
         }
       | {
           intentConversationId: string;
           intentWorkspaceId?: never;
           intentTaskId?: never;
           intentExpenseId?: never;
+          intentReportId?: never;
         }
       | {
           intentExpenseId: string;
           intentWorkspaceId?: never;
           intentTaskId?: never;
           intentConversationId?: never;
+          intentReportId?: never;
+        }
+      | {
+          intentReportId: string;
+          intentWorkspaceId?: never;
+          intentTaskId?: never;
+          intentConversationId?: never;
+          intentExpenseId?: never;
         }
     ),
   ): Promise<ManagedFileRecord> {
@@ -100,6 +113,9 @@ export class ManagedFilesRepository {
           : {}),
         ...(input.intentExpenseId
           ? { intentExpenseId: input.intentExpenseId }
+          : {}),
+        ...(input.intentReportId
+          ? { intentReportId: input.intentReportId }
           : {}),
         originalFilename: input.originalFilename,
         storageKey: input.storageKey,
@@ -154,6 +170,21 @@ export class ManagedFilesRepository {
       where: {
         id,
         intentExpenseId: expenseId,
+        state: ManagedFileState.PENDING,
+      },
+      select: FILE_SELECT,
+    });
+  }
+
+  async findPendingForReport(
+    id: string,
+    reportId: string,
+  ): Promise<ManagedFileRecord | null> {
+    if (!isUuid(id) || !isUuid(reportId)) return null;
+    return this.db.managedFile.findFirst({
+      where: {
+        id,
+        intentReportId: reportId,
         state: ManagedFileState.PENDING,
       },
       select: FILE_SELECT,
@@ -347,6 +378,51 @@ export class ManagedFilesRepository {
         id: input.fileId,
         intentExpiresAt: { lte: input.finalizedAt },
         intentExpenseId: input.expenseId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        cleanupAfter: input.cleanupAfter,
+        state: ManagedFileState.UNAVAILABLE,
+        unavailableAt: input.finalizedAt,
+      },
+    });
+    return expired.count === 1 ? "expired" : "conflict";
+  }
+
+  async makeAvailableForReport(
+    tx: Prisma.TransactionClient,
+    input: {
+      cleanupAfter: Date;
+      fileId: string;
+      finalizedAt: Date;
+      reportId: string;
+      verifiedMediaType: string;
+      verifiedSizeBytes: number;
+    },
+  ): Promise<"available" | "conflict" | "expired"> {
+    if (!isUuid(input.fileId) || !isUuid(input.reportId)) return "conflict";
+    const updated = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { gt: input.finalizedAt },
+        intentReportId: input.reportId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        availableAt: input.finalizedAt,
+        state: ManagedFileState.AVAILABLE,
+        uploadedAt: input.finalizedAt,
+        verifiedMediaType: input.verifiedMediaType,
+        verifiedSizeBytes: input.verifiedSizeBytes,
+      },
+    });
+    if (updated.count === 1) return "available";
+
+    const expired = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { lte: input.finalizedAt },
+        intentReportId: input.reportId,
         state: ManagedFileState.PENDING,
       },
       data: {

@@ -28,7 +28,7 @@ export default async function AnalyticsPage() {
       ["ORGANIZATION", "MANAGEMENT"].includes(grant.scope),
   );
   return (
-    <main className="mx-auto w-full max-w-6xl min-w-0 px-5 py-8 sm:px-8">
+    <main className="@container mx-auto w-full max-w-352 min-w-0 px-5 py-8 sm:px-8">
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>

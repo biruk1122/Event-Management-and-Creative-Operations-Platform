@@ -1,5 +1,8 @@
 import { HttpException, Injectable } from "@nestjs/common";
-import type { ProductionStatus } from "../generated/prisma/client.js";
+import type {
+  PermissionScope,
+  ProductionStatus,
+} from "../generated/prisma/client.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import { EventsService } from "../events/events.service.js";
@@ -7,7 +10,9 @@ import { WorkspacesService } from "../workspaces/workspaces.service.js";
 import { WORKSPACE_ERROR } from "../workspaces/workspaces.errors.js";
 import { canTransition } from "./productions.lifecycle.js";
 import {
+  productionBudgetIncomplete,
   productionConflict,
+  productionDepartmentNotFound,
   productionEventNotFound,
   productionInvalidSchedule,
   productionInvalidTransition,
@@ -19,8 +24,14 @@ import {
 import {
   ProductionsRepository,
   type ProductionRecord,
+  type ProductionVisibility,
 } from "./infrastructure/productions.repository.js";
+import type {
+  ProductionBudgetResponse,
+  ProductionBudgetSummaryResponse,
+} from "./productions.contracts.js";
 import type { CreateProductionDto } from "./dto/create-production.dto.js";
+import type { SetProductionBudgetDto } from "./dto/set-production-budget.dto.js";
 import type { UpdateProductionDto } from "./dto/update-production.dto.js";
 import type { ListProductionsQueryDto } from "./dto/list-productions-query.dto.js";
 
@@ -37,12 +48,27 @@ function resolveDate(
 function assertSchedule(start: Date | null, end: Date | null) {
   if (start && end && end < start) throw productionInvalidSchedule();
 }
+/** Deliberately excludes `budgetAmount`/`budgetCurrency` - the budget is
+ * sensitive (PC-04) and is served only through the dedicated budget routes,
+ * mirroring `events.service.ts#toEventResponse`. */
 function response(record: ProductionRecord) {
   return {
-    ...record,
+    id: record.id,
+    workspaceId: record.workspaceId,
+    name: record.name,
+    productionType: record.productionType,
+    description: record.description,
     startAt: record.startAt?.toISOString() ?? null,
     endAt: record.endAt?.toISOString() ?? null,
     deadlineAt: record.deadlineAt?.toISOString() ?? null,
+    status: record.status,
+    eventId: record.eventId,
+    departmentId: record.departmentId,
+    manager: record.manager,
+    teams: record.teams,
+    participants: record.participants,
+    talents: record.talents,
+    createdBy: record.createdBy,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };
@@ -56,17 +82,58 @@ export class ProductionsService {
     private readonly permissions: PermissionsService,
     private readonly events: EventsService,
   ) {}
-  private async grant(userId: string, key: string) {
-    if (!(await this.permissions.hasGrant(userId, key, "ORGANIZATION")))
-      throw permissionDenied();
+  private async hasGrant(
+    userId: string,
+    key: string,
+    scope: PermissionScope,
+  ): Promise<boolean> {
+    return this.permissions.hasGrant(userId, key, scope);
   }
-  private async load(id: string) {
-    const item = await this.repository.findById(id);
-    if (!item) throw productionNotFound();
+  /** Mirrors `events.service.ts#visibilityFor`: an organization-scoped caller
+   * (Super Admin) sees every production, a department-scoped caller (the
+   * Production Department Manager) sees only productions carrying their own
+   * `departmentId`. A pre-existing production with `departmentId = null`
+   * stays organization-only until someone explicitly assigns it one. */
+  private async visibilityFor(
+    userId: string,
+    key: string,
+  ): Promise<ProductionVisibility> {
+    const [organization, department] = await Promise.all([
+      this.hasGrant(userId, key, "ORGANIZATION"),
+      this.hasGrant(userId, key, "DEPARTMENT"),
+    ]);
+    if (!organization && !department) throw permissionDenied();
+    const departmentId = department
+      ? await this.repository.findUserDepartmentId(userId)
+      : null;
+    return { organization, ...(departmentId ? { departmentId } : {}) };
+  }
+  /** Resolves visibility for `permissionKey` and loads the production only
+   * if visible under that grant; an organization-scoped caller gets a real
+   * 404 for an unknown id, a narrower caller gets the same denial for an
+   * absent id and an out-of-scope id, so ids cannot be used to probe
+   * productions outside their department. */
+  private async loadAuthorized(
+    userId: string,
+    id: string,
+    key: string,
+  ): Promise<ProductionRecord> {
+    const visibility = await this.visibilityFor(userId, key);
+    const item = await this.repository.findVisibleById(id, visibility);
+    if (!item) {
+      if (visibility.organization) throw productionNotFound();
+      throw permissionDenied();
+    }
     return item;
   }
+  /** Re-reads a production that must exist right after an authorized
+   * mutation on it; the mutation's own `loadAuthorized` call already proved
+   * the caller may act on this id, so this is a raw fetch, not a second
+   * authorization check. */
   private async reload(id: string) {
-    return response(await this.load(id));
+    const item = await this.repository.findById(id);
+    if (!item) throw productionNotFound();
+    return response(item);
   }
   /** Keep the production API's established error codes at this module boundary. */
   private async composeWorkspace(
@@ -98,11 +165,13 @@ export class ProductionsService {
     }
   }
   async list(userId: string, query: ListProductionsQueryDto) {
-    await this.grant(userId, "project.read");
+    const visibility = await this.visibilityFor(userId, "project.read");
     const result = await this.repository.list({
+      visibility,
       page: query.page,
       pageSize: query.pageSize,
       ...(query.status ? { status: query.status } : {}),
+      ...(query.departmentId ? { departmentId: query.departmentId } : {}),
       ...(query.search?.trim() ? { search: query.search.trim() } : {}),
     });
     return {
@@ -113,18 +182,32 @@ export class ProductionsService {
     };
   }
   async get(userId: string, id: string) {
-    const item = await this.load(id);
-    await this.grant(userId, "project.read");
-    return response(item);
+    return response(await this.loadAuthorized(userId, id, "project.read"));
   }
   async create(userId: string, dto: CreateProductionDto) {
-    await this.grant(userId, "project.create");
+    const visibility = await this.visibilityFor(userId, "project.create");
+    if (!visibility.organization) {
+      // A department-scoped creator's production is scoped to their own
+      // department (never trusted from client input); an explicit
+      // `departmentId` must match it exactly.
+      if (dto.departmentId && dto.departmentId !== visibility.departmentId)
+        throw permissionDenied();
+      if (!visibility.departmentId) throw permissionDenied();
+    } else if (
+      dto.departmentId &&
+      !(await this.repository.departmentExists(dto.departmentId))
+    ) {
+      throw productionDepartmentNotFound();
+    }
     assertSchedule(
       dto.startAt ? new Date(dto.startAt) : null,
       dto.endAt ? new Date(dto.endAt) : null,
     );
     if (dto.eventId && !(await this.repository.eventExists(dto.eventId)))
       throw productionEventNotFound();
+    const departmentId = visibility.organization
+      ? dto.departmentId
+      : visibility.departmentId;
     const result = await this.repository.create({
       name: dto.name.trim(),
       productionType: dto.productionType.trim(),
@@ -137,13 +220,13 @@ export class ProductionsService {
       ...(dto.deadlineAt ? { deadlineAt: new Date(dto.deadlineAt) } : {}),
       ...(dto.managerId ? { managerId: dto.managerId } : {}),
       ...(dto.eventId ? { eventId: dto.eventId } : {}),
+      ...(departmentId ? { departmentId } : {}),
     });
     if (result === "manager_not_found") throw productionUserNotFound();
     return response(result);
   }
   async update(userId: string, id: string, dto: UpdateProductionDto) {
-    const current = await this.load(id);
-    await this.grant(userId, "project.update");
+    const current = await this.loadAuthorized(userId, id, "project.update");
     assertSchedule(
       resolveDate(dto.startAt, current.startAt),
       resolveDate(dto.endAt, current.endAt),
@@ -180,8 +263,11 @@ export class ProductionsService {
     return response(result);
   }
   async transition(userId: string, id: string, status: ProductionStatus) {
-    const current = await this.load(id);
-    await this.grant(userId, "project.transition_status");
+    const current = await this.loadAuthorized(
+      userId,
+      id,
+      "project.transition_status",
+    );
     if (!canTransition(current.status, status))
       throw productionInvalidTransition();
     const result = await this.repository.updateStatus(
@@ -194,32 +280,28 @@ export class ProductionsService {
     return response(result);
   }
   async setManager(userId: string, id: string, managerId: string | null) {
-    const current = await this.load(id);
-    await this.grant(userId, "project.assign");
+    const current = await this.loadAuthorized(userId, id, "project.assign");
     await this.composeWorkspace(() =>
       this.workspaces.setManager(userId, current.workspaceId, managerId),
     );
     return this.reload(id);
   }
   async assignTeam(userId: string, id: string, teamId: string) {
-    const current = await this.load(id);
-    await this.grant(userId, "project.assign");
+    const current = await this.loadAuthorized(userId, id, "project.assign");
     await this.composeWorkspace(() =>
       this.workspaces.assignTeam(userId, current.workspaceId, teamId),
     );
     return this.reload(id);
   }
   async unassignTeam(userId: string, id: string, teamId: string) {
-    const current = await this.load(id);
-    await this.grant(userId, "project.assign");
+    const current = await this.loadAuthorized(userId, id, "project.assign");
     await this.composeWorkspace(() =>
       this.workspaces.unassignTeam(userId, current.workspaceId, teamId),
     );
     return this.reload(id);
   }
   async addParticipant(userId: string, id: string, participantId: string) {
-    const current = await this.load(id);
-    await this.grant(userId, "project.assign");
+    const current = await this.loadAuthorized(userId, id, "project.assign");
     await this.composeWorkspace(() =>
       this.workspaces.addParticipant(
         userId,
@@ -230,8 +312,7 @@ export class ProductionsService {
     return this.reload(id);
   }
   async removeParticipant(userId: string, id: string, participantId: string) {
-    const current = await this.load(id);
-    await this.grant(userId, "project.assign");
+    const current = await this.loadAuthorized(userId, id, "project.assign");
     await this.composeWorkspace(() =>
       this.workspaces.removeParticipant(
         userId,
@@ -247,8 +328,7 @@ export class ProductionsService {
     talentId: string,
     role: string,
   ) {
-    await this.load(id);
-    await this.grant(userId, "project.assign");
+    await this.loadAuthorized(userId, id, "project.assign");
     const result = await this.repository.assignTalent(
       id,
       talentId,
@@ -260,8 +340,7 @@ export class ProductionsService {
     return this.reload(id);
   }
   async unassignTalent(userId: string, id: string, talentId: string) {
-    await this.load(id);
-    await this.grant(userId, "project.assign");
+    await this.loadAuthorized(userId, id, "project.assign");
     if (!(await this.repository.unassignTalent(id, talentId)))
       throw productionConflict("PRODUCTION_TALENT_NOT_ASSIGNED");
     return this.reload(id);
@@ -280,12 +359,79 @@ export class ProductionsService {
     await this.events.get(userId, eventId);
     return (await this.repository.listByEventId(eventId)).map(response);
   }
+  /** Internal authorization boundary reused by the production-locations
+   * sub-resource (mirrors `TasksService.authorize`). */
+  async authorize(
+    userId: string,
+    id: string,
+    permissionKey: string,
+  ): Promise<ProductionRecord> {
+    return this.loadAuthorized(userId, id, permissionKey);
+  }
+
   async remove(userId: string, id: string): Promise<void> {
-    await this.load(id);
-    await this.grant(userId, "project.delete");
+    await this.loadAuthorized(userId, id, "project.delete");
     const result = await this.repository.delete(id);
     if (result === "not_found") throw productionNotFound();
     if (result === "in_use")
       throw productionConflict("PRODUCTION_WORKSPACE_IN_USE");
+  }
+
+  async getBudget(
+    userId: string,
+    id: string,
+  ): Promise<ProductionBudgetResponse> {
+    const production = await this.loadBudgetRecord(
+      userId,
+      id,
+      "production.budget.read",
+    );
+    return {
+      amount: production.budgetAmount,
+      currency: production.budgetCurrency,
+    };
+  }
+
+  async getBudgetSummary(
+    userId: string,
+    id: string,
+  ): Promise<ProductionBudgetSummaryResponse> {
+    await this.loadBudgetRecord(userId, id, "production.budget.read");
+    const summary = await this.repository.budgetSummary(id);
+    if (!summary) throw productionNotFound();
+    return summary;
+  }
+
+  async setBudget(
+    userId: string,
+    id: string,
+    dto: SetProductionBudgetDto,
+  ): Promise<ProductionBudgetResponse> {
+    await this.loadBudgetRecord(userId, id, "production.budget.update");
+    if ((dto.amount === null) !== (dto.currency === null))
+      throw productionBudgetIncomplete();
+    const amount = dto.amount === null ? null : dto.amount.toFixed(2);
+    const result = await this.repository.setBudget(id, amount, dto.currency);
+    if (result === "not_found") throw productionNotFound();
+    return { amount: result.budgetAmount, currency: result.budgetCurrency };
+  }
+
+  /** Budget routes authorize against the production's own visibility (not
+   * `project.read`/`project.update`) since the budget keys are deliberately
+   * separate and sensitive (PC-04) - mirrors `events.service.ts`'s budget
+   * methods exactly. Returns the raw repository record (budget fields
+   * included) rather than the public `response()` shape, which excludes them. */
+  private async loadBudgetRecord(
+    userId: string,
+    id: string,
+    key: string,
+  ): Promise<ProductionRecord> {
+    const visibility = await this.visibilityFor(userId, key);
+    const item = await this.repository.findVisibleById(id, visibility);
+    if (!item) {
+      if (visibility.organization) throw productionNotFound();
+      throw permissionDenied();
+    }
+    return item;
   }
 }

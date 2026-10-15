@@ -100,52 +100,54 @@ model User {
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  credential               UserCredential?
-  sessions                 AuthSession[]
-  roleAssignment           UserRoleAssignment?
-  department               Department?               @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
-  managedDepartments       Department[]              @relation("DepartmentManager")
-  managedTeams             Team[]                    @relation("TeamManager")
-  teamMemberships          TeamMembership[]
-  managedWorkspaces        Workspace[]               @relation("WorkspaceManager")
-  workspaceParticipations  WorkspaceParticipant[]
-  createdEvents            Event[]                   @relation("EventCreatedBy")
-  createdProjects          Project[]                 @relation("ProjectCreatedBy")
-  createdCampaigns         Campaign[]                @relation("CampaignCreatedBy")
-  createdProductions       Production[]              @relation("ProductionCreatedBy")
-  initiatedManagedFiles    ManagedFile[]             @relation("ManagedFileInitiator")
-  workspaceFileAttachments WorkspaceFileAttachment[] @relation("WorkspaceFileAttachedBy")
-  createdTasks             Task[]                    @relation("TaskCreatedBy")
-  taskAssignments          TaskAssignment[]          @relation("TaskAssignee")
-  assignedTasks            TaskAssignment[]          @relation("TaskAssignedBy")
-  taskComments             TaskComment[]             @relation("TaskCommentAuthor")
-  taskCommentMentions      TaskCommentMention[]
-  taskAttachments          TaskAttachment[]          @relation("TaskAttachmentActor")
-  taskReviews              TaskReview[]              @relation("TaskReviewer")
-  taskActivities           TaskActivity[]            @relation("TaskActivityActor")
-  calendarEntries          CalendarEntry[]           @relation("CalendarEntryOwner")
-  createdCalendarEntries   CalendarEntry[]           @relation("CalendarEntryCreatedBy")
-  todos                    Todo[]                    @relation("TodoOwner")
-  createdTodos             Todo[]                    @relation("TodoCreatedBy")
-  createdConversations     Conversation[]            @relation("ConversationCreatedBy")
-  conversationMemberships  ConversationMember[]
-  messages                 Message[]                 @relation("MessageAuthor")
-  pinnedMessages           Message[]                 @relation("MessagePinnedBy")
-  messageMentions          MessageMention[]
-  messageAttachments       MessageAttachment[]       @relation("MessageAttachmentActor")
-  notifications            Notification[]
-  notificationPreferences  NotificationPreference[]
-  organizedMeetings        Meeting[]                 @relation("MeetingOrganizer")
-  meetingParticipations    MeetingParticipant[]
-  managedTalents           Talent[]                  @relation("TalentManager")
-  authoredReports          Report[]                  @relation("ReportAuthor")
-  reviewedReports          Report[]                  @relation("ReportCurrentReviewer")
-  reportReviews            ReportReview[]            @relation("ReportReviewActor")
-  createdExpenses          Expense[]                 @relation("ExpenseCreatedBy")
-  reviewedExpenses         Expense[]                 @relation("ExpenseCurrentReviewer")
-  expenseReviews           ExpenseReview[]           @relation("ExpenseReviewActor")
-  expenseAttachments       ExpenseAttachment[]       @relation("ExpenseAttachmentActor")
-  createdSuppliers         Supplier[]                @relation("SupplierCreatedBy")
+  credential                 UserCredential?
+  sessions                   AuthSession[]
+  roleAssignment             UserRoleAssignment?
+  department                 Department?               @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
+  managedDepartments         Department[]              @relation("DepartmentManager")
+  managedTeams               Team[]                    @relation("TeamManager")
+  teamMemberships            TeamMembership[]
+  managedWorkspaces          Workspace[]               @relation("WorkspaceManager")
+  workspaceParticipations    WorkspaceParticipant[]
+  createdEvents              Event[]                   @relation("EventCreatedBy")
+  createdProjects            Project[]                 @relation("ProjectCreatedBy")
+  createdCampaigns           Campaign[]                @relation("CampaignCreatedBy")
+  createdProductions         Production[]              @relation("ProductionCreatedBy")
+  createdProductionLocations ProductionLocation[]      @relation("ProductionLocationCreatedBy")
+  initiatedManagedFiles      ManagedFile[]             @relation("ManagedFileInitiator")
+  workspaceFileAttachments   WorkspaceFileAttachment[] @relation("WorkspaceFileAttachedBy")
+  createdTasks               Task[]                    @relation("TaskCreatedBy")
+  taskAssignments            TaskAssignment[]          @relation("TaskAssignee")
+  assignedTasks              TaskAssignment[]          @relation("TaskAssignedBy")
+  taskComments               TaskComment[]             @relation("TaskCommentAuthor")
+  taskCommentMentions        TaskCommentMention[]
+  taskAttachments            TaskAttachment[]          @relation("TaskAttachmentActor")
+  taskReviews                TaskReview[]              @relation("TaskReviewer")
+  taskActivities             TaskActivity[]            @relation("TaskActivityActor")
+  calendarEntries            CalendarEntry[]           @relation("CalendarEntryOwner")
+  createdCalendarEntries     CalendarEntry[]           @relation("CalendarEntryCreatedBy")
+  todos                      Todo[]                    @relation("TodoOwner")
+  createdTodos               Todo[]                    @relation("TodoCreatedBy")
+  createdConversations       Conversation[]            @relation("ConversationCreatedBy")
+  conversationMemberships    ConversationMember[]
+  messages                   Message[]                 @relation("MessageAuthor")
+  pinnedMessages             Message[]                 @relation("MessagePinnedBy")
+  messageMentions            MessageMention[]
+  messageAttachments         MessageAttachment[]       @relation("MessageAttachmentActor")
+  notifications              Notification[]
+  notificationPreferences    NotificationPreference[]
+  organizedMeetings          Meeting[]                 @relation("MeetingOrganizer")
+  meetingParticipations      MeetingParticipant[]
+  managedTalents             Talent[]                  @relation("TalentManager")
+  authoredReports            Report[]                  @relation("ReportAuthor")
+  reviewedReports            Report[]                  @relation("ReportCurrentReviewer")
+  reportReviews              ReportReview[]            @relation("ReportReviewActor")
+  reportAttachments          ReportAttachment[]        @relation("ReportAttachmentActor")
+  createdExpenses            Expense[]                 @relation("ExpenseCreatedBy")
+  reviewedExpenses           Expense[]                 @relation("ExpenseCurrentReviewer")
+  expenseReviews             ExpenseReview[]           @relation("ExpenseReviewActor")
+  expenseAttachments         ExpenseAttachment[]       @relation("ExpenseAttachmentActor")
+  createdSuppliers           Supplier[]                @relation("SupplierCreatedBy")
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -343,6 +345,7 @@ model Department {
   events        Event[]
   expenses      Expense[]
   suppliers     Supplier[]
+  productions   Production[]
 
   // Look up the departments a user manages, and list active departments.
   @@index([managerId])
@@ -542,6 +545,10 @@ model ManagedFile {
   /// the same boundary as every other intent parent above. At most one intent
   /// parent is set.
   intentExpenseId      String?          @map("intent_expense_id") @db.Uuid
+  /// Explicit report authorized for a report-scoped upload intent, the same
+  /// boundary as every other intent parent above. At most one intent parent
+  /// is set.
+  intentReportId       String?          @map("intent_report_id") @db.Uuid
   createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -551,10 +558,12 @@ model ManagedFile {
   intentConversation   Conversation?             @relation("ManagedFileIntentConversation", fields: [intentConversationId], references: [id], onDelete: Restrict)
   intentTalent         Talent?                   @relation("ManagedFileIntentTalent", fields: [intentTalentId], references: [id], onDelete: Restrict)
   intentExpense        Expense?                  @relation("ManagedFileIntentExpense", fields: [intentExpenseId], references: [id], onDelete: Restrict)
+  intentReport         Report?                   @relation("ManagedFileIntentReport", fields: [intentReportId], references: [id], onDelete: Restrict)
   workspaceAttachments WorkspaceFileAttachment[]
   taskAttachments      TaskAttachment[]
   messageAttachments   MessageAttachment[]
   expenseAttachments   ExpenseAttachment[]
+  reportAttachments    ReportAttachment[]
   talentProfileImage   Talent?                   @relation("TalentProfileImage")
 
   // Upload expiry, cleanup sweeps, actor investigation, and resolving a
@@ -567,6 +576,7 @@ model ManagedFile {
   @@index([intentConversationId])
   @@index([intentTalentId])
   @@index([intentExpenseId])
+  @@index([intentReportId])
   @@map("managed_files")
 }
 
@@ -648,6 +658,21 @@ enum TaskPriority {
   @@map("task_priority")
 }
 
+/// The kind of work a task represents. A small, department-agnostic set
+/// shared by every task regardless of owning workspace or department -
+/// mirrors `TaskPriority`'s plain, non-polymorphic shape.
+enum TaskType {
+  GENERAL
+  PLANNING
+  LOGISTICS
+  CREATIVE
+  TECHNICAL
+  ADMINISTRATIVE
+  REVIEW
+
+  @@map("task_type")
+}
+
 /// Persistent task lifecycle state. Approval and change-request decisions are
 /// review outcomes below rather than duplicate task states: an approval moves
 /// an under-review task to COMPLETED, while a change request returns it to
@@ -698,6 +723,7 @@ model Task {
   title           String
   description     String?
   priority        TaskPriority @default(MEDIUM)
+  type            TaskType     @default(GENERAL)
   status          TaskStatus   @default(TODO)
   progress        Int          @default(0)
   startAt         DateTime?    @map("start_at") @db.Timestamptz(6)
@@ -1095,6 +1121,18 @@ enum ProductionStatus {
   @@map("production_status")
 }
 
+/// Arrangement/readiness state for a production's location (PROD-WS). Mirrors
+/// the SRS's plain pending/in-progress/confirmed/ready vocabulary - not the
+/// richer Event/Expense lifecycles, since a location has no review workflow.
+enum ProductionLocationStatus {
+  PENDING
+  IN_PROGRESS
+  CONFIRMED
+  READY
+
+  @@map("production_location_status")
+}
+
 /// A specialized production project. Its manager, members, tasks, calendar,
 /// discussions, meetings and files are owned by its `PRODUCTION` workspace.
 /// `production_type` is free text because no controlled vocabulary is approved.
@@ -1111,21 +1149,62 @@ model Production {
   /// Optional relationship to an event (EOM-01), mirroring `Campaign.eventId`'s
   /// soft, unbounded cross-reference semantics - not an ownership relation.
   eventId        String?          @map("event_id") @db.Uuid
+  /// Department ownership (PROD-WS), the same optional, explicitly-assigned
+  /// shape `Event.departmentId` already established: a pre-existing row keeps
+  /// `NULL` (organization-only visibility) until someone with an
+  /// organization-scope grant assigns it.
+  departmentId   String?          @map("department_id") @db.Uuid
+  /// Approved/allocated budget for this production (sensitive, same
+  /// "separately gated" idiom as `Event.budgetAmount`). Actual and committed
+  /// spend are never stored here - they are computed live from `Expense` rows
+  /// linked either directly to this production or to its linked event.
+  budgetAmount   Decimal?         @map("budget_amount") @db.Decimal(14, 2)
+  budgetCurrency String?          @map("budget_currency") @db.Char(3)
   createdById    String?          @map("created_by_id") @db.Uuid
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  event     Event?             @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  createdBy User?              @relation("ProductionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  talents   ProductionTalent[]
+  workspace  Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  event      Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  department Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdBy  User?                @relation("ProductionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  talents    ProductionTalent[]
+  locations  ProductionLocation[]
+  expenses   Expense[]
 
   @@index([status])
   @@index([productionType, status])
   @@index([deadlineAt])
   @@index([createdById])
   @@index([eventId])
+  @@index([departmentId, status])
   @@map("productions")
+}
+
+/// A physical location a production needs arranged (rehearsal space, shoot
+/// location, venue) - distinct from `Supplier` (vendor/contact directory) and
+/// from `Event.location` (a single plain-text venue string on the event
+/// itself). A production may need several.
+model ProductionLocation {
+  id           String                   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  productionId String                   @map("production_id") @db.Uuid
+  name         String
+  address      String?
+  description  String?
+  contactName  String?                  @map("contact_name")
+  contactEmail String?                  @map("contact_email")
+  contactPhone String?                  @map("contact_phone")
+  status       ProductionLocationStatus @default(PENDING)
+  notes        String?
+  createdById  String?                  @map("created_by_id") @db.Uuid
+  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  production Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  createdBy  User?      @relation("ProductionLocationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([productionId, status])
+  @@map("production_locations")
 }
 
 model ProductionTalent {
@@ -2081,6 +2160,10 @@ model Report {
   authorId              String       @map("author_id") @db.Uuid
   departmentId          String?      @map("department_id") @db.Uuid
   status                ReportStatus @default(DRAFT)
+  /// A free-text summary of the report, independent of its type-specific
+  /// narrative sections below - the same "plain top-level field" shape as
+  /// `title`, applicable to every report type.
+  description           String?
   problemsEncountered   String?      @map("problems_encountered")
   nextDayPlan           String?      @map("next_day_plan")
   departmentActivities  String?      @map("department_activities")
@@ -2098,11 +2181,13 @@ model Report {
   createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  author     User              @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  department Department?       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  reviewer   User?             @relation("ReportCurrentReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
-  reviews    ReportReview[]
-  workspaces ReportWorkspace[]
+  author      User               @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  department  Department?        @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  reviewer    User?              @relation("ReportCurrentReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  reviews     ReportReview[]
+  workspaces  ReportWorkspace[]
+  attachments ReportAttachment[]
+  fileIntents ManagedFile[]      @relation("ManagedFileIntentReport")
 
   @@unique([authorId, type, periodStart])
   @@index([authorId, type, periodStart, id])
@@ -2143,6 +2228,26 @@ model ReportReview {
   @@index([reportId, reviewedAt, id])
   @@index([reviewerId, reviewedAt])
   @@map("report_reviews")
+}
+
+/// Explicit attachment of a managed file to the report that authorizes it -
+/// the same concrete, checked join `TaskAttachment`/`ExpenseAttachment`
+/// already use, never a polymorphic entity-type/id reference.
+model ReportAttachment {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  reportId      String   @map("report_id") @db.Uuid
+  managedFileId String   @map("managed_file_id") @db.Uuid
+  attachedById  String?  @map("attached_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  report      Report      @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  managedFile ManagedFile @relation(fields: [managedFileId], references: [id], onDelete: Restrict)
+  attachedBy  User?       @relation("ReportAttachmentActor", fields: [attachedById], references: [id], onDelete: SetNull)
+
+  @@unique([reportId, managedFileId])
+  @@index([managedFileId])
+  @@index([attachedById])
+  @@map("report_attachments")
 }
 
 /// Expense cost categories for event spending (EOM-01). `MISCELLANEOUS` is
@@ -2224,7 +2329,15 @@ model Supplier {
 /// through `Event` just to authorize a read.
 model Expense {
   id            String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  eventId       String          @map("event_id") @db.Uuid
+  /// Soft cross-reference to the event this expense belongs to. An expense
+  /// must have at least one of `eventId`/`productionId` set (`expenses_has_owner`
+  /// CHECK) - the same "at least one explicit owner" shape `Task` already
+  /// established for `workspaceId`/`departmentId`.
+  eventId       String?         @map("event_id") @db.Uuid
+  /// Direct link for an expense recorded against a production that has no
+  /// linked event (or one specific to the production itself, independent of
+  /// any linked event's own expenses).
+  productionId  String?         @map("production_id") @db.Uuid
   departmentId  String          @map("department_id") @db.Uuid
   supplierId    String?         @map("supplier_id") @db.Uuid
   category      ExpenseCategory
@@ -2243,11 +2356,12 @@ model Expense {
   createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  event       Event               @relation(fields: [eventId], references: [id], onDelete: Restrict)
-  department  Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  supplier    Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  createdBy   User?               @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  reviewer    User?               @relation("ExpenseCurrentReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  event         Event?              @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  production    Production?         @relation(fields: [productionId], references: [id], onDelete: Restrict)
+  department    Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  supplier      Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  createdBy     User?               @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewer      User?               @relation("ExpenseCurrentReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
   reviews       ExpenseReview[]
   attachments   ExpenseAttachment[]
   fileIntents   ManagedFile[]       @relation("ManagedFileIntentExpense")
@@ -2256,6 +2370,7 @@ model Expense {
   // Planned-vs-actual summaries and approval queues filter by event/
   // department and status; this mirrors Task's own `[owner, status]` shape.
   @@index([eventId, status])
+  @@index([productionId, status])
   @@index([departmentId, status])
   @@index([supplierId])
   @@index([createdById])

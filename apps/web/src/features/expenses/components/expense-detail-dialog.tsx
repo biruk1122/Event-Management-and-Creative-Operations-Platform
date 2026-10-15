@@ -282,8 +282,12 @@ function ExpenseDetailBody({
           </Badge>
         </div>
         <DialogDescription>
-          {event ? event.name : "Event"} ·{" "}
-          {amountSummary(expense.actualAmount, expense.currency)}
+          {event
+            ? event.name
+            : expense.eventId === null
+              ? "Production expense"
+              : "Event"}{" "}
+          · {amountSummary(expense.actualAmount, expense.currency)}
         </DialogDescription>
       </DialogHeader>
 

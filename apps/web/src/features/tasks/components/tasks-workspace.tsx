@@ -9,6 +9,7 @@ import {
   List,
   MessageSquare,
   Paperclip,
+  Plus,
   Users,
 } from "lucide-react";
 
@@ -349,13 +350,13 @@ function CalendarView({
   return (
     <section
       aria-label="Task calendar"
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      className="flex flex-wrap justify-center gap-3"
     >
       {scheduled.map((task) => (
         <article
           data-task-card
           key={task.id}
-          className="border-border rounded-xl border p-4"
+          className="border-border w-full shrink grow-0 basis-72 rounded-xl border p-4 @min-[48rem]:basis-80"
         >
           <p className="text-muted-foreground text-xs">
             {task.startAt
@@ -934,6 +935,8 @@ export function TaskWorkspace({
   onFiltersChange,
   onPageChange,
   collaboration,
+  canCreate = false,
+  onOpenCreate,
 }: {
   /** Static data remains available only for isolated component tests. */
   data?: TaskWorkspaceData;
@@ -952,6 +955,8 @@ export function TaskWorkspace({
   }) => void;
   onPageChange?: (page: number) => void;
   collaboration?: TaskCollaborationActions;
+  canCreate?: boolean;
+  onOpenCreate?: () => void;
 }) {
   const [view, setView] = useState<View>("list");
   const [query, setQuery] = useState("");
@@ -990,6 +995,12 @@ export function TaskWorkspace({
               departments.
             </p>
           </div>
+          {canCreate ? (
+            <Button type="button" onClick={onOpenCreate}>
+              <Plus aria-hidden="true" data-icon="inline-start" />
+              New task
+            </Button>
+          ) : null}
         </div>
         {error ? (
           <Alert variant="destructive">

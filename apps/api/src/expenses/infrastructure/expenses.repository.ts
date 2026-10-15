@@ -45,6 +45,7 @@ export interface ExpenseVisibility {
 export interface ListExpensesInput {
   visibility: ExpenseVisibility;
   eventId?: string;
+  productionId?: string;
   status?: ExpenseStatus;
   category?: ExpenseCategory;
   departmentId?: string;
@@ -54,7 +55,8 @@ export interface ListExpensesInput {
 }
 
 export interface CreateExpenseInput {
-  eventId: string;
+  eventId?: string;
+  productionId?: string;
   supplierId?: string;
   category: ExpenseCategory;
   description: string;
@@ -126,6 +128,18 @@ export class ExpensesRepository {
     if (!isUuid(eventId)) return null;
     return this.db.event.findUnique({
       where: { id: eventId },
+      select: { departmentId: true },
+    });
+  }
+
+  /** Same shape as `findEventContext`, for a direct production-owned
+   * expense (a production with no linked event). */
+  async findProductionContext(
+    productionId: string,
+  ): Promise<{ departmentId: string | null } | null> {
+    if (!isUuid(productionId)) return null;
+    return this.db.production.findUnique({
+      where: { id: productionId },
       select: { departmentId: true },
     });
   }
@@ -223,6 +237,7 @@ export class ExpensesRepository {
     const where: Prisma.ExpenseWhereInput = {
       ...visibleWhere(input.visibility),
       ...(input.eventId ? { eventId: input.eventId } : {}),
+      ...(input.productionId ? { productionId: input.productionId } : {}),
       ...(input.status ? { status: input.status } : {}),
       ...(input.category ? { category: input.category } : {}),
       ...(input.departmentId ? { departmentId: input.departmentId } : {}),
@@ -247,7 +262,8 @@ export class ExpensesRepository {
   ): Promise<ExpenseRecord> {
     return this.db.expense.create({
       data: {
-        eventId: data.eventId,
+        ...(data.eventId ? { eventId: data.eventId } : {}),
+        ...(data.productionId ? { productionId: data.productionId } : {}),
         departmentId,
         ...(data.supplierId ? { supplierId: data.supplierId } : {}),
         category: data.category,

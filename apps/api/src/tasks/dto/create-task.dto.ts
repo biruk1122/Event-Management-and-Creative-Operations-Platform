@@ -10,7 +10,7 @@ import {
   MinLength,
 } from "class-validator";
 
-import { TaskPriority } from "../../generated/prisma/client.js";
+import { TaskPriority, TaskType } from "../../generated/prisma/client.js";
 
 const NOT_BLANK = /\S/;
 
@@ -35,6 +35,11 @@ export class CreateTaskDto {
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
 
+  @ApiPropertyOptional({ enum: TaskType, default: TaskType.GENERAL })
+  @IsOptional()
+  @IsEnum(TaskType)
+  type?: TaskType;
+
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
@@ -44,6 +49,14 @@ export class CreateTaskDto {
   @IsOptional()
   @IsUUID()
   departmentId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "A user to assign immediately on creation.",
+  })
+  @IsOptional()
+  @IsUUID()
+  assigneeId?: string;
 
   @ApiPropertyOptional({ format: "date-time" })
   @IsOptional()

@@ -1,11 +1,23 @@
+import type { ReactElement } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+
+import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
 import { ProductionsBoard } from "./productions-board";
 import { ProductionMutationError } from "../lib/production-errors";
 import type { Production } from "../lib/production-types";
 
+const access: CurrentAccess = { userId: "actor-1", grants: [] };
+
+function wrap(node: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return <QueryClientProvider client={client}>{node}</QueryClientProvider>;
+}
 const now = "2026-09-01T09:00:00.000Z";
 const production: Production = {
   id: "p1",
@@ -17,6 +29,7 @@ const production: Production = {
   endAt: null,
   deadlineAt: now,
   eventId: null,
+  departmentId: null,
   status: "PLANNED",
   manager: {
     id: "u1",
@@ -35,7 +48,15 @@ const production: Production = {
 describe("ProductionsBoard", () => {
   it("filters records and shows the production workspace", async () => {
     const user = userEvent.setup();
-    render(<ProductionsBoard state="ready" productions={[production]} />);
+    render(
+      wrap(
+        <ProductionsBoard
+          access={access}
+          state="ready"
+          productions={[production]}
+        />,
+      ),
+    );
     await user.type(screen.getByLabelText("Search productions"), "unknown");
     expect(
       screen.getByText("No productions match these filters"),
@@ -45,26 +66,26 @@ describe("ProductionsBoard", () => {
     const details = screen.getByRole("region", { name: "Production details" });
     expect(within(details).getByText("Creative")).toBeVisible();
     expect(within(details).getByText("Ari Bek")).toBeVisible();
-    await user.click(within(details).getByRole("tab", { name: "Tasks" }));
-    expect(within(details).getByRole("tab", { name: "Tasks" })).toHaveAttribute(
+    await user.click(within(details).getByRole("tab", { name: "Team" }));
+    expect(within(details).getByRole("tab", { name: "Team" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(
-      within(details).getByRole("link", { name: "Open Tasks" }),
-    ).toHaveAttribute("href", "/tasks");
   });
 
   it("validates required fields before creating", async () => {
     const user = userEvent.setup();
     const onCreate = vi.fn().mockResolvedValue(undefined);
     render(
-      <ProductionsBoard
-        state="ready"
-        productions={[]}
-        canCreate
-        onCreate={onCreate}
-      />,
+      wrap(
+        <ProductionsBoard
+          access={access}
+          state="ready"
+          productions={[]}
+          canCreate
+          onCreate={onCreate}
+        />,
+      ),
     );
     await user.click(screen.getByRole("button", { name: "New production" }));
     await user.click(screen.getByRole("button", { name: "Save production" }));
@@ -89,15 +110,31 @@ describe("ProductionsBoard", () => {
   it("supports denial, retry, and unconnected empty states", async () => {
     const user = userEvent.setup();
     const retry = vi.fn();
-    const view = render(<ProductionsBoard state="denied" productions={[]} />);
+    const view = render(
+      wrap(<ProductionsBoard access={access} state="denied" productions={[]} />),
+    );
     expect(screen.getByRole("alert")).toHaveTextContent("do not have access");
     view.rerender(
-      <ProductionsBoard state="error" productions={[]} onRetry={retry} />,
+      wrap(
+        <ProductionsBoard
+          access={access}
+          state="error"
+          productions={[]}
+          onRetry={retry}
+        />,
+      ),
     );
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(retry).toHaveBeenCalledOnce();
     view.rerender(
-      <ProductionsBoard state="ready" productions={[]} canCreate />,
+      wrap(
+        <ProductionsBoard
+          access={access}
+          state="ready"
+          productions={[]}
+          canCreate
+        />,
+      ),
     );
     expect(screen.getByText("No productions yet")).toBeVisible();
     expect(
@@ -109,12 +146,15 @@ describe("ProductionsBoard", () => {
     const user = userEvent.setup();
     const onDelete = vi.fn().mockResolvedValue(undefined);
     render(
-      <ProductionsBoard
-        state="ready"
-        productions={[production]}
-        canDelete
-        onDelete={onDelete}
-      />,
+      wrap(
+        <ProductionsBoard
+          access={access}
+          state="ready"
+          productions={[production]}
+          canDelete
+          onDelete={onDelete}
+        />,
+      ),
     );
     await user.click(screen.getByRole("button", { name: /Launch film/ }));
     await user.click(screen.getByRole("button", { name: "Delete production" }));
@@ -129,13 +169,16 @@ describe("ProductionsBoard", () => {
     const user = userEvent.setup();
     const onAssignManager = vi.fn().mockResolvedValue(undefined);
     render(
-      <ProductionsBoard
-        state="ready"
-        productions={[production]}
-        canAssign
-        availablePeople={[production.manager!]}
-        onAssignManager={onAssignManager}
-      />,
+      wrap(
+        <ProductionsBoard
+          access={access}
+          state="ready"
+          productions={[production]}
+          canAssign
+          availablePeople={[production.manager!]}
+          onAssignManager={onAssignManager}
+        />,
+      ),
     );
     await user.click(screen.getByRole("button", { name: /Launch film/ }));
     expect(screen.getByLabelText("Assign manager")).toBeEnabled();
@@ -154,12 +197,15 @@ describe("ProductionsBoard", () => {
       }),
     );
     render(
-      <ProductionsBoard
-        state="ready"
-        productions={[]}
-        canCreate
-        onCreate={onCreate}
-      />,
+      wrap(
+        <ProductionsBoard
+          access={access}
+          state="ready"
+          productions={[]}
+          canCreate
+          onCreate={onCreate}
+        />,
+      ),
     );
     await user.click(screen.getByRole("button", { name: "New production" }));
     const dialog = screen.getByRole("dialog");

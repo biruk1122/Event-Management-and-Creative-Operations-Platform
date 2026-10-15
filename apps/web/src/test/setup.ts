@@ -26,3 +26,20 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {}
   };
 }
+
+// jsdom has no matchMedia; the theme/sidebar preference hooks and the
+// dashboard chart kit's reduced-motion hook all read it. A stub reporting
+// "no match" (light theme, motion not reduced) is enough for components
+// that never simulate a media-query change.
+if (typeof globalThis.matchMedia === "undefined") {
+  globalThis.matchMedia = (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  });
+}

@@ -12,7 +12,19 @@ import {
 import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ProductionMutationError } from "../lib/production-errors";
+
+export interface AssignableDepartment {
+  id: string;
+  name: string;
+}
 
 export interface ProductionValues {
   name: string;
@@ -21,6 +33,7 @@ export interface ProductionValues {
   startAt: string;
   endAt: string;
   deadlineAt: string;
+  departmentId: string;
 }
 
 const empty: ProductionValues = {
@@ -30,21 +43,33 @@ const empty: ProductionValues = {
   startAt: "",
   endAt: "",
   deadlineAt: "",
+  departmentId: "",
 };
 
 export function ProductionForm({
   open,
   onOpenChange,
   initial,
+  departments = [],
+  departmentLocked = false,
   onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initial?: ProductionValues;
+  /** Only offered when creating: department ownership is not editable
+   * afterward, matching the server's own create-time-only assignment. */
+  departments?: readonly AssignableDepartment[];
+  departmentLocked?: boolean;
   onSave: (values: ProductionValues) => Promise<void>;
 }) {
   const id = useId();
-  const [values, setValues] = useState<ProductionValues>(initial ?? empty);
+  const [values, setValues] = useState<ProductionValues>(
+    initial ??
+      (departmentLocked && departments[0]
+        ? { ...empty, departmentId: departments[0].id }
+        : empty),
+  );
   const [errors, setErrors] = useState<
     Partial<Record<keyof ProductionValues, string>>
   >({});
@@ -155,6 +180,27 @@ export function ProductionForm({
               ) : null}
             </div>
           ))}
+          {!initial ? (
+            <div className="space-y-1">
+              <Label htmlFor={`${id}-department`}>Department</Label>
+              <Select
+                value={values.departmentId}
+                disabled={saving || departmentLocked}
+                onValueChange={(value) => field("departmentId", value)}
+              >
+                <SelectTrigger id={`${id}-department`}>
+                  <SelectValue placeholder="Choose a department…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments.map((department) => (
+                    <SelectItem key={department.id} value={department.id}>
+                      {department.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           <div className="space-y-1">
             <Label htmlFor={`${id}-description`}>Description</Label>
             <textarea

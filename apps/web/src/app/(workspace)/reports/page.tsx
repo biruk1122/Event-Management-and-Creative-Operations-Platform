@@ -22,7 +22,7 @@ export default async function ReportsPage() {
   );
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-8 sm:py-8">
+    <main className="@container mx-auto max-w-352 space-y-6 px-4 py-6 sm:px-8 sm:py-8">
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>

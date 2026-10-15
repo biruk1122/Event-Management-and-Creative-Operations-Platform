@@ -139,7 +139,8 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
     mutations.create.isPending ||
     mutations.update.isPending ||
     mutations.submit.isPending ||
-    mutations.review.isPending;
+    mutations.review.isPending ||
+    mutations.upload.isPending;
 
   useEffect(() => {
     const error = listQuery.error ?? detailQuery.error;
@@ -198,7 +199,8 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
 
   async function saveDraft(
     values: CreateReport,
-    reportId?: string,
+    reportId: string | undefined,
+    files: readonly File[],
   ): Promise<boolean> {
     if (requestInFlight.current) return false;
     requestInFlight.current = true;
@@ -206,7 +208,22 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
       const saved = reportId
         ? await mutations.update.mutateAsync({ id: reportId, values })
         : await mutations.create.mutateAsync(values);
-      setNotice({ kind: "success", message: "Report draft saved." });
+      let failedUploads = 0;
+      for (const file of files) {
+        try {
+          await mutations.upload.mutateAsync({ id: saved.id, file });
+        } catch {
+          failedUploads += 1;
+        }
+      }
+      setNotice(
+        failedUploads > 0
+          ? {
+              kind: "error",
+              message: `Report draft saved, but ${failedUploads} file${failedUploads === 1 ? "" : "s"} did not upload. Open the draft to retry.`,
+            }
+          : { kind: "success", message: "Report draft saved." },
+      );
       setPage(1);
       setSelectedId(saved.id);
       return true;
@@ -311,6 +328,7 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
       }
       canCreate={abilities.canCreate}
       canReview={abilities.canReview}
+      canAttach={abilities.canAttach}
       busy={busy}
       notice={displayNotice}
       errorMessage={

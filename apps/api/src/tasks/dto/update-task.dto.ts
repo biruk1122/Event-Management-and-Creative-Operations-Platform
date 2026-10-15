@@ -10,7 +10,7 @@ import {
   ValidateIf,
 } from "class-validator";
 
-import { TaskPriority } from "../../generated/prisma/client.js";
+import { TaskPriority, TaskType } from "../../generated/prisma/client.js";
 
 const NOT_BLANK = /\S/;
 
@@ -36,6 +36,11 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
+
+  @ApiPropertyOptional({ enum: TaskType })
+  @IsOptional()
+  @IsEnum(TaskType)
+  type?: TaskType;
 
   @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
   @IsOptional()

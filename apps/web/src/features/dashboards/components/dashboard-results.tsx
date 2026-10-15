@@ -1,8 +1,14 @@
 import type { components } from "@event-platform/api-client";
 import { AnalyticsResults } from "@/features/analytics";
+import {
+  CategoryBarChart,
+  progressRows,
+  promotionRows,
+} from "@/features/analytics/components/analytics-chart-kit";
 import type { DashboardCard } from "../lib/dashboard-presentation";
 
 type Schemas = components["schemas"];
+
 export function DashboardResults({
   card,
   cardKey,
@@ -12,37 +18,58 @@ export function DashboardResults({
 }) {
   const data = card.data;
   if (!data) return <p>No results supplied.</p>;
-  if (cardKey === "taskCompletionRate" && "counts" in data)
-    return <AnalyticsResults measure="tasks" data={data} />;
+
   if (
-    [
-      "departmentPerformance",
-      "eventProgress",
-      "marketingProgress",
-      "promotionPerformance",
-      "monthlyActivity",
-    ].includes(cardKey)
+    ["eventProgress", "marketingProgress", "promotionPerformance"].includes(
+      cardKey,
+    )
   ) {
     const measure = {
-      departmentPerformance: "departments",
       eventProgress: "events",
       marketingProgress: "campaigns",
       promotionPerformance: "promotion",
-      monthlyActivity: "monthly",
     } as const;
+    const resolvedMeasure = measure[cardKey as keyof typeof measure];
+    const measureData = data as
+      | Schemas["WorkAnalyticsPageResponse"]
+      | Schemas["ProgressAnalyticsPageResponse"]
+      | Schemas["PromotionAnalyticsResponse"];
+
+    let chart = null;
+    if (cardKey === "promotionPerformance" && "items" in measureData) {
+      const promotion = measureData as Schemas["PromotionAnalyticsResponse"];
+      chart = (
+        <CategoryBarChart
+          title="Promotion channel comparison"
+          data={promotionRows(promotion.items)}
+          maxValue={100}
+        />
+      );
+    } else if ("items" in measureData) {
+      const page = measureData as
+        | Schemas["WorkAnalyticsPageResponse"]
+        | Schemas["ProgressAnalyticsPageResponse"];
+      const titles = {
+        eventProgress: "Event progress comparison",
+        marketingProgress: "Marketing campaign progress comparison",
+      } as const;
+      chart = (
+        <CategoryBarChart
+          title={titles[cardKey as keyof typeof titles]}
+          data={progressRows(page.items)}
+          maxValue={100}
+        />
+      );
+    }
+
     return (
-      <AnalyticsResults
-        measure={measure[cardKey as keyof typeof measure]}
-        data={
-          data as
-            | Schemas["WorkAnalyticsPageResponse"]
-            | Schemas["ProgressAnalyticsPageResponse"]
-            | Schemas["PromotionAnalyticsResponse"]
-            | Schemas["MonthlyAnalyticsResponse"]
-        }
-      />
+      <div className="space-y-4">
+        {chart}
+        <AnalyticsResults measure={resolvedMeasure} data={measureData} />
+      </div>
     );
   }
+
   if (cardKey === "budgetPlannedVsApproved" && "items" in data) {
     const budget = data as Schemas["DashboardBudgetList"];
     return (
@@ -51,24 +78,51 @@ export function DashboardResults({
           <p>No event budgets in scope.</p>
         ) : (
           <ul className="space-y-2">
-            {budget.items.map((item) => (
-              <li
-                key={item.eventId}
-                className="bg-muted/50 space-y-1 rounded-xl border p-3"
-              >
-                <p className="font-medium break-words">{item.eventName}</p>
-                <p className="text-muted-foreground text-sm">
-                  Planned:{" "}
-                  {item.plannedAmount
-                    ? `${item.plannedAmount} ${item.currency ?? ""}`
-                    : "not set"}
-                </p>
-                <p className="text-sm">
-                  Approved: {item.actualApproved} · Pending:{" "}
-                  {item.actualPending}
-                </p>
-              </li>
-            ))}
+            {budget.items.map((item) => {
+              const planned = item.plannedAmount
+                ? Number.parseFloat(item.plannedAmount)
+                : null;
+              const approved = Number.parseFloat(item.actualApproved);
+              const pending = Number.parseFloat(item.actualPending);
+              const maxValue =
+                planned !== null
+                  ? Math.max(planned, approved + pending, 1)
+                  : Math.max(approved + pending, 1);
+              return (
+                <li
+                  key={item.eventId}
+                  className="bg-muted/50 space-y-2 rounded-xl border p-3"
+                >
+                  <p className="font-medium break-words">{item.eventName}</p>
+                  <p className="text-muted-foreground text-sm">
+                    Planned:{" "}
+                    {item.plannedAmount
+                      ? `${item.plannedAmount} ${item.currency ?? ""}`
+                      : "not set"}
+                  </p>
+                  <p className="text-sm">
+                    Approved: {item.actualApproved} · Pending:{" "}
+                    {item.actualPending}
+                  </p>
+                  {planned !== null ? (
+                    <div
+                      role="img"
+                      aria-label={`Budget: planned ${item.plannedAmount}, approved ${item.actualApproved}, pending ${item.actualPending}`}
+                      className="flex h-2.5 overflow-hidden rounded-full"
+                    >
+                      <div
+                        className="bg-chart-1 h-full"
+                        style={{ width: `${(approved / maxValue) * 100}%` }}
+                      />
+                      <div
+                        className="bg-chart-3 h-full"
+                        style={{ width: `${(pending / maxValue) * 100}%` }}
+                      />
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
         {budget.hasMore ? (
@@ -161,7 +215,7 @@ export function DashboardResults({
   }
   if ("count" in data)
     return (
-      <p className="text-primary py-2 text-4xl font-semibold tracking-tight tabular-nums">
+      <p className="py-2 text-4xl font-semibold tracking-tight tabular-nums">
         {data.count}
       </p>
     );

@@ -24,6 +24,13 @@ export class ReportResponse {
   @ApiProperty({ type: String, nullable: true, format: "uuid" }) departmentId!:
     string | null;
   @ApiProperty({ enum: ReportStatus }) status!: ReportStatus;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      "A free-text summary, independent of the type-specific sections below.",
+  })
+  description!: string | null;
   @ApiProperty({ type: String, nullable: true }) problemsEncountered!:
     string | null;
   @ApiProperty({ type: String, nullable: true }) nextDayPlan!: string | null;

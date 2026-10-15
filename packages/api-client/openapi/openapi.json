@@ -1162,6 +1162,7 @@
             "type": "string"
           },
           "eventId": {
+            "description": "The event this expense belongs to. At least one of eventId/productionId is required.",
             "format": "uuid",
             "type": "string"
           },
@@ -1171,13 +1172,17 @@
             "minimum": 0,
             "type": "number"
           },
+          "productionId": {
+            "description": "The production this expense belongs to - lets a production with no linked event still record its own spend. At least one of eventId/productionId is required.",
+            "format": "uuid",
+            "type": "string"
+          },
           "supplierId": {
             "format": "uuid",
             "type": "string"
           }
         },
         "required": [
-          "eventId",
           "category",
           "description",
           "actualAmount",
@@ -1319,6 +1324,11 @@
             "format": "date-time",
             "type": "string"
           },
+          "departmentId": {
+            "description": "Defaults to the caller's own department; organization-scoped creators may choose another.",
+            "format": "uuid",
+            "type": "string"
+          },
           "description": {
             "maxLength": 2000,
             "type": "string"
@@ -1354,6 +1364,54 @@
         "required": [
           "name",
           "productionType"
+        ],
+        "type": "object"
+      },
+      "CreateProductionLocationDto": {
+        "properties": {
+          "address": {
+            "maxLength": 300,
+            "type": "string"
+          },
+          "contactEmail": {
+            "format": "email",
+            "type": "string"
+          },
+          "contactName": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "contactPhone": {
+            "maxLength": 50,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "name": {
+            "example": "Riverside Studio",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "status": {
+            "default": "PENDING",
+            "enum": [
+              "PENDING",
+              "IN_PROGRESS",
+              "CONFIRMED",
+              "READY"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
         ],
         "type": "object"
       },
@@ -1413,6 +1471,11 @@
             "type": "string"
           },
           "departmentPerformance": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "description": {
+            "description": "A free-text summary of the report, independent of its type-specific sections below.",
             "maxLength": 5000,
             "type": "string"
           },
@@ -1648,6 +1711,11 @@
       },
       "CreateTaskDto": {
         "properties": {
+          "assigneeId": {
+            "description": "A user to assign immediately on creation.",
+            "format": "uuid",
+            "type": "string"
+          },
           "departmentId": {
             "format": "uuid",
             "type": "string"
@@ -1677,6 +1745,19 @@
           "title": {
             "example": "Confirm venue permits",
             "maxLength": 200,
+            "type": "string"
+          },
+          "type": {
+            "default": "GENERAL",
+            "enum": [
+              "GENERAL",
+              "PLANNING",
+              "LOGISTICS",
+              "CREATIVE",
+              "TECHNICAL",
+              "ADMINISTRATIVE",
+              "REVIEW"
+            ],
             "type": "string"
           },
           "workspaceId": {
@@ -2889,7 +2970,9 @@
             "type": "string"
           },
           "eventId": {
+            "description": "Null when this expense is recorded directly against a production (productionId set instead).",
             "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "id": {
@@ -2899,6 +2982,12 @@
           "plannedAmount": {
             "description": "Decimal string with two fraction digits.",
             "example": "1200.00",
+            "nullable": true,
+            "type": "string"
+          },
+          "productionId": {
+            "description": "Null when this expense is recorded against an event rather than directly against a production.",
+            "format": "uuid",
             "nullable": true,
             "type": "string"
           },
@@ -2945,6 +3034,7 @@
         "required": [
           "id",
           "eventId",
+          "productionId",
           "departmentId",
           "supplierId",
           "category",
@@ -4367,6 +4457,149 @@
         ],
         "type": "object"
       },
+      "ProductionBudgetResponse": {
+        "properties": {
+          "amount": {
+            "description": "Decimal string with two fraction digits. Null when no budget is set.",
+            "example": "15000.00",
+            "nullable": true,
+            "type": "string"
+          },
+          "currency": {
+            "description": "ISO-4217 alphabetic code. Null when no budget is set.",
+            "example": "USD",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object"
+      },
+      "ProductionBudgetSummaryResponse": {
+        "properties": {
+          "actualApproved": {
+            "description": "Sum of APPROVED expenses' actual amounts for the linked event.",
+            "example": "9800.00",
+            "type": "string"
+          },
+          "actualPending": {
+            "description": "Sum of SUBMITTED (pending) expenses' actual amounts for the linked event.",
+            "example": "1350.00",
+            "type": "string"
+          },
+          "currency": {
+            "example": "USD",
+            "nullable": true,
+            "type": "string"
+          },
+          "linkedEventId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "plannedAmount": {
+            "example": "15000.00",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "plannedAmount",
+          "currency",
+          "actualApproved",
+          "actualPending",
+          "linkedEventId"
+        ],
+        "type": "object"
+      },
+      "ProductionLocationResponse": {
+        "properties": {
+          "address": {
+            "nullable": true,
+            "type": "string"
+          },
+          "contactEmail": {
+            "nullable": true,
+            "type": "string"
+          },
+          "contactName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "contactPhone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "productionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "IN_PROGRESS",
+              "CONFIRMED",
+              "READY"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "productionId",
+          "name",
+          "address",
+          "description",
+          "contactName",
+          "contactEmail",
+          "contactPhone",
+          "status",
+          "notes",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "ProductionLocationsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductionLocationResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "ProductionPerson": {
         "properties": {
           "email": {
@@ -4411,6 +4644,11 @@
           },
           "deadlineAt": {
             "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "departmentId": {
+            "format": "uuid",
             "nullable": true,
             "type": "string"
           },
@@ -4500,6 +4738,7 @@
           "deadlineAt",
           "status",
           "eventId",
+          "departmentId",
           "manager",
           "teams",
           "participants",
@@ -4982,6 +5221,11 @@
             "nullable": true,
             "type": "string"
           },
+          "description": {
+            "description": "A free-text summary, independent of the type-specific sections below.",
+            "nullable": true,
+            "type": "string"
+          },
           "employeePerformance": {
             "nullable": true,
             "type": "string"
@@ -5091,6 +5335,7 @@
           "authorId",
           "departmentId",
           "status",
+          "description",
           "problemsEncountered",
           "nextDayPlan",
           "departmentActivities",
@@ -5218,6 +5463,11 @@
             "nullable": true,
             "type": "string"
           },
+          "description": {
+            "description": "A free-text summary, independent of the type-specific sections below.",
+            "nullable": true,
+            "type": "string"
+          },
           "employeePerformance": {
             "nullable": true,
             "type": "string"
@@ -5324,6 +5574,7 @@
           "authorId",
           "departmentId",
           "status",
+          "description",
           "problemsEncountered",
           "nextDayPlan",
           "departmentActivities",
@@ -5628,6 +5879,28 @@
         },
         "required": [
           "minutes"
+        ],
+        "type": "object"
+      },
+      "SetProductionBudgetDto": {
+        "properties": {
+          "amount": {
+            "description": "Non-negative, at most two fraction digits. Null to clear.",
+            "example": 15000,
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          },
+          "currency": {
+            "description": "ISO-4217 alphabetic code (three upper-case letters). Null to clear.",
+            "example": "USD",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
         ],
         "type": "object"
       },
@@ -6108,6 +6381,20 @@
         ],
         "type": "object"
       },
+      "TaskEligibleAssigneesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskPersonSummary"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
       "TaskPersonSummary": {
         "properties": {
           "email": {
@@ -6208,6 +6495,18 @@
             "example": "Confirm venue permits",
             "type": "string"
           },
+          "type": {
+            "enum": [
+              "GENERAL",
+              "PLANNING",
+              "LOGISTICS",
+              "CREATIVE",
+              "TECHNICAL",
+              "ADMINISTRATIVE",
+              "REVIEW"
+            ],
+            "type": "string"
+          },
           "updatedAt": {
             "format": "date-time",
             "type": "string"
@@ -6225,6 +6524,7 @@
           "title",
           "description",
           "priority",
+          "type",
           "status",
           "progress",
           "startAt",
@@ -6983,6 +7283,54 @@
         },
         "type": "object"
       },
+      "UpdateProductionLocationDto": {
+        "properties": {
+          "address": {
+            "maxLength": 300,
+            "nullable": true,
+            "type": "string"
+          },
+          "contactEmail": {
+            "format": "email",
+            "nullable": true,
+            "type": "string"
+          },
+          "contactName": {
+            "maxLength": 200,
+            "nullable": true,
+            "type": "string"
+          },
+          "contactPhone": {
+            "maxLength": 50,
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "IN_PROGRESS",
+              "CONFIRMED",
+              "READY"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "UpdateProjectDto": {
         "properties": {
           "description": {
@@ -7064,6 +7412,11 @@
             "type": "string"
           },
           "departmentPerformance": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "description": {
+            "description": "A free-text summary of the report, independent of its type-specific sections below.",
             "maxLength": 5000,
             "type": "string"
           },
@@ -7269,6 +7622,18 @@
           },
           "title": {
             "maxLength": 200,
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "GENERAL",
+              "PLANNING",
+              "LOGISTICS",
+              "CREATIVE",
+              "TECHNICAL",
+              "ADMINISTRATIVE",
+              "REVIEW"
+            ],
             "type": "string"
           }
         },
@@ -14579,6 +14944,15 @@
           },
           {
             "in": "query",
+            "name": "productionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "status",
             "required": false,
             "schema": {
@@ -14773,7 +15147,7 @@
             "csrf-token": []
           }
         ],
-        "summary": "Record a draft expense against an event",
+        "summary": "Record a draft expense against an event, a production, or both",
         "tags": [
           "Expense management"
         ]
@@ -17251,6 +17625,15 @@
           },
           {
             "in": "query",
+            "name": "departmentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "page",
             "required": false,
             "schema": {
@@ -17727,6 +18110,245 @@
           }
         ],
         "summary": "Update production details",
+        "tags": [
+          "Production management"
+        ]
+      }
+    },
+    "/api/v1/productions/{id}/budget": {
+      "get": {
+        "operationId": "Productions_getBudget_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionBudgetResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Read the production budget (sensitive)",
+        "tags": [
+          "Production management"
+        ]
+      },
+      "put": {
+        "operationId": "Productions_setBudget_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetProductionBudgetDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionBudgetResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Set or clear the production budget (sensitive)",
+        "tags": [
+          "Production management"
+        ]
+      }
+    },
+    "/api/v1/productions/{id}/budget-summary": {
+      "get": {
+        "operationId": "Productions_getBudgetSummary_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionBudgetSummaryResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Planned vs. actual budget for a production (sensitive)",
         "tags": [
           "Production management"
         ]
@@ -18431,6 +19053,376 @@
           }
         ],
         "summary": "Move a production through its lifecycle",
+        "tags": [
+          "Production management"
+        ]
+      }
+    },
+    "/api/v1/productions/{productionId}/locations": {
+      "get": {
+        "operationId": "ProductionLocations_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "productionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionLocationsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List a production's locations",
+        "tags": [
+          "Production management"
+        ]
+      },
+      "post": {
+        "operationId": "ProductionLocations_create_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "productionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductionLocationDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionLocationResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Add a location to a production",
+        "tags": [
+          "Production management"
+        ]
+      }
+    },
+    "/api/v1/productions/{productionId}/locations/{id}": {
+      "delete": {
+        "operationId": "ProductionLocations_remove_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "productionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Remove a production location",
+        "tags": [
+          "Production management"
+        ]
+      },
+      "get": {
+        "operationId": "ProductionLocations_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "productionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionLocationResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get one production location",
+        "tags": [
+          "Production management"
+        ]
+      },
+      "patch": {
+        "operationId": "ProductionLocations_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "productionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductionLocationDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductionLocationResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Update a production location",
         "tags": [
           "Production management"
         ]
@@ -20499,6 +21491,363 @@
         ]
       }
     },
+    "/api/v1/reports/{reportId}/files": {
+      "get": {
+        "operationId": "ReportFileManagement_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reportId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedManagedFilesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid pagination query"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside report scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Report not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List available files attached to a report",
+        "tags": [
+          "Report management"
+        ]
+      }
+    },
+    "/api/v1/reports/{reportId}/files/upload-intents": {
+      "post": {
+        "operationId": "ReportFileManagement_createUploadIntent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reportId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadIntentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadIntentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid upload declaration"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside report scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Report not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a direct-upload grant for a report attachment",
+        "tags": [
+          "Report management"
+        ]
+      }
+    },
+    "/api/v1/reports/{reportId}/files/{fileId}/download": {
+      "get": {
+        "operationId": "ReportFileManagement_download_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reportId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadGrantResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside report scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Report file not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Issue a private download grant for a report file",
+        "tags": [
+          "Report management"
+        ]
+      }
+    },
+    "/api/v1/reports/{reportId}/files/{fileId}/finalize": {
+      "post": {
+        "operationId": "ReportFileManagement_finalize_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reportId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedFileResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside report scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Report or intent not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Intent expired, upload missing, unsafe, or already finalized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "File scanner unavailable"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Verify, scan, and attach a completed report upload",
+        "tags": [
+          "Report management"
+        ]
+      }
+    },
     "/api/v1/roles": {
       "get": {
         "operationId": "Roles_list_v1",
@@ -22466,6 +23815,83 @@
           }
         ],
         "summary": "Create a workspace or department task",
+        "tags": [
+          "Task management"
+        ]
+      }
+    },
+    "/api/v1/tasks/eligible-assignees": {
+      "get": {
+        "operationId": "Tasks_listEligibleAssignees_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "departmentId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskEligibleAssigneesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Department not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List a department's active staff eligible for task assignment",
         "tags": [
           "Task management"
         ]

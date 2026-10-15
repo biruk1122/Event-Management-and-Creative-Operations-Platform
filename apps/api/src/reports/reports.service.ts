@@ -6,6 +6,7 @@ import { permissionDenied } from "../common/security/security.errors.js";
 import {
   AuditActorKind,
   AuditOutcome,
+  type Prisma,
   type ReportType,
 } from "../generated/prisma/client.js";
 import { WorkspacesService } from "../workspaces/workspaces.service.js";
@@ -59,6 +60,7 @@ function toResponse(report: ReportRecord): ReportResponse {
     authorId: report.authorId,
     departmentId: report.departmentId,
     status: report.status,
+    description: report.description,
     problemsEncountered: report.problemsEncountered,
     nextDayPlan: report.nextDayPlan,
     departmentActivities: report.departmentActivities,
@@ -215,9 +217,14 @@ export class ReportsService {
       ...sectionsFrom(input),
     };
     validateSections(type, sections);
+    const description =
+      input.description !== undefined
+        ? input.description.trim()
+        : (existing?.description ?? null);
     return {
       type,
       title: (input.title ?? existing?.title ?? "").trim(),
+      description,
       periodStart: from,
       periodEnd: to,
       departmentId: departmentId ?? null,
@@ -383,6 +390,69 @@ export class ReportsService {
         input.note,
       ),
     );
+  }
+
+  /** Internal authorization boundary reused by the explicit report-file
+   * surface (mirrors `ExpensesService.authorize`). */
+  async authorize(
+    actingUserId: string,
+    reportId: string,
+    permissionKey: string,
+  ): Promise<ReportRecord> {
+    return this.load(actingUserId, reportId, permissionKey);
+  }
+
+  /** Rechecks report attachment scope while the shared unit of work is open
+   * (mirrors `ExpensesService.lockAttachmentFinalization`). */
+  async lockAttachmentFinalization(
+    tx: Prisma.TransactionClient,
+    input: { actingUserId: string; reportId: string },
+  ): Promise<void> {
+    const visibility = await this.visibility(
+      input.actingUserId,
+      "report.attachment.create",
+    );
+    const access = await this.repo.lockAttachmentAccess(
+      tx,
+      input.reportId,
+      visibility,
+    );
+    if (access === "forbidden" || access === "not_found") {
+      if (access === "forbidden" || !visibility.organization)
+        throw permissionDenied();
+      throw reportNotFound();
+    }
+  }
+
+  /** Persists only the report-owned attachment association. */
+  async recordAttachment(
+    tx: Prisma.TransactionClient,
+    input: { actingUserId: string; reportId: string; fileId: string },
+  ): Promise<void> {
+    await this.repo.createAttachment(tx, {
+      attachedById: input.actingUserId,
+      reportId: input.reportId,
+      fileId: input.fileId,
+    });
+  }
+
+  async listAttachmentFileIds(
+    actingUserId: string,
+    reportId: string,
+    pageNumber: number,
+    pageSize: number,
+  ): Promise<{ fileIds: string[]; total: number }> {
+    await this.authorize(actingUserId, reportId, "report.read");
+    return this.repo.listAttachmentFileIds(reportId, pageNumber, pageSize);
+  }
+
+  async readAttachmentContext(
+    actingUserId: string,
+    reportId: string,
+    fileId: string,
+  ): Promise<Record<string, never> | null> {
+    await this.authorize(actingUserId, reportId, "report.read");
+    return (await this.repo.hasAttachment(reportId, fileId)) ? {} : null;
   }
 
   async export(userId: string, id: string, requestId: string): Promise<string> {

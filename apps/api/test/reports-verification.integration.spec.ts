@@ -692,6 +692,7 @@ describe("EVE-167 report verification", () => {
       repository.updateDraft(id, stale.updatedAt, {
         type: "DAILY",
         title: "Stale title",
+        description: null,
         periodStart: day("2025-05-01"),
         periodEnd: day("2025-05-01"),
         departmentId: null,

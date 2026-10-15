@@ -179,6 +179,14 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
     description: "Move a project through its approved lifecycle states.",
   },
   {
+    key: "production.budget.read",
+    description: "Read a production's budget. Sensitive; see PC-04.",
+  },
+  {
+    key: "production.budget.update",
+    description: "Set or change a production's budget. Sensitive; see PC-04.",
+  },
+  {
     key: "campaign.create",
     description: "Create a marketing or promotion campaign.",
   },
@@ -339,6 +347,10 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
     description: "Move a submitted report to Reviewed or Changes Requested.",
   },
   {
+    key: "report.attachment.create",
+    description: "Attach a managed file to a report.",
+  },
+  {
     key: "analytics.management.read",
     description: "View management analytics. Sensitive.",
   },
@@ -429,6 +441,10 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "task.assign", scope: "DEPARTMENT" },
   { permissionKey: "task.update", scope: "DEPARTMENT" },
   { permissionKey: "task.review", scope: "DEPARTMENT" },
+  // TSK-CREATE: without this, a Department Manager could create and assign
+  // a task but never attach a file to it - the create-task form's attachment
+  // step needs the same department-scoped grant Super Admin already holds.
+  { permissionKey: "task.attachment.create", scope: "DEPARTMENT" },
   { permissionKey: "event.read", scope: "DEPARTMENT" },
   // Event & office management (EOM-01): the Event & Office Manager department
   // additionally manages its own events end to end, not just reads them.
@@ -440,7 +456,22 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "event.transition_status", scope: "DEPARTMENT" },
   { permissionKey: "event.budget.read", scope: "DEPARTMENT" },
   { permissionKey: "event.budget.update", scope: "DEPARTMENT" },
+  // Production department management (PROD-WS): the Production Department
+  // Manager manages their own productions end to end - creation, updates,
+  // lifecycle, and manager/team/talent assignment - mirroring the Event &
+  // Office Manager's own `event.*` department grants above. These same
+  // `project.*` keys are also used by the (deliberately organization-only)
+  // general Projects module; that module always checks `ORGANIZATION` scope
+  // regardless of what else is granted here, so this grant cannot widen
+  // access to general projects.
   { permissionKey: "project.read", scope: "DEPARTMENT" },
+  { permissionKey: "project.create", scope: "DEPARTMENT" },
+  { permissionKey: "project.update", scope: "DEPARTMENT" },
+  { permissionKey: "project.delete", scope: "DEPARTMENT" },
+  { permissionKey: "project.assign", scope: "DEPARTMENT" },
+  { permissionKey: "project.transition_status", scope: "DEPARTMENT" },
+  { permissionKey: "production.budget.read", scope: "DEPARTMENT" },
+  { permissionKey: "production.budget.update", scope: "DEPARTMENT" },
   { permissionKey: "campaign.read", scope: "DEPARTMENT" },
   { permissionKey: "meeting.create", scope: "DEPARTMENT" },
   { permissionKey: "meeting.read", scope: "DEPARTMENT" },
@@ -451,6 +482,7 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "report.create", scope: "DEPARTMENT" },
   { permissionKey: "report.submit", scope: "DEPARTMENT" },
   { permissionKey: "report.read", scope: "DEPARTMENT" },
+  { permissionKey: "report.attachment.create", scope: "DEPARTMENT" },
   {
     permissionKey: "analytics.department_performance.read",
     scope: "DEPARTMENT",
@@ -478,6 +510,7 @@ const TEAM_MEMBER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "report.create", scope: "SELF" },
   { permissionKey: "report.submit", scope: "SELF" },
   { permissionKey: "report.read", scope: "SELF" },
+  { permissionKey: "report.attachment.create", scope: "SELF" },
   { permissionKey: "meeting.read", scope: "SELF" },
 ];
 

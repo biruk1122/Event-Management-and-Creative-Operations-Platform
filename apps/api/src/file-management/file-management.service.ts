@@ -15,6 +15,7 @@ import {
   type PermissionScope,
 } from "../generated/prisma/client.js";
 import { ExpensesService } from "../expenses/expenses.service.js";
+import { ReportsService } from "../reports/reports.service.js";
 import { TasksService } from "../tasks/tasks.service.js";
 import type {
   DownloadGrantResponse,
@@ -97,6 +98,7 @@ export class FileManagementService {
     private readonly expenses: ExpensesService,
     private readonly files: ManagedFilesRepository,
     private readonly permissions: PermissionsService,
+    private readonly reports: ReportsService,
     private readonly tasks: TasksService,
     private readonly verification: FileVerificationService,
     @Inject(FILE_OBJECT_STORAGE) private readonly storage: ObjectStorage,
@@ -641,6 +643,193 @@ export class FileManagementService {
       actorKind: AuditActorKind.USER,
       actorUserId: actingUserId,
       metadata: { parentId: expenseId, parentType: "expense" },
+      outcome: AuditOutcome.SUCCEEDED,
+      requestId,
+      resourceId: file.id,
+      resourceType: "managed_file",
+    });
+    return {
+      expiresAt: grant.expiresAt.toISOString(),
+      filename: file.originalFilename,
+      mediaType: file.verifiedMediaType,
+      url: grant.url,
+    };
+  }
+
+  async createReportUploadIntent(
+    actingUserId: string,
+    reportId: string,
+    dto: CreateUploadIntentDto,
+  ): Promise<UploadIntentResponse> {
+    await this.reports.authorize(
+      actingUserId,
+      reportId,
+      "report.attachment.create",
+    );
+    const filename = validateFilename(dto.filename);
+    const intentExpiresAt = new Date(Date.now() + INTENT_TTL_MS);
+    const file = await this.files.createPending({
+      initiatedById: actingUserId,
+      intentExpiresAt,
+      intentReportId: reportId,
+      mediaType: dto.mediaType,
+      originalFilename: filename,
+      sizeBytes: dto.sizeBytes,
+      storageKey: `files/${randomUUID()}`,
+    });
+    try {
+      const upload = await this.storage.createUploadGrant({
+        key: file.storageKey,
+        mediaType: file.declaredMediaType,
+        sizeBytes: file.declaredSizeBytes,
+      });
+      return {
+        ...toResponse(file),
+        intentExpiresAt: file.intentExpiresAt.toISOString(),
+        upload,
+      };
+    } catch (error) {
+      await this.files.deletePending(file.id);
+      throw error;
+    }
+  }
+
+  async finalizeReportUpload(
+    actingUserId: string,
+    reportId: string,
+    fileId: string,
+  ): Promise<ManagedFileResponse> {
+    await this.reports.authorize(
+      actingUserId,
+      reportId,
+      "report.attachment.create",
+    );
+    const file = await this.files.findPendingForReport(fileId, reportId);
+    if (!file) throw fileNotFound();
+    const now = new Date();
+    if (file.intentExpiresAt <= now) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileIntentExpired();
+    }
+    const object = await this.storage.readObject(file.storageKey);
+    if (!object) throw fileUploadNotFound();
+    const verified = await this.verification.verify(
+      file.declaredMediaType,
+      object.bytes,
+    );
+    if (!verified || object.sizeBytes !== file.declaredSizeBytes) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    const scan = await this.scanner.scan({
+      bytes: object.bytes,
+      mediaType: verified.mediaType,
+    });
+    if (scan === "infected") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    if (scan === "unavailable") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileScannerUnavailable();
+    }
+    const finalized = await this.db.$transaction(async (tx) => {
+      await this.reports.lockAttachmentFinalization(tx, {
+        actingUserId,
+        reportId,
+      });
+      const finalizedAt = new Date();
+      const available = await this.files.makeAvailableForReport(tx, {
+        cleanupAfter: new Date(
+          finalizedAt.getTime() + REJECTED_OBJECT_RETENTION_MS,
+        ),
+        fileId: file.id,
+        finalizedAt,
+        reportId,
+        verifiedMediaType: verified.mediaType,
+        verifiedSizeBytes: verified.sizeBytes,
+      });
+      if (available !== "available") return available;
+      await this.reports.recordAttachment(tx, {
+        actingUserId,
+        fileId: file.id,
+        reportId,
+      });
+      return "available" as const;
+    });
+    if (finalized === "expired") throw fileIntentExpired();
+    if (finalized === "conflict") throw fileStateConflict();
+    const available = await this.files.findAvailableById(file.id);
+    if (!available) throw fileStateConflict();
+    return toResponse(available);
+  }
+
+  async listReportFiles(
+    actingUserId: string,
+    reportId: string,
+    query: ListManagedFilesQueryDto,
+  ): Promise<PaginatedManagedFilesResponse> {
+    const { fileIds, total } = await this.reports.listAttachmentFileIds(
+      actingUserId,
+      reportId,
+      query.page,
+      query.pageSize,
+    );
+    const byId = new Map(
+      (await this.files.findAvailableByIds(fileIds)).map((file) => [
+        file.id,
+        file,
+      ]),
+    );
+    const items = fileIds.flatMap((id) => {
+      const file = byId.get(id);
+      return file ? [file] : [];
+    });
+    return {
+      items: items.map(toResponse),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+    };
+  }
+
+  async downloadReportFile(
+    actingUserId: string,
+    reportId: string,
+    fileId: string,
+    requestId: string,
+  ): Promise<DownloadGrantResponse> {
+    const parent = await this.reports.readAttachmentContext(
+      actingUserId,
+      reportId,
+      fileId,
+    );
+    if (!parent) throw fileNotFound();
+    const file = await this.files.findAvailableById(fileId);
+    if (!file || file.state !== "AVAILABLE" || !file.verifiedMediaType)
+      throw fileNotFound();
+    const grant = await this.storage.createDownloadGrant({
+      filename: file.originalFilename,
+      key: file.storageKey,
+      mediaType: file.verifiedMediaType,
+    });
+    await this.audit.record({
+      action: "managed_file.downloaded",
+      actorKind: AuditActorKind.USER,
+      actorUserId: actingUserId,
+      metadata: { parentId: reportId, parentType: "report" },
       outcome: AuditOutcome.SUCCEEDED,
       requestId,
       resourceId: file.id,

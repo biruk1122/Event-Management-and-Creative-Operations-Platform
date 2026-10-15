@@ -17,9 +17,23 @@ import { ExpenseCategory } from "../../generated/prisma/client.js";
 const NOT_BLANK = /\S/;
 
 export class CreateExpenseDto {
-  @ApiProperty({ format: "uuid" })
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "The event this expense belongs to. At least one of eventId/productionId is required.",
+  })
+  @IsOptional()
   @IsUUID()
-  eventId!: string;
+  eventId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "The production this expense belongs to - lets a production with no linked event still record its own spend. At least one of eventId/productionId is required.",
+  })
+  @IsOptional()
+  @IsUUID()
+  productionId?: string;
 
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()

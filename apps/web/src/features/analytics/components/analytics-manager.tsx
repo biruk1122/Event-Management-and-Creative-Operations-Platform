@@ -59,10 +59,19 @@ export function AnalyticsManager({
   const [notice, setNotice] = useState<{ key: string; message: string } | null>(
     null,
   );
-  const allowed = analyticsAbilities(access);
-  const fallback =
-    (Object.keys(MEASURES) as Measure[]).find((measure) => allowed[measure]) ??
-    "tasks";
+  // Tasks, departments, and monthly activity are permanently pinned above
+  // this single-measure selector (see `AnalyticsController`) - exclude them
+  // here so they are never also reachable via the dropdown.
+  const allowed = {
+    ...analyticsAbilities(access),
+    tasks: false,
+    departments: false,
+    monthly: false,
+  };
+  const dropdownMeasures = (Object.keys(MEASURES) as Measure[]).filter(
+    (measure) => allowed[measure],
+  );
+  const fallback = dropdownMeasures[0] ?? "tasks";
   const selection = readSelection(params, fallback, defaults);
   const { measure, filters, error } = selection;
   // Paging and permission epochs do not change the applied form filters.
@@ -122,6 +131,10 @@ export function AnalyticsManager({
     setNotice(null);
     router.push(selectionUrl(next), { scroll: false });
   };
+  // Nothing left to choose from once tasks/departments/monthly are pinned
+  // above - the pinned panels are the entire page content in that case, not
+  // a redundant "no access" alert below them.
+  if (dropdownMeasures.length === 0) return null;
   if (!allowed[measure])
     return (
       <div role="alert" className="space-y-3">

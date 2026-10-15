@@ -36,6 +36,10 @@ const FORM_ERRORS: Record<string, string> = {
   event_not_found: "That event no longer exists. Pick another.",
   event_has_no_department:
     "That event has no department and cannot carry expenses yet.",
+  production_not_found: "That production no longer exists.",
+  production_has_no_department:
+    "That production has no department and cannot carry expenses yet.",
+  owner_required: "Pick an event or a production for this expense.",
   supplier_not_found:
     "That supplier no longer exists. Pick another or clear it.",
   permission_denied: "You do not have permission to create an expense.",
@@ -58,6 +62,10 @@ interface CreateExpenseDialogProps {
   suppliers: readonly AssignableSupplier[];
   onCreate: CreateExpense;
   onCreated: (expense: Expense) => void;
+  /** When set, this expense is recorded directly against a production (no
+   * linked event required) and the event picker is hidden - lets a
+   * production with no linked event still record its own spend. */
+  productionId?: string;
 }
 
 export function CreateExpenseDialog({
@@ -67,6 +75,7 @@ export function CreateExpenseDialog({
   suppliers,
   onCreate,
   onCreated,
+  productionId,
 }: CreateExpenseDialogProps) {
   const eventId = useId();
 
@@ -95,7 +104,7 @@ export function CreateExpenseDialog({
     setFormError(null);
 
     const localErrors: Partial<Record<keyof CreateExpenseValues, string>> = {};
-    if (eventValue === null) {
+    if (!productionId && eventValue === null) {
       localErrors.eventId = "Pick an event.";
     }
     if (values.description.trim() === "") {
@@ -114,7 +123,11 @@ export function CreateExpenseDialog({
 
     setSubmitting(true);
     setFieldErrors({});
-    const outcome = await onCreate({ ...values, eventId: eventValue! });
+    const outcome = await onCreate({
+      ...values,
+      eventId: productionId ? null : eventValue,
+      productionId: productionId ?? null,
+    });
     setSubmitting(false);
 
     switch (outcome.status) {
@@ -142,8 +155,9 @@ export function CreateExpenseDialog({
         <DialogHeader>
           <DialogTitle>New expense</DialogTitle>
           <DialogDescription>
-            Pick the event this expense belongs to, then record what it cost. It
-            starts as a draft - submit it for approval when it is ready.
+            {productionId
+              ? "Record what this production cost. It starts as a draft - submit it for approval when it is ready."
+              : "Pick the event this expense belongs to, then record what it cost. It starts as a draft - submit it for approval when it is ready."}
           </DialogDescription>
         </DialogHeader>
 
@@ -159,36 +173,38 @@ export function CreateExpenseDialog({
             </Alert>
           ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor={eventId}>Event</Label>
-            <Select
-              value={eventValue ?? ""}
-              disabled={submitting}
-              onValueChange={(value) => setEventValue(value)}
-            >
-              <SelectTrigger
-                id={eventId}
-                aria-invalid={fieldErrors.eventId ? true : undefined}
-                aria-describedby={
-                  fieldErrors.eventId ? `${eventId}-error` : undefined
-                }
+          {productionId ? null : (
+            <div className="space-y-2">
+              <Label htmlFor={eventId}>Event</Label>
+              <Select
+                value={eventValue ?? ""}
+                disabled={submitting}
+                onValueChange={(value) => setEventValue(value)}
               >
-                <SelectValue placeholder="Choose an event…" />
-              </SelectTrigger>
-              <SelectContent>
-                {events.map((event) => (
-                  <SelectItem key={event.id} value={event.id}>
-                    {event.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {fieldErrors.eventId ? (
-              <p id={`${eventId}-error`} className="text-destructive text-sm">
-                {fieldErrors.eventId}
-              </p>
-            ) : null}
-          </div>
+                <SelectTrigger
+                  id={eventId}
+                  aria-invalid={fieldErrors.eventId ? true : undefined}
+                  aria-describedby={
+                    fieldErrors.eventId ? `${eventId}-error` : undefined
+                  }
+                >
+                  <SelectValue placeholder="Choose an event…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {events.map((event) => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {event.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {fieldErrors.eventId ? (
+                <p id={`${eventId}-error`} className="text-destructive text-sm">
+                  {fieldErrors.eventId}
+                </p>
+              ) : null}
+            </div>
+          )}
 
           <ExpenseFields
             values={values}

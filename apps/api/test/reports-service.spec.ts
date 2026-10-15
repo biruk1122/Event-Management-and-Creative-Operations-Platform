@@ -17,6 +17,7 @@ function makeReport(overrides: Partial<ReportRecord> = {}): ReportRecord {
     authorId: ACTOR,
     departmentId: null,
     status: "DRAFT",
+    description: null,
     problemsEncountered: null,
     nextDayPlan: null,
     departmentActivities: null,
@@ -262,5 +263,118 @@ describe("ReportsService - optional Under Review step (EOM-01)", () => {
       "REPORT_INVALID_TRANSITION",
     );
     expect(repo.review).not.toHaveBeenCalled();
+  });
+});
+
+describe("ReportsService - description field and attachments", () => {
+  let repo: Record<string, ReturnType<typeof vi.fn>>;
+  let permissions: { getEffectiveGrants: ReturnType<typeof vi.fn> };
+  let service: ReportsService;
+
+  function grantOnly(key: string, scope: string): void {
+    permissions.getEffectiveGrants.mockResolvedValue([
+      { permissionKey: key, scope },
+    ]);
+  }
+
+  beforeEach(() => {
+    repo = {
+      findById: vi.fn().mockResolvedValue(makeReport()),
+      findUserDepartmentId: vi.fn().mockResolvedValue(null),
+      departmentExists: vi.fn().mockResolvedValue(true),
+      create: vi.fn().mockResolvedValue(makeReport()),
+      lockAttachmentAccess: vi.fn().mockResolvedValue("visible"),
+      createAttachment: vi.fn().mockResolvedValue(undefined),
+      hasAttachment: vi.fn().mockResolvedValue(true),
+      listAttachmentFileIds: vi
+        .fn()
+        .mockResolvedValue({ fileIds: ["file-1"], total: 1 }),
+    };
+    permissions = { getEffectiveGrants: vi.fn().mockResolvedValue([]) };
+    service = new ReportsService(
+      repo as never,
+      permissions as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+  });
+
+  it("threads the description field through to the repository on create", async () => {
+    grantOnly("report.create", "ORGANIZATION");
+    await service.create(ACTOR, {
+      type: "DAILY",
+      title: "Daily report",
+      periodStart: "2026-10-01",
+      periodEnd: "2026-10-01",
+      description: "A quick summary of the day.",
+    } as never);
+    expect(repo.create).toHaveBeenCalledWith(
+      ACTOR,
+      expect.objectContaining({ description: "A quick summary of the day." }),
+    );
+  });
+
+  it("keeps the existing description on an update that omits it", async () => {
+    repo.findById!.mockResolvedValue(
+      makeReport({ description: "Original summary." }),
+    );
+    repo.updateDraft = vi.fn().mockResolvedValue(makeReport());
+    grantOnly("report.create", "ORGANIZATION");
+    await service.update(ACTOR, "report-1", { title: "Renamed" });
+    expect(repo.updateDraft).toHaveBeenCalledWith(
+      "report-1",
+      expect.any(Date),
+      expect.objectContaining({ description: "Original summary." }),
+    );
+  });
+
+  it("denies attachment finalization for a caller outside the report's scope", async () => {
+    grantOnly("report.attachment.create", "DEPARTMENT");
+    repo.findUserDepartmentId!.mockResolvedValue("department-9");
+    repo.lockAttachmentAccess!.mockResolvedValue("forbidden");
+    await expectCode(
+      service.lockAttachmentFinalization({} as never, {
+        actingUserId: ACTOR,
+        reportId: "report-1",
+      }),
+      "PERMISSION_DENIED",
+    );
+  });
+
+  it("records a report attachment once finalization access is confirmed", async () => {
+    grantOnly("report.attachment.create", "SELF");
+    await service.lockAttachmentFinalization({} as never, {
+      actingUserId: ACTOR,
+      reportId: "report-1",
+    });
+    await service.recordAttachment({} as never, {
+      actingUserId: ACTOR,
+      reportId: "report-1",
+      fileId: "file-1",
+    });
+    expect(repo.createAttachment).toHaveBeenCalledWith(
+      {},
+      { attachedById: ACTOR, reportId: "report-1", fileId: "file-1" },
+    );
+  });
+
+  it("requires report.read to list or resolve attachment context", async () => {
+    grantOnly("report.read", "ORGANIZATION");
+    await expect(
+      service.listAttachmentFileIds(ACTOR, "report-1", 1, 25),
+    ).resolves.toEqual({ fileIds: ["file-1"], total: 1 });
+    await expect(
+      service.readAttachmentContext(ACTOR, "report-1", "file-1"),
+    ).resolves.toEqual({});
+
+    permissions.getEffectiveGrants.mockResolvedValue([]);
+    await expectCode(
+      service.listAttachmentFileIds(ACTOR, "report-1", 1, 25),
+      "PERMISSION_DENIED",
+    );
   });
 });

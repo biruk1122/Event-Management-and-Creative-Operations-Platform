@@ -18,14 +18,19 @@ describe("shell destinations", () => {
     );
     expect(items.map((i) => i.href)).toEqual(["/settings/roles"]);
   });
-  it("matches current project/campaign/talent (organization-only) and event (EOM-01 department-scoped) screens", () => {
+  it("matches current project/campaign/talent (organization-only) and event/production (department-scoped) screens", () => {
     const keys = ["event.read", "project.read", "campaign.read", "talent.read"];
     const narrow = destinations(
       access(
         keys.map((permissionKey) => ({ permissionKey, scope: "DEPARTMENT" })),
       ),
     );
-    expect(narrow.map((i) => i.href)).toEqual(["/events"]);
+    // `project.read` at department scope reaches the Production workspace
+    // (PROD-WS) but not general Projects, which stays organization-only.
+    expect(narrow.map((i) => i.href)).toEqual([
+      "/events",
+      "/projects/production",
+    ]);
     const wide = destinations(
       access(
         keys.map((permissionKey) => ({ permissionKey, scope: "ORGANIZATION" })),

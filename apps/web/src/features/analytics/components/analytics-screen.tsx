@@ -8,9 +8,20 @@ import {
   analyticsAbilities,
   type AnalyticsFilters,
 } from "../lib/analytics-presentation";
+import { defaultFilters } from "../lib/analytics-url";
 import type { AnalyticsRequestError } from "../api/analytics-gateway";
 import { AnalyticsManager } from "./analytics-manager";
 import { AnalyticsHeading, ANALYTICS_SCOPE_LABEL } from "./analytics-heading";
+import {
+  PinnedAnalyticsPanel,
+  type PinnedMeasure,
+} from "./pinned-analytics-panel";
+
+const PINNED_MEASURES: readonly PinnedMeasure[] = [
+  "tasks",
+  "departments",
+  "monthly",
+];
 
 export function AnalyticsScreen() {
   return (
@@ -34,6 +45,7 @@ function AnalyticsController() {
     selection: string;
     filters: AnalyticsFilters;
   } | null>(null);
+  const [pinnedDefaults] = useState(defaultFilters);
   const failClosed = useCallback(
     (error: AnalyticsRequestError) =>
       setBlocked({ epoch: access.dataUpdatedAt, error }),
@@ -98,16 +110,31 @@ function AnalyticsController() {
       </div>
     );
   if (!access.data) return null;
+  const abilities = analyticsAbilities(access.data);
   return (
-    <AnalyticsManager
-      key={`${access.data.userId}:${access.dataUpdatedAt}`}
-      access={access.data}
-      epoch={access.dataUpdatedAt}
-      onAuthorizationError={failClosed}
-      savedDraft={draft?.userId === access.data.userId ? draft : null}
-      onDraftChange={(selection, filters) =>
-        setDraft({ userId: access.data!.userId, selection, filters })
-      }
-    />
+    <div className="space-y-6">
+      {PINNED_MEASURES.filter((measure) => abilities[measure]).map(
+        (measure) => (
+          <PinnedAnalyticsPanel
+            key={`${access.data!.userId}:${access.dataUpdatedAt}:${measure}`}
+            measure={measure}
+            access={access.data!}
+            epoch={access.dataUpdatedAt}
+            defaults={pinnedDefaults}
+            onAuthorizationError={failClosed}
+          />
+        ),
+      )}
+      <AnalyticsManager
+        key={`${access.data.userId}:${access.dataUpdatedAt}`}
+        access={access.data}
+        epoch={access.dataUpdatedAt}
+        onAuthorizationError={failClosed}
+        savedDraft={draft?.userId === access.data.userId ? draft : null}
+        onDraftChange={(selection, filters) =>
+          setDraft({ userId: access.data!.userId, selection, filters })
+        }
+      />
+    </div>
   );
 }

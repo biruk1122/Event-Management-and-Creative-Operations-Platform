@@ -27,6 +27,7 @@ import type {
 } from "./tasks.contracts.js";
 import {
   taskAssigneeNotAssigned,
+  taskAssigneeOutsideDepartment,
   taskConcurrentChange,
   taskDepartmentNotFound,
   taskInvalidTransition,
@@ -42,6 +43,7 @@ import {
   TasksRepository,
   type TaskActivityRecord,
   type TaskCommentRecord,
+  type TaskPersonRecord,
   type TaskRecord,
   type TaskReviewRecord,
   type TaskVisibility,
@@ -199,6 +201,7 @@ export class TasksService implements AuditWorkspaceContextResolver {
   async create(
     actingUserId: string,
     dto: CreateTaskDto,
+    requestId: string,
   ): Promise<TaskResponse> {
     if (!dto.workspaceId && !dto.departmentId) throw taskOwnerRequired();
     const organization = await this.hasGrant(
@@ -224,6 +227,15 @@ export class TasksService implements AuditWorkspaceContextResolver {
       !(await this.repository.departmentExists(dto.departmentId))
     )
       throw taskDepartmentNotFound();
+    // Fail fast, before the task exists, rather than creating an unassigned
+    // task and only then discovering the chosen person is outside scope.
+    if (dto.assigneeId && dto.departmentId) {
+      const eligible = await this.repository.listEligibleAssignees(
+        dto.departmentId,
+      );
+      if (!eligible.some((user) => user.id === dto.assigneeId))
+        throw taskAssigneeOutsideDepartment();
+    }
     const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
     const dueAt = dto.dueAt ? new Date(dto.dueAt) : undefined;
     assertSchedule(startAt ?? null, dueAt ?? null);
@@ -236,9 +248,17 @@ export class TasksService implements AuditWorkspaceContextResolver {
         ? { description: dto.description.trim() }
         : {}),
       ...(dto.priority ? { priority: dto.priority } : {}),
+      ...(dto.type ? { type: dto.type } : {}),
       ...(startAt ? { startAt } : {}),
       ...(dueAt ? { dueAt } : {}),
     });
+    if (dto.assigneeId) {
+      // Reuses the existing assignment path so the `task.assigned`
+      // notification outbox event fires exactly as it does for a
+      // post-creation assignment - no separate notification code needed.
+      await this.addAssignee(actingUserId, task.id, dto.assigneeId, requestId);
+      return this.get(actingUserId, task.id);
+    }
     return toTaskResponse(task);
   }
 
@@ -264,6 +284,7 @@ export class TasksService implements AuditWorkspaceContextResolver {
           }
         : {}),
       ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
+      ...(dto.type !== undefined ? { type: dto.type } : {}),
       ...(dto.startAt !== undefined
         ? { startAt: dto.startAt === null ? null : new Date(dto.startAt) }
         : {}),
@@ -303,9 +324,24 @@ export class TasksService implements AuditWorkspaceContextResolver {
       requestId,
     );
     if (result === "user_not_found") throw taskUserNotFound();
+    if (result === "assignee_outside_department")
+      throw taskAssigneeOutsideDepartment();
     if (result === "forbidden" || !result)
       this.mutationUnavailable(visibility, result);
     return toTaskResponse(result);
+  }
+
+  /** Active staff of one department, for the create-task assignee picker. */
+  async listEligibleAssignees(
+    actingUserId: string,
+    departmentId: string,
+  ): Promise<TaskPersonRecord[]> {
+    const visibility = await this.visibilityFor(actingUserId, "task.create");
+    if (!visibility.organization && visibility.departmentId !== departmentId)
+      throw permissionDenied();
+    if (!(await this.repository.departmentExists(departmentId)))
+      throw taskDepartmentNotFound();
+    return this.repository.listEligibleAssignees(departmentId);
   }
 
   async removeAssignee(
@@ -592,7 +628,7 @@ function changedFields(
   fields: UpdateTaskFields,
 ): Record<string, unknown> {
   const details: Record<string, unknown> = {};
-  for (const key of ["title", "description", "priority"] as const) {
+  for (const key of ["title", "description", "priority", "type"] as const) {
     if (fields[key] !== undefined && fields[key] !== current[key])
       details[key] = { from: current[key], to: fields[key] };
   }
@@ -614,6 +650,7 @@ function toTaskResponse(record: TaskRecord): TaskResponse {
     title: record.title,
     description: record.description,
     priority: record.priority,
+    type: record.type,
     status: record.status,
     progress: record.progress,
     startAt: record.startAt?.toISOString() ?? null,

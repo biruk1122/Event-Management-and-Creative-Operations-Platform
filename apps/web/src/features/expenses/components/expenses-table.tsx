@@ -21,7 +21,8 @@ interface ExpensesTableProps {
   filtered: boolean;
 }
 
-function eventName(events: readonly AssignableEvent[], eventId: string) {
+function eventName(events: readonly AssignableEvent[], eventId: string | null) {
+  if (eventId === null) return "Production expense";
   return events.find((event) => event.id === eventId)?.name ?? "Unknown event";
 }
 

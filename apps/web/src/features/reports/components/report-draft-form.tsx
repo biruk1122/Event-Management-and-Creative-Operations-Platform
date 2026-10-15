@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,15 +27,19 @@ interface ReportDraftFormProps {
   workspaces: readonly WorkspaceChoice[];
   warning?: string | null | undefined;
   busy?: boolean;
+  canAttach?: boolean;
   onCancel: () => void;
-  onSave: (values: CreateReport) => void;
+  onSave: (values: CreateReport, files: readonly File[]) => void;
 }
+
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 
 export function ReportDraftForm({
   initial,
   workspaces,
   warning,
   busy = false,
+  canAttach = false,
   onCancel,
   onSave,
 }: ReportDraftFormProps) {
@@ -43,6 +48,10 @@ export function ReportDraftForm({
   const [type, setType] = useState<ReportType>(initial?.type ?? "DAILY");
   const [workspaceIds, setWorkspaceIds] = useState<string[]>(
     initial?.workspaceIds ?? [],
+  );
+  const [files, setFiles] = useState<File[]>([]);
+  const [attachmentWarning, setAttachmentWarning] = useState<string | null>(
+    null,
   );
   const [sections, setSections] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -66,14 +75,40 @@ export function ReportDraftForm({
         .map(({ key }) => [key, String(form.get(key) ?? "").trim()] as const)
         .filter(([, value]) => value.length > 0),
     );
-    onSave({
-      title: String(form.get("title") ?? "").trim(),
-      type,
-      periodStart: String(form.get("periodStart") ?? ""),
-      periodEnd: String(form.get("periodEnd") ?? ""),
-      workspaceIds,
-      ...sections,
-    });
+    const description = String(form.get("description") ?? "").trim();
+    onSave(
+      {
+        title: String(form.get("title") ?? "").trim(),
+        type,
+        ...(description ? { description } : {}),
+        periodStart: String(form.get("periodStart") ?? ""),
+        periodEnd: String(form.get("periodEnd") ?? ""),
+        workspaceIds,
+        ...sections,
+      },
+      files,
+    );
+  }
+
+  function addFiles(selected: FileList | null) {
+    if (!selected) return;
+    const next: File[] = [];
+    const rejected: string[] = [];
+    for (const file of Array.from(selected)) {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        rejected.push(`${file.name} (larger than 25 MB)`);
+        continue;
+      }
+      next.push(file);
+    }
+    if (rejected.length > 0) {
+      setAttachmentWarning(`Not added: ${rejected.join(", ")}.`);
+    }
+    if (next.length > 0) setFiles((current) => [...current, ...next]);
+  }
+
+  function removeFile(index: number) {
+    setFiles((current) => current.filter((_, i) => i !== index));
   }
 
   return (
@@ -95,6 +130,18 @@ export function ReportDraftForm({
             maxLength={200}
             required
             readOnly={busy}
+          />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor={`${prefix}-description`}>Description</Label>
+          <Textarea
+            id={`${prefix}-description`}
+            name="description"
+            defaultValue={initial?.description ?? ""}
+            maxLength={5000}
+            rows={3}
+            readOnly={busy}
+            placeholder="A quick summary of this report, independent of the sections below."
           />
         </div>
         <div className="space-y-2">
@@ -220,6 +267,50 @@ export function ReportDraftForm({
           ))
         )}
       </fieldset>
+      {canAttach ? (
+        <fieldset className="space-y-3 rounded-xl border p-4" disabled={busy}>
+          <legend className="px-2 text-sm font-semibold">Attachments</legend>
+          {attachmentWarning ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              {attachmentWarning}
+            </p>
+          ) : null}
+          <Input
+            type="file"
+            multiple
+            onChange={(event) => {
+              addFiles(event.target.files);
+              event.target.value = "";
+            }}
+          />
+          {files.length > 0 ? (
+            <ul className="divide-border divide-y rounded-lg border">
+              {files.map((file, index) => (
+                <li
+                  key={`${file.name}-${index}`}
+                  className="flex items-center justify-between gap-3 p-2 text-sm"
+                >
+                  <span data-file-name className="min-w-0 truncate">
+                    {file.name}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFile(index)}
+                  >
+                    Remove
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              No files selected yet. They upload once the draft is saved.
+            </p>
+          )}
+        </fieldset>
+      ) : null}
       <div className="flex flex-wrap justify-end gap-3 border-t pt-5">
         <ReportActionButton
           type="button"
