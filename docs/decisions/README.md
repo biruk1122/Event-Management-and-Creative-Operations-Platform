@@ -22,4 +22,5 @@ consequential, durable decision, its context, and its consequences.
 | [0003](0003-notification-and-reminder-delivery-semantics.md)   | Notification and reminder delivery semantics   | Accepted   | EVE-37  |
 | [0004](0004-real-time-contracts-and-persistence-boundaries.md) | Real-time contracts and persistence boundaries | Accepted   | EVE-99  |
 | [0005](0005-google-meet-integration-evaluation.md)             | Google Meet integration evaluation             | Superseded | EVE-197 |
-| [0006](0006-free-manual-google-meet-links.md)                  | Free manual Google Meet links                  | Accepted   | EVE-197 |
+| [0006](0006-free-manual-google-meet-links.md)                  | Free manual Google Meet links                  | Superseded | EVE-197 |
+| [0007](0007-zero-billing-google-meet-automation.md)            | Zero-billing Google Meet automation            | Accepted   | EVE-197 |

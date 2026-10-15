@@ -1,11 +1,11 @@
 # 0006 - Free manual Google Meet links
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-10-14
 - Deciders: Product owner (explicit zero-cost requirement)
 - Linear issue: EVE-197 (OPT-03)
 - Supersedes: [0005 - Google Meet integration evaluation](0005-google-meet-integration-evaluation.md)
-- Superseded by: none
+- Superseded by: [0007 - Zero-billing Google Meet automation](0007-zero-billing-google-meet-automation.md)
 
 ## Context
 
