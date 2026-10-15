@@ -145,7 +145,37 @@ test.describe("DSH-06 management validation", () => {
           .getByText(String(value), { exact: true }),
       ).toBeVisible();
     }
-    expect(Object.keys(data.cards)).toHaveLength(23);
+    expect(Object.keys(data.cards).sort()).toEqual(
+      [
+        "totalEvents",
+        "upcomingEvents",
+        "completedEvents",
+        "pendingExpenseApprovals",
+        "budgetPlannedVsApproved",
+        "operationalIssues",
+        "activeProjects",
+        "activeCampaigns",
+        "pendingTasks",
+        "completedTasks",
+        "overdueTasks",
+        "activeEmployees",
+        "activeTalents",
+        "todayEvents",
+        "todayMeetings",
+        "todayDeadlines",
+        "attentionTasks",
+        "overdueActivities",
+        "unreadMessages",
+        "activeChannels",
+        "upcomingMeetings",
+        "taskCompletionRate",
+        "departmentPerformance",
+        "eventProgress",
+        "marketingProgress",
+        "promotionPerformance",
+        "monthlyActivity",
+      ].sort(),
+    );
   });
   test("cohort boundaries, selected promotion and empty rates match known facts", async ({
     page,

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { IncomingMessage } from "node:http";
 
 import { Module } from "@nestjs/common";
 import { AnalyticsModule } from "./analytics/analytics.module.js";
@@ -54,6 +55,13 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
           return requestId;
         },
         level: environment.LOG_LEVEL,
+        serializers: {
+          req: (request: IncomingMessage & { id?: string }) => ({
+            id: request.id,
+            method: request.method,
+            url: request.url?.split("?")[0],
+          }),
+        },
         redact: {
           paths: [
             "req.headers.authorization",

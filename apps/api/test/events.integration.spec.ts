@@ -575,10 +575,19 @@ describe("event management API", () => {
       expect(body<ProblemBody>(ghost).code).toBe("EVENT_NOT_FOUND");
     });
 
-    it("lets exactly one of two racing transitions win and never reopens a cancelled event", async () => {
+    it("lets exactly one racing terminal transition win and never reopens the event", async () => {
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const created = await createEvent();
+        const started = await as(
+          superAdmin,
+          "post",
+          `/api/v1/events/${created.id}/transition`,
+        ).send({ status: "IN_PROGRESS" });
+        expect(started.status).toBe(200);
 
+        // COMPLETED and CANCELLED are mutually exclusive terminal targets.
+        // PLANNING -> READY -> CANCELLED is a valid sequential outcome, so
+        // racing READY against CANCELLED cannot require exactly one success.
         const responses = await Promise.all([
           as(
             superAdmin,
@@ -589,7 +598,7 @@ describe("event management API", () => {
             superAdmin,
             "post",
             `/api/v1/events/${created.id}/transition`,
-          ).send({ status: "READY" }),
+          ).send({ status: "COMPLETED" }),
         ]);
 
         const statuses = responses.map((response) => response.status).sort();
@@ -605,6 +614,13 @@ describe("event management API", () => {
         expect(body<EventBody>(read).status).toBe(
           body<EventBody>(winner!).status,
         );
+        const reopen = await as(
+          superAdmin,
+          "post",
+          `/api/v1/events/${created.id}/transition`,
+        ).send({ status: "READY" });
+        expect(reopen.status).toBe(409);
+        expect(body<ProblemBody>(reopen).code).toBe("EVENT_INVALID_TRANSITION");
       }
     });
   });

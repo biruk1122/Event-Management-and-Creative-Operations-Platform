@@ -11,6 +11,7 @@ import {
 } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
 import { OutboxWriterService } from "../../outbox/outbox-writer.service.js";
+import { queueGoogleMeetChange } from "../google-meet/google-meet-queue.js";
 import type { MeetingParticipantInvitedEventPayload } from "../../outbox/outbox.types.js";
 
 const UUID_PATTERN =
@@ -428,6 +429,7 @@ export class MeetingsRepository {
           ...(fields.endAt !== undefined ? { endAt: fields.endAt } : {}),
         },
       });
+      await queueGoogleMeetChange(tx, updated);
       return toRecord(updated);
     });
   }
@@ -624,6 +626,7 @@ export class MeetingsRepository {
       if (status === MeetingStatus.CANCELLED) {
         await tx.calendarEntry.deleteMany({ where: { meetingId: id } });
       }
+      await queueGoogleMeetChange(tx, updated);
       return toRecord(updated);
     });
   }

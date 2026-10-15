@@ -11,8 +11,8 @@ export function registerNotFoundHandler(app: NestExpressApplication): void {
       type: "https://api.event-platform.local/problems/http_404",
       title: "Not Found",
       status: HttpStatus.NOT_FOUND,
-      detail: `Cannot ${request.method} ${request.originalUrl}`,
-      instance: request.originalUrl,
+      detail: `Cannot ${request.method} ${request.originalUrl.split("?")[0]}`,
+      instance: request.originalUrl.split("?")[0]!,
       code: "HTTP_404",
       requestId: request.id,
     };

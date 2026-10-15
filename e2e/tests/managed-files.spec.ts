@@ -159,11 +159,11 @@ test.describe("Secure event-file management — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    // Existing event E2E coverage proves this role is authenticated while its
-    // department-scoped grant cannot read organization-scoped events.
-    test.use({ storageState: authStatePath("deptManager") });
+    // Department Managers can now read their department's events (EOM-01).
+    // A Department Member without event grants must still be fully denied.
+    test.use({ storageState: authStatePath("restrictedMember") });
 
-    test("a department-scoped user cannot discover or create attachments for an event", async ({
+    test("a member without event grants cannot discover or create attachments for an event", async ({
       page,
     }) => {
       const owner = await request.newContext({

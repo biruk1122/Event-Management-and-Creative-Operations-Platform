@@ -137,6 +137,8 @@ model User {
   notifications              Notification[]
   notificationPreferences    NotificationPreference[]
   organizedMeetings          Meeting[]                 @relation("MeetingOrganizer")
+  googleCalendarConnection   GoogleCalendarConnection?
+  googleCalendarConsent      GoogleCalendarConsent?
   meetingParticipations      MeetingParticipant[]
   managedTalents             Talent[]                  @relation("TalentManager")
   authoredReports            Report[]                  @relation("ReportAuthor")
@@ -1570,17 +1572,77 @@ model Meeting {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organizer       User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
-  workspace       Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  participants    MeetingParticipant[]
-  calendarEntries CalendarEntry[]
-  notifications   Notification[]
-  actionItems     Task[]
+  organizer        User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
+  googleMeetExport GoogleMeetExport?
+  workspace        Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  participants     MeetingParticipant[]
+  calendarEntries  CalendarEntry[]
+  notifications    Notification[]
+  actionItems      Task[]
 
   @@index([organizerId, startAt])
   @@index([workspaceId, startAt])
   @@index([status, startAt])
   @@map("meetings")
+}
+
+/// Optional organizer-owned Google grant. Tokens are authenticated ciphertext,
+/// never plaintext; an absent token blocks provider work, not core meetings.
+model GoogleCalendarConnection {
+  userId     String             @id @map("user_id") @db.Uuid
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generation String             @default(uuid()) @db.Uuid
+  subject    String?
+  token      String?
+  status     String             @default("DISCONNECTED")
+  leaseId    String?            @map("lease_id") @db.Uuid
+  leaseUntil DateTime?          @map("lease_until") @db.Timestamptz(6)
+  exports    GoogleMeetExport[]
+
+  @@map("google_calendar_connections")
+}
+
+model GoogleCalendarConsent {
+  userId    String   @id @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stateHash String   @unique @map("state_hash")
+  sessionId String   @map("session_id") @db.Uuid
+  verifier  String
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@index([expiresAt])
+  @@map("google_calendar_consents")
+}
+
+/// Stable provider identifiers survive ambiguous HTTP outcomes. No calendar scans.
+model GoogleMeetExport {
+  meetingId     String                   @id @map("meeting_id") @db.Uuid
+  meeting       Meeting                  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId        String                   @map("user_id") @db.Uuid
+  connection    GoogleCalendarConnection @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  generation    String                   @db.Uuid
+  eventId       String                   @unique @map("event_id")
+  requestId     String                   @map("request_id") @db.Uuid
+  publishedLink String?                  @map("published_link")
+  subject       String?
+  fallbackLink  String?                  @map("fallback_link")
+  status        String                   @default("PENDING")
+  failure       String?
+  attemptedAt   DateTime?                @map("attempted_at") @db.Timestamptz(6)
+  attempts      Int                      @default(0)
+  nextAttemptAt DateTime?                @map("next_attempt_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@map("google_meet_exports")
+}
+
+model GoogleCalendarBudget {
+  key       String   @id
+  used      Int      @default(0)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@index([expiresAt])
+  @@map("google_calendar_budgets")
 }
 
 model MeetingParticipant {
