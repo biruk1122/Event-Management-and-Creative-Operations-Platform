@@ -299,7 +299,7 @@ whether Department Managers may also review reports is part of EVE-30 open decis
 | `task.create`, `task.read`, `task.assign`, `task.update`                                          | department |
 | `task.review`, `task.attachment.create`                                                           | department |
 | `project.create`, `project.read`, `project.update`, `project.delete`, `project.assign`            | department |
-| `project.transition_status`, `production.budget.read`, `production.budget.update`                | department |
+| `project.transition_status`, `production.budget.read`, `production.budget.update`                 | department |
 | `campaign.read`                                                                                   | department |
 | `event.create`, `event.read`, `event.update`, `event.delete`                                      | department |
 | `event.assign_manager`, `event.assign_teams`, `event.transition_status`                           | department |
@@ -310,7 +310,7 @@ whether Department Managers may also review reports is part of EVE-30 open decis
 | `channel.create`, `channel.manage`                                                                | department |
 | `calendar.read`                                                                                   | department |
 | `report.create`, `report.submit`                                                                  | department |
-| `report.read`, `report.attachment.create`                                                        | department |
+| `report.read`, `report.attachment.create`                                                         | department |
 | `analytics.department_performance.read`                                                           | department |
 
 `department` scope is the acting user's assigned department. Multi-department and cross-department

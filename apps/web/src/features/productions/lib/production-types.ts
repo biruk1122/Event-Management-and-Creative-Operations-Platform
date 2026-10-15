@@ -2,7 +2,8 @@ import type { components } from "@event-platform/api-client";
 
 export type Production = components["schemas"]["ProductionResponse"];
 export type ProductionStatus = Production["status"];
-export type ProductionBudget = components["schemas"]["ProductionBudgetResponse"];
+export type ProductionBudget =
+  components["schemas"]["ProductionBudgetResponse"];
 export type ProductionBudgetSummary =
   components["schemas"]["ProductionBudgetSummaryResponse"];
 export type ProductionLocation =

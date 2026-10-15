@@ -71,8 +71,7 @@ function visibleWhere(
   visibility: ProductionVisibility,
 ): Prisma.ProductionWhereInput {
   if (visibility.organization) return {};
-  if (visibility.departmentId)
-    return { departmentId: visibility.departmentId };
+  if (visibility.departmentId) return { departmentId: visibility.departmentId };
   return { id: { in: [] } };
 }
 function toRecord(raw: Raw) {
@@ -292,9 +291,7 @@ export class ProductionsRepository {
             ...(input.endAt ? { endAt: input.endAt } : {}),
             ...(input.deadlineAt ? { deadlineAt: input.deadlineAt } : {}),
             ...(input.eventId ? { eventId: input.eventId } : {}),
-            ...(input.departmentId
-              ? { departmentId: input.departmentId }
-              : {}),
+            ...(input.departmentId ? { departmentId: input.departmentId } : {}),
           },
           select: SELECT,
         });

@@ -11,8 +11,8 @@ export class ProductionLocationResponse {
   @ApiProperty({ type: String, nullable: true }) contactName!: string | null;
   @ApiProperty({ type: String, nullable: true }) contactEmail!: string | null;
   @ApiProperty({ type: String, nullable: true }) contactPhone!: string | null;
-  @ApiProperty({ enum: ProductionLocationStatus }) status!:
-    ProductionLocationStatus;
+  @ApiProperty({ enum: ProductionLocationStatus })
+  status!: ProductionLocationStatus;
   @ApiProperty({ type: String, nullable: true }) notes!: string | null;
   @ApiProperty({ format: "date-time" }) createdAt!: string;
   @ApiProperty({ format: "date-time" }) updatedAt!: string;

@@ -37,7 +37,8 @@ export class ExpenseResponse {
     type: String,
     format: "uuid",
     nullable: true,
-    description: "Null when this expense is recorded directly against a production (productionId set instead).",
+    description:
+      "Null when this expense is recorded directly against a production (productionId set instead).",
   })
   eventId!: string | null;
 
@@ -45,7 +46,8 @@ export class ExpenseResponse {
     type: String,
     format: "uuid",
     nullable: true,
-    description: "Null when this expense is recorded against an event rather than directly against a production.",
+    description:
+      "Null when this expense is recorded against an event rather than directly against a production.",
   })
   productionId!: string | null;
 

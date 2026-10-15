@@ -68,7 +68,9 @@ describe("ExpensesService", () => {
     repo = {
       findUserDepartmentId: vi.fn().mockResolvedValue(null),
       findEventContext: vi.fn().mockResolvedValue({ departmentId: "dept-1" }),
-      findProductionContext: vi.fn().mockResolvedValue({ departmentId: "dept-1" }),
+      findProductionContext: vi
+        .fn()
+        .mockResolvedValue({ departmentId: "dept-1" }),
       supplierExists: vi.fn().mockResolvedValue(true),
       findById: vi.fn().mockResolvedValue(makeExpense()),
       findVisibleById: vi.fn(),

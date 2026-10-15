@@ -193,7 +193,12 @@ function LocationForm({
         />
       </div>
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={busy}
+          onClick={onCancel}
+        >
           Cancel
         </Button>
         <Button type="submit" disabled={busy} aria-busy={busy}>

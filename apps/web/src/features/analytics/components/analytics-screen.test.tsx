@@ -118,7 +118,9 @@ const callsTo = (suffix: string) =>
  * card heading. */
 function pinnedPanel(title: string) {
   return within(
-    screen.getByRole("heading", { name: title }).closest('[data-slot="card"]') as HTMLElement,
+    screen
+      .getByRole("heading", { name: title })
+      .closest('[data-slot="card"]') as HTMLElement,
   );
 }
 /** Scopes queries to the single-measure dropdown's own results section
@@ -278,9 +280,7 @@ describe("live analytics integration", () => {
     expect(await results.findByRole("alert")).toHaveTextContent(
       "temporarily unavailable",
     );
-    expect(
-      screen.getByText(/Some measures are unavailable/),
-    ).toBeVisible();
+    expect(screen.getByText(/Some measures are unavailable/)).toBeVisible();
     expect(results.queryByRole("table")).not.toBeInTheDocument();
     state.get.mockImplementation(
       async (
@@ -397,7 +397,9 @@ describe("live analytics integration", () => {
       expect(callsTo("events").at(-1)?.[1].params.query).toMatchObject({
         pageSize: 25,
       });
-      expect(callsTo("events").at(-1)?.[1].params.query.eventId).toBeUndefined();
+      expect(
+        callsTo("events").at(-1)?.[1].params.query.eventId,
+      ).toBeUndefined();
       expect(
         client.getQueryCache().findAll({ queryKey: ["analytics"] }),
       ).toHaveLength(4);
@@ -483,13 +485,9 @@ describe("live analytics integration", () => {
     });
     expect(signal?.aborted).toBe(true);
     expect(
-      dropdownResults("Marketing campaign progress").queryByText(
-        "event-1",
-      ),
+      dropdownResults("Marketing campaign progress").queryByText("event-1"),
     ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Analytics measure")).toHaveValue(
-      "campaigns",
-    );
+    expect(screen.getByLabelText("Analytics measure")).toHaveValue("campaigns");
   });
   it("removes all metrics after session expiry and uses the sign-in recovery path", async () => {
     const client = setup();

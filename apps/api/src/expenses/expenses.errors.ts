@@ -32,7 +32,10 @@ export const expenseOwnerRequired = () =>
   );
 export const expenseProductionNotFound = () =>
   new NotFoundException(
-    problem("EXPENSE_PRODUCTION_NOT_FOUND", "No production exists with that id."),
+    problem(
+      "EXPENSE_PRODUCTION_NOT_FOUND",
+      "No production exists with that id.",
+    ),
   );
 export const expenseProductionHasNoDepartment = () =>
   new BadRequestException(

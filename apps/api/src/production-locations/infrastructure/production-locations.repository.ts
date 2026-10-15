@@ -113,10 +113,8 @@ export class ProductionLocationsRepository {
     const data: Prisma.ProductionLocationUncheckedUpdateInput = {};
     if (fields.name !== undefined) data.name = fields.name;
     if (fields.address !== undefined) data.address = fields.address;
-    if (fields.description !== undefined)
-      data.description = fields.description;
-    if (fields.contactName !== undefined)
-      data.contactName = fields.contactName;
+    if (fields.description !== undefined) data.description = fields.description;
+    if (fields.contactName !== undefined) data.contactName = fields.contactName;
     if (fields.contactEmail !== undefined)
       data.contactEmail = fields.contactEmail;
     if (fields.contactPhone !== undefined)

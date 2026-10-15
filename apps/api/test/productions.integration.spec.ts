@@ -664,7 +664,10 @@ describe("production management API", () => {
 
   it("tracks approved and pending spend recorded directly against a production with no linked event", async () => {
     const ownProduction = await as(manager, "post", "/api/v1/productions").send(
-      { name: `Direct expense production ${++sequence}`, productionType: "Video" },
+      {
+        name: `Direct expense production ${++sequence}`,
+        productionType: "Video",
+      },
     );
     expect(ownProduction.status).toBe(201);
     const productionId = body<ProductionBody>(ownProduction).id;
@@ -674,20 +677,20 @@ describe("production management API", () => {
       { amount: 2000, currency: "USD" },
     );
 
-    const approvedExpense = await as(manager, "post", "/api/v1/expenses").send(
-      {
-        productionId,
-        category: "VENUE",
-        description: "Rehearsal space",
-        actualAmount: 500,
-        currency: "USD",
-      },
-    );
+    const approvedExpense = await as(manager, "post", "/api/v1/expenses").send({
+      productionId,
+      category: "VENUE",
+      description: "Rehearsal space",
+      actualAmount: 500,
+      currency: "USD",
+    });
     expect(approvedExpense.status).toBe(201);
     const approvedId = body<{ id: string; eventId: string | null }>(
       approvedExpense,
     ).id;
-    expect(body<{ eventId: string | null }>(approvedExpense).eventId).toBeNull();
+    expect(
+      body<{ eventId: string | null }>(approvedExpense).eventId,
+    ).toBeNull();
     await as(manager, "post", `/api/v1/expenses/${approvedId}/submit`);
     const approved = await as(
       admin,

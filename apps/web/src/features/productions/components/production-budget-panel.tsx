@@ -139,9 +139,8 @@ export function ProductionBudgetPanel({
       </div>
       {summary.linkedEventId === null ? (
         <p className="text-muted-foreground text-sm">
-          This production has no linked event. Approved and pending spend
-          above reflects only expenses recorded directly against this
-          production.
+          This production has no linked event. Approved and pending spend above
+          reflects only expenses recorded directly against this production.
         </p>
       ) : null}
 

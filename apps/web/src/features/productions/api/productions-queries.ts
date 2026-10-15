@@ -183,13 +183,8 @@ export function useProductionMutations(access: CurrentAccess) {
       }),
   });
   const removeLocation = useMutation({
-    mutationFn: ({
-      productionId,
-      id,
-    }: {
-      productionId: string;
-      id: string;
-    }) => gateway.deleteProductionLocation(productionId, id),
+    mutationFn: ({ productionId, id }: { productionId: string; id: string }) =>
+      gateway.deleteProductionLocation(productionId, id),
     onSettled: (_data, _error, variables) =>
       client.invalidateQueries({
         queryKey: keys.locations(variables.productionId),

@@ -92,7 +92,7 @@ export function PinnedAnalyticsPanel({
     onAuthorizationError(query.error);
 
   const panel = error
-    ? ({ state: "input" as const, message: error })
+    ? { state: "input" as const, message: error }
     : query.isError
       ? {
           state: "error" as const,
@@ -220,9 +220,7 @@ export function PinnedAnalyticsPanel({
           ) : null}
           {measure === "departments" ? (
             <div className="min-w-0 space-y-1">
-              <Label htmlFor={`${id}-subject`}>
-                Department ID (optional)
-              </Label>
+              <Label htmlFor={`${id}-subject`}>Department ID (optional)</Label>
               <Input
                 id={`${id}-subject`}
                 value={draft.subjectId}
@@ -344,9 +342,7 @@ export function PinnedAnalyticsPanel({
             </p>
             <Button
               variant="outline"
-              disabled={
-                page >= pages || page * pageSize > 10_000 || refreshing
-              }
+              disabled={page >= pages || page * pageSize > 10_000 || refreshing}
               onClick={() => setPage((prev) => prev + 1)}
             >
               Next page

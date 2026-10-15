@@ -472,9 +472,9 @@ describe("report API", () => {
       `/api/v1/reports/${report.id}/files`,
     );
     expect(listed.status).toBe(200);
-    expect(
-      body<{ items: Array<{ filename: string }> }>(listed).items,
-    ).toEqual([expect.objectContaining({ filename: "notes.txt" })]);
+    expect(body<{ items: Array<{ filename: string }> }>(listed).items).toEqual([
+      expect.objectContaining({ filename: "notes.txt" }),
+    ]);
   });
 
   it("keeps report attachments out of reach for a caller outside the report's scope", async () => {

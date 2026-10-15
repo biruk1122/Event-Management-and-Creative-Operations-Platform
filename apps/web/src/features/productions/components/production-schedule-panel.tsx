@@ -97,11 +97,7 @@ export function ProductionSchedulePanel({
               Assign a department to this production to add schedule items.
             </p>
           ) : (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setCreateOpen(true)}
-            >
+            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
               New schedule item
             </Button>
           )

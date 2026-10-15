@@ -195,8 +195,7 @@ export async function uploadReportFile(id: string, file: File) {
     method: "POST",
     body: form,
   });
-  if (!uploaded.ok)
-    throw new ReportsRequestError(uploaded.status, null, {});
+  if (!uploaded.ok) throw new ReportsRequestError(uploaded.status, null, {});
   const finalized = await browserApi.POST(
     "/api/v1/reports/{reportId}/files/{fileId}/finalize",
     {

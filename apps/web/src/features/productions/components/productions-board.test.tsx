@@ -111,7 +111,9 @@ describe("ProductionsBoard", () => {
     const user = userEvent.setup();
     const retry = vi.fn();
     const view = render(
-      wrap(<ProductionsBoard access={access} state="denied" productions={[]} />),
+      wrap(
+        <ProductionsBoard access={access} state="denied" productions={[]} />,
+      ),
     );
     expect(screen.getByRole("alert")).toHaveTextContent("do not have access");
     view.rerender(

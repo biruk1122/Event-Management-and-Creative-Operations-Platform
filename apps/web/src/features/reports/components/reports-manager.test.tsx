@@ -242,9 +242,7 @@ describe("ReportsManager", () => {
           createdAt: now,
           upload: { url: "https://storage.test/upload", fields: {} },
         });
-      if (
-        path === "/api/v1/reports/{reportId}/files/{fileId}/finalize"
-      )
+      if (path === "/api/v1/reports/{reportId}/files/{fileId}/finalize")
         return ok({
           id: "file-1",
           filename: "notes.txt",
@@ -255,9 +253,7 @@ describe("ReportsManager", () => {
         });
       return ok(report({ status: "DRAFT" }), 201);
     });
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({ ok: true } as Response);
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response);
     vi.stubGlobal("fetch", fetchMock);
     try {
       setup(access("report.create", "report.attachment.create"));
@@ -268,10 +264,7 @@ describe("ReportsManager", () => {
         screen.getByLabelText("Period start (UTC)"),
         "2024-02-29",
       );
-      await user.type(
-        screen.getByLabelText("Period end (UTC)"),
-        "2024-02-29",
-      );
+      await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-29");
       const file = new File(["notes"], "notes.txt", { type: "text/plain" });
       const input = screen
         .getByText("Attachments")
