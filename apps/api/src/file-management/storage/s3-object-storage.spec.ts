@@ -19,6 +19,19 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 import { S3ObjectStorage } from "./s3-object-storage.js";
 
 const environment: Environment = {
+  GOOGLE_MEET_ENABLED: false,
+  GOOGLE_MEET_ACTIVATION_REVIEW: "",
+  GOOGLE_MEET_OPERATOR: "",
+  GOOGLE_MEET_CLIENT_ID: "",
+  GOOGLE_MEET_CLIENT_SECRET: "",
+  GOOGLE_MEET_CALLBACK_URL: "",
+  GOOGLE_MEET_RETURN_URL: "",
+  GOOGLE_MEET_KEY_ID: "",
+  GOOGLE_MEET_KEYS: "",
+  GOOGLE_MEET_USER_MINUTE_CAP: 10,
+  GOOGLE_MEET_USER_DAY_CAP: 100,
+  GOOGLE_MEET_PROJECT_MINUTE_CAP: 60,
+  GOOGLE_MEET_PROJECT_DAY_CAP: 1000,
   API_HOST: "127.0.0.1",
   API_PORT: 4000,
   API_RATE_LIMIT_MAX: 100,

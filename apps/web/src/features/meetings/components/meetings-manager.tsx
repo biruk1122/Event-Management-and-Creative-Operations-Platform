@@ -30,6 +30,7 @@ import {
   useMeetings,
 } from "../api/meetings-queries";
 import styles from "./meetings-presentation.module.css";
+import { GoogleMeetControls } from "./google-meet-controls";
 
 const LIVE_EVENT = "notification.invalidated";
 
@@ -266,19 +267,28 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
             ) : null}
           </section>
           {selected ? (
-            <MeetingDetail
-              key={selected.id}
-              meeting={selected}
-              participant={participant ?? null}
-              canRespond={canRespond}
-              submitting={mutations.respond.isPending}
-              onRespond={respond}
-              canOrganize={canOrganize}
-              savingMinutes={mutations.setMinutes.isPending}
-              onSaveMinutes={saveMinutes}
-              creatingActionItem={mutations.createActionItem.isPending}
-              onAddActionItem={addActionItem}
-            />
+            <div className="min-w-0">
+              <MeetingDetail
+                key={selected.id}
+                meeting={selected}
+                participant={participant ?? null}
+                canRespond={canRespond}
+                submitting={mutations.respond.isPending}
+                onRespond={respond}
+                canOrganize={canOrganize}
+                savingMinutes={mutations.setMinutes.isPending}
+                onSaveMinutes={saveMinutes}
+                creatingActionItem={mutations.createActionItem.isPending}
+                onAddActionItem={addActionItem}
+              />
+              {canOrganize ? (
+                <GoogleMeetControls
+                  key={`google-${selected.id}`}
+                  meeting={selected}
+                  userId={access.userId}
+                />
+              ) : null}
+            </div>
           ) : null}
         </div>
       )}
