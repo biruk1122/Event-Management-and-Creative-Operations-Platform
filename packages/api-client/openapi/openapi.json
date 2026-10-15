@@ -2789,6 +2789,44 @@
         "required": ["campaignId", "strategy", "createdAt", "updatedAt"],
         "type": "object"
       },
+      "MeetAuthorizeResponse": {
+        "properties": {
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": ["url"],
+        "type": "object"
+      },
+      "MeetDisconnectResponse": {
+        "properties": {
+          "remoteRevoked": {
+            "type": "boolean"
+          }
+        },
+        "required": ["remoteRevoked"],
+        "type": "object"
+      },
+      "MeetStatusResponse": {
+        "properties": {
+          "connection": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "exportState": {
+            "type": "string"
+          },
+          "failure": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["enabled", "connection", "exportState", "failure"],
+        "type": "object"
+      },
       "MeetingAcknowledgementResponse": {
         "properties": {
           "meetingId": {
@@ -14994,6 +15032,88 @@
         "tags": ["Meetings"]
       }
     },
+    "/api/v1/meetings/google-calendar/authorize": {
+      "post": {
+        "operationId": "GoogleMeet_authorize_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetAuthorizeResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": ["Meetings"]
+      }
+    },
+    "/api/v1/meetings/google-calendar/callback": {
+      "get": {
+        "operationId": "GoogleMeet_callback_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": ["Meetings"]
+      }
+    },
+    "/api/v1/meetings/google-calendar/connection": {
+      "delete": {
+        "operationId": "GoogleMeet_disconnect_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetDisconnectResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": ["Meetings"]
+      }
+    },
+    "/api/v1/meetings/google-calendar/rotate-key": {
+      "post": {
+        "operationId": "GoogleMeet_rotate_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": ["Meetings"]
+      }
+    },
     "/api/v1/meetings/{id}": {
       "get": {
         "operationId": "Meetings_get_v1",
@@ -15247,6 +15367,101 @@
           }
         ],
         "summary": "Create a task action item from this meeting, as its organizer",
+        "tags": ["Meetings"]
+      }
+    },
+    "/api/v1/meetings/{id}/google-meet": {
+      "delete": {
+        "operationId": "GoogleMeet_cleanup_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetStatusResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": ["Meetings"]
+      },
+      "get": {
+        "operationId": "GoogleMeet_status_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetStatusResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "tags": ["Meetings"]
+      },
+      "post": {
+        "operationId": "GoogleMeet_sync_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeetStatusResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
         "tags": ["Meetings"]
       }
     },

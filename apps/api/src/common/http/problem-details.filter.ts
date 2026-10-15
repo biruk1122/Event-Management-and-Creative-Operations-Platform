@@ -51,7 +51,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         {
           exception,
           method: request.method,
-          path: request.originalUrl,
+          path: request.originalUrl.split("?")[0],
           requestId,
         },
         "Unhandled request exception",
@@ -61,7 +61,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         {
           code: body.code,
           method: request.method,
-          path: request.originalUrl,
+          path: request.originalUrl.split("?")[0],
           requestId,
         },
         "Request failed because a required service is unavailable",
@@ -73,7 +73,7 @@ export class ProblemDetailsFilter implements ExceptionFilter {
       title: body.title,
       status,
       detail: body.detail,
-      instance: request.originalUrl,
+      instance: request.originalUrl.split("?")[0]!,
       code: body.code,
       requestId,
       ...(body.errors === undefined ? {} : { errors: body.errors }),

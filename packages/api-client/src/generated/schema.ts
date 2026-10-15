@@ -1157,6 +1157,70 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/meetings/google-calendar/authorize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["GoogleMeet_authorize_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/meetings/google-calendar/callback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["GoogleMeet_callback_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/meetings/google-calendar/connection": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["GoogleMeet_disconnect_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/meetings/google-calendar/rotate-key": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: operations["GoogleMeet_rotate_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/meetings/{id}": {
     parameters: {
       query?: never;
@@ -1187,6 +1251,22 @@ export interface paths {
     /** Create a task action item from this meeting, as its organizer */
     post: operations["Meetings_createActionItem_v1"];
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/meetings/{id}/google-meet": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["GoogleMeet_status_v1"];
+    put?: never;
+    post: operations["GoogleMeet_sync_v1"];
+    delete: operations["GoogleMeet_cleanup_v1"];
     options?: never;
     head?: never;
     patch?: never;
@@ -3923,6 +4003,19 @@ export interface components {
       strategy: string;
       /** Format: date-time */
       updatedAt: string;
+    };
+    MeetAuthorizeResponse: {
+      /** Format: uri */
+      url: string;
+    };
+    MeetDisconnectResponse: {
+      remoteRevoked: boolean;
+    };
+    MeetStatusResponse: {
+      connection: string;
+      enabled: boolean;
+      exportState: string;
+      failure: string | null;
     };
     MeetingAcknowledgementResponse: {
       /** Format: uuid */
@@ -10896,6 +10989,78 @@ export interface operations {
       };
     };
   };
+  GoogleMeet_authorize_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetAuthorizeResponse"];
+        };
+      };
+    };
+  };
+  GoogleMeet_callback_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  GoogleMeet_disconnect_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetDisconnectResponse"];
+        };
+      };
+    };
+  };
+  GoogleMeet_rotate_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   Meetings_get_v1: {
     parameters: {
       query?: never;
@@ -11080,6 +11245,69 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  GoogleMeet_status_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetStatusResponse"];
+        };
+      };
+    };
+  };
+  GoogleMeet_sync_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetStatusResponse"];
+        };
+      };
+    };
+  };
+  GoogleMeet_cleanup_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MeetStatusResponse"];
         };
       };
     };

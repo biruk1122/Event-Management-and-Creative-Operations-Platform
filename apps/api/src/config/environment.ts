@@ -73,6 +73,39 @@ const environmentSchema = z.object({
   // unavailable scanner rejects finalization safely until an approved
   // production scanner adapter is configured.
   FILE_SCANNER_MODE: z.enum(["test", "unavailable"]).default("test"),
+  GOOGLE_MEET_ENABLED: booleanFromString.default(false),
+  GOOGLE_MEET_ACTIVATION_REVIEW: z.string().default(""),
+  GOOGLE_MEET_OPERATOR: z.string().default(""),
+  GOOGLE_MEET_CLIENT_ID: z.string().default(""),
+  GOOGLE_MEET_CLIENT_SECRET: z.string().default(""),
+  GOOGLE_MEET_CALLBACK_URL: z.string().default(""),
+  GOOGLE_MEET_RETURN_URL: z.string().default(""),
+  GOOGLE_MEET_KEY_ID: z.string().default(""),
+  GOOGLE_MEET_KEYS: z.string().default(""),
+  GOOGLE_MEET_USER_MINUTE_CAP: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .default(10),
+  GOOGLE_MEET_USER_DAY_CAP: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(100),
+  GOOGLE_MEET_PROJECT_MINUTE_CAP: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(60)
+    .default(60),
+  GOOGLE_MEET_PROJECT_DAY_CAP: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(1000)
+    .default(1000),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
