@@ -47,6 +47,12 @@ test.describe("optional Google Meet integration — disabled-safe boundary", () 
       "Manual link saved",
     );
     await page.reload();
+    // Selection is local UI state, not a persisted meeting preference. Other
+    // suite fixtures may be the default selection after a full page reload.
+    await page.getByRole("button", { name: new RegExp(title) }).click();
+    await expect(
+      page.getByRole("heading", { name: title, exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByRole("link", { name: "Join meeting", exact: true }),
     ).toHaveAttribute("href", "https://video.example.test/replacement");
