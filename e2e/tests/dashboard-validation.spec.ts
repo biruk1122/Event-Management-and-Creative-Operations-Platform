@@ -7,6 +7,7 @@ import { authStatePath, signInThroughUi } from "../fixtures/auth.js";
 import { testUser } from "../fixtures/test-users.js";
 import { apiBaseUrl, repositoryRoot } from "../fixtures/environment.js";
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
+import { cardByTitle } from "../fixtures/dashboard.js";
 import {
   assertSchemaName,
   schemaOf,
@@ -140,9 +141,9 @@ test.describe("DSH-06 management validation", () => {
     for (const [key, value] of Object.entries(facts!)) {
       expect(data.cards[key]!.data).toEqual({ count: value });
       await expect(
-        page
-          .getByRole("article", { name: labels[key]!, exact: true })
-          .getByText(String(value), { exact: true }),
+        cardByTitle(page, labels[key]!).getByText(String(value), {
+          exact: true,
+        }),
       ).toBeVisible();
     }
     expect(Object.keys(data.cards).sort()).toEqual(
@@ -194,17 +195,13 @@ test.describe("DSH-06 management validation", () => {
       ],
     });
     await page.goto(selection({ promotionCampaignId: fixture.promotion }));
-    const tasks = page.getByRole("article", {
-      name: "Task completion rate",
-      exact: true,
-    });
+    // Task completion rate itself moved to the Analytics page's pinned
+    // panel (see analytics-validation.spec.ts) and is no longer a dashboard
+    // card; only its still-present sibling is checked here.
     await expect(
-      tasks.getByText("33%", { exact: false }).first(),
-    ).toBeVisible();
-    await expect(
-      page
-        .getByRole("article", { name: "Promotion performance", exact: true })
-        .getByRole("rowheader", { name: "radio promotion" }),
+      cardByTitle(page, "Promotion performance").getByRole("rowheader", {
+        name: "radio promotion",
+      }),
     ).toBeVisible();
     const extended = await read(page, "management", {
       ...analyticsPeriod,
@@ -229,10 +226,6 @@ test.describe("DSH-06 management validation", () => {
       selection({ from: "2000-01-01", toExclusive: "2000-02-01" }),
     );
     await expect(
-      tasks.getByText(/No eligible tasks in this creation period/),
-    ).toBeVisible();
-    await expect(tasks.getByRole("meter")).toHaveCount(0);
-    await expect(
       page.getByText("Choose a promotion campaign above to see results."),
     ).toBeVisible();
     await expectNoWcag22AaViolations(page, "dashboard empty analytics");
@@ -242,11 +235,8 @@ test.describe("DSH-06 management validation", () => {
   }) => {
     await login(page, "manager");
     await page.goto(selection());
-    const card = page.getByRole("article", {
-      name: "Task completion rate",
-      exact: true,
-    });
-    await expect(card.getByText("33%", { exact: false }).first()).toBeVisible();
+    const card = cardByTitle(page, "Pending tasks");
+    await expect(card.getByText(/Refreshed/)).toBeVisible();
     const timestamp = await card
       .locator("time")
       .first()
@@ -282,9 +272,7 @@ test.describe("DSH-06 management validation", () => {
     // Login redirects to the default dashboard before its aggregate finishes.
     // Settle that valid navigation before counting reads for the invalid URL.
     await expect(
-      page
-        .getByRole("article", { name: "Pending tasks", exact: true })
-        .getByText(/Refreshed/),
+      cardByTitle(page, "Pending tasks").getByText(/Refreshed/),
     ).toBeVisible();
     let reads = 0;
     page.on("request", (request) => {
@@ -314,11 +302,8 @@ test.describe("DSH-06 management validation", () => {
     test.setTimeout(60_000);
     await login(page, "manager");
     await page.goto(selection());
-    const card = page.getByRole("article", {
-      name: "Task completion rate",
-      exact: true,
-    });
-    await expect(card.getByText("33%", { exact: false }).first()).toBeVisible();
+    const card = cardByTitle(page, "Pending tasks");
+    await expect(card.getByText(/Refreshed/)).toBeVisible();
     const db = analyticsDatabaseUrl(),
       schema = schemaOf(db);
     assertSchemaName(schema);
@@ -341,15 +326,12 @@ test.describe("DSH-06 management validation", () => {
         await failed
       ).json()) as Schemas["DashboardResponse"];
       expect(data.partial).toBe(true);
-      expect(data.cards.taskCompletionRate!.state).toBe("unavailable");
+      expect(data.cards.pendingTasks!.state).toBe("unavailable");
       expect(data.cards.totalEvents!.state).toBe("ready");
       await expect(
         card.getByText("This card is unavailable. Other cards remain usable."),
       ).toBeVisible();
-      await expect(card.getByRole("meter")).toHaveCount(0);
-      await expect(
-        page.getByRole("article", { name: "Total events", exact: true }),
-      ).toBeVisible();
+      await expect(cardByTitle(page, "Total events")).toBeVisible();
       await expect(
         page.getByText("Dashboard refreshed with partial source failures."),
       ).toBeVisible();
@@ -358,10 +340,8 @@ test.describe("DSH-06 management validation", () => {
       await lock.query("ROLLBACK");
       await lock.end();
     }
-    await card
-      .getByRole("button", { name: "Retry task completion rate" })
-      .click();
-    await expect(card.getByText("33%", { exact: false }).first()).toBeVisible();
+    await card.getByRole("button", { name: "Retry pending tasks" }).click();
+    await expect(card.getByText(/Refreshed/)).toBeVisible();
   });
 });
 
@@ -376,10 +356,7 @@ test.describe("DSH-06 personal and access boundaries", () => {
       items: expect.arrayContaining([{ conversationId, count: 1 }]),
     });
     await page.goto(`/dashboard?day=${day}`);
-    const card = page.getByRole("article", {
-      name: "My unread messages",
-      exact: true,
-    });
+    const card = cardByTitle(page, "My unread messages");
     await expect(
       card.getByText(`Conversation ${conversationId}`, { exact: true }),
     ).toBeVisible();
@@ -434,10 +411,7 @@ test.describe("DSH-06 personal and access boundaries", () => {
     expect(todos.hasMore).toBe(true);
     expect(todos.items.some((item) => item.id === todoIds[11])).toBe(false);
     await page.goto(`/dashboard?day=${day}&limit=10`);
-    const scheduleCard = page.getByRole("article", {
-      name: "Today's schedule",
-      exact: true,
-    });
+    const scheduleCard = cardByTitle(page, "Today's schedule");
     for (const index of [0, 1])
       await expect(
         scheduleCard.getByText(`${prefix} calendar ${index}`, { exact: true }),
@@ -446,10 +420,7 @@ test.describe("DSH-06 personal and access boundaries", () => {
       await expect(
         scheduleCard.getByText(`${prefix} calendar ${index}`, { exact: true }),
       ).toHaveCount(0);
-    const todoCard = page.getByRole("article", {
-      name: "My To-Do",
-      exact: true,
-    });
+    const todoCard = cardByTitle(page, "My To-Do");
     await expect(
       todoCard.getByText(/floating date\/time; no timezone/).first(),
     ).toBeVisible();
@@ -526,9 +497,9 @@ test.describe("DSH-06 personal and access boundaries", () => {
         .getByRole("button", { name: "Refresh dashboard", exact: true })
         .click();
       await expect(
-        page
-          .getByRole("article", { name: "My tasks", exact: true })
-          .getByText("ANA-06 task", { exact: true }),
+        cardByTitle(page, "My tasks").getByText("ANA-06 task", {
+          exact: true,
+        }),
       ).toHaveCount(
         items.filter((item) => item.title === "ANA-06 task").length - 1,
       );
@@ -589,10 +560,7 @@ test.describe("DSH-06 quality gates", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(selection());
     await expect(
-      page
-        .getByRole("article", { name: "Task completion rate", exact: true })
-        .getByText("33%", { exact: false })
-        .first(),
+      cardByTitle(page, "Pending tasks").getByText(/Refreshed/),
     ).toBeVisible();
     for (const [width, height] of [
       [360, 800],
@@ -693,10 +661,7 @@ test.describe("DSH-06 Ethiopian-network profiles", () => {
       });
       await page.goto(selection());
       await expect(
-        page
-          .getByRole("article", { name: "Task completion rate", exact: true })
-          .getByText("33%", { exact: false })
-          .first(),
+        cardByTitle(page, "Pending tasks").getByText(/Refreshed/),
       ).toBeVisible();
       await page
         .getByRole("button", { name: "Refresh dashboard", exact: true })

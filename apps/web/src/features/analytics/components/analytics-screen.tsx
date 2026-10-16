@@ -15,6 +15,7 @@ import { AnalyticsHeading, ANALYTICS_SCOPE_LABEL } from "./analytics-heading";
 import {
   PinnedAnalyticsPanel,
   type PinnedMeasure,
+  type PinnedPanelState,
 } from "./pinned-analytics-panel";
 
 const PINNED_MEASURES: readonly PinnedMeasure[] = [
@@ -46,6 +47,14 @@ function AnalyticsController() {
     filters: AnalyticsFilters;
   } | null>(null);
   const [pinnedDefaults] = useState(defaultFilters);
+  // `AnalyticsController` replaces this whole subtree with a status line
+  // while access is in flight (see the `isFetching` early return below) -
+  // on every recheck, not only first load - so each pinned panel unmounts
+  // and remounts around that. Only state that lives up here (like this)
+  // survives that cycle, mirroring `AnalyticsManager`'s own `draft` lift.
+  const [pinnedState, setPinnedState] = useState<
+    Partial<Record<PinnedMeasure, { userId: string } & PinnedPanelState>>
+  >({});
   const failClosed = useCallback(
     (error: AnalyticsRequestError) =>
       setBlocked({ epoch: access.dataUpdatedAt, error }),
@@ -114,16 +123,28 @@ function AnalyticsController() {
   return (
     <div className="space-y-6">
       {PINNED_MEASURES.filter((measure) => abilities[measure]).map(
-        (measure) => (
-          <PinnedAnalyticsPanel
-            key={`${access.data!.userId}:${access.dataUpdatedAt}:${measure}`}
-            measure={measure}
-            access={access.data!}
-            epoch={access.dataUpdatedAt}
-            defaults={pinnedDefaults}
-            onAuthorizationError={failClosed}
-          />
-        ),
+        (measure) => {
+          const saved = pinnedState[measure];
+          return (
+            <PinnedAnalyticsPanel
+              key={`${access.data!.userId}:${measure}`}
+              measure={measure}
+              access={access.data!}
+              epoch={access.dataUpdatedAt}
+              defaults={pinnedDefaults}
+              onAuthorizationError={failClosed}
+              savedState={
+                saved?.userId === access.data!.userId ? saved : null
+              }
+              onStateChange={(state) =>
+                setPinnedState((prev) => ({
+                  ...prev,
+                  [measure]: { userId: access.data!.userId, ...state },
+                }))
+              }
+            />
+          );
+        },
       )}
       <AnalyticsManager
         key={`${access.data.userId}:${access.dataUpdatedAt}`}

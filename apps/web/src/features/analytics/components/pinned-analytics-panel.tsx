@@ -37,29 +37,52 @@ const TITLES: Record<PinnedMeasure, string> = {
   monthly: "Monthly activity",
 };
 
+export interface PinnedPanelState {
+  draft: AnalyticsFilters;
+  applied: AnalyticsFilters;
+  page: number;
+}
+
 /** One of the three analytics measures the user asked to always show on the
  * Analytics page, stacked vertically, independent of whichever measure is
  * selected in the dropdown below. Reuses the same `fetchAnalytics`/
  * `AnalyticsResults`/chart-kit building blocks the single-measure selector
  * uses - this is a parallel always-visible composition, not a second data
- * source or a duplicated endpoint. */
+ * source or a duplicated endpoint.
+ *
+ * `AnalyticsController` (the parent) replaces its whole subtree with a
+ * "Checking current analytics permissions…" status line while the access
+ * query is in flight - on every permission recheck, not only first load -
+ * so this component unmounts and remounts around that, exactly like
+ * `AnalyticsManager` does. `savedState`/`onStateChange` mirror that
+ * component's own `savedDraft`/`onDraftChange` lift: the parent is what
+ * survives the unmount, so draft, applied filters and page all round-trip
+ * through it rather than resetting to `defaults` on every recheck. */
 export function PinnedAnalyticsPanel({
   measure,
   access,
   epoch,
   defaults,
   onAuthorizationError,
+  savedState,
+  onStateChange,
 }: {
   measure: PinnedMeasure;
   access: CurrentAccess;
   epoch: number;
   defaults: AnalyticsFilters;
   onAuthorizationError: (error: AnalyticsRequestError) => void;
+  savedState?: PinnedPanelState | null;
+  onStateChange?: (state: PinnedPanelState) => void;
 }) {
   const id = useId();
-  const [draft, setDraft] = useState<AnalyticsFilters>(defaults);
-  const [applied, setApplied] = useState<AnalyticsFilters>(defaults);
-  const [page, setPage] = useState(1);
+  const [draft, setDraft] = useState<AnalyticsFilters>(
+    savedState?.draft ?? defaults,
+  );
+  const [applied, setApplied] = useState<AnalyticsFilters>(
+    savedState?.applied ?? defaults,
+  );
+  const [page, setPage] = useState(savedState?.page ?? 1);
   const [notice, setNotice] = useState<string | null>(null);
 
   // Two distinct validity checks, same split as `AnalyticsManager`/
@@ -112,12 +135,16 @@ export function PinnedAnalyticsPanel({
   const pageSize = applied.pageSize;
   const pages = paged ? Math.max(1, Math.ceil(total / pageSize)) : 1;
 
-  const update = (patch: Partial<AnalyticsFilters>) =>
-    setDraft((prev) => ({ ...prev, ...patch }));
+  const update = (patch: Partial<AnalyticsFilters>) => {
+    const next = { ...draft, ...patch };
+    setDraft(next);
+    onStateChange?.({ draft: next, applied, page });
+  };
   const apply = () => {
     setNotice(null);
     setApplied(draft);
     setPage(1);
+    onStateChange?.({ draft, applied: draft, page: 1 });
   };
   const retry = () => {
     if (refreshing) return;
@@ -333,7 +360,11 @@ export function PinnedAnalyticsPanel({
             <Button
               variant="outline"
               disabled={page <= 1 || refreshing}
-              onClick={() => setPage((prev) => prev - 1)}
+              onClick={() => {
+                const next = page - 1;
+                setPage(next);
+                onStateChange?.({ draft, applied, page: next });
+              }}
             >
               Previous page
             </Button>
@@ -343,7 +374,11 @@ export function PinnedAnalyticsPanel({
             <Button
               variant="outline"
               disabled={page >= pages || page * pageSize > 10_000 || refreshing}
-              onClick={() => setPage((prev) => prev + 1)}
+              onClick={() => {
+                const next = page + 1;
+                setPage(next);
+                onStateChange?.({ draft, applied, page: next });
+              }}
             >
               Next page
             </Button>
