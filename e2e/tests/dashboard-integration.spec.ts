@@ -107,9 +107,7 @@ test.describe("dashboard employee integration", () => {
     });
     expect(created.status()).toBe(201);
     await page.goto("/dashboard");
-    await expect(
-      cardByTitle(page, "My To-Do").getByText(title),
-    ).toBeVisible();
+    await expect(cardByTitle(page, "My To-Do").getByText(title)).toBeVisible();
     await expect(page.getByLabel("Dashboard view")).toHaveValue("employee");
     await page.emulateMedia({ reducedMotion: "reduce" });
     for (const [width, height] of [

@@ -4,6 +4,7 @@ import { testUser } from "../fixtures/test-users.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
 import { queryInSchema } from "../fixtures/database.js";
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
+import { cardByTitle } from "../fixtures/dashboard.js";
 
 test.use({ storageState: { cookies: [], origins: [] } });
 async function submit(page: Page, key = "member") {
@@ -120,10 +121,7 @@ for (const key of ["superAdmin", "member"]) {
       grants: { permissionKey: string; scope: string }[];
     };
     await expect(
-      page.getByRole("article", {
-        name: key === "superAdmin" ? "Total events" : "My tasks",
-        exact: true,
-      }),
+      cardByTitle(page, key === "superAdmin" ? "Total events" : "My tasks"),
     ).toBeVisible();
     await page.emulateMedia({ reducedMotion: "reduce" });
     for (const viewport of [

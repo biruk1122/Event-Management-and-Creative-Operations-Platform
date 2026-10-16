@@ -133,9 +133,7 @@ function AnalyticsController() {
               epoch={access.dataUpdatedAt}
               defaults={pinnedDefaults}
               onAuthorizationError={failClosed}
-              savedState={
-                saved?.userId === access.data!.userId ? saved : null
-              }
+              savedState={saved?.userId === access.data!.userId ? saved : null}
               onStateChange={(state) =>
                 setPinnedState((prev) => ({
                   ...prev,

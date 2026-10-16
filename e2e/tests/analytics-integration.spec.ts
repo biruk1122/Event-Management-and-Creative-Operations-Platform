@@ -3,7 +3,11 @@ import { expect, test } from "@playwright/test";
 import { authStatePath } from "../fixtures/auth.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
-import { cardByTitle, dropdownForm, dropdownResults } from "../fixtures/dashboard.js";
+import {
+  cardByTitle,
+  dropdownForm,
+  dropdownResults,
+} from "../fixtures/dashboard.js";
 
 test.describe("analytics authoritative integration", () => {
   test.use({ storageState: authStatePath("superAdmin") });
@@ -67,9 +71,11 @@ test.describe("analytics authoritative integration", () => {
     // matching data" message is a valid, successfully-loaded outcome here -
     // this check is about the measure switch and URL sync, not event data.
     await expect(
-      eventsResults.getByRole("table").or(
-        eventsResults.getByText(/No matching data in your permitted scope/),
-      ),
+      eventsResults
+        .getByRole("table")
+        .or(
+          eventsResults.getByText(/No matching data in your permitted scope/),
+        ),
     ).toBeVisible();
     for (const width of [360, 768, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
@@ -87,9 +93,11 @@ test.describe("analytics authoritative integration", () => {
     await expect(page.getByLabel("Analytics measure")).toHaveValue("events");
     const reloadedEvents = dropdownResults(page, "Event progress");
     await expect(
-      reloadedEvents.getByRole("table").or(
-        reloadedEvents.getByText(/No matching data in your permitted scope/),
-      ),
+      reloadedEvents
+        .getByRole("table")
+        .or(
+          reloadedEvents.getByText(/No matching data in your permitted scope/),
+        ),
     ).toBeVisible();
   });
   test("requires a promotion subject and maps authoritative not-found without mock results", async ({

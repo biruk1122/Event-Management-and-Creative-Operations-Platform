@@ -474,9 +474,7 @@ test.describe("ANA-06 management fixture journeys", () => {
       .getByLabel("End (exclusive, UTC)")
       .fill(analyticsPeriod.from);
     await expect(
-      tasksPanel
-        .getByRole("alert")
-        .filter({ hasText: "must be after start" }),
+      tasksPanel.getByRole("alert").filter({ hasText: "must be after start" }),
     ).toBeVisible();
     expect(requests).toBe(0);
   });
@@ -512,9 +510,7 @@ test.describe("ANA-06 management fixture journeys", () => {
       // Task completion is pinned and always fetches on its own; forcing a
       // fresh fetch while the table is locked is what reproduces the
       // timeout, not a dropdown measure switch.
-      await tasksPanel
-        .getByRole("button", { name: "Refresh measure" })
-        .click();
+      await tasksPanel.getByRole("button", { name: "Refresh measure" }).click();
       const response = await failed;
       expect(await response.json()).toMatchObject({
         code: "ANALYTICS_UNAVAILABLE",
@@ -609,7 +605,9 @@ test.describe("ANA-06 department boundary", () => {
     // department performance is excluded from the dropdown regardless - so
     // there is nothing left to choose from and no dropdown renders at all.
     await expect(page.getByLabel("Analytics measure")).toHaveCount(0);
-    await panel.getByLabel("Department ID (optional)").fill(fixture.departmentB);
+    await panel
+      .getByLabel("Department ID (optional)")
+      .fill(fixture.departmentB);
     await panel.getByRole("button", { name: "Apply filters" }).click();
     await expect(
       panel.getByText(/No matching data in your permitted scope/),
@@ -662,9 +660,9 @@ test.describe("ANA-06 department boundary", () => {
       await access;
       await refetched;
       await workRow(page, fixture.departmentA, 1, 2, "50%", 1, 1);
-      await expect(
-        panel.getByLabel("Department ID (optional)"),
-      ).toHaveValue(fixture.departmentA);
+      await expect(panel.getByLabel("Department ID (optional)")).toHaveValue(
+        fixture.departmentA,
+      );
       await expectNoWcag22AaViolations(page, "ANA-06 department-scoped access");
     } finally {
       await fixture.setManagerDepartment(fixture.departmentA);
