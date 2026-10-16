@@ -5,6 +5,7 @@ import { authStatePath, signInThroughUi } from "../fixtures/auth.js";
 import { TEST_USERS } from "../fixtures/test-users.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
+import { cardByTitle } from "../fixtures/dashboard.js";
 
 test.describe("dashboard authoritative integration", () => {
   test.use({ storageState: authStatePath("superAdmin") });
@@ -41,10 +42,7 @@ test.describe("dashboard authoritative integration", () => {
       });
     await page.goto("/dashboard");
     const initial = await responsePromise;
-    const card = page.getByRole("article", {
-      name: "Pending tasks",
-      exact: true,
-    });
+    const card = cardByTitle(page, "Pending tasks");
     const count = (
       initial.cards.pendingTasks!
         .data as components["schemas"]["DashboardCount"]
@@ -109,11 +107,7 @@ test.describe("dashboard employee integration", () => {
     });
     expect(created.status()).toBe(201);
     await page.goto("/dashboard");
-    await expect(
-      page
-        .getByRole("article", { name: "My To-Do", exact: true })
-        .getByText(title),
-    ).toBeVisible();
+    await expect(cardByTitle(page, "My To-Do").getByText(title)).toBeVisible();
     await expect(page.getByLabel("Dashboard view")).toHaveValue("employee");
     await page.emulateMedia({ reducedMotion: "reduce" });
     for (const [width, height] of [

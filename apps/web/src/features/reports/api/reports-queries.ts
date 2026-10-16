@@ -22,6 +22,7 @@ export function reportKeys(access: CurrentAccess) {
     list: (params: gateway.ListReportsParams) =>
       [...all, "list", params] as const,
     detail: (id: string) => [...all, "detail", id] as const,
+    files: (id: string) => [...all, "files", id] as const,
     workspaces: [...all, "workspaces"] as const,
     users: [...all, "users"] as const,
     departments: [...all, "departments"] as const,
@@ -63,6 +64,11 @@ export function useReportsMutations(access: CurrentAccess) {
         outcome: ReviewOutcome;
         note: string;
       }) => gateway.reviewReport(id, outcome, note),
+      onSettled: reconcile,
+    }),
+    upload: useMutation({
+      mutationFn: ({ id, file }: { id: string; file: File }) =>
+        gateway.uploadReportFile(id, file),
       onSettled: reconcile,
     }),
   };

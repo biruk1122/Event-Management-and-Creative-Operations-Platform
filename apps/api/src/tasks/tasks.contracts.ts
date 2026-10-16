@@ -5,6 +5,7 @@ import {
   TaskPriority,
   TaskReviewOutcome,
   TaskStatus,
+  TaskType,
 } from "../generated/prisma/client.js";
 
 export class TaskPersonSummary {
@@ -44,6 +45,9 @@ export class TaskResponse {
 
   @ApiProperty({ enum: TaskPriority })
   priority!: TaskPriority;
+
+  @ApiProperty({ enum: TaskType })
+  type!: TaskType;
 
   @ApiProperty({ enum: TaskStatus })
   status!: TaskStatus;
@@ -167,4 +171,9 @@ export class PaginatedTaskActivitiesResponse {
   @ApiProperty() page!: number;
   @ApiProperty() pageSize!: number;
   @ApiProperty() total!: number;
+}
+
+export class TaskEligibleAssigneesResponse {
+  @ApiProperty({ type: [TaskPersonSummary] })
+  items!: TaskPersonSummary[];
 }

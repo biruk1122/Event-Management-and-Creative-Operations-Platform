@@ -974,7 +974,7 @@ export interface paths {
     /** List expenses visible to the caller, with filters */
     get: operations["Expenses_list_v1"];
     put?: never;
-    /** Record a draft expense against an event */
+    /** Record a draft expense against an event, a production, or both */
     post: operations["Expenses_create_v1"];
     delete?: never;
     options?: never;
@@ -1498,6 +1498,41 @@ export interface paths {
     patch: operations["Productions_update_v1"];
     trace?: never;
   };
+  "/api/v1/productions/{id}/budget": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read the production budget (sensitive) */
+    get: operations["Productions_getBudget_v1"];
+    /** Set or clear the production budget (sensitive) */
+    put: operations["Productions_setBudget_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/productions/{id}/budget-summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Planned vs. actual budget for a production (sensitive) */
+    get: operations["Productions_getBudgetSummary_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/productions/{id}/manager": {
     parameters: {
       query?: never;
@@ -1584,6 +1619,43 @@ export interface paths {
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  "/api/v1/productions/{productionId}/locations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a production's locations */
+    get: operations["ProductionLocations_list_v1"];
+    put?: never;
+    /** Add a location to a production */
+    post: operations["ProductionLocations_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/productions/{productionId}/locations/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one production location */
+    get: operations["ProductionLocations_get_v1"];
+    put?: never;
+    post?: never;
+    /** Remove a production location */
+    delete: operations["ProductionLocations_remove_v1"];
+    options?: never;
+    head?: never;
+    /** Update a production location */
+    patch: operations["ProductionLocations_update_v1"];
     trace?: never;
   };
   "/api/v1/projects": {
@@ -1844,6 +1916,74 @@ export interface paths {
     put?: never;
     /** Submit the author's complete report for review */
     post: operations["Reports_submit_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{reportId}/files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List available files attached to a report */
+    get: operations["ReportFileManagement_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{reportId}/files/upload-intents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a direct-upload grant for a report attachment */
+    post: operations["ReportFileManagement_createUploadIntent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{reportId}/files/{fileId}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a private download grant for a report file */
+    get: operations["ReportFileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{reportId}/files/{fileId}/finalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify, scan, and attach a completed report upload */
+    post: operations["ReportFileManagement_finalize_v1"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2131,6 +2271,23 @@ export interface paths {
     put?: never;
     /** Create a workspace or department task */
     post: operations["Tasks_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks/eligible-assignees": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a department's active staff eligible for task assignment */
+    get: operations["Tasks_listEligibleAssignees_v1"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -3215,13 +3372,21 @@ export interface components {
       currency: string;
       /** @example Stage lighting rental */
       description: string;
-      /** Format: uuid */
-      eventId: string;
+      /**
+       * Format: uuid
+       * @description The event this expense belongs to. At least one of eventId/productionId is required.
+       */
+      eventId?: string;
       /**
        * @description This line item's planned amount, at most two fraction digits.
        * @example 1200
        */
       plannedAmount?: number;
+      /**
+       * Format: uuid
+       * @description The production this expense belongs to - lets a production with no linked event still record its own spend. At least one of eventId/productionId is required.
+       */
+      productionId?: string;
       /** Format: uuid */
       supplierId?: string;
     };
@@ -3281,6 +3446,11 @@ export interface components {
     CreateProductionDto: {
       /** Format: date-time */
       deadlineAt?: string;
+      /**
+       * Format: uuid
+       * @description Defaults to the caller's own department; organization-scoped creators may choose another.
+       */
+      departmentId?: string;
       description?: string;
       /** Format: date-time */
       endAt?: string;
@@ -3297,6 +3467,22 @@ export interface components {
       productionType: string;
       /** Format: date-time */
       startAt?: string;
+    };
+    CreateProductionLocationDto: {
+      address?: string;
+      /** Format: email */
+      contactEmail?: string;
+      contactName?: string;
+      contactPhone?: string;
+      description?: string;
+      /** @example Riverside Studio */
+      name: string;
+      notes?: string;
+      /**
+       * @default PENDING
+       * @enum {string}
+       */
+      status: "PENDING" | "IN_PROGRESS" | "CONFIRMED" | "READY";
     };
     CreateProjectDto: {
       /** @example Redesign the visual identity. */
@@ -3333,6 +3519,8 @@ export interface components {
        */
       departmentId?: string;
       departmentPerformance?: string;
+      /** @description A free-text summary of the report, independent of its type-specific sections below. */
+      description?: string;
       employeePerformance?: string;
       /** @description Post-event only. */
       lessonsLearned?: string;
@@ -3414,6 +3602,11 @@ export interface components {
       mentionedUserIds?: string[];
     };
     CreateTaskDto: {
+      /**
+       * Format: uuid
+       * @description A user to assign immediately on creation.
+       */
+      assigneeId?: string;
       /** Format: uuid */
       departmentId?: string;
       description?: string;
@@ -3428,6 +3621,18 @@ export interface components {
       startAt?: string;
       /** @example Confirm venue permits */
       title: string;
+      /**
+       * @default GENERAL
+       * @enum {string}
+       */
+      type:
+        | "GENERAL"
+        | "PLANNING"
+        | "LOGISTICS"
+        | "CREATIVE"
+        | "TECHNICAL"
+        | "ADMINISTRATIVE"
+        | "REVIEW";
       /** Format: uuid */
       workspaceId?: string;
     };
@@ -3919,8 +4124,11 @@ export interface components {
       departmentId: string;
       /** @example Stage lighting rental */
       description: string;
-      /** Format: uuid */
-      eventId: string;
+      /**
+       * Format: uuid
+       * @description Null when this expense is recorded directly against a production (productionId set instead).
+       */
+      eventId: string | null;
       /** Format: uuid */
       id: string;
       /**
@@ -3928,6 +4136,11 @@ export interface components {
        * @example 1200.00
        */
       plannedAmount: string | null;
+      /**
+       * Format: uuid
+       * @description Null when this expense is recorded against an event rather than directly against a production.
+       */
+      productionId: string | null;
       /** Format: date-time */
       reviewedAt: string | null;
       /** Format: uuid */
@@ -4450,6 +4663,58 @@ export interface components {
       /** @example https://api.event-platform.local/problems/validation_error */
       type: string;
     };
+    ProductionBudgetResponse: {
+      /**
+       * @description Decimal string with two fraction digits. Null when no budget is set.
+       * @example 15000.00
+       */
+      amount: string | null;
+      /**
+       * @description ISO-4217 alphabetic code. Null when no budget is set.
+       * @example USD
+       */
+      currency: string | null;
+    };
+    ProductionBudgetSummaryResponse: {
+      /**
+       * @description Sum of APPROVED expenses' actual amounts for the linked event.
+       * @example 9800.00
+       */
+      actualApproved: string;
+      /**
+       * @description Sum of SUBMITTED (pending) expenses' actual amounts for the linked event.
+       * @example 1350.00
+       */
+      actualPending: string;
+      /** @example USD */
+      currency: string | null;
+      /** Format: uuid */
+      linkedEventId: string | null;
+      /** @example 15000.00 */
+      plannedAmount: string | null;
+    };
+    ProductionLocationResponse: {
+      address: string | null;
+      contactEmail: string | null;
+      contactName: string | null;
+      contactPhone: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      description: string | null;
+      /** Format: uuid */
+      id: string;
+      name: string;
+      notes: string | null;
+      /** Format: uuid */
+      productionId: string;
+      /** @enum {string} */
+      status: "PENDING" | "IN_PROGRESS" | "CONFIRMED" | "READY";
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    ProductionLocationsResponse: {
+      items: components["schemas"]["ProductionLocationResponse"][];
+    };
     ProductionPerson: {
       /** Format: email */
       email: string;
@@ -4464,6 +4729,8 @@ export interface components {
       createdBy: components["schemas"]["ProductionPerson"] | null;
       /** Format: date-time */
       deadlineAt: string | null;
+      /** Format: uuid */
+      departmentId: string | null;
       description: string | null;
       /** Format: date-time */
       endAt: string | null;
@@ -4682,6 +4949,8 @@ export interface components {
       /** Format: uuid */
       departmentId: string | null;
       departmentPerformance: string | null;
+      /** @description A free-text summary, independent of the type-specific sections below. */
+      description: string | null;
       employeePerformance: string | null;
       facts: components["schemas"]["ReportFactsResponse"];
       /** Format: uuid */
@@ -4748,6 +5017,8 @@ export interface components {
       /** Format: uuid */
       departmentId: string | null;
       departmentPerformance: string | null;
+      /** @description A free-text summary, independent of the type-specific sections below. */
+      description: string | null;
       employeePerformance: string | null;
       /** Format: uuid */
       id: string;
@@ -4900,6 +5171,18 @@ export interface components {
     };
     SetMeetingMinutesDto: {
       minutes: string;
+    };
+    SetProductionBudgetDto: {
+      /**
+       * @description Non-negative, at most two fraction digits. Null to clear.
+       * @example 15000
+       */
+      amount: number | null;
+      /**
+       * @description ISO-4217 alphabetic code (three upper-case letters). Null to clear.
+       * @example USD
+       */
+      currency: string | null;
     };
     SetTalentManagerDto: {
       /** Format: uuid */
@@ -5066,6 +5349,9 @@ export interface components {
       /** Format: date-time */
       updatedAt: string;
     };
+    TaskEligibleAssigneesResponse: {
+      items: components["schemas"]["TaskPersonSummary"][];
+    };
     TaskPersonSummary: {
       /** Format: email */
       email: string;
@@ -5101,6 +5387,15 @@ export interface components {
         | "CANCELLED";
       /** @example Confirm venue permits */
       title: string;
+      /** @enum {string} */
+      type:
+        | "GENERAL"
+        | "PLANNING"
+        | "LOGISTICS"
+        | "CREATIVE"
+        | "TECHNICAL"
+        | "ADMINISTRATIVE"
+        | "REVIEW";
       /** Format: date-time */
       updatedAt: string;
       /** Format: uuid */
@@ -5353,6 +5648,18 @@ export interface components {
       /** Format: date-time */
       startAt?: string | null;
     };
+    UpdateProductionLocationDto: {
+      address?: string | null;
+      /** Format: email */
+      contactEmail?: string | null;
+      contactName?: string | null;
+      contactPhone?: string | null;
+      description?: string | null;
+      name?: string;
+      notes?: string | null;
+      /** @enum {string} */
+      status?: "PENDING" | "IN_PROGRESS" | "CONFIRMED" | "READY";
+    };
     UpdateProjectDto: {
       description?: string | null;
       /** Format: date-time */
@@ -5393,6 +5700,8 @@ export interface components {
        */
       departmentId?: string;
       departmentPerformance?: string;
+      /** @description A free-text summary of the report, independent of its type-specific sections below. */
+      description?: string;
       employeePerformance?: string;
       /** @description Post-event only. */
       lessonsLearned?: string;
@@ -5472,6 +5781,15 @@ export interface components {
       /** Format: date-time */
       startAt?: string | null;
       title?: string;
+      /** @enum {string} */
+      type?:
+        | "GENERAL"
+        | "PLANNING"
+        | "LOGISTICS"
+        | "CREATIVE"
+        | "TECHNICAL"
+        | "ADMINISTRATIVE"
+        | "REVIEW";
     };
     UpdateTaskProgressDto: {
       /** @example 60 */
@@ -10062,6 +10380,7 @@ export interface operations {
     parameters: {
       query?: {
         eventId?: string;
+        productionId?: string;
         status?: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
         category?:
           | "VENUE"
@@ -11955,6 +12274,7 @@ export interface operations {
       query?: {
         status?: "PLANNED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
         search?: string;
+        departmentId?: string;
         page?: components["schemas"]["Object"];
         pageSize?: components["schemas"]["Object"];
       };
@@ -12239,6 +12559,169 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ProductionResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Productions_getBudget_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionBudgetResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Productions_setBudget_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetProductionBudgetDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionBudgetResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Productions_getBudgetSummary_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionBudgetSummaryResponse"];
         };
       };
       401: {
@@ -12708,6 +13191,240 @@ export interface operations {
         };
       };
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  ProductionLocations_list_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        productionId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionLocationsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  ProductionLocations_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        productionId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateProductionLocationDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionLocationResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  ProductionLocations_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        productionId: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionLocationResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  ProductionLocations_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        productionId: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  ProductionLocations_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        productionId: string;
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateProductionLocationDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProductionLocationResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -13964,6 +14681,243 @@ export interface operations {
       };
     };
   };
+  ReportFileManagement_list_v1: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path: {
+        reportId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedManagedFilesResponse"];
+        };
+      };
+      /** @description Invalid pagination query */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside report scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Report not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  ReportFileManagement_createUploadIntent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        reportId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUploadIntentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UploadIntentResponse"];
+        };
+      };
+      /** @description Invalid upload declaration */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside report scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Report not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  ReportFileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        reportId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside report scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Report file not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  ReportFileManagement_finalize_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        reportId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManagedFileResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside report scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Report or intent not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Intent expired, upload missing, unsafe, or already finalized */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description File scanner unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Roles_list_v1: {
     parameters: {
       query?: never;
@@ -15134,6 +16088,63 @@ export interface operations {
         };
       };
       /** @description Workspace or department not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Tasks_listEligibleAssignees_v1: {
+    parameters: {
+      query: {
+        departmentId: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskEligibleAssigneesResponse"];
+        };
+      };
+      /** @description Invalid request fields, owner, progress, or schedule */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Department not found */
       404: {
         headers: {
           [name: string]: unknown;

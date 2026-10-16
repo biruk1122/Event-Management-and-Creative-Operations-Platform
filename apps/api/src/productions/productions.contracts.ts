@@ -43,6 +43,8 @@ export class ProductionResponse {
       "Soft cross-reference to an event this production supports (EOM-01).",
   })
   eventId!: string | null;
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  departmentId!: string | null;
   @ApiProperty({ type: ProductionPerson, nullable: true })
   manager!: ProductionPerson | null;
   @ApiProperty({ type: [ProductionTeam] }) teams!: ProductionTeam[];
@@ -59,4 +61,63 @@ export class PaginatedProductionsResponse {
   @ApiProperty() page!: number;
   @ApiProperty() pageSize!: number;
   @ApiProperty() total!: number;
+}
+
+/**
+ * A production budget. Sensitive (PC-04): served only through the budget
+ * routes, which require `production.budget.read` / `production.budget.update`.
+ * Amount and currency are always set together or both null.
+ */
+export class ProductionBudgetResponse {
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: "15000.00",
+    description:
+      "Decimal string with two fraction digits. Null when no budget is set.",
+  })
+  amount!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: "USD",
+    description: "ISO-4217 alphabetic code. Null when no budget is set.",
+  })
+  currency!: string | null;
+}
+
+/**
+ * Planned vs. actual for one production. `actualApproved` and
+ * `actualPending` are always reported separately - a pending expense is
+ * never counted as approved spending. `linkedEventId` is `null` when this
+ * production has no linked event, in which case actual/pending are always
+ * "0.00" (not computed, since expenses are recorded against events) - treat
+ * a `null` `linkedEventId` as "actuals unavailable", not "no spend yet".
+ */
+export class ProductionBudgetSummaryResponse {
+  @ApiProperty({ type: String, nullable: true, example: "15000.00" })
+  plannedAmount!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: "USD" })
+  currency!: string | null;
+
+  @ApiProperty({
+    type: String,
+    example: "9800.00",
+    description:
+      "Sum of APPROVED expenses' actual amounts for the linked event.",
+  })
+  actualApproved!: string;
+
+  @ApiProperty({
+    type: String,
+    example: "1350.00",
+    description:
+      "Sum of SUBMITTED (pending) expenses' actual amounts for the linked event.",
+  })
+  actualPending!: string;
+
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  linkedEventId!: string | null;
 }

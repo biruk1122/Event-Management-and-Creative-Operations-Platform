@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import {
   MeetingStatus,
   MeetingType,
+  TaskType,
   type PermissionScope,
 } from "../generated/prisma/client.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
@@ -347,16 +348,21 @@ export class MeetingsService {
       ? undefined
       : ((await this.repository.findUserDepartmentId(userId)) ?? undefined);
     if (!meeting.workspaceId && !departmentId) throw permissionDenied();
-    const task = await this.tasks.create(userId, {
-      title: dto.title,
-      ...(dto.description !== undefined
-        ? { description: dto.description }
-        : {}),
-      ...(dto.priority ? { priority: dto.priority } : {}),
-      ...(meeting.workspaceId ? { workspaceId: meeting.workspaceId } : {}),
-      ...(departmentId ? { departmentId } : {}),
-      ...(dto.dueAt ? { dueAt: dto.dueAt } : {}),
-    });
+    const task = await this.tasks.create(
+      userId,
+      {
+        title: dto.title,
+        type: TaskType.GENERAL,
+        ...(dto.description !== undefined
+          ? { description: dto.description }
+          : {}),
+        ...(dto.priority ? { priority: dto.priority } : {}),
+        ...(meeting.workspaceId ? { workspaceId: meeting.workspaceId } : {}),
+        ...(departmentId ? { departmentId } : {}),
+        ...(dto.dueAt ? { dueAt: dto.dueAt } : {}),
+      },
+      requestId,
+    );
     await this.repository.linkActionItem(task.id, meetingId);
     if (!dto.assigneeId) return task;
     return this.tasks.addAssignee(userId, task.id, dto.assigneeId, requestId);

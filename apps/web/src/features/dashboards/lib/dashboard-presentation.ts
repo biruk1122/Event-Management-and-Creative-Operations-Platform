@@ -181,22 +181,6 @@ export const managementCards: Definition[] = [
     "/meetings",
   ),
   card(
-    "taskCompletionRate",
-    "Task completion rate",
-    "Analytics",
-    "analytics.management.read",
-    analytics,
-    "/analytics",
-  ),
-  card(
-    "departmentPerformance",
-    "Department performance",
-    "Analytics",
-    "analytics.department_performance.read",
-    [...analytics, "DEPARTMENT"],
-    "/analytics",
-  ),
-  card(
     "eventProgress",
     "Event progress",
     "Analytics",
@@ -215,14 +199,6 @@ export const managementCards: Definition[] = [
   card(
     "promotionPerformance",
     "Promotion performance",
-    "Analytics",
-    "analytics.management.read",
-    analytics,
-    "/analytics",
-  ),
-  card(
-    "monthlyActivity",
-    "Monthly activity",
     "Analytics",
     "analytics.management.read",
     analytics,

@@ -23,6 +23,7 @@ function report(overrides: Partial<Report> = {}): Report {
     id: "report-1",
     authorId: "author-1",
     departmentId: null,
+    description: null,
     title: "Weekly production",
     type: "WEEKLY",
     status: "SUBMITTED",
@@ -223,6 +224,76 @@ describe("ReportsManager", () => {
     expect(
       get.mock.calls.filter((call) => call[0] === "/api/v1/reports").length,
     ).toBeGreaterThan(1);
+  });
+
+  it("uploads a selected attachment after the report is created", async () => {
+    const user = userEvent.setup();
+    post.mockImplementation(async (path: string) => {
+      if (path === "/api/v1/reports")
+        return ok(report({ status: "DRAFT" }), 201);
+      if (path === "/api/v1/reports/{reportId}/files/upload-intents")
+        return ok({
+          id: "file-1",
+          filename: "notes.txt",
+          mediaType: "text/plain",
+          sizeBytes: 5,
+          state: "pending",
+          intentExpiresAt: now,
+          createdAt: now,
+          upload: { url: "https://storage.test/upload", fields: {} },
+        });
+      if (path === "/api/v1/reports/{reportId}/files/{fileId}/finalize")
+        return ok({
+          id: "file-1",
+          filename: "notes.txt",
+          mediaType: "text/plain",
+          sizeBytes: 5,
+          state: "available",
+          createdAt: now,
+        });
+      return ok(report({ status: "DRAFT" }), 201);
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response);
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      setup(access("report.create", "report.attachment.create"));
+      await screen.findByText("1 report");
+      await user.click(screen.getByRole("button", { name: "New report" }));
+      await user.type(screen.getByLabelText("Title"), "Daily work");
+      await user.type(
+        screen.getByLabelText("Period start (UTC)"),
+        "2024-02-29",
+      );
+      await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-29");
+      const file = new File(["notes"], "notes.txt", { type: "text/plain" });
+      const input = screen
+        .getByText("Attachments")
+        .closest("fieldset")!
+        .querySelector<HTMLInputElement>('input[type="file"]')!;
+      await user.upload(input, file);
+      await user.click(screen.getByRole("button", { name: "Save draft" }));
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(
+          "/api/v1/reports/{reportId}/files/upload-intents",
+          expect.objectContaining({
+            params: { path: { reportId: "report-1" } },
+          }),
+        ),
+      );
+      await waitFor(() =>
+        expect(post).toHaveBeenCalledWith(
+          "/api/v1/reports/{reportId}/files/{fileId}/finalize",
+          expect.objectContaining({
+            params: { path: { reportId: "report-1", fileId: "file-1" } },
+          }),
+        ),
+      );
+      expect(await screen.findByRole("status")).toHaveTextContent(
+        "Report draft saved",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("reviews only with a review grant and reconciles the list and detail", async () => {

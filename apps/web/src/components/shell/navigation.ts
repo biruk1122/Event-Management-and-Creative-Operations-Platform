@@ -4,6 +4,7 @@ import { canReadEvents } from "@/features/events/lib/event-access";
 import { canReadExpenses } from "@/features/expenses/lib/expense-access";
 import { canReadSuppliers } from "@/features/suppliers/lib/supplier-access";
 import { canReadProjects } from "@/features/projects/lib/project-access";
+import { productionAbilities } from "@/features/productions/lib/production-access";
 import { canReadCampaigns } from "@/features/campaigns/lib/campaign-access";
 import { canReadTalent } from "@/features/talent/lib/talent-access";
 import { readableKinds } from "@/features/workspaces/lib/workspace-access";
@@ -74,7 +75,7 @@ export function destinations(access: CurrentAccess): Destination[] {
   add(canReadSuppliers(access), "/suppliers", "Suppliers", "Work", "suppliers");
   add(canReadProjects(access), "/projects", "Projects", "Work", "projects");
   add(
-    canReadProjects(access),
+    productionAbilities(access).canRead,
     "/projects/production",
     "Production",
     "Work",

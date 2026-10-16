@@ -32,6 +32,42 @@ function cookies(response: request.Response): string[] {
   return Array.isArray(value) ? (value as string[]) : [];
 }
 
+interface StoredObject {
+  bytes: Buffer;
+  sizeBytes: number;
+}
+
+class ReportFileStorage {
+  readonly objects = new Map<string, StoredObject>();
+
+  createUploadGrant(input: { key: string; mediaType: string }) {
+    this.objects.set(input.key, {
+      bytes: Buffer.from("report attachment contents"),
+      sizeBytes: Buffer.byteLength("report attachment contents"),
+    });
+    return Promise.resolve({
+      fields: { "Content-Type": input.mediaType, key: input.key },
+      url: "https://storage.test/upload",
+    });
+  }
+
+  readObject(key: string): Promise<StoredObject | null> {
+    return Promise.resolve(this.objects.get(key) ?? null);
+  }
+
+  createDownloadGrant() {
+    return Promise.resolve({
+      expiresAt: new Date("2030-01-01T00:05:00.000Z"),
+      url: "https://storage.test/download",
+    });
+  }
+
+  deleteObject(key: string): Promise<void> {
+    this.objects.delete(key);
+    return Promise.resolve();
+  }
+}
+
 describe("report API", () => {
   let database: IsolatedDatabase;
   let prisma: PrismaClient;
@@ -77,7 +113,7 @@ describe("report API", () => {
     const hash = await new PasswordHasher().hash(PASSWORD);
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(FILE_OBJECT_STORAGE)
-      .useValue({})
+      .useValue(new ReportFileStorage())
       .overrideProvider(FILE_SCANNER)
       .useValue({ scan: () => Promise.resolve("clean") })
       .compile();
@@ -395,5 +431,78 @@ describe("report API", () => {
         await as(admin, "get", `/api/v1/reports?workspaceId=${workspace.id}`),
       ).total,
     ).toBe(0);
+  });
+
+  it("saves a description and lets the author attach and read back a file", async () => {
+    const created = await as(manager, "post", "/api/v1/reports").send({
+      type: "DAILY",
+      title: "Daily with a description",
+      description: "A quick summary of today's work.",
+      periodStart: "2026-10-05",
+      periodEnd: "2026-10-05",
+    });
+    expect(created.status).toBe(201);
+    const report = body<{ id: string; description: string | null }>(created);
+    expect(report.description).toBe("A quick summary of today's work.");
+
+    const contents = "report attachment contents";
+    const intent = await as(
+      manager,
+      "post",
+      `/api/v1/reports/${report.id}/files/upload-intents`,
+    ).send({
+      filename: "notes.txt",
+      mediaType: "text/plain",
+      sizeBytes: Buffer.byteLength(contents),
+    });
+    expect(intent.status).toBe(201);
+    const fileId = body<{ id: string }>(intent).id;
+
+    const finalized = await as(
+      manager,
+      "post",
+      `/api/v1/reports/${report.id}/files/${fileId}/finalize`,
+    );
+    expect(finalized.status).toBe(200);
+    expect(body<{ filename: string }>(finalized).filename).toBe("notes.txt");
+
+    const listed = await as(
+      manager,
+      "get",
+      `/api/v1/reports/${report.id}/files`,
+    );
+    expect(listed.status).toBe(200);
+    expect(body<{ items: Array<{ filename: string }> }>(listed).items).toEqual([
+      expect.objectContaining({ filename: "notes.txt" }),
+    ]);
+  });
+
+  it("keeps report attachments out of reach for a caller outside the report's scope", async () => {
+    const created = await as(member, "post", "/api/v1/reports").send({
+      type: "DAILY",
+      title: "Member's own report",
+      periodStart: "2026-10-06",
+      periodEnd: "2026-10-06",
+    });
+    expect(created.status).toBe(201);
+    const report = body<{ id: string }>(created);
+
+    const deniedIntent = await as(
+      outsider,
+      "post",
+      `/api/v1/reports/${report.id}/files/upload-intents`,
+    ).send({
+      filename: "notes.txt",
+      mediaType: "text/plain",
+      sizeBytes: 10,
+    });
+    expect(deniedIntent.status).toBe(403);
+
+    const deniedList = await as(
+      outsider,
+      "get",
+      `/api/v1/reports/${report.id}/files`,
+    );
+    expect(deniedList.status).toBe(403);
   });
 });

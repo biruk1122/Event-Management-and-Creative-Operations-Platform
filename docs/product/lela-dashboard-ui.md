@@ -2,7 +2,7 @@
 
 ## Scope
 
-The existing `/dashboard` route presents all 23 management and 7 employee catalog
+The existing `/dashboard` route presents all 24 management and 7 employee catalog
 cards with shared Lela peach/burgundy tokens, readable summary values, grouped
 headings, responsive filter controls and comfortable keyboard/touch targets.
 The workspace header distinguishes management from personal work without
@@ -11,10 +11,31 @@ require the canonical shell destination permissions as well as card visibility.
 Denied cards never expose their titles, values or links.
 
 The catalog, generated contracts, authoritative API, units, cohort/date bounds,
-UTC/floating-time semantics, scopes, timestamps, analytics meters/tables, bounded
-list previews and export limitation are unchanged. No invented metrics, trends,
-charts, new assets, dependencies or endpoints are introduced. Public server-rendered
-guidance remains available before the protected client results load.
+UTC/floating-time semantics, scopes, timestamps, bounded list previews and export
+limitation are unchanged. Public server-rendered guidance remains available before
+the protected client results load.
+
+**Visual update (follow-up to this issue):** the user explicitly asked for a
+modernized look with real charts, reversing this issue's original "no invented
+metrics, trends, charts, new assets, dependencies" boundary. Recharts is now an
+approved dependency, scoped to the remaining Analytics-group cards and the
+budget card: a horizontal bar chart sits above the event/marketing/promotion
+comparison tables (the tables themselves are unchanged), and a mini comparison
+bar is added inside each budget list item. Every other card keeps its existing
+number/list presentation, now with an icon badge and modernized card/typography
+treatment.
+
+**Relocation (follow-up to the visual update):** task completion rate,
+department performance and monthly activity moved from the dashboard to the
+`/analytics` page, where they are permanently pinned above its existing
+single-measure selector (see [lela-analytics-ui.md](lela-analytics-ui.md)).
+They render only there now; the dashboard's management catalog dropped from
+27 to 24 entries (31 total catalog cards across both audiences, down from 34).
+No card was renamed or re-scoped in the move, no metric was invented beyond
+what the existing per-measure analytics endpoint already returns, and no new
+API endpoint was added - the pinned panels reuse the same `fetchAnalytics`
+gateway and permission checks the single-measure selector already used. Charts
+supplement the existing textual/numeric content; they never replace it.
 
 ## States and refresh
 
@@ -33,7 +54,7 @@ and privacy contract.
 
 ## Verification
 
-The dashboard/navigation/server-route unit suite covers all 30 catalog cards,
+The dashboard/navigation/server-route unit suite covers all 31 catalog cards,
 scope/freshness labels, destination restrictions, empty/denied/error states,
 filter submission, busy focus, access epochs, account switching and mutation/focus
 refresh. The existing notification-manager suite checks advisory reconciliation.

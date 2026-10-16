@@ -106,6 +106,25 @@ actual rendered foreground/background combinations, including hover and active
 states, not isolated swatches. Peach is not presumed suitable for text on white.
 Status badges need words/icons; chart values need labels and numeric alternatives.
 
+## Data visualization (follow-up to this foundation)
+
+Recharts is an approved dependency for real charts (donut, bar, line), scoped to
+screens where the existing API already returns chart-shaped data - introduced
+first for the `/dashboard` route's Analytics-group cards (EVE-220 follow-up).
+Chart series must use `--chart-1` through `--chart-5` exclusively, resolved as
+literal `var(--chart-N)` strings so every chart repaints correctly across the
+light/dark toggle without a re-render; never a hardcoded hex or Recharts'
+own default palette. Tooltips and axis chrome use `--popover`/
+`--popover-foreground`/`--border`/`--muted-foreground`, matching every other
+themed surface. Recharts' animation is driven by JavaScript (`react-smooth`),
+not CSS, so the existing global `@media (prefers-reduced-motion: reduce)` rule
+does not reach it - every chart component reads `prefers-reduced-motion`
+directly (`useChartAnimationDuration` in
+`apps/web/src/features/analytics/components/analytics-chart-kit.tsx`) and
+disables its own animation when the viewer has asked for it. A chart always
+supplements an existing numeric/table equivalent; it is never the only place a
+value appears.
+
 ## Typography, spacing and interaction patterns
 
 Retain the existing font stack; do not introduce a font download or large icon

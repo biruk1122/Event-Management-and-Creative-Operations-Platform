@@ -30,15 +30,18 @@ describe("Report draft interactions", () => {
     await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-01");
     await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-01");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
-    expect(save).toHaveBeenCalledWith({
-      title: "Daily progress",
-      type: "DAILY",
-      periodStart: "2024-02-01",
-      periodEnd: "2024-02-01",
-      workspaceIds: [],
-      problemsEncountered: "Keep this blocker",
-      nextDayPlan: "Next steps",
-    });
+    expect(save).toHaveBeenCalledWith(
+      {
+        title: "Daily progress",
+        type: "DAILY",
+        periodStart: "2024-02-01",
+        periodEnd: "2024-02-01",
+        workspaceIds: [],
+        problemsEncountered: "Keep this blocker",
+        nextDayPlan: "Next steps",
+      },
+      [],
+    );
   });
 
   it("keeps the initiating save focused and blocks repeat submit while busy", async () => {
@@ -57,5 +60,65 @@ describe("Report draft interactions", () => {
     expect(save).not.toHaveBeenCalled();
     rerender(<ReportDraftForm {...props} />);
     expect(button).toHaveFocus();
+  });
+
+  it("includes the description field in the saved values", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn();
+    render(
+      <ReportDraftForm workspaces={[]} onCancel={vi.fn()} onSave={save} />,
+    );
+    await user.type(screen.getByLabelText("Title"), "Daily progress");
+    await user.type(
+      screen.getByLabelText("Description"),
+      "A quick summary of today.",
+    );
+    await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-01");
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "A quick summary of today.",
+      }),
+      [],
+    );
+  });
+
+  it("does not show the attachments field unless canAttach is set", () => {
+    render(
+      <ReportDraftForm workspaces={[]} onCancel={vi.fn()} onSave={vi.fn()} />,
+    );
+    expect(screen.queryByText("Attachments")).not.toBeInTheDocument();
+  });
+
+  it("collects selected files locally and passes them to onSave, with a remove option", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn();
+    render(
+      <ReportDraftForm
+        workspaces={[]}
+        canAttach
+        onCancel={vi.fn()}
+        onSave={save}
+      />,
+    );
+    await user.type(screen.getByLabelText("Title"), "Daily progress");
+    await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-01");
+
+    const file = new File(["notes"], "notes.txt", { type: "text/plain" });
+    const input = screen
+      .getByText("Attachments")
+      .closest("fieldset")!
+      .querySelector<HTMLInputElement>('input[type="file"]')!;
+    await user.upload(input, file);
+    expect(await screen.findByText("notes.txt")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(screen.queryByText("notes.txt")).not.toBeInTheDocument();
+
+    await user.upload(input, file);
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(save).toHaveBeenCalledWith(expect.anything(), [file]);
   });
 });

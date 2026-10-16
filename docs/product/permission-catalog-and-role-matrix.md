@@ -124,17 +124,22 @@ organization-scoped `event.update` holder assigns it one (EOM-01).
 
 | Key                         | Operation                                                                                               |
 | --------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `expense.create`            | Record a planned or actual expense against an event.                                                    |
+| `expense.create`            | Record a planned or actual expense against an event, a production, or both.                             |
 | `expense.read`              | View an expense, its planned/actual amounts, and review history.                                        |
 | `expense.update`            | Edit an expense while it is a draft or has been rejected.                                               |
 | `expense.submit`            | Submit a draft or rejected expense for approval.                                                        |
 | `expense.approve`           | Approve or reject a submitted expense. Sensitive; Super Admin only - never granted at department scope. |
 | `expense.attachment.create` | Attach a receipt or invoice file to an expense.                                                         |
 
-An expense belongs to the department of the event it is recorded against; its department-scope
-visibility mirrors the Events row above. `expense.approve` is deliberately never granted below
-organization scope, the same "sensitive, approval-gated" idiom `event.budget.*` already uses, so a
-Department Manager can submit expenses but never approve their own or another manager's (EOM-01).
+An expense must carry at least one of `eventId`/`productionId` (`expenses_has_owner` CHECK,
+mirroring `Task`'s `workspaceId`/`departmentId` "at least one owner" shape) and belongs to the
+department of whichever it is recorded against; its department-scope visibility mirrors the Events
+row above. A production with no linked event can still record its own expenses directly
+(`productionId` set, `eventId` left null) - this is what lets Production's own budget tracking
+(see the Productions row below) work without first requiring an event. `expense.approve` is
+deliberately never granted below organization scope, the same "sensitive, approval-gated" idiom
+`event.budget.*` already uses, so a Department Manager can submit expenses but never approve their
+own or another manager's (EOM-01).
 
 ### Suppliers
 
@@ -158,6 +163,8 @@ to that department's own grant, never to another department's (EOM-01).
 | `project.delete`             | Remove a project. Delete versus archive is open in PC-03.        |
 | `project.assign`             | Assign a manager or team to a project.                           |
 | `project.transition_status`  | Move a project through its approved lifecycle states.            |
+| `production.budget.read`     | Read a production's budget. Sensitive; see PC-04.                |
+| `production.budget.update`   | Set or change a production's budget. Sensitive; see PC-04.       |
 | `campaign.create`            | Create a marketing or promotion campaign.                        |
 | `campaign.read`              | View a campaign, including its progress.                         |
 | `campaign.update`            | Update campaign fields, including marketing strategy.            |
@@ -225,6 +232,7 @@ to that department's own grant, never to another department's (EOM-01).
 | `report.submit`                         | Submit a report for review.                               |
 | `report.read`                           | Read reports within scope.                                |
 | `report.review`                         | Move a submitted report to Reviewed or Changes Requested. |
+| `report.attachment.create`              | Attach a managed file to a report.                        |
 | `analytics.management.read`             | View management analytics. Sensitive.                     |
 | `analytics.department_performance.read` | View department performance measures. Sensitive.          |
 | `analytics.employee_performance.read`   | View employee performance measures. Sensitive.            |
@@ -289,8 +297,10 @@ whether Department Managers may also review reports is part of EVE-30 open decis
 | `department.read`, `department.manage_activities`                                                 | department |
 | `team.read`                                                                                       | department |
 | `task.create`, `task.read`, `task.assign`, `task.update`                                          | department |
-| `task.review`                                                                                     | department |
-| `project.read`, `campaign.read`                                                                   | department |
+| `task.review`, `task.attachment.create`                                                           | department |
+| `project.create`, `project.read`, `project.update`, `project.delete`, `project.assign`            | department |
+| `project.transition_status`, `production.budget.read`, `production.budget.update`                 | department |
+| `campaign.read`                                                                                   | department |
 | `event.create`, `event.read`, `event.update`, `event.delete`                                      | department |
 | `event.assign_manager`, `event.assign_teams`, `event.transition_status`                           | department |
 | `event.budget.read`, `event.budget.update`                                                        | department |
@@ -300,7 +310,7 @@ whether Department Managers may also review reports is part of EVE-30 open decis
 | `channel.create`, `channel.manage`                                                                | department |
 | `calendar.read`                                                                                   | department |
 | `report.create`, `report.submit`                                                                  | department |
-| `report.read`                                                                                     | department |
+| `report.read`, `report.attachment.create`                                                         | department |
 | `analytics.department_performance.read`                                                           | department |
 
 `department` scope is the acting user's assigned department. Multi-department and cross-department
@@ -308,6 +318,13 @@ behavior is open in [PC-01](#open-authorization-decisions). PC-04's open questio
 Department Manager may read budgets for their department's work is now resolved for events: they
 hold `event.budget.read`/`event.budget.update` at department scope (EOM-01). `expense.approve` is
 not in this row by design - see the Expenses catalog entry above.
+
+The `project.*` grants in this row are read by two different modules: the Production workspace
+(`ProductionsService`), which resolves them at department scope and is how the Production
+Department Manager manages their own productions end to end, and the general Projects module
+(`ProjectsService`), which always checks `project.*` at organization scope regardless of what is
+granted here (see its own module doc comment) - so this row gives a Department Manager full control
+over productions in their own department without ever reaching general projects.
 
 ### Team Member
 
@@ -318,7 +335,7 @@ not in this row by design - see the Expenses catalog entry above.
 | `task.submit`                                   | self  |
 | `task.comment.create`, `task.attachment.create` | self  |
 | `report.create`, `report.submit`                | self  |
-| `report.read`                                   | self  |
+| `report.read`, `report.attachment.create`       | self  |
 | `meeting.read`                                  | self  |
 
 `self` scope means records the user is assigned to, authored, or was invited to. A Team Member holds

@@ -91,7 +91,9 @@ export class ExpensesController {
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("expense.create")
-  @ApiOperation({ summary: "Record a draft expense against an event" })
+  @ApiOperation({
+    summary: "Record a draft expense against an event, a production, or both",
+  })
   @ApiCreatedResponse({ type: ExpenseResponse })
   @ApiBadRequestResponse({ type: ProblemDetails })
   @ApiNotFoundResponse({ type: ProblemDetails })

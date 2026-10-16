@@ -271,6 +271,7 @@ describe("MeetingsService", () => {
           title: "Confirm venue permits",
           workspaceId: "ws-1",
         }),
+        "request-1",
       );
       expect(repository.linkActionItem).toHaveBeenCalledWith(
         "task-1",
@@ -294,6 +295,7 @@ describe("MeetingsService", () => {
       expect(tasks.create).toHaveBeenCalledWith(
         ACTOR,
         expect.objectContaining({ departmentId: "department-9" }),
+        "request-1",
       );
     });
 

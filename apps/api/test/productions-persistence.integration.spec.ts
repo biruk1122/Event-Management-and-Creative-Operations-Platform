@@ -55,7 +55,14 @@ describe("production management persistence", () => {
       )?.kind,
     ).toBe("PRODUCTION");
     expect(
-      (await repository.list({ page: 1, pageSize: 1, search: "launch" })).total,
+      (
+        await repository.list({
+          visibility: { organization: true },
+          page: 1,
+          pageSize: 1,
+          search: "launch",
+        })
+      ).total,
     ).toBe(1);
 
     expect(await repository.delete(created.id)).toBe("deleted");

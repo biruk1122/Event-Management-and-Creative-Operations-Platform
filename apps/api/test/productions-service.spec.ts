@@ -25,6 +25,9 @@ const record = (
   deadlineAt: null,
   status: "PLANNED",
   eventId: null,
+  departmentId: null,
+  budgetAmount: null,
+  budgetCurrency: null,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-02T00:00:00.000Z"),
   createdBy: null,
@@ -46,6 +49,9 @@ describe("ProductionsService", () => {
   const repository = {
     list: vi.fn(),
     findById: vi.fn(),
+    findVisibleById: vi.fn(),
+    findUserDepartmentId: vi.fn(),
+    departmentExists: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     updateStatus: vi.fn(),
@@ -54,6 +60,8 @@ describe("ProductionsService", () => {
     delete: vi.fn(),
     eventExists: vi.fn(),
     listByEventId: vi.fn(),
+    budgetSummary: vi.fn(),
+    setBudget: vi.fn(),
   };
   const workspaces = {
     setManager: vi.fn(),
@@ -75,6 +83,9 @@ describe("ProductionsService", () => {
     vi.resetAllMocks();
     repository.list.mockResolvedValue({ items: [], total: 0 });
     repository.findById.mockResolvedValue(record());
+    repository.findVisibleById.mockResolvedValue(record());
+    repository.findUserDepartmentId.mockResolvedValue(null);
+    repository.departmentExists.mockResolvedValue(true);
     repository.create.mockResolvedValue(record());
     repository.update.mockResolvedValue(record());
     repository.updateStatus.mockResolvedValue(record({ status: "ACTIVE" }));
@@ -166,7 +177,7 @@ describe("ProductionsService", () => {
   });
 
   it("rejects a reversed patch schedule without writing", async () => {
-    repository.findById.mockResolvedValue(
+    repository.findVisibleById.mockResolvedValue(
       record({
         startAt: new Date("2026-02-02T00:00:00.000Z"),
       }),
@@ -202,7 +213,7 @@ describe("ProductionsService", () => {
     ["COMPLETED", "ACTIVE", false],
     ["CANCELLED", "PLANNED", false],
   ] as const)("transition %s to %s allowed=%s", async (from, to, allowed) => {
-    repository.findById.mockResolvedValue(record({ status: from }));
+    repository.findVisibleById.mockResolvedValue(record({ status: from }));
     if (allowed) {
       await service.transition(ACTOR, "production-1", to);
       expect(repository.updateStatus).toHaveBeenCalledWith(
@@ -278,7 +289,7 @@ describe("ProductionsService", () => {
   });
 
   it("reports a missing production before touching another module", async () => {
-    repository.findById.mockResolvedValue(null);
+    repository.findVisibleById.mockResolvedValue(null);
     await expectCode(
       service.assignTeam(ACTOR, "missing", "team-1"),
       "PRODUCTION_NOT_FOUND",

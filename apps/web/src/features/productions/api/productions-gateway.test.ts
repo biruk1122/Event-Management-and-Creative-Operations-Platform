@@ -32,6 +32,7 @@ const values = {
   startAt: "2026-10-01",
   endAt: "",
   deadlineAt: "2026-10-20",
+  departmentId: "",
 };
 
 beforeEach(() => vi.resetAllMocks());

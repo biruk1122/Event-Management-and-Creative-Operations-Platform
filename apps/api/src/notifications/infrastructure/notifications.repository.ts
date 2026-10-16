@@ -355,7 +355,7 @@ export class NotificationsRepository {
   }
 
   async getExpense(expenseId: string): Promise<{
-    eventId: string;
+    eventId: string | null;
     description: string;
     createdById: string | null;
   } | null> {

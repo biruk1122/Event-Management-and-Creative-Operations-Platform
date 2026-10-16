@@ -33,8 +33,23 @@ export class ExpenseResponse {
   @ApiProperty({ format: "uuid" })
   id!: string;
 
-  @ApiProperty({ format: "uuid" })
-  eventId!: string;
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description:
+      "Null when this expense is recorded directly against a production (productionId set instead).",
+  })
+  eventId!: string | null;
+
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description:
+      "Null when this expense is recorded against an event rather than directly against a production.",
+  })
+  productionId!: string | null;
 
   @ApiProperty({ format: "uuid" })
   departmentId!: string;

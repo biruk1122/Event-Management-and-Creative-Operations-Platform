@@ -55,6 +55,7 @@ export interface ListReportsInput {
 export interface ReportWrite {
   type: ReportType;
   title: string;
+  description: string | null;
   periodStart: Date;
   periodEnd: Date;
   departmentId: string | null;
@@ -101,6 +102,72 @@ export class ReportsRepository {
     return this.db.report.findUnique({ where: { id }, include });
   }
 
+  /** `SELECT ... FOR UPDATE` + a re-check against the current visibility,
+   * inside the caller's open transaction - the same concurrency-safe
+   * attachment-finalization lock `expenses.repository.ts` uses, so a
+   * finalize can never race a concurrent department reassignment past the
+   * caller's earlier authorization check. */
+  async lockAttachmentAccess(
+    tx: Prisma.TransactionClient,
+    reportId: string,
+    visibility: ReportVisibility,
+  ): Promise<"visible" | "forbidden" | "not_found"> {
+    if (!UUID.test(reportId)) return "not_found";
+    const locked = await tx.$queryRaw<Array<{ id: string }>>(
+      Prisma.sql`SELECT id FROM reports WHERE id = ${reportId}::uuid FOR UPDATE`,
+    );
+    if (locked.length !== 1) return "not_found";
+    const visible = await tx.report.count({
+      where: { AND: [{ id: reportId }, visibilityWhere(visibility)] },
+    });
+    return visible === 1 ? "visible" : "forbidden";
+  }
+
+  async createAttachment(
+    tx: Prisma.TransactionClient,
+    input: { reportId: string; fileId: string; attachedById: string },
+  ): Promise<void> {
+    await tx.reportAttachment.create({
+      data: {
+        attachedById: input.attachedById,
+        managedFileId: input.fileId,
+        reportId: input.reportId,
+      },
+    });
+  }
+
+  async hasAttachment(reportId: string, fileId: string): Promise<boolean> {
+    if (!UUID.test(reportId) || !UUID.test(fileId)) return false;
+    return (
+      (await this.db.reportAttachment.count({
+        where: { reportId, managedFileId: fileId },
+      })) === 1
+    );
+  }
+
+  async listAttachmentFileIds(
+    reportId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ fileIds: string[]; total: number }> {
+    if (!UUID.test(reportId)) return { fileIds: [], total: 0 };
+    const where: Prisma.ReportAttachmentWhereInput = { reportId };
+    const [attachments, total] = await Promise.all([
+      this.db.reportAttachment.findMany({
+        where,
+        select: { managedFileId: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.reportAttachment.count({ where }),
+    ]);
+    return {
+      fileIds: attachments.map(({ managedFileId }) => managedFileId),
+      total,
+    };
+  }
+
   async list(
     input: ListReportsInput,
   ): Promise<{ items: ReportRecord[]; total: number }> {
@@ -142,6 +209,7 @@ export class ReportsRepository {
           authorId,
           type: data.type,
           title: data.title,
+          description: data.description,
           periodStart: data.periodStart,
           periodEnd: data.periodEnd,
           departmentId: data.departmentId,
@@ -178,6 +246,7 @@ export class ReportsRepository {
           data: {
             type: data.type,
             title: data.title,
+            description: data.description,
             periodStart: data.periodStart,
             periodEnd: data.periodEnd,
             departmentId: data.departmentId,

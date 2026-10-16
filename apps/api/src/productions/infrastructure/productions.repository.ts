@@ -24,6 +24,9 @@ const SELECT = {
   deadlineAt: true,
   status: true,
   eventId: true,
+  departmentId: true,
+  budgetAmount: true,
+  budgetCurrency: true,
   createdAt: true,
   updatedAt: true,
   createdBy: { select: PERSON },
@@ -53,6 +56,24 @@ export interface ProductionFields {
   deadlineAt?: Date | null;
   eventId?: string | null;
 }
+export interface ProductionVisibility {
+  organization: boolean;
+  departmentId?: string;
+}
+export interface ProductionBudgetSummary {
+  plannedAmount: string | null;
+  currency: string | null;
+  actualApproved: string;
+  actualPending: string;
+  linkedEventId: string | null;
+}
+function visibleWhere(
+  visibility: ProductionVisibility,
+): Prisma.ProductionWhereInput {
+  if (visibility.organization) return {};
+  if (visibility.departmentId) return { departmentId: visibility.departmentId };
+  return { id: { in: [] } };
+}
 function toRecord(raw: Raw) {
   return {
     id: raw.id,
@@ -65,6 +86,10 @@ function toRecord(raw: Raw) {
     deadlineAt: raw.deadlineAt,
     status: raw.status,
     eventId: raw.eventId,
+    departmentId: raw.departmentId,
+    budgetAmount:
+      raw.budgetAmount === null ? null : raw.budgetAmount.toFixed(2),
+    budgetCurrency: raw.budgetCurrency,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
     createdBy: raw.createdBy,
@@ -93,6 +118,18 @@ export class ProductionsRepository {
     if (!UUID.test(id)) return false;
     return (await this.db.event.count({ where: { id } })) === 1;
   }
+  async departmentExists(id: string): Promise<boolean> {
+    if (!UUID.test(id)) return false;
+    return (await this.db.department.count({ where: { id } })) === 1;
+  }
+  async findUserDepartmentId(userId: string): Promise<string | null> {
+    if (!UUID.test(userId)) return null;
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: { departmentId: true },
+    });
+    return user?.departmentId ?? null;
+  }
   /** Narrow, read-only cross-department coordination (EOM-01): the
    * productions soft-linked to one event, for an event the caller can
    * already read. No pagination - this is a small supporting list, not the
@@ -107,16 +144,24 @@ export class ProductionsRepository {
     return items.map(toRecord);
   }
   async list(input: {
+    visibility: ProductionVisibility;
     page: number;
     pageSize: number;
     status?: ProductionStatus;
     search?: string;
+    departmentId?: string;
   }) {
     const where: Prisma.ProductionWhereInput = {
-      ...(input.status ? { status: input.status } : {}),
-      ...(input.search
-        ? { name: { contains: input.search, mode: "insensitive" } }
-        : {}),
+      AND: [
+        visibleWhere(input.visibility),
+        {
+          ...(input.status ? { status: input.status } : {}),
+          ...(input.departmentId ? { departmentId: input.departmentId } : {}),
+          ...(input.search
+            ? { name: { contains: input.search, mode: "insensitive" } }
+            : {}),
+        },
+      ],
     };
     const [items, total] = await Promise.all([
       this.db.production.findMany({
@@ -138,6 +183,80 @@ export class ProductionsRepository {
     });
     return raw ? toRecord(raw) : null;
   }
+  async findVisibleById(
+    id: string,
+    visibility: ProductionVisibility,
+  ): Promise<ProductionRecord | null> {
+    if (!UUID.test(id)) return null;
+    const raw = await this.db.production.findFirst({
+      where: { AND: [{ id }, visibleWhere(visibility)] },
+      select: SELECT,
+    });
+    return raw ? toRecord(raw) : null;
+  }
+  /**
+   * Planned-vs-actual for one production, mirroring
+   * `events.repository.ts#budgetSummary`'s separate-approved/pending shape:
+   * actual/pending are summed from every `Expense` row that is either
+   * linked directly to this production (`productionId`) or to its linked
+   * event (`eventId`), so a production with no linked event can still
+   * record and see its own spend, and a production with both a direct
+   * expense and a linked event's expenses sees the combined total without
+   * double-counting (an expense can only ever match one side of the OR - it
+   * carries at most one of `eventId`/`productionId` set to this
+   * production's own ids). `linkedEventId` is `null` when the production has
+   * no linked event; that no longer makes budget tracking unavailable, it
+   * only means the summary cannot also roll up that event's own expenses.
+   */
+  async budgetSummary(id: string): Promise<ProductionBudgetSummary | null> {
+    if (!UUID.test(id)) return null;
+    const production = await this.db.production.findUnique({
+      where: { id },
+      select: { budgetAmount: true, budgetCurrency: true, eventId: true },
+    });
+    if (!production) return null;
+    const or: Prisma.ExpenseWhereInput[] = [{ productionId: id }];
+    if (production.eventId) or.push({ eventId: production.eventId });
+    const sums = await this.db.expense.groupBy({
+      by: ["status"],
+      where: { OR: or, status: { in: ["APPROVED", "SUBMITTED"] } },
+      _sum: { actualAmount: true },
+    });
+    const approved = sums.find((row) => row.status === "APPROVED");
+    const pending = sums.find((row) => row.status === "SUBMITTED");
+    return {
+      plannedAmount:
+        production.budgetAmount === null
+          ? null
+          : production.budgetAmount.toFixed(2),
+      currency:
+        production.budgetCurrency === null
+          ? null
+          : production.budgetCurrency.trim(),
+      actualApproved: approved?._sum.actualAmount?.toFixed(2) ?? "0.00",
+      actualPending: pending?._sum.actualAmount?.toFixed(2) ?? "0.00",
+      linkedEventId: production.eventId,
+    };
+  }
+  async setBudget(
+    id: string,
+    amount: string | null,
+    currency: string | null,
+  ): Promise<ProductionRecord | "not_found"> {
+    if (!UUID.test(id)) return "not_found";
+    try {
+      return toRecord(
+        await this.db.production.update({
+          where: { id },
+          data: { budgetAmount: amount, budgetCurrency: currency },
+          select: SELECT,
+        }),
+      );
+    } catch (error) {
+      if (prismaError(error, "P2025")) return "not_found";
+      throw error;
+    }
+  }
   async create(input: {
     name: string;
     productionType: string;
@@ -147,6 +266,7 @@ export class ProductionsRepository {
     deadlineAt?: Date;
     managerId?: string;
     eventId?: string;
+    departmentId?: string;
     createdById: string;
   }): Promise<ProductionRecord | "manager_not_found"> {
     try {
@@ -171,6 +291,7 @@ export class ProductionsRepository {
             ...(input.endAt ? { endAt: input.endAt } : {}),
             ...(input.deadlineAt ? { deadlineAt: input.deadlineAt } : {}),
             ...(input.eventId ? { eventId: input.eventId } : {}),
+            ...(input.departmentId ? { departmentId: input.departmentId } : {}),
           },
           select: SELECT,
         });

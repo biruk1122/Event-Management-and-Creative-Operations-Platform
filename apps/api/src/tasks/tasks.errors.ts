@@ -11,6 +11,7 @@ export const TASK_ERROR = {
   workspaceNotFound: "TASK_WORKSPACE_NOT_FOUND",
   departmentNotFound: "TASK_DEPARTMENT_NOT_FOUND",
   userNotFound: "TASK_USER_NOT_FOUND",
+  assigneeOutsideDepartment: "TASK_ASSIGNEE_OUTSIDE_DEPARTMENT",
   assigneeNotAssigned: "TASK_ASSIGNEE_NOT_ASSIGNED",
   invalidTransition: "TASK_INVALID_TRANSITION",
   reviewStateConflict: "TASK_REVIEW_STATE_CONFLICT",
@@ -55,6 +56,14 @@ export function taskUserNotFound(): HttpException {
     code: TASK_ERROR.userNotFound,
     error: "Not Found",
     detail: "No user exists with that id.",
+  });
+}
+
+export function taskAssigneeOutsideDepartment(): HttpException {
+  return new BadRequestException({
+    code: TASK_ERROR.assigneeOutsideDepartment,
+    error: "Bad Request",
+    detail: "That user does not belong to this task's department.",
   });
 }
 

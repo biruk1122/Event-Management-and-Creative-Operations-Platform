@@ -46,3 +46,13 @@ export function CardDescription({ className, ...props }: ComponentProps<"p">) {
     />
   );
 }
+
+export function CardContent({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("space-y-3", className)}
+      {...props}
+    />
+  );
+}

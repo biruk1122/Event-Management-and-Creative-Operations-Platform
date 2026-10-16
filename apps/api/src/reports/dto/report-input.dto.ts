@@ -39,6 +39,17 @@ export class CreateReportDto {
   periodEnd!: string;
 
   @ApiPropertyOptional({
+    maxLength: 5000,
+    description:
+      "A free-text summary of the report, independent of its type-specific sections below.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  @Matches(NONBLANK)
+  description?: string;
+
+  @ApiPropertyOptional({
     format: "uuid",
     description:
       "Defaults to the caller's department; organization-scoped creators may choose another.",

@@ -18,11 +18,12 @@ export default async function ProductionProjectsPage() {
   if (!data) throw new Error("We could not check your permissions. Try again.");
   const allowed = data.grants.some(
     (grant) =>
-      grant.permissionKey === "project.read" && grant.scope === "ORGANIZATION",
+      grant.permissionKey === "project.read" &&
+      (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
   );
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+    <main className="@container mx-auto max-w-352 px-5 py-8 sm:px-8">
       <nav aria-label="Breadcrumb" className="text-sm">
         <Link href="/projects" className="underline underline-offset-4">
           Projects

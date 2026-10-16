@@ -92,11 +92,12 @@ describe("dashboard presentation", () => {
           )}
         />,
       );
-      expect(screen.getAllByRole("article")).toHaveLength(catalog.length);
+      expect(document.querySelectorAll('[data-slot="card"]')).toHaveLength(
+        catalog.length,
+      );
       for (const card of catalog) {
-        const article = screen.getByRole("article", {
-          name: card.title,
-        });
+        const heading = screen.getByRole("heading", { name: card.title });
+        const article = heading.closest('[data-slot="card"]') as HTMLElement;
         if (card.group !== "Analytics")
           expect(within(article).getByText("17")).toBeVisible();
         expect(within(article).getByText(/Scope:/)).toHaveTextContent(
@@ -135,19 +136,19 @@ describe("dashboard presentation", () => {
       screen.queryByRole("link", { name: "Analytics" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("article", { name: "Active channels" }),
+      screen.getByRole("heading", { name: "Active channels" }),
     ).toBeVisible();
     expect(
       screen.queryByRole("link", { name: "Open active channels workspace" }),
     ).not.toBeInTheDocument();
   });
   it("contains every approved management and employee card", () => {
-    expect(managementCards).toHaveLength(27);
+    expect(managementCards).toHaveLength(24);
     expect(employeeCards).toHaveLength(7);
     expect(
       new Set([...managementCards, ...employeeCards].map((card) => card.key))
         .size,
-    ).toBe(34);
+    ).toBe(31);
   });
   it("requires entry and source scopes, not role names", () => {
     expect(
@@ -420,36 +421,6 @@ describe("dashboard presentation", () => {
     expect(button).toHaveFocus();
     await user.keyboard("{Enter}");
     expect(refresh).toHaveBeenCalledTimes(2);
-  });
-  it("uses an accessible meter and textual alternative, not an unlabeled chart", () => {
-    render(
-      <DashboardWorkspace
-        access={management}
-        audience="management"
-        panels={{
-          taskCompletionRate: {
-            state: "ready",
-            data: {
-              asOf: "2026-10-07T12:00:00Z",
-              from: "2026-10-01T00:00:00Z",
-              freshness: "live-current-state",
-              toExclusive: "2026-11-01T00:00:00Z",
-              counts: {
-                total: 4,
-                completed: 2,
-                pending: 2,
-                overdue: 1,
-                percent: 50,
-              },
-            },
-          },
-        }}
-      />,
-    );
-    expect(
-      screen.getByRole("meter", { name: "Completion percentage" }),
-    ).toHaveAttribute("value", "50");
-    expect(screen.getByText(/2 of 4/)).toBeInTheDocument();
   });
   it("provides a keyboard-scrollable analytics table with headings", () => {
     render(

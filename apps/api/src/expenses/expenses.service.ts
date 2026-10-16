@@ -16,6 +16,9 @@ import {
   expenseEventNotFound,
   expenseInvalidTransition,
   expenseNotFound,
+  expenseOwnerRequired,
+  expenseProductionHasNoDepartment,
+  expenseProductionNotFound,
   expenseSupplierNotFound,
 } from "./expenses.errors.js";
 import { canEdit } from "./expenses.policy.js";
@@ -30,6 +33,7 @@ function toResponse(expense: ExpenseRecord): ExpenseResponse {
   return {
     id: expense.id,
     eventId: expense.eventId,
+    productionId: expense.productionId,
     departmentId: expense.departmentId,
     supplierId: expense.supplierId,
     category: expense.category,
@@ -122,6 +126,7 @@ export class ExpensesService {
     const result = await this.repo.list({
       visibility,
       ...(query.eventId ? { eventId: query.eventId } : {}),
+      ...(query.productionId ? { productionId: query.productionId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.departmentId ? { departmentId: query.departmentId } : {}),
@@ -145,23 +150,35 @@ export class ExpensesService {
     userId: string,
     dto: CreateExpenseDto,
   ): Promise<ExpenseResponse> {
-    const event = await this.repo.findEventContext(dto.eventId);
-    if (!event) throw expenseEventNotFound();
-    if (!event.departmentId) throw expenseEventHasNoDepartment();
+    if (!dto.eventId && !dto.productionId) throw expenseOwnerRequired();
+    const event = dto.eventId
+      ? await this.repo.findEventContext(dto.eventId)
+      : null;
+    if (dto.eventId && !event) throw expenseEventNotFound();
+    if (event && !event.departmentId) throw expenseEventHasNoDepartment();
+    const production = dto.productionId
+      ? await this.repo.findProductionContext(dto.productionId)
+      : null;
+    if (dto.productionId && !production) throw expenseProductionNotFound();
+    if (production && !production.departmentId)
+      throw expenseProductionHasNoDepartment();
+    // When both are given, the event's department is the one of record
+    // (matches `findEventContext`'s pre-existing precedence); otherwise
+    // whichever side was provided decides it.
+    const departmentId = event?.departmentId ?? production?.departmentId;
+    if (!departmentId) throw expenseEventHasNoDepartment();
     const visibility = await this.visibility(userId, "expense.create");
     if (
       !visibility.organization &&
-      !(
-        visibility.departmentId &&
-        visibility.departmentId === event.departmentId
-      )
+      !(visibility.departmentId && visibility.departmentId === departmentId)
     )
       throw permissionDenied();
     if (dto.supplierId && !(await this.repo.supplierExists(dto.supplierId)))
       throw expenseSupplierNotFound();
     return toResponse(
-      await this.repo.create(event.departmentId, {
-        eventId: dto.eventId,
+      await this.repo.create(departmentId, {
+        ...(dto.eventId ? { eventId: dto.eventId } : {}),
+        ...(dto.productionId ? { productionId: dto.productionId } : {}),
         ...(dto.supplierId ? { supplierId: dto.supplierId } : {}),
         category: dto.category,
         description: dto.description.trim(),

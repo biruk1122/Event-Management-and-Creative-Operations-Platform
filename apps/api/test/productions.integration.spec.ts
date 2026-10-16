@@ -16,6 +16,7 @@ const RESPONSE_KEYS = [
   "createdAt",
   "createdBy",
   "deadlineAt",
+  "departmentId",
   "description",
   "endAt",
   "eventId",
@@ -47,6 +48,7 @@ interface ProductionBody {
   deadlineAt: string | null;
   status: string;
   eventId: string | null;
+  departmentId: string | null;
   manager: { id: string } | null;
   teams: { id: string; name: string }[];
   participants: { id: string }[];
@@ -86,8 +88,11 @@ describe("production management API", () => {
   let http: ReturnType<NestExpressApplication["getHttpServer"]>;
   let admin: Principal;
   let plain: Principal;
+  let manager: Principal;
+  let otherManager: Principal;
   let adminId: string;
   let departmentId: string;
+  let otherDepartmentId: string;
   let sequence = 0;
 
   beforeAll(async () => {
@@ -139,9 +144,35 @@ describe("production management API", () => {
         credential: { create: { passwordHash: hash } },
       },
     });
+    // `Production` and `Marketing` are two of the platform's fixed, supported
+    // department names (`PLATFORM_DEPARTMENTS`); a department manager's
+    // grants are otherwise constrained to profile-only (see
+    // `department-access.policy.ts#constrainDepartmentGrants`).
     departmentId = (
-      await prisma.department.create({ data: { name: "Production QA" } })
+      await prisma.department.create({ data: { name: "Production" } })
     ).id;
+    otherDepartmentId = (
+      await prisma.department.create({ data: { name: "Marketing" } })
+    ).id;
+    const managerRole = await prisma.role.findUniqueOrThrow({
+      where: { name: "Department Manager" },
+    });
+    await prisma.user.create({
+      data: {
+        email: "manager@productions.test",
+        departmentId,
+        credential: { create: { passwordHash: hash } },
+        roleAssignment: { create: { roleId: managerRole.id } },
+      },
+    });
+    await prisma.user.create({
+      data: {
+        email: "other-manager@productions.test",
+        departmentId: otherDepartmentId,
+        credential: { create: { passwordHash: hash } },
+        roleAssignment: { create: { roleId: managerRole.id } },
+      },
+    });
     const module = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -161,6 +192,8 @@ describe("production management API", () => {
     }
     admin = await login("admin@productions.test");
     plain = await login("plain@productions.test");
+    manager = await login("manager@productions.test");
+    otherManager = await login("other-manager@productions.test");
   });
 
   afterAll(async () => {
@@ -508,5 +541,259 @@ describe("production management API", () => {
       await prisma.workspace.findUnique({ where: { id: created.workspaceId } }),
     ).not.toBeNull();
     await prisma.task.delete({ where: { id: task.id } });
+  });
+
+  it("scopes a Department Manager's productions to their own department", async () => {
+    const own = await as(manager, "post", "/api/v1/productions").send({
+      name: `Manager production ${++sequence}`,
+      productionType: "Video",
+    });
+    expect(own.status).toBe(201);
+    const ownProduction = body<ProductionBody & { departmentId: string }>(own);
+    expect(ownProduction.departmentId).toBe(departmentId);
+
+    // Visible to its own manager and to Super Admin, invisible to a
+    // different department's manager.
+    expect(
+      (await as(manager, "get", `/api/v1/productions/${ownProduction.id}`))
+        .status,
+    ).toBe(200);
+    expect(
+      (await as(admin, "get", `/api/v1/productions/${ownProduction.id}`))
+        .status,
+    ).toBe(200);
+    const deniedGet = await as(
+      otherManager,
+      "get",
+      `/api/v1/productions/${ownProduction.id}`,
+    );
+    expect(deniedGet.status).toBe(403);
+    expect(body<ProblemBody>(deniedGet).code).toBe("PERMISSION_DENIED");
+
+    // A cross-department create attempt is rejected server-side, never
+    // trusting the client-supplied departmentId.
+    const crossDepartment = await as(
+      manager,
+      "post",
+      "/api/v1/productions",
+    ).send({
+      name: "Cross-department attempt",
+      productionType: "Video",
+      departmentId: otherDepartmentId,
+    });
+    expect(crossDepartment.status).toBe(403);
+
+    // The department manager's own list only contains their department's
+    // productions.
+    const list = await as(manager, "get", "/api/v1/productions?pageSize=100");
+    expect(list.status).toBe(200);
+    const ids = body<{ items: Array<{ id: string }> }>(list).items.map(
+      (item) => item.id,
+    );
+    expect(ids).toContain(ownProduction.id);
+
+    const otherList = await as(
+      otherManager,
+      "get",
+      "/api/v1/productions?pageSize=100",
+    );
+    expect(
+      body<{ items: Array<{ id: string }> }>(otherList).items.map(
+        (item) => item.id,
+      ),
+    ).not.toContain(ownProduction.id);
+  });
+
+  it("gates the production budget behind its own sensitive keys and department scope", async () => {
+    const created = await create();
+    const ownProduction = await as(manager, "post", "/api/v1/productions").send(
+      { name: `Budget production ${++sequence}`, productionType: "Video" },
+    );
+    expect(ownProduction.status).toBe(201);
+    const productionId = body<ProductionBody>(ownProduction).id;
+
+    const set = await as(
+      manager,
+      "put",
+      `/api/v1/productions/${productionId}/budget`,
+    ).send({ amount: 5000, currency: "USD" });
+    expect(set.status).toBe(200);
+    expect(body<{ amount: string; currency: string }>(set)).toEqual({
+      amount: "5000.00",
+      currency: "USD",
+    });
+
+    const read = await as(
+      manager,
+      "get",
+      `/api/v1/productions/${productionId}/budget`,
+    );
+    expect(body<{ amount: string }>(read).amount).toBe("5000.00");
+
+    const summary = await as(
+      admin,
+      "get",
+      `/api/v1/productions/${productionId}/budget-summary`,
+    );
+    expect(summary.status).toBe(200);
+    expect(body<{ linkedEventId: string | null }>(summary)).toMatchObject({
+      plannedAmount: "5000.00",
+      currency: "USD",
+      actualApproved: "0.00",
+      actualPending: "0.00",
+      linkedEventId: null,
+    });
+
+    // Another department's manager cannot read or change this budget, even
+    // though it is a different, sensitive permission key.
+    const denied = await as(
+      otherManager,
+      "get",
+      `/api/v1/productions/${productionId}/budget`,
+    );
+    expect(denied.status).toBe(403);
+
+    // The admin-created production (no department) stays organization-only.
+    const adminBudget = await as(
+      manager,
+      "get",
+      `/api/v1/productions/${created.id}/budget`,
+    );
+    expect(adminBudget.status).toBe(403);
+  });
+
+  it("tracks approved and pending spend recorded directly against a production with no linked event", async () => {
+    const ownProduction = await as(manager, "post", "/api/v1/productions").send(
+      {
+        name: `Direct expense production ${++sequence}`,
+        productionType: "Video",
+      },
+    );
+    expect(ownProduction.status).toBe(201);
+    const productionId = body<ProductionBody>(ownProduction).id;
+    expect(body<ProductionBody>(ownProduction).eventId).toBeNull();
+
+    await as(manager, "put", `/api/v1/productions/${productionId}/budget`).send(
+      { amount: 2000, currency: "USD" },
+    );
+
+    const approvedExpense = await as(manager, "post", "/api/v1/expenses").send({
+      productionId,
+      category: "VENUE",
+      description: "Rehearsal space",
+      actualAmount: 500,
+      currency: "USD",
+    });
+    expect(approvedExpense.status).toBe(201);
+    const approvedId = body<{ id: string; eventId: string | null }>(
+      approvedExpense,
+    ).id;
+    expect(
+      body<{ eventId: string | null }>(approvedExpense).eventId,
+    ).toBeNull();
+    await as(manager, "post", `/api/v1/expenses/${approvedId}/submit`);
+    const approved = await as(
+      admin,
+      "post",
+      `/api/v1/expenses/${approvedId}/reviews`,
+    ).send({ outcome: "APPROVED" });
+    expect(approved.status).toBe(200);
+
+    const pendingExpense = await as(manager, "post", "/api/v1/expenses").send({
+      productionId,
+      category: "LOGISTICS",
+      description: "Equipment transport",
+      actualAmount: 150,
+      currency: "USD",
+    });
+    expect(pendingExpense.status).toBe(201);
+    await as(
+      manager,
+      "post",
+      `/api/v1/expenses/${body<{ id: string }>(pendingExpense).id}/submit`,
+    );
+
+    const summary = await as(
+      admin,
+      "get",
+      `/api/v1/productions/${productionId}/budget-summary`,
+    );
+    expect(summary.status).toBe(200);
+    expect(
+      body<{
+        plannedAmount: string;
+        actualApproved: string;
+        actualPending: string;
+        linkedEventId: string | null;
+      }>(summary),
+    ).toMatchObject({
+      plannedAmount: "2000.00",
+      actualApproved: "500.00",
+      actualPending: "150.00",
+      linkedEventId: null,
+    });
+  });
+
+  it("manages production locations scoped to the parent production's authorization", async () => {
+    const ownProduction = await as(manager, "post", "/api/v1/productions").send(
+      { name: `Location production ${++sequence}`, productionType: "Video" },
+    );
+    expect(ownProduction.status).toBe(201);
+    const productionId = body<ProductionBody>(ownProduction).id;
+
+    const created = await as(
+      manager,
+      "post",
+      `/api/v1/productions/${productionId}/locations`,
+    ).send({ name: "Riverside Studio", address: "1 River Rd" });
+    expect(created.status).toBe(201);
+    const location = body<{ id: string; status: string }>(created);
+    expect(location.status).toBe("PENDING");
+
+    const updated = await as(
+      manager,
+      "patch",
+      `/api/v1/productions/${productionId}/locations/${location.id}`,
+    ).send({ status: "CONFIRMED" });
+    expect(updated.status).toBe(200);
+    expect(body<{ status: string }>(updated).status).toBe("CONFIRMED");
+
+    const list = await as(
+      manager,
+      "get",
+      `/api/v1/productions/${productionId}/locations`,
+    );
+    expect(body<{ items: unknown[] }>(list).items).toHaveLength(1);
+
+    // A different department's manager cannot reach this production's
+    // locations at all - authorization flows through the parent production.
+    const deniedList = await as(
+      otherManager,
+      "get",
+      `/api/v1/productions/${productionId}/locations`,
+    );
+    expect(deniedList.status).toBe(403);
+    const deniedCreate = await as(
+      otherManager,
+      "post",
+      `/api/v1/productions/${productionId}/locations`,
+    ).send({ name: "Intruder location" });
+    expect(deniedCreate.status).toBe(403);
+
+    const deleted = await as(
+      manager,
+      "delete",
+      `/api/v1/productions/${productionId}/locations/${location.id}`,
+    );
+    expect(deleted.status).toBe(204);
+    expect(
+      body<{ items: unknown[] }>(
+        await as(
+          manager,
+          "get",
+          `/api/v1/productions/${productionId}/locations`,
+        ),
+      ).items,
+    ).toHaveLength(0);
   });
 });

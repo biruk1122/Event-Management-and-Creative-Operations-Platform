@@ -29,6 +29,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { BrandLogo } from "@/components/branding/brand-logo";
+import { BrandMark } from "@/components/branding/brand-mark";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -247,9 +248,11 @@ function ShellFrame({
       </a>
       <aside className="shell-sidebar">
         <div className="shell-brand">
-          <BrandLogo compact className="shell-rail-logo" />
-          <BrandLogo compact={collapsed} className="shell-logo" />
-          <p className="shell-brand-caption">Creative management</p>
+          <BrandMark className="shell-brand-mark" />
+          <div className="shell-brand-text">
+            <p className="shell-brand-wordmark">lela</p>
+            <p className="shell-brand-caption">Creative management</p>
+          </div>
         </div>
         <nav aria-label="Primary" className="shell-sidebar-navigation">
           {items.length ? (

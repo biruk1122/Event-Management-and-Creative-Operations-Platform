@@ -16,6 +16,7 @@ import {
   analyticsPeriod,
   seedAnalyticsFixture,
 } from "../fixtures/analytics.js";
+import { cardByTitle } from "../fixtures/dashboard.js";
 
 type Schemas = components["schemas"];
 let fixture: Awaited<ReturnType<typeof seedAnalyticsFixture>>;
@@ -77,6 +78,28 @@ async function taskCount(page: Page, name: string, value: number) {
     page.getByText(name, { exact: true }).locator("..").locator("dd"),
   ).toHaveText(String(value));
 }
+/**
+ * Task completion, department performance and monthly activity are
+ * permanently pinned panels on the Analytics page (not the dropdown below)
+ * and hold no router state - their own period/subject fields replace the
+ * old `?from=&toExclusive=&subjectId=` URL pattern `selection()` used.
+ */
+async function applyPinnedFilters(
+  panel: ReturnType<Page["locator"]>,
+  filters: { from?: string; toExclusive?: string; subjectId?: string },
+) {
+  if (filters.from !== undefined) {
+    const fromField = panel.getByLabel(
+      /Activity month start \(UTC\)|Creation period start \(UTC\)/,
+    );
+    await fromField.fill(filters.from);
+  }
+  if (filters.toExclusive !== undefined)
+    await panel.getByLabel("End (exclusive, UTC)").fill(filters.toExclusive);
+  if (filters.subjectId !== undefined)
+    await panel.getByLabel("Department ID (optional)").fill(filters.subjectId);
+  await panel.getByRole("button", { name: "Apply filters" }).click();
+}
 
 test.describe("ANA-06 management fixture journeys", () => {
   test.use({ storageState: authStatePath("manager") });
@@ -96,10 +119,12 @@ test.describe("ANA-06 management fixture journeys", () => {
       overdue: 1,
       percent: 33,
     });
-    await page.goto(selection("tasks"));
+    await page.goto("/analytics");
+    const tasksPanel = cardByTitle(page, "Task completion rate");
+    await applyPinnedFilters(tasksPanel, analyticsPeriod);
     await expect(
-      page.getByRole("figure", { name: "Task status comparison" }),
-    ).toContainText("Completed tasks — 1 tasks");
+      tasksPanel.getByRole("img", { name: "Completion: 33% (1 of 3)" }),
+    ).toBeVisible();
     for (const [name, value] of Object.entries({
       "Eligible tasks": 3,
       Completed: 1,
@@ -107,8 +132,10 @@ test.describe("ANA-06 management fixture journeys", () => {
       Overdue: 1,
     }))
       await taskCount(page, name, value);
-    await expect(page.getByText("33%", { exact: false }).first()).toBeVisible();
-    await expect(page.locator("time")).toHaveAttribute("datetime", /T.*Z$/);
+    await expect(tasksPanel.locator("time").first()).toHaveAttribute(
+      "datetime",
+      /T.*Z$/,
+    );
     await expectNoWcag22AaViolations(page, "ANA-06 task cohort");
 
     const department = await metric<"WorkAnalyticsPageResponse">(
@@ -126,12 +153,16 @@ test.describe("ANA-06 management fixture journeys", () => {
         percent: 50,
       },
     ]);
-    await page.goto(selection("departments", fixture.departmentA));
+    const departmentsPanel = cardByTitle(page, "Department performance");
+    await applyPinnedFilters(departmentsPanel, {
+      ...analyticsPeriod,
+      subjectId: fixture.departmentA,
+    });
     await expect(
-      page.getByRole("figure", { name: "Department performance comparison" }),
-    ).toContainText(
-      `Subject: ${fixture.departmentA} — 50% (1 / 2 completed / eligible)`,
-    );
+      departmentsPanel.getByRole("img", {
+        name: "Department performance comparison",
+      }),
+    ).toBeVisible();
     await workRow(page, fixture.departmentA, 1, 2, "50%", 1, 1);
     await expectNoWcag22AaViolations(page, "ANA-06 department cohort");
 
@@ -248,10 +279,18 @@ test.describe("ANA-06 management fixture journeys", () => {
         tasksCompleted: 2,
       },
     ]);
-    await page.goto(selection("monthly"));
-    await expect(page.getByRole("figure")).toHaveCount(6);
+    const monthlyPanel = cardByTitle(page, "Monthly activity");
+    await applyPinnedFilters(monthlyPanel, analyticsPeriod);
+    await expect(monthlyPanel.getByRole("figure")).toHaveCount(6);
+    // The accessible name lives on the role="img" wrapper, but the exact
+    // per-point text ("month: value") is its sibling sr-only description
+    // inside the same <figure> - Recharts' own rendered SVG ticks (axis
+    // labels, not data-point text) are the only text inside the img div
+    // itself.
     await expect(
-      page.getByRole("img", { name: "Tasks created: count by UTC month" }),
+      monthlyPanel
+        .getByRole("img", { name: "Tasks created: count by UTC month" })
+        .locator(".."),
     ).toContainText("2001-09: 4");
     await expect(
       page
@@ -279,7 +318,12 @@ test.describe("ANA-06 management fixture journeys", () => {
       overdue: 0,
       percent: null,
     });
-    await page.goto(selection("departments", fixture.emptyDepartment));
+    await page.goto("/analytics");
+    const departmentsPanel = cardByTitle(page, "Department performance");
+    await applyPinnedFilters(departmentsPanel, {
+      ...analyticsPeriod,
+      subjectId: fixture.emptyDepartment,
+    });
     await workRow(
       page,
       fixture.emptyDepartment,
@@ -289,11 +333,11 @@ test.describe("ANA-06 management fixture journeys", () => {
       0,
       0,
     );
-    await page.goto(selection("departments", randomUUID()));
+    await applyPinnedFilters(departmentsPanel, { subjectId: randomUUID() });
     await expect(
-      page.getByText(/No matching data in your permitted scope/),
+      departmentsPanel.getByText(/No matching data in your permitted scope/),
     ).toBeVisible();
-    await expect(page.getByRole("table")).toHaveCount(0);
+    await expect(departmentsPanel.getByRole("table")).toHaveCount(0);
     const zero = await metric<"ProgressAnalyticsPageResponse">(page, "events", {
       eventId: fixture.emptyEvent,
     });
@@ -314,23 +358,22 @@ test.describe("ANA-06 management fixture journeys", () => {
       overdue: 1,
       percent: 50,
     });
-    await page.goto(
-      selection("tasks", undefined, { toExclusive: "2001-10-02" }),
-    );
+    const tasksPanel = cardByTitle(page, "Task completion rate");
+    await applyPinnedFilters(tasksPanel, {
+      ...analyticsPeriod,
+      toExclusive: "2001-10-02",
+    });
     await taskCount(page, "Eligible tasks", 4);
-    await page.goto(
-      selection("monthly", undefined, {
-        from: "2000-01-01",
-        toExclusive: "2000-03-01",
-      }),
-    );
+    const monthlyPanel = cardByTitle(page, "Monthly activity");
+    await applyPinnedFilters(monthlyPanel, {
+      from: "2000-01-01",
+      toExclusive: "2000-03-01",
+    });
     for (const month of ["2000-01", "2000-02"])
       await expect(
-        page
-          .getByRole("row")
-          .filter({
-            has: page.getByRole("rowheader", { name: month, exact: true }),
-          })
+        monthlyPanel
+          .getByRole("rowheader", { name: month, exact: true })
+          .locator("..")
           .locator("td"),
       ).toHaveText(["0", "0", "0", "0", "0", "0"]);
   });
@@ -359,17 +402,14 @@ test.describe("ANA-06 management fixture journeys", () => {
         first.items.some((previous) => previous.id === row.id),
       ),
     ).toBe(false);
-    await page.goto(selection("departments"));
-    await expect(page.getByRole("rowheader")).toHaveText(
+    await page.goto("/analytics");
+    const panel = cardByTitle(page, "Department performance");
+    await applyPinnedFilters(panel, analyticsPeriod);
+    await expect(panel.getByRole("rowheader")).toHaveText(
       first.items.map((row) => row.id),
     );
-    await page.getByRole("button", { name: "Next page" }).click();
-    await expect(page).toHaveURL(/page=2/);
-    await expect(page.getByRole("rowheader")).toHaveText(
-      second.items.map((row) => row.id),
-    );
-    await page.reload();
-    await expect(page.getByRole("rowheader")).toHaveText(
+    await panel.getByRole("button", { name: "Next page" }).click();
+    await expect(panel.getByRole("rowheader")).toHaveText(
       second.items.map((row) => row.id),
     );
   });
@@ -415,15 +455,27 @@ test.describe("ANA-06 management fixture journeys", () => {
     page.on("request", (request) => {
       if (request.url().includes("/api/v1/analytics/")) requests++;
     });
-    await page.goto(selection("tasks", undefined, { from: "2001-02-30" }));
+    await page.goto("/analytics");
+    // Three pinned panels fetch concurrently on load; wait for that initial
+    // burst to finish before zeroing the counter, or it races the reset.
+    await page.waitForLoadState("networkidle");
+    requests = 0;
+    // Task completion is a pinned panel with no URL filter state - its own
+    // date field drives this client-side validation now, never a query
+    // parameter. An invalid "page" deep link has no UI equivalent to test:
+    // the pinned department panel only exposes Next/Previous page buttons,
+    // never a free-typed page number.
+    // A real native date input rejects an out-of-range calendar date
+    // (there is no 2001-02-30) outright rather than holding it as text, so
+    // a backward-but-well-formed range exercises the same client-side
+    // `filterError` guard without fighting browser date-input sanitization.
+    const tasksPanel = cardByTitle(page, "Task completion rate");
+    await tasksPanel
+      .getByLabel("End (exclusive, UTC)")
+      .fill(analyticsPeriod.from);
     await expect(
-      page.getByRole("alert").filter({ hasText: "valid UTC dates" }),
+      tasksPanel.getByRole("alert").filter({ hasText: "must be after start" }),
     ).toBeVisible();
-    expect(requests).toBe(0);
-    await page.goto(
-      selection("departments", undefined, { page: "102", pageSize: "100" }),
-    );
-    await expect(page.getByText(/Invalid page/)).toBeVisible();
     expect(requests).toBe(0);
   });
 
@@ -431,13 +483,20 @@ test.describe("ANA-06 management fixture journeys", () => {
     page,
   }) => {
     test.setTimeout(60_000);
-    await page.goto(selection("departments", fixture.departmentA));
+    await page.goto("/analytics");
+    const departmentsPanel = cardByTitle(page, "Department performance");
+    await applyPinnedFilters(departmentsPanel, {
+      ...analyticsPeriod,
+      subjectId: fixture.departmentA,
+    });
     await workRow(page, fixture.departmentA, 1, 2, "50%", 1, 1);
     const db = analyticsDatabaseUrl(),
       schema = schemaOf(db);
     assertSchemaName(schema);
     const lock = new Client({ connectionString: db });
     await lock.connect();
+    const tasksPanel = cardByTitle(page, "Task completion rate");
+    await applyPinnedFilters(tasksPanel, analyticsPeriod);
     try {
       await lock.query(`SET search_path TO "${schema}"`);
       await lock.query("BEGIN");
@@ -448,28 +507,32 @@ test.describe("ANA-06 management fixture journeys", () => {
           response.url().includes("/analytics/task-completion") &&
           response.status() === 503,
       );
-      await page.getByLabel("Analytics measure").selectOption("tasks");
+      // Task completion is pinned and always fetches on its own; forcing a
+      // fresh fetch while the table is locked is what reproduces the
+      // timeout, not a dropdown measure switch.
+      await tasksPanel.getByRole("button", { name: "Refresh measure" }).click();
       const response = await failed;
       expect(await response.json()).toMatchObject({
         code: "ANALYTICS_UNAVAILABLE",
       });
       await expect(
-        page.getByRole("alert").filter({ hasText: "temporarily unavailable" }),
+        tasksPanel
+          .getByRole("alert")
+          .filter({ hasText: "temporarily unavailable" }),
       ).toBeVisible();
+      await expect(tasksPanel.getByRole("meter")).toHaveCount(0);
       await expect(
-        page.getByText(/Successful measures remain readable/),
-      ).toBeVisible();
-      await expect(page.getByRole("meter")).toHaveCount(0);
-      await expect(
-        page.getByText("Eligible tasks", { exact: true }),
+        tasksPanel.getByText("Eligible tasks", { exact: true }),
       ).toHaveCount(0);
     } finally {
       await lock.query("ROLLBACK");
       await lock.end();
     }
-    await page.getByRole("button", { name: "Try again" }).click();
+    await tasksPanel.getByRole("button", { name: "Try again" }).click();
     await taskCount(page, "Eligible tasks", 3);
-    await expect(page.getByText(/temporarily unavailable/)).toHaveCount(0);
+    await expect(tasksPanel.getByText(/temporarily unavailable/)).toHaveCount(
+      0,
+    );
     await expectNoWcag22AaViolations(page, "ANA-06 timeout recovery");
   });
 
@@ -530,19 +593,24 @@ test.describe("ANA-06 department boundary", () => {
     page,
   }) => {
     test.setTimeout(60_000);
-    await page.goto(selection("departments"));
+    // Department performance is a permanently pinned panel for a department
+    // manager (not dropdown-selectable), and it has no URL-driven subject
+    // filter - its own "Department ID (optional)" field drives that instead.
+    await page.goto("/analytics");
+    let panel = cardByTitle(page, "Department performance");
+    await applyPinnedFilters(panel, analyticsPeriod);
     await workRow(page, fixture.departmentA, 1, 2, "50%", 1, 1);
     await expect(page.getByRole("rowheader")).toHaveCount(1);
-    await expect(page.getByRole("figure").getByRole("listitem")).toHaveCount(1);
-    await expect(page.getByRole("figure")).not.toContainText(
-      fixture.departmentB,
-    );
+    // No management grant survives without a department (see below), and
+    // department performance is excluded from the dropdown regardless - so
+    // there is nothing left to choose from and no dropdown renders at all.
+    await expect(page.getByLabel("Analytics measure")).toHaveCount(0);
+    await panel
+      .getByLabel("Department ID (optional)")
+      .fill(fixture.departmentB);
+    await panel.getByRole("button", { name: "Apply filters" }).click();
     await expect(
-      page.getByRole("option", { name: "Employee performance" }),
-    ).toHaveCount(0);
-    await page.goto(selection("departments", fixture.departmentB));
-    await expect(
-      page.getByText(/No matching data in your permitted scope/),
+      panel.getByText(/No matching data in your permitted scope/),
     ).toBeVisible();
     const denied = await page.request.get(
       endpoint("employees", {
@@ -553,7 +621,7 @@ test.describe("ANA-06 department boundary", () => {
     expect(denied.status()).toBe(403);
     await fixture.setManagerDepartment(null);
     try {
-      await page.goto(selection("departments"));
+      await page.goto("/analytics");
       await expect(
         page.getByRole("heading", {
           name: "Analytics access required",
@@ -561,24 +629,38 @@ test.describe("ANA-06 department boundary", () => {
         }),
       ).toBeVisible();
       await fixture.setManagerDepartment(fixture.departmentB);
-      await page.goto(selection("departments"));
+      await page.goto("/analytics");
+      panel = cardByTitle(page, "Department performance");
+      await applyPinnedFilters(panel, analyticsPeriod);
       await workRow(page, fixture.departmentB, 0, 1, "0%", 1, 0);
       await expect(
         page.getByRole("rowheader", { name: fixture.departmentA }),
       ).toHaveCount(0);
       // Same grants, changed department: focus recheck must not resurrect A.
-      await page.getByLabel("Subject ID (optional)").fill(fixture.departmentA);
+      await panel
+        .getByLabel("Department ID (optional)")
+        .fill(fixture.departmentA);
       await fixture.setManagerDepartment(fixture.departmentA);
       const access = page.waitForResponse((response) =>
         response.url().includes("/auth/me/permissions"),
+      );
+      // The access recheck landing is not the same moment the pinned
+      // department panel's own re-fetch (triggered reactively by its new
+      // epoch) lands - wait for that too, or the table can still show the
+      // previous department's stale response when the assertion below runs.
+      const refetched = page.waitForResponse(
+        (response) =>
+          response.url().includes("/analytics/departments") &&
+          response.status() === 200,
       );
       await page.evaluate(() => {
         window.dispatchEvent(new Event("visibilitychange"));
       });
       // Exercise the visibility event consumed by the hook; API responses stay real.
       await access;
+      await refetched;
       await workRow(page, fixture.departmentA, 1, 2, "50%", 1, 1);
-      await expect(page.getByLabel("Subject ID (optional)")).toHaveValue(
+      await expect(panel.getByLabel("Department ID (optional)")).toHaveValue(
         fixture.departmentA,
       );
       await expectNoWcag22AaViolations(page, "ANA-06 department-scoped access");
@@ -711,13 +793,25 @@ test.describe("ANA-06 responsive and network release profiles", () => {
         downloadThroughput: profile.down / 8,
         uploadThroughput: profile.up / 8,
       });
-      await page.goto(selection("tasks"));
-      await taskCount(page, "Eligible tasks", 3);
+      await page.goto("/analytics");
+      const tasksPanel = cardByTitle(page, "Task completion rate");
+      // Sanity-check real (not blank/placeholder) data without an extra
+      // interaction, which would pollute the INP sample measured below -
+      // the pinned panel's own default period need not match the fixture's
+      // fixed historical month for this performance-focused check.
+      await expect(
+        page
+          .getByText("Eligible tasks", { exact: true })
+          .locator("..")
+          .locator("dd"),
+      ).toHaveText(/^\d+$/);
       // A keyboard interaction proves refresh remains operable under the profile.
-      await page.getByRole("button", { name: "Refresh measure" }).focus();
+      await tasksPanel.getByRole("button", { name: "Refresh measure" }).focus();
       await page.keyboard.press("Enter");
       await expect(
-        page.getByText("Task completion refreshed from authoritative data."),
+        tasksPanel.getByText(
+          "Task completion rate refreshed from authoritative data.",
+        ),
       ).toBeVisible();
       const readings = await page.evaluate(
         () =>
@@ -779,7 +873,8 @@ test.describe("ANA-06 responsive and network release profiles", () => {
   }, testInfo) => {
     test.setTimeout(60_000);
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto(selection("monthly"));
+    await page.goto("/analytics");
+    const monthlyPanel = cardByTitle(page, "Monthly activity");
     for (const [width, height] of [
       [360, 800],
       [768, 1024],
@@ -793,8 +888,8 @@ test.describe("ANA-06 responsive and network release profiles", () => {
             document.documentElement.classList.toggle("dark", enabled),
           dark,
         );
-        await expect(page.getByRole("table")).toBeVisible();
-        await expect(page.getByRole("figure")).toHaveCount(6);
+        await expect(monthlyPanel.getByRole("table")).toBeVisible();
+        await expect(monthlyPanel.getByRole("figure")).toHaveCount(6);
         expect(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= window.innerWidth,

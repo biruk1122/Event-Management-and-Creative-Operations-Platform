@@ -36,6 +36,7 @@ import { RequirePermissions } from "../common/security/permissions.decorator.js"
 import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import { CreateTaskCommentDto } from "./dto/create-task-comment.dto.js";
 import { CreateTaskDto } from "./dto/create-task.dto.js";
+import { ListEligibleAssigneesQueryDto } from "./dto/list-eligible-assignees-query.dto.js";
 import { ListTaskFeedQueryDto } from "./dto/list-task-feed-query.dto.js";
 import { ListTasksQueryDto } from "./dto/list-tasks-query.dto.js";
 import { ReviewTaskDto } from "./dto/review-task.dto.js";
@@ -48,6 +49,7 @@ import {
   PaginatedTaskReviewsResponse,
   PaginatedTasksResponse,
   TaskCommentResponse,
+  TaskEligibleAssigneesResponse,
   TaskResponse,
 } from "./tasks.contracts.js";
 import { TasksService } from "./tasks.service.js";
@@ -105,7 +107,28 @@ export class TasksController {
     @Req() request: RequestWithContext,
     @Body() body: CreateTaskDto,
   ): Promise<TaskResponse> {
-    return this.tasks.create(actingUserId(request), body);
+    return this.tasks.create(actingUserId(request), body, request.id);
+  }
+
+  @Get("eligible-assignees")
+  @RequirePermissions("task.create")
+  @ApiOperation({
+    summary: "List a department's active staff eligible for task assignment",
+  })
+  @ApiOkResponse({ type: TaskEligibleAssigneesResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Department not found",
+  })
+  async listEligibleAssignees(
+    @Req() request: RequestWithContext,
+    @Query() query: ListEligibleAssigneesQueryDto,
+  ): Promise<TaskEligibleAssigneesResponse> {
+    const items = await this.tasks.listEligibleAssignees(
+      actingUserId(request),
+      query.departmentId,
+    );
+    return { items };
   }
 
   @Get(":id")

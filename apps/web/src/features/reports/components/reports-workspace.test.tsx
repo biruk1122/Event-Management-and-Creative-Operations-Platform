@@ -17,6 +17,7 @@ const report: Report = {
   periodEnd: "2024-03-03",
   authorId: "author-1",
   departmentId: "department-1",
+  description: "A quick weekly summary.",
   workspaceIds: ["workspace-1"],
   departmentActivities: "Rehearsals",
   majorAchievements: "Opening night",
@@ -224,6 +225,7 @@ describe("ReportsWorkspace", () => {
         onExport={onExport}
       />,
     );
+    expect(screen.getByText("A quick weekly summary.")).toBeVisible();
     const facts = screen.getByRole("heading", {
       name: "Work facts",
     }).parentElement!;
@@ -295,6 +297,7 @@ describe("ReportsWorkspace", () => {
         workspaceIds: ["workspace-1"],
       }),
       undefined,
+      [],
     );
   });
 

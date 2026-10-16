@@ -12,6 +12,7 @@ function makeExpense(overrides: Partial<ExpenseRecord> = {}): ExpenseRecord {
   return {
     id: "exp-1",
     eventId: "evt-1",
+    productionId: null,
     departmentId: "dept-1",
     supplierId: null,
     category: "VENUE",
@@ -48,6 +49,7 @@ describe("ExpensesService", () => {
   let repo: {
     findUserDepartmentId: ReturnType<typeof vi.fn>;
     findEventContext: ReturnType<typeof vi.fn>;
+    findProductionContext: ReturnType<typeof vi.fn>;
     supplierExists: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
     findVisibleById: ReturnType<typeof vi.fn>;
@@ -66,6 +68,9 @@ describe("ExpensesService", () => {
     repo = {
       findUserDepartmentId: vi.fn().mockResolvedValue(null),
       findEventContext: vi.fn().mockResolvedValue({ departmentId: "dept-1" }),
+      findProductionContext: vi
+        .fn()
+        .mockResolvedValue({ departmentId: "dept-1" }),
       supplierExists: vi.fn().mockResolvedValue(true),
       findById: vi.fn().mockResolvedValue(makeExpense()),
       findVisibleById: vi.fn(),
@@ -179,6 +184,88 @@ describe("ExpensesService", () => {
         }),
         "EXPENSE_SUPPLIER_NOT_FOUND",
       );
+    });
+
+    it("rejects an expense with neither an event nor a production", async () => {
+      grantOnly(["expense.create", "ORGANIZATION"]);
+      await expectCode(
+        service.create(ACTOR, {
+          category: "VENUE",
+          description: "x",
+          actualAmount: 10,
+          currency: "USD",
+        }),
+        "EXPENSE_OWNER_REQUIRED",
+      );
+    });
+
+    it("records an expense directly against a production with no linked event", async () => {
+      grantOnly(["expense.create", "ORGANIZATION"]);
+      await expect(
+        service.create(ACTOR, {
+          productionId: "prod-1",
+          category: "VENUE",
+          description: "Rehearsal space",
+          actualAmount: 500,
+          currency: "USD",
+        }),
+      ).resolves.toBeDefined();
+      expect(repo.findEventContext).not.toHaveBeenCalled();
+      expect(repo.findProductionContext).toHaveBeenCalledWith("prod-1");
+      expect(repo.create).toHaveBeenCalledWith(
+        "dept-1",
+        expect.objectContaining({
+          productionId: "prod-1",
+          createdById: ACTOR,
+        }),
+      );
+    });
+
+    it("404s when the production does not exist", async () => {
+      grantOnly(["expense.create", "ORGANIZATION"]);
+      repo.findProductionContext.mockResolvedValue(null);
+      await expectCode(
+        service.create(ACTOR, {
+          productionId: "missing",
+          category: "VENUE",
+          description: "x",
+          actualAmount: 10,
+          currency: "USD",
+        }),
+        "EXPENSE_PRODUCTION_NOT_FOUND",
+      );
+    });
+
+    it("rejects a production with no department", async () => {
+      grantOnly(["expense.create", "ORGANIZATION"]);
+      repo.findProductionContext.mockResolvedValue({ departmentId: null });
+      await expectCode(
+        service.create(ACTOR, {
+          productionId: "prod-1",
+          category: "VENUE",
+          description: "x",
+          actualAmount: 10,
+          currency: "USD",
+        }),
+        "EXPENSE_PRODUCTION_HAS_NO_DEPARTMENT",
+      );
+    });
+
+    it("denies a department-scoped caller whose department does not match the production's", async () => {
+      grantOnly(["expense.create", "DEPARTMENT"]);
+      repo.findUserDepartmentId.mockResolvedValue("dept-2");
+      repo.findProductionContext.mockResolvedValue({ departmentId: "dept-1" });
+      await expectCode(
+        service.create(ACTOR, {
+          productionId: "prod-1",
+          category: "VENUE",
+          description: "x",
+          actualAmount: 10,
+          currency: "USD",
+        }),
+        "PERMISSION_DENIED",
+      );
+      expect(repo.create).not.toHaveBeenCalled();
     });
   });
 

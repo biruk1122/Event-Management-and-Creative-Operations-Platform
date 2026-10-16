@@ -82,4 +82,51 @@ describe("TasksManager", () => {
       }),
     );
   });
+
+  it("offers a New task action to a Department Manager and opens the create dialog", async () => {
+    get.mockImplementation((url: string) => {
+      if (url === "/api/v1/tasks") {
+        return Promise.resolve({
+          data: { items: [], page: 1, pageSize: 25, total: 0 },
+          response: { status: 200 },
+        });
+      }
+      if (url === "/api/v1/departments") {
+        return Promise.resolve({
+          data: { items: [{ id: "dept-1", name: "Event Management" }] },
+          response: { status: 200 },
+        });
+      }
+      return Promise.resolve({
+        data: { items: [] },
+        response: { status: 200 },
+      });
+    });
+    const user = userEvent.setup();
+    const managerAccess = {
+      userId: "account-2",
+      grants: [
+        { permissionKey: "task.read", scope: "DEPARTMENT" },
+        { permissionKey: "task.create", scope: "DEPARTMENT" },
+        { permissionKey: "task.assign", scope: "DEPARTMENT" },
+      ],
+    } as CurrentAccess;
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <TasksManager access={managerAccess} />
+      </QueryClientProvider>,
+    );
+
+    await screen.findByText("No tasks yet");
+    await user.click(screen.getByRole("button", { name: "New task" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "New task" }),
+    ).toBeVisible();
+    // Locked to their own department - only one option, and it is not editable.
+    expect(screen.getByRole("combobox", { name: "Department" })).toBeDisabled();
+  });
 });

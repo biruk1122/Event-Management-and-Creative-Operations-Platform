@@ -1,25 +1,11 @@
 import type { CSSProperties } from "react";
-import type { components } from "@event-platform/api-client";
 import {
   MEASURES,
   type Measure,
   type Responses,
 } from "../lib/analytics-presentation";
+import { monthlySeries } from "./analytics-chart-kit";
 import styles from "./analytics-charts.module.css";
-
-type MonthlyRow =
-  components["schemas"]["MonthlyAnalyticsResponse"]["items"][number];
-const monthlySeries = [
-  ["tasksCreated", "Tasks created"],
-  ["eventsCreated", "Events created"],
-  ["projectsCreated", "Projects created"],
-  ["productionsCreated", "Productions created"],
-  ["campaignsCreated", "Campaigns created"],
-  ["tasksCompleted", "Tasks completed"],
-] as const satisfies readonly (readonly [
-  Exclude<keyof MonthlyRow, "month">,
-  string,
-])[];
 
 function MonthlyGraphs({ data }: { data: Responses["monthly"] }) {
   return (

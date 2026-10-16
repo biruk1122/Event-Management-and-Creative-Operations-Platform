@@ -4,9 +4,12 @@ import type {
   ExpenseReviewOutcome,
 } from "./expenses-types";
 
-/** The fields the create form collects. */
+/** The fields the create form collects. Exactly one of `eventId`/
+ * `productionId` is set, depending on which owner the dialog was opened
+ * for - mirrors the backend's "at least one of event/production" rule. */
 export interface CreateExpenseValues {
-  eventId: string;
+  eventId: string | null;
+  productionId: string | null;
   supplierId: string | null;
   category: ExpenseCategory;
   description: string;
@@ -32,6 +35,9 @@ export type CreateExpenseOutcome =
   | { status: "success"; expense: Expense }
   | { status: "event_not_found" }
   | { status: "event_has_no_department" }
+  | { status: "production_not_found" }
+  | { status: "production_has_no_department" }
+  | { status: "owner_required" }
   | { status: "supplier_not_found" }
   | {
       status: "field_errors";

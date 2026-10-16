@@ -3,6 +3,11 @@ import { expect, test } from "@playwright/test";
 import { authStatePath } from "../fixtures/auth.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
+import {
+  cardByTitle,
+  dropdownForm,
+  dropdownResults,
+} from "../fixtures/dashboard.js";
 
 test.describe("analytics authoritative integration", () => {
   test.use({ storageState: authStatePath("superAdmin") });
@@ -46,23 +51,37 @@ test.describe("analytics authoritative integration", () => {
       .locator("dd");
     await expect(total).toHaveText(String(initial.counts.total));
     await createTask();
-    await page.getByRole("button", { name: "Refresh measure" }).click();
+    // Task completion is a permanently pinned panel (not the dropdown
+    // below), so its own "Refresh measure" button is scoped by its card.
+    await cardByTitle(page, "Task completion rate")
+      .getByRole("button", { name: "Refresh measure" })
+      .click();
     await expect(total).toHaveText(String(initial.counts.total + 1));
     await expect(
-      page.getByText("Task completion refreshed from authoritative data."),
+      page.getByText("Task completion rate refreshed from authoritative data."),
     ).toBeVisible();
     await expectNoWcag22AaViolations(page, "live analytics task cohort");
-    await page.getByLabel("Analytics measure").selectOption("monthly");
-    await expect(page).toHaveURL(/measure=monthly/);
-    await expect(page.getByRole("table")).toBeVisible();
+    // "monthly" is pinned too, so the dropdown below exercises a measure
+    // that remains selectable there.
+    await page.getByLabel("Analytics measure").selectOption("events");
+    await expect(page).toHaveURL(/measure=events/);
+    const eventsResults = dropdownResults(page, "Event progress");
+    // A fresh isolated schema has no guarantee of an authorized event with
+    // eligible work, so either a populated table or the honest "no
+    // matching data" message is a valid, successfully-loaded outcome here -
+    // this check is about the measure switch and URL sync, not event data.
     await expect(
-      page.getByRole("columnheader", { name: "Tasks completed" }),
+      eventsResults
+        .getByRole("table")
+        .or(
+          eventsResults.getByText(/No matching data in your permitted scope/),
+        ),
     ).toBeVisible();
     for (const width of [360, 768, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
       await expectNoWcag22AaViolations(
         page,
-        `live analytics monthly ${width}px`,
+        `live analytics events ${width}px`,
       );
       expect(
         await page.evaluate(
@@ -71,8 +90,15 @@ test.describe("analytics authoritative integration", () => {
       ).toBe(true);
     }
     await page.reload();
-    await expect(page.getByLabel("Analytics measure")).toHaveValue("monthly");
-    await expect(page.getByRole("table")).toBeVisible();
+    await expect(page.getByLabel("Analytics measure")).toHaveValue("events");
+    const reloadedEvents = dropdownResults(page, "Event progress");
+    await expect(
+      reloadedEvents
+        .getByRole("table")
+        .or(
+          reloadedEvents.getByText(/No matching data in your permitted scope/),
+        ),
+    ).toBeVisible();
   });
   test("requires a promotion subject and maps authoritative not-found without mock results", async ({
     page,
@@ -84,13 +110,17 @@ test.describe("analytics authoritative integration", () => {
     await page
       .getByLabel("Promotion campaign ID (required)")
       .fill(randomUUID());
-    await page.getByRole("button", { name: "Apply filters" }).click();
+    await dropdownForm(page, "Promotion performance")
+      .getByRole("button", { name: "Apply filters" })
+      .click();
     await expect(
       page
         .getByRole("alert")
         .filter({ hasText: "promotion campaign is unavailable" }),
     ).toContainText("promotion campaign is unavailable");
-    await expect(page.getByRole("table")).toHaveCount(0);
+    await expect(
+      dropdownResults(page, "Promotion performance").getByRole("table"),
+    ).toHaveCount(0);
   });
 });
 

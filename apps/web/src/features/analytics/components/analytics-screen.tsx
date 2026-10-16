@@ -8,9 +8,21 @@ import {
   analyticsAbilities,
   type AnalyticsFilters,
 } from "../lib/analytics-presentation";
+import { defaultFilters } from "../lib/analytics-url";
 import type { AnalyticsRequestError } from "../api/analytics-gateway";
 import { AnalyticsManager } from "./analytics-manager";
 import { AnalyticsHeading, ANALYTICS_SCOPE_LABEL } from "./analytics-heading";
+import {
+  PinnedAnalyticsPanel,
+  type PinnedMeasure,
+  type PinnedPanelState,
+} from "./pinned-analytics-panel";
+
+const PINNED_MEASURES: readonly PinnedMeasure[] = [
+  "tasks",
+  "departments",
+  "monthly",
+];
 
 export function AnalyticsScreen() {
   return (
@@ -34,6 +46,15 @@ function AnalyticsController() {
     selection: string;
     filters: AnalyticsFilters;
   } | null>(null);
+  const [pinnedDefaults] = useState(defaultFilters);
+  // `AnalyticsController` replaces this whole subtree with a status line
+  // while access is in flight (see the `isFetching` early return below) -
+  // on every recheck, not only first load - so each pinned panel unmounts
+  // and remounts around that. Only state that lives up here (like this)
+  // survives that cycle, mirroring `AnalyticsManager`'s own `draft` lift.
+  const [pinnedState, setPinnedState] = useState<
+    Partial<Record<PinnedMeasure, { userId: string } & PinnedPanelState>>
+  >({});
   const failClosed = useCallback(
     (error: AnalyticsRequestError) =>
       setBlocked({ epoch: access.dataUpdatedAt, error }),
@@ -98,16 +119,41 @@ function AnalyticsController() {
       </div>
     );
   if (!access.data) return null;
+  const abilities = analyticsAbilities(access.data);
   return (
-    <AnalyticsManager
-      key={`${access.data.userId}:${access.dataUpdatedAt}`}
-      access={access.data}
-      epoch={access.dataUpdatedAt}
-      onAuthorizationError={failClosed}
-      savedDraft={draft?.userId === access.data.userId ? draft : null}
-      onDraftChange={(selection, filters) =>
-        setDraft({ userId: access.data!.userId, selection, filters })
-      }
-    />
+    <div className="space-y-6">
+      {PINNED_MEASURES.filter((measure) => abilities[measure]).map(
+        (measure) => {
+          const saved = pinnedState[measure];
+          return (
+            <PinnedAnalyticsPanel
+              key={`${access.data!.userId}:${measure}`}
+              measure={measure}
+              access={access.data!}
+              epoch={access.dataUpdatedAt}
+              defaults={pinnedDefaults}
+              onAuthorizationError={failClosed}
+              savedState={saved?.userId === access.data!.userId ? saved : null}
+              onStateChange={(state) =>
+                setPinnedState((prev) => ({
+                  ...prev,
+                  [measure]: { userId: access.data!.userId, ...state },
+                }))
+              }
+            />
+          );
+        },
+      )}
+      <AnalyticsManager
+        key={`${access.data.userId}:${access.dataUpdatedAt}`}
+        access={access.data}
+        epoch={access.dataUpdatedAt}
+        onAuthorizationError={failClosed}
+        savedDraft={draft?.userId === access.data.userId ? draft : null}
+        onDraftChange={(selection, filters) =>
+          setDraft({ userId: access.data!.userId, selection, filters })
+        }
+      />
+    </div>
   );
 }

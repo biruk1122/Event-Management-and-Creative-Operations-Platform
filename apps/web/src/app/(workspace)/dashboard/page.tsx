@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   if (!data) throw new Error("We could not check your permissions. Try again.");
   const context = dashboardContext(data);
   return (
-    <main className="mx-auto w-full max-w-6xl min-w-0 px-4 py-8 sm:px-8">
+    <main className="@container mx-auto w-full max-w-352 min-w-0 px-4 py-8 sm:px-8">
       <Link href="/" className="text-sm underline underline-offset-4">
         Back to home
       </Link>

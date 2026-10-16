@@ -25,6 +25,8 @@ export function taskKeys(access: CurrentAccess) {
       [...all, "list", params] as const,
     detail: (id: string) => [...all, "detail", id] as const,
     assignees: [...all, "assignable-users"] as const,
+    eligibleAssignees: (departmentId: string) =>
+      [...all, "eligible-assignees", departmentId] as const,
   };
 }
 
@@ -35,6 +37,11 @@ export function useTaskMutations(access: CurrentAccess) {
     await client.invalidateQueries({ queryKey: accessKey });
   };
   return {
+    create: useMutation({
+      mutationFn: (params: gateway.CreateTaskParams) =>
+        gateway.createTask(params),
+      onSettled: reconcile,
+    }),
     comment: useMutation({
       mutationFn: ({ id, content }: { id: string; content: string }) =>
         gateway.createTaskComment(id, content),

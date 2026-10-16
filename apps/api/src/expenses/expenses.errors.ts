@@ -23,6 +23,27 @@ export const expenseEventHasNoDepartment = () =>
       "Assign this event to a department before recording expenses against it.",
     ),
   );
+export const expenseOwnerRequired = () =>
+  new BadRequestException(
+    problem(
+      "EXPENSE_OWNER_REQUIRED",
+      "An expense must belong to an event, a production, or both.",
+    ),
+  );
+export const expenseProductionNotFound = () =>
+  new NotFoundException(
+    problem(
+      "EXPENSE_PRODUCTION_NOT_FOUND",
+      "No production exists with that id.",
+    ),
+  );
+export const expenseProductionHasNoDepartment = () =>
+  new BadRequestException(
+    problem(
+      "EXPENSE_PRODUCTION_HAS_NO_DEPARTMENT",
+      "Assign this production to a department before recording expenses against it.",
+    ),
+  );
 export const expenseSupplierNotFound = () =>
   new NotFoundException(
     problem("EXPENSE_SUPPLIER_NOT_FOUND", "No supplier exists with that id."),

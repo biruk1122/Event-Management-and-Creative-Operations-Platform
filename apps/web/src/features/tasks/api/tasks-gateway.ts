@@ -7,8 +7,10 @@ import { isProblemDetails } from "@/lib/api/problem-details";
 import type {
   Task,
   TaskCollaborationPreview,
+  TaskPerson,
   TaskPriority,
   TaskStatus,
+  TaskType,
 } from "../lib/tasks-types";
 
 /** A usable error for read failures, including a scope or session change. */
@@ -52,6 +54,7 @@ export interface ListTasksParams {
   status?: TaskStatus | null;
   priority?: TaskPriority | null;
   search?: string | null;
+  workspaceId?: string | null;
   page?: number;
   pageSize?: number;
 }
@@ -68,6 +71,7 @@ export async function listTasks(params: ListTasksParams, signal?: AbortSignal) {
   if (params.status) query.status = params.status;
   if (params.priority) query.priority = params.priority;
   if (params.search?.trim()) query.search = params.search.trim();
+  if (params.workspaceId) query.workspaceId = params.workspaceId;
 
   const { data, error, response } = await browserApi.GET("/api/v1/tasks", {
     params: { query: query as unknown as ListQuery },
@@ -319,5 +323,79 @@ export async function listAssignableTaskUsers(signal?: AbortSignal) {
   });
   if (!data)
     fail(response.status, error, "The user directory could not be loaded.");
+  return data.items;
+}
+
+export interface AssignableDepartment {
+  id: string;
+  name: string;
+}
+
+/** Departments the "department" control can offer, from the first page of
+ * `GET /api/v1/departments` (already scope-resolved server-side: Super Admin
+ * sees every department, a Department Manager only their own). */
+export async function listAssignableDepartments(
+  signal?: AbortSignal,
+): Promise<AssignableDepartment[]> {
+  const { data } = await browserApi.GET("/api/v1/departments", {
+    params: { query: { pageSize: 100 } as never },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return (data?.items ?? []).map((department) => ({
+    id: department.id,
+    name: department.name,
+  }));
+}
+
+export interface CreateTaskParams {
+  title: string;
+  description: string;
+  type: TaskType;
+  departmentId: string;
+  assigneeId?: string;
+  dueAt: string;
+  /** Links the task to a connected workspace (e.g. a production's schedule)
+   * in addition to its department - both may be set at once. */
+  workspaceId?: string;
+}
+
+export async function createTask(params: CreateTaskParams): Promise<Task> {
+  const { data, error, response } = await browserApi.POST("/api/v1/tasks", {
+    body: {
+      title: params.title.trim(),
+      description: params.description.trim(),
+      type: params.type,
+      priority: "MEDIUM",
+      departmentId: params.departmentId,
+      dueAt: params.dueAt,
+      ...(params.assigneeId ? { assigneeId: params.assigneeId } : {}),
+      ...(params.workspaceId ? { workspaceId: params.workspaceId } : {}),
+    },
+    headers: headers(),
+  });
+  if (!data)
+    fail(response.status, error, "The task could not be created. Try again.");
+  return data;
+}
+
+/** Active staff of one department, for the create-task assignee picker.
+ * Unlike `listAssignableTaskUsers`, this is scoped to `task.create` rather
+ * than `user.read`, so a Department Manager (who cannot browse the full
+ * user directory) can still see their own department's eligible staff. */
+export async function listEligibleAssignees(
+  departmentId: string,
+  signal?: AbortSignal,
+): Promise<TaskPerson[]> {
+  const { data, error, response } = await browserApi.GET(
+    "/api/v1/tasks/eligible-assignees",
+    {
+      params: { query: { departmentId } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data)
+    fail(response.status, error, "The eligible assignees could not be loaded.");
   return data.items;
 }

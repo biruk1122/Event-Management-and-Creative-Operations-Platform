@@ -35,6 +35,8 @@ import { RequirePermissions } from "../common/security/permissions.decorator.js"
 import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import {
   PaginatedProductionsResponse,
+  ProductionBudgetResponse,
+  ProductionBudgetSummaryResponse,
   ProductionResponse,
 } from "./productions.contracts.js";
 import { ProductionsService } from "./productions.service.js";
@@ -42,6 +44,7 @@ import { AssignProductionManagerDto } from "./dto/assign-production-manager.dto.
 import { AssignProductionTalentDto } from "./dto/assign-production-talent.dto.js";
 import { CreateProductionDto } from "./dto/create-production.dto.js";
 import { ListProductionsQueryDto } from "./dto/list-productions-query.dto.js";
+import { SetProductionBudgetDto } from "./dto/set-production-budget.dto.js";
 import { TransitionProductionDto } from "./dto/transition-production.dto.js";
 import { UpdateProductionDto } from "./dto/update-production.dto.js";
 
@@ -242,6 +245,42 @@ export class ProductionsController {
     @Param("talentId") talentId: string,
   ) {
     return this.service.unassignTalent(actor(request), id, talentId);
+  }
+
+  @Get(":id/budget")
+  @RequirePermissions("production.budget.read")
+  @ApiOperation({ summary: "Read the production budget (sensitive)" })
+  @ApiOkResponse({ type: ProductionBudgetResponse })
+  getBudget(@Req() request: RequestWithContext, @Param("id") id: string) {
+    return this.service.getBudget(actor(request), id);
+  }
+
+  @Get(":id/budget-summary")
+  @RequirePermissions("production.budget.read")
+  @ApiOperation({
+    summary: "Planned vs. actual budget for a production (sensitive)",
+  })
+  @ApiOkResponse({ type: ProductionBudgetSummaryResponse })
+  getBudgetSummary(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+  ) {
+    return this.service.getBudgetSummary(actor(request), id);
+  }
+
+  @Put(":id/budget")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("production.budget.update")
+  @ApiOperation({ summary: "Set or clear the production budget (sensitive)" })
+  @ApiOkResponse({ type: ProductionBudgetResponse })
+  setBudget(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: SetProductionBudgetDto,
+  ) {
+    return this.service.setBudget(actor(request), id, body);
   }
 
   @Delete(":id")

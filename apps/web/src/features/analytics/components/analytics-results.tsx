@@ -101,10 +101,15 @@ export function AnalyticsResults({
   measure,
   data,
   showCharts = false,
+  hideCompletionMeter = false,
 }: {
   measure: Measure;
   data: Responses[Measure];
   showCharts?: boolean;
+  /** The dashboard's task-completion card shows a donut chart instead of
+   * this meter (same percentage, same accessible value) - everything else
+   * here (the stat grid, period/refresh text) stays. */
+  hideCompletionMeter?: boolean;
 }) {
   const period =
     "from" in data
@@ -115,15 +120,18 @@ export function AnalyticsResults({
     const counts: Counts = data.counts;
     content = (
       <>
-        <Completion {...counts} />
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {hideCompletionMeter ? null : <Completion {...counts} />}
+        <dl className="flex flex-wrap justify-center gap-3">
           {Object.entries({
             "Eligible tasks": counts.total,
             Completed: counts.completed,
             Pending: counts.pending,
             Overdue: counts.overdue,
           }).map(([label, value]) => (
-            <div key={label} className="bg-muted/40 rounded-lg border p-4">
+            <div
+              key={label}
+              className="bg-muted/40 w-full shrink grow-0 basis-36 rounded-lg border p-4 @min-[36rem]:basis-44"
+            >
               <dt className="text-muted-foreground text-sm">{label}</dt>
               <dd className="mt-1 text-2xl font-semibold tabular-nums">
                 {value}

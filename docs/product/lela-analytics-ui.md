@@ -58,3 +58,24 @@ Never render charts from denied, loading, unavailable or failed panels.
 Manual assistive-technology testing, actual browser 200% zoom and field INP
 remain release checks; automated reflow/accessibility and lab interaction
 measurements do not certify them. No new export contract is introduced.
+
+## Pinned panels (follow-up): task completion, department performance, monthly activity
+
+Task completion, department performance and monthly activity moved here from
+the dashboard (see [lela-dashboard-ui.md](lela-dashboard-ui.md)). They now
+render as three permanently visible, full-width panels stacked vertically
+above the existing single-measure selector, in that order, each with its own
+local filter form, pagination (department performance only) and refresh
+control - independent of whatever measure the selector below is on. The
+selector's own `allowed`/fallback computation excludes these three measures,
+so they are never also reachable through it.
+
+Each panel reuses the existing `fetchAnalytics` gateway, `analyticsAbilities`
+permission gate and `AnalyticsResults` table/stat rendering unchanged; a panel
+renders nothing when its own measure is not granted. Charting now uses the
+Recharts-based chart kit shared with the dashboard (`analytics-chart-kit.tsx`)
+rather than the hand-rolled SVG graphs described above: a donut for task
+completion, a horizontal bar chart (sized for the panel's full page width) for
+department performance, and six line-chart small multiples for monthly
+activity. No calculation, filter, permission or refresh behavior changed in
+the move; no new API endpoint was added.

@@ -6,6 +6,38 @@
   background: var(--sidebar);
   color: var(--sidebar-foreground);
 }
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+.shell-brand-mark {
+  width: 1.75rem;
+  height: 2.5rem;
+  color: var(--sidebar-primary);
+}
+.shell-brand-text {
+  min-width: 0;
+}
+.shell-brand-wordmark {
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+  color: var(--sidebar-primary);
+  white-space: nowrap;
+}
+.shell-brand-caption {
+  margin-top: 0.2rem;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sidebar-foreground);
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .shell-header {
   display: flex;
   align-items: center;
@@ -101,19 +133,10 @@
   }
   .shell-brand {
     flex-shrink: 0;
+    justify-content: center;
   }
-  .shell-logo {
+  .shell-brand-text {
     display: none;
-    max-height: 5.5rem;
-    border-radius: 0.5rem;
-  }
-  .shell-brand-caption {
-    display: none;
-  }
-  .shell-rail-logo {
-    width: 100%;
-    max-height: 5.5rem;
-    border-radius: 0.5rem;
   }
   .shell-sidebar-navigation {
     flex: 1;
@@ -157,24 +180,18 @@
   }
 }
 @media (min-width: 1024px) {
-  .shell-logo {
-    display: block;
-    width: 100%;
-  }
-  .shell-rail-logo {
-    display: none;
-  }
   .application-shell {
     grid-template-columns: 16rem minmax(0, 1fr);
   }
   .shell-brand {
-    padding: 0.5rem 0.75rem 0;
+    justify-content: flex-start;
+    padding: 0.875rem 1rem 1rem;
+    border-bottom: 1px solid
+      color-mix(in oklab, var(--sidebar-border) 50%, transparent);
+    margin-bottom: 0.5rem;
   }
-  .shell-brand-caption {
+  .shell-brand-text {
     display: block;
-    margin-top: 0.75rem;
-    text-align: center;
-    font-size: 0.75rem;
   }
   .shell-sidebar-navigation li > p,
   .shell-sidebar-navigation a > span {
@@ -200,10 +217,11 @@
     grid-template-columns: 5rem minmax(0, 1fr);
   }
   .shell-collapsed .shell-brand {
-    padding: 0;
+    justify-content: center;
+    padding: 0.875rem 0 1rem;
   }
+  .shell-collapsed .shell-brand-text,
   .shell-collapsed .shell-rail-label,
-  .shell-collapsed .shell-brand-caption,
   .shell-collapsed .shell-sidebar-navigation li > p,
   .shell-collapsed .shell-sidebar-navigation a > span {
     display: none;
