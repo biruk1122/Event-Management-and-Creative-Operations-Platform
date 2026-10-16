@@ -275,7 +275,9 @@ export function ReportDraftForm({
               {attachmentWarning}
             </p>
           ) : null}
+          <Label htmlFor={`${prefix}-attachments`}>Add attachments</Label>
           <Input
+            id={`${prefix}-attachments`}
             type="file"
             multiple
             onChange={(event) => {

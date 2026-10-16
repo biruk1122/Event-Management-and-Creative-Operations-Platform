@@ -148,10 +148,11 @@ test.describe("Production management — end to end", () => {
       await expect(workspace.getByRole("tabpanel")).toContainText(
         "1 assigned team; 1 member",
       );
-      await workspace.getByRole("tab", { name: "Tasks" }).click();
-      await expect(
-        workspace.getByRole("link", { name: "Open Tasks" }),
-      ).toHaveAttribute("href", "/tasks");
+      // "Schedule" is the production workspace's own task-management area
+      // (ProductionSchedulePanel) - there is no separate "Tasks" tab; task
+      // work for a production lives here, not behind a plain link-out.
+      await workspace.getByRole("tab", { name: "Schedule" }).click();
+      await expect(workspace.getByRole("tabpanel")).toContainText("total");
       await expectNoWcag22AaViolations(page, "production detail");
 
       await detail.getByLabel("Move to").selectOption("ACTIVE");
@@ -229,7 +230,11 @@ test.describe("Production management — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    test.use({ storageState: authStatePath("deptManager") });
+    // Department Manager now holds department-scoped `project.*` grants
+    // (PROD-WS), so it legitimately sees its own department's productions -
+    // "member" (Department Member) holds none of the `project.*` grants and
+    // is the correct denied-access fixture here.
+    test.use({ storageState: authStatePath("member") });
 
     test("rejects department-scoped production access and writes nothing", async ({
       page,

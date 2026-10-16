@@ -48,6 +48,7 @@ async function csrfToken(page: Page): Promise<string> {
 async function createReportUser(
   admin: Page,
   roleName: "Department Member" | "Super Admin" = "Department Member",
+  departmentId?: string,
 ) {
   const suffix = randomUUID().slice(0, 8);
   const email = `report-${suffix}@e2e.test`;
@@ -64,7 +65,7 @@ async function createReportUser(
       lastName: suffix,
       temporaryPassword: TEST_USER_PASSWORD,
       roleId,
-      departmentId: await departmentIdFor(admin.request),
+      departmentId: departmentId ?? (await departmentIdFor(admin.request)),
     },
   });
   expect(response.status()).toBe(201);
@@ -105,18 +106,18 @@ test.describe("Reporting — end to end", () => {
     browser,
   }, testInfo) => {
     test.setTimeout(180_000);
-    const { id: authorId, user } = await createReportUser(admin);
     const csrf = await csrfToken(admin);
-    const departmentResponse = await admin.request.post(
-      `${apiBaseUrl}/api/v1/departments`,
-      {
-        headers: { "x-csrf-token": csrf },
-        data: { name: `E2E report department ${user.lastName}` },
-      },
+    // The task below is assigned to this author, and task assignment
+    // requires the assignee to share the task's own department - use the
+    // same fixture "Production" department for both (a freshly created
+    // department isn't one of the four supported platform departments, so
+    // a user can't be assigned to it).
+    const departmentId = await departmentIdFor(admin.request);
+    const { id: authorId, user } = await createReportUser(
+      admin,
+      "Department Member",
+      departmentId,
     );
-    expect(departmentResponse.status()).toBe(201);
-    const departmentId = ((await departmentResponse.json()) as { id: string })
-      .id;
     const taskResponse = await admin.request.post(
       `${apiBaseUrl}/api/v1/tasks`,
       {
