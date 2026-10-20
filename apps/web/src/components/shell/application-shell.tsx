@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -27,6 +28,7 @@ import {
   PanelLeftOpen,
   Menu,
   ArrowLeft,
+  LoaderCircle,
 } from "lucide-react";
 import { BrandLogo } from "@/components/branding/brand-logo";
 import { BrandMark } from "@/components/branding/brand-mark";
@@ -83,6 +85,21 @@ const icons = {
   workspaces: Layers3,
 };
 
+function NavigationProgress() {
+  const { pending } = useLinkStatus();
+  return pending ? (
+    <>
+      <LoaderCircle
+        aria-hidden="true"
+        className="ml-auto size-4 shrink-0 animate-spin"
+      />
+      <span role="status" className="sr-only">
+        Opening page…
+      </span>
+    </>
+  ) : null;
+}
+
 function NavigationLinks({
   items,
   pathname,
@@ -115,7 +132,6 @@ function NavigationLinks({
             ) : null}
             <Link
               href={item.href}
-              prefetch={false}
               onClick={() => onNavigate?.()}
               aria-label={item.label}
               aria-current={selected ? "page" : undefined}
@@ -134,6 +150,7 @@ function NavigationLinks({
               >
                 {item.label}
               </span>
+              <NavigationProgress />
             </Link>
           </li>
         );
@@ -364,7 +381,6 @@ function ShellFrame({
               <Link
                 key={item.href}
                 href={item.href}
-                prefetch={false}
                 aria-current={selected ? "page" : undefined}
                 className={cn(
                   "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 text-xs font-medium",
@@ -373,6 +389,7 @@ function ShellFrame({
               >
                 <Icon aria-hidden="true" className="size-5" />
                 {item.label}
+                <NavigationProgress />
               </Link>
             );
           })}
@@ -402,7 +419,6 @@ function AuthorizedShell({
   const [signOutError, setSignOutError] = useState(false);
   const verified =
     !logout.isPending &&
-    !access.isFetching &&
     !access.isPaused &&
     !access.isError &&
     !account.isError &&

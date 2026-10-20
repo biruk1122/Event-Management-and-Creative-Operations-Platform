@@ -48,6 +48,19 @@ const ITEMS: readonly NotificationItem[] = [
     meetingId: null,
     expenseId: null,
   },
+  {
+    id: "notification-4",
+    type: "MEETING_INVITATION",
+    title: "You were invited to a meeting",
+    body: "Venue review",
+    createdAt: "2026-09-16T08:00:00.000Z",
+    readAt: null,
+    taskId: null,
+    messageId: null,
+    eventId: null,
+    meetingId: "meeting-1",
+    expenseId: null,
+  },
 ];
 
 const PREFERENCES: readonly NotificationPreference[] = [
@@ -71,24 +84,139 @@ function baseProps() {
     onRetry: vi.fn(),
     onLoadMore: vi.fn(),
     onMarkRead: vi.fn(),
+    onRemove: vi.fn(),
+    onMarkAllRead: vi.fn(),
     onTogglePreference: vi.fn(),
   };
 }
 
 describe("NotificationsCenter", () => {
+  it("offers removal for both unread and read entries, without navigating", async () => {
+    const props = baseProps();
+    render(<NotificationsCenter {...props} />);
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Remove notification: You were assigned a task",
+      }),
+    );
+    expect(props.onRemove).toHaveBeenCalledWith("notification-1");
+    expect(props.onMarkRead).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "All" }));
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: "Remove notification: Task approved",
+      }),
+    );
+    expect(props.onRemove).toHaveBeenCalledWith("notification-3");
+  });
+  it("keeps opening the feed read-only and explicitly marks all read", async () => {
+    const props = baseProps();
+    render(<NotificationsCenter {...props} />);
+    expect(props.onMarkRead).not.toHaveBeenCalled();
+    expect(props.onMarkAllRead).not.toHaveBeenCalled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Mark all as read" }),
+    );
+    expect(props.onMarkAllRead).toHaveBeenCalledOnce();
+  });
+  it("shows the caught-up design and lets the user reveal read history", async () => {
+    const props = baseProps();
+    render(
+      <NotificationsCenter {...props} items={[ITEMS[2]!]} unreadCount={0} />,
+    );
+    expect(screen.getByText("You’re all caught up")).toBeVisible();
+    expect(screen.getByText("All read")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Mark all as read" }),
+    ).toBeDisabled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Show all notifications" }),
+    );
+    expect(screen.getByText("Task approved")).toBeVisible();
+    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(props.onMarkRead).not.toHaveBeenCalled();
+  });
+  it("shows pending actions and recoverable mutation errors", () => {
+    render(
+      <NotificationsCenter
+        {...baseProps()}
+        markingAll
+        pendingPreferences={["TASK_DUE"]}
+        actionError="Please try again."
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Please try again.");
+    expect(
+      screen.getByRole("button", { name: "Marking all read…" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("switch", { name: "Task due enabled" }),
+    ).toBeDisabled();
+    expect(
+      screen
+        .getAllByRole("button", { name: "Marking read…" })
+        .every((button) => button.hasAttribute("disabled")),
+    ).toBe(true);
+  });
   it("filters to unread items and requests a notification be marked read", async () => {
     const user = userEvent.setup();
     const props = baseProps();
     render(<NotificationsCenter {...props} />);
 
-    expect(screen.getByText("2 unread notifications")).toBeVisible();
-    await user.click(screen.getByLabelText("Unread only"));
+    expect(screen.getByText("3 unread notifications")).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Unread/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     expect(screen.queryByText("Task approved")).not.toBeInTheDocument();
 
     await user.click(
       screen.getAllByRole("button", { name: "Mark as read" })[0]!,
     );
     expect(props.onMarkRead).toHaveBeenCalledWith("notification-1");
+  });
+
+  it("links a meeting notification to the existing Meetings page and marks it read on click", async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    render(<NotificationsCenter {...props} />);
+
+    const link = screen.getByRole("link", {
+      name: /You were invited to a meeting/,
+    });
+    expect(link).toHaveAttribute("href", "/meetings");
+    await user.click(link);
+    expect(props.onMarkRead).toHaveBeenCalledWith("notification-4");
+  });
+  it("clears a newly read entry from the default notifications list", () => {
+    const props = baseProps();
+    const { rerender } = render(<NotificationsCenter {...props} />);
+    expect(screen.getByText("You were assigned a task")).toBeVisible();
+    rerender(
+      <NotificationsCenter
+        {...props}
+        unreadCount={2}
+        items={props.items.map((item) =>
+          item.id === "notification-1"
+            ? { ...item, readAt: "2026-10-19T09:00:00Z" }
+            : item,
+        )}
+      />,
+    );
+    expect(
+      screen.queryByText("You were assigned a task"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders unresolvable notification types as plain, non-interactive text", () => {
+    render(<NotificationsCenter {...baseProps()} />);
+    expect(
+      screen.queryByRole("link", { name: /You were assigned a task/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("You were assigned a task")).toBeVisible();
   });
 
   it("keeps preference controls keyboard-operable and reports the toggle", async () => {
@@ -119,6 +247,24 @@ describe("NotificationsCenter", () => {
   it("shows the end of the feed once there is no next page", () => {
     render(<NotificationsCenter {...baseProps()} hasMore={false} />);
     expect(screen.getByText("End of notifications.")).toBeVisible();
+  });
+  it("does not claim all notifications are read while older unread entries remain unloaded", () => {
+    render(
+      <NotificationsCenter
+        {...baseProps()}
+        items={[]}
+        unreadCount={2}
+        hasMore
+      />,
+    );
+    expect(
+      screen.getByText(
+        "No unread notifications in the loaded history. Load more to check older notifications.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Load more notifications" }),
+    ).toBeEnabled();
   });
 
   it("communicates loading, reconnecting, and recoverable error states", async () => {

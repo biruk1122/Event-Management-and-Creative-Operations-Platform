@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { accessKey } from "@/features/auth/api/access-queries";
+import { subscribeSessionEvents } from "@/lib/api/session-events";
 
 import { connectRealtime as defaultConnectRealtime } from "./connect-realtime";
 import type {
@@ -43,6 +44,13 @@ export function useRealtimeConnection(
   const [state, setState] = useState<RealtimeConnectionState>(CONNECTING_STATE);
   const [attempt, setAttempt] = useState(0);
   const [retrying, setRetrying] = useState(false);
+  useEffect(
+    () =>
+      subscribeSessionEvents((event) => {
+        if (event.type !== "ended") setAttempt((count) => count + 1);
+      }),
+    [],
+  );
   const everConnectedRef = useRef(false);
   // A ref, not an effect dependency: an inline `onFrame` a caller passes
   // fresh every render must never itself force a reconnect - only `attempt`

@@ -70,6 +70,7 @@ function visibleToRecipient(
 ): Prisma.NotificationWhereInput {
   return {
     recipientUserId,
+    dismissedAt: null,
     OR: [
       { meetingId: null },
       {
@@ -213,6 +214,22 @@ export class NotificationsRepository {
     }
     return this.db.notification.findUniqueOrThrow({
       where: { id },
+      select: NOTIFICATION_SELECT,
+    });
+  }
+
+  async dismiss(
+    recipientUserId: string,
+    id: string,
+  ): Promise<NotificationRecord | null> {
+    await this.db.notification.updateMany({
+      where: { id, recipientUserId, dismissedAt: null },
+      data: { dismissedAt: new Date() },
+    });
+    // Check ownership for repeated removals too, preserving the deduplication
+    // record until normal retention cleanup.
+    return this.db.notification.findFirst({
+      where: { id, recipientUserId },
       select: NOTIFICATION_SELECT,
     });
   }

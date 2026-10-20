@@ -65,7 +65,7 @@ describe("NotificationsScreen access boundary", () => {
       grants: [{ permissionKey: "notification.read", scope: "SELF" }],
     };
     setup();
-    expect(await screen.findByText("End of notifications.")).toBeVisible();
+    expect(await screen.findByText("You’re all caught up")).toBeVisible();
   });
 
   it("shows a denied message when the grant is absent", async () => {

@@ -130,7 +130,9 @@ describe("live dashboard integration", () => {
         await act(async () => {
           await client.invalidateQueries({ queryKey: accessKey });
         });
-      await waitFor(() => expect(calls()).toHaveLength(2));
+      await waitFor(() =>
+        expect(calls()).toHaveLength(trigger === "focus" ? 1 : 2),
+      );
       expect(
         screen.getByLabelText("Promotion campaign UUID (optional)"),
       ).toHaveValue("draft-campaign");
@@ -318,7 +320,7 @@ describe("live dashboard integration", () => {
       );
     },
   );
-  it("hides results during unresolved access and cancels old account queries", async () => {
+  it("retains results during revalidation, then cancels queries when the account changes", async () => {
     const client = setup();
     await screen.findByText("17");
     let resolve!: (value: unknown) => void;
@@ -332,8 +334,7 @@ describe("live dashboard integration", () => {
     act(() => {
       void client.invalidateQueries({ queryKey: accessKey });
     });
-    await screen.findByText("Checking dashboard access…");
-    expect(screen.queryByText("17")).not.toBeInTheDocument();
+    expect(screen.getByText("17")).toBeVisible();
     access = { ...reader, userId: "different-account" };
     await act(async () => resolve(ok(access)));
     expect(await screen.findByText("23")).toBeVisible();
@@ -341,7 +342,7 @@ describe("live dashboard integration", () => {
       client.getQueryCache().findAll({ queryKey: ["dashboards", "actor"] }),
     ).toHaveLength(0);
   });
-  it("evicts a same-grant epoch when department or membership may have changed", async () => {
+  it("refreshes data in place after same-access verification", async () => {
     const client = setup();
     await screen.findByText("17");
     await act(async () => {
@@ -370,19 +371,29 @@ describe("live dashboard integration", () => {
       await screen.findByRole("link", { name: "Sign in" }),
     ).toHaveAttribute("href", "/login?next=%2Fdashboard");
   });
-  it("revalidates access and data on focus and successful real mutations", async () => {
+  it("reuses fresh access on focus, ignores notification mutations, and revalidates business mutations", async () => {
     const client = setup();
     await screen.findByText("17");
     act(() => focusManager.setFocused(false));
     act(() => focusManager.setFocused(true));
-    await waitFor(() => expect(calls()).toHaveLength(2));
+    expect(calls()).toHaveLength(1);
+    await act(async () => {
+      await client
+        .getMutationCache()
+        .build(client, {
+          mutationKey: ["notifications", "mark-read"],
+          mutationFn: async () => ({ changed: true }),
+        })
+        .execute(undefined);
+    });
+    expect(calls()).toHaveLength(1);
     await act(async () => {
       await client
         .getMutationCache()
         .build(client, { mutationFn: async () => ({ changed: true }) })
         .execute(undefined);
     });
-    await waitFor(() => expect(calls()).toHaveLength(3));
+    await waitFor(() => expect(calls()).toHaveLength(2));
     focusManager.setFocused(undefined);
   });
   it("navigation disappears while permissions fail", async () => {

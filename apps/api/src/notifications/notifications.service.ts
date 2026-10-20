@@ -94,6 +94,18 @@ export class NotificationsService {
     return toNotificationResponse(result);
   }
 
+  async remove(actingUserId: string, id: string): Promise<void> {
+    await this.assertSelfGrant(actingUserId);
+    const notification = await this.repository.dismiss(actingUserId, id);
+    if (!notification) throw notificationNotFound();
+    this.realtime.publish<NotificationInvalidatedPayload>(
+      roomName("user", actingUserId),
+      "notification.invalidated",
+      1,
+      { notificationId: notification.id, type: notification.type },
+    );
+  }
+
   async listPreferences(
     actingUserId: string,
   ): Promise<NotificationPreferencesResponse> {
