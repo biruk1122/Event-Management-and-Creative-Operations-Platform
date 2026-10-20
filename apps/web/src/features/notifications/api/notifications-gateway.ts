@@ -69,6 +69,16 @@ export async function unreadCount(signal?: AbortSignal): Promise<number> {
   return data.unreadCount;
 }
 
+export async function removeNotification(id: string): Promise<void> {
+  const { response } = await browserApi.DELETE("/api/v1/notifications/{id}", {
+    params: { path: { id } },
+    headers: headers(),
+  });
+  // A stale entry already removed in another tab has the same desired outcome.
+  if (!response.ok && response.status !== 404)
+    throw new NotificationsRequestError(response.status);
+}
+
 export async function listPreferences(
   signal?: AbortSignal,
 ): Promise<readonly NotificationPreference[]> {

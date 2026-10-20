@@ -32,9 +32,9 @@ export function useCurrentAccess() {
         throw new Error("We could not check your permissions. Try again.");
       return data;
     },
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: "always",
+    staleTime: 30_000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     refetchInterval: 30_000,
     retry: false,
   });

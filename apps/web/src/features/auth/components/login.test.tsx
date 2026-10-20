@@ -1,20 +1,27 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LoginResult } from "../api/auth-gateway";
 import { Login } from "./login";
 
-const { replace, refresh, mutateAsync, destination } = vi.hoisted(() => ({
-  replace: vi.fn(),
-  refresh: vi.fn(),
-  mutateAsync: vi.fn(),
-  destination: vi.fn(),
-}));
+const { replace, refresh, mutateAsync, destination, recover, csrf } =
+  vi.hoisted(() => ({
+    replace: vi.fn(),
+    refresh: vi.fn(),
+    mutateAsync: vi.fn(),
+    destination: vi.fn(),
+    recover: vi.fn(),
+    csrf: vi.fn(),
+  }));
+const router = { replace, refresh };
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace, refresh }),
+  useRouter: () => router,
 }));
+vi.mock("@/lib/api/csrf", () => ({ readCsrfToken: csrf }));
+vi.mock("@/lib/api/browser", () => ({ browserSession: { recover } }));
 
 vi.mock("../api/auth-queries", () => ({
   useLoginMutation: () => ({ mutateAsync }),
@@ -23,7 +30,10 @@ vi.mock("../api/login-destination", () => ({ loginDestination: destination }));
 
 async function fillAndSubmit() {
   const user = userEvent.setup();
-  await user.type(screen.getByLabelText("Email"), "manager@example.com");
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled(),
+  );
+  await user.type(await screen.findByLabelText("Email"), "manager@example.com");
   await user.type(screen.getByLabelText("Password"), "correct horse");
   await user.click(screen.getByRole("button", { name: "Sign in" }));
 }
@@ -33,9 +43,41 @@ const resolve = (result: LoginResult) => mutateAsync.mockResolvedValue(result);
 beforeEach(() => {
   vi.clearAllMocks();
   destination.mockResolvedValue("/dashboard");
+  csrf.mockReturnValue(null);
 });
 
 describe("Login", () => {
+  it("server-renders the labelled form while recovery awaits JavaScript", () => {
+    const html = renderToString(<Login />);
+    expect(html).toContain('aria-label="Sign in"');
+    expect(html).toContain('name="email"');
+    expect(html).toContain('name="password"');
+    expect(html).toContain("<noscript>");
+    expect(html).toContain("disabled");
+  });
+  it("recovers expired access and preserves the validated return destination", async () => {
+    csrf.mockReturnValue("csrf");
+    recover.mockResolvedValue({ id: "actor" });
+    destination.mockResolvedValue("/reports?view=summary");
+    render(<Login redirectTo="/reports?view=summary" />);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Restoring your session",
+    );
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith("/reports?view=summary"),
+    );
+    expect(destination).toHaveBeenCalledWith("/reports?view=summary");
+    expect(refresh).toHaveBeenCalled();
+  });
+  it("shows sign-in when the refresh session has been rejected", async () => {
+    csrf.mockReturnValue("csrf");
+    recover.mockResolvedValue(null);
+    render(<Login redirectTo="/reports" />);
+    expect(
+      await screen.findByRole("button", { name: "Sign in" }),
+    ).toBeVisible();
+    expect(replace).not.toHaveBeenCalled();
+  });
   it("redirects to the validated destination on success", async () => {
     resolve({ outcome: { status: "success" }, user: null });
     destination.mockResolvedValue("/calendar?view=week");

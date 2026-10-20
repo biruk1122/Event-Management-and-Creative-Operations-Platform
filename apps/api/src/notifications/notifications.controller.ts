@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Put,
   Query,
   Req,
@@ -15,6 +16,7 @@ import {
   ApiCookieAuth,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiSecurity,
@@ -96,6 +98,29 @@ export class NotificationsController {
     @Param("id") id: string,
   ): Promise<NotificationResponse> {
     return this.notifications.markRead(actingUserId(request), id);
+  }
+
+  @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @ApiOperation({
+    summary: "Remove one notification from the caller's own feed",
+  })
+  @ApiNoContentResponse({ description: "Notification removed" })
+  @ApiBadRequestResponse({
+    type: ProblemDetails,
+    description: "Invalid notification id",
+  })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "No notification exists with that id for the caller",
+  })
+  async remove(
+    @Req() request: RequestWithContext,
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ): Promise<void> {
+    await this.notifications.remove(actingUserId(request), id);
   }
 
   @Get("preferences")

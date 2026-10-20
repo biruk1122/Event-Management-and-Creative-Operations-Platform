@@ -1,5 +1,11 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -33,8 +39,11 @@ type SavedDraft = {
   selection: string;
   filters: DashboardFilters;
 };
+const subscribeToHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
-export function dashboardIdentity(access: DashboardAccess, epoch: number) {
+export function dashboardIdentity(access: DashboardAccess) {
   return [
     "dashboards",
     access.userId,
@@ -43,10 +52,15 @@ export function dashboardIdentity(access: DashboardAccess, epoch: number) {
       .sort()
       .join(",") +
       `:${access.role ?? "legacy"}:${access.department?.id ?? "none"}:${access.department?.active ?? false}`,
-    epoch,
   ] as const;
 }
 export function DashboardScreen() {
+  // Match the server snapshot even when a previous route has warmed the client cache.
+  const ready = useSyncExternalStore(
+    subscribeToHydration,
+    clientReady,
+    serverReady,
+  );
   const access = useCurrentAccess(),
     client = useQueryClient();
   const [draft, setDraft] = useState<SavedDraft | null>(null);
@@ -60,37 +74,52 @@ export function DashboardScreen() {
     [access.dataUpdatedAt],
   );
   const denied = blocked?.epoch === access.dataUpdatedAt ? blocked.error : null;
-  const hidden =
-    access.isFetching ||
-    access.isPaused ||
-    access.isError ||
-    !access.data ||
-    !!denied;
+  const hidden = access.isPaused || access.isError || !access.data || !!denied;
+  const identity = access.data
+    ? JSON.stringify(dashboardIdentity(access.data))
+    : null;
+  const previousAccess = useRef<{ identity: string | null; at: number } | null>(
+    null,
+  );
   useEffect(() => {
     const stale = {
       queryKey: ["dashboards"],
-      ...(hidden
-        ? {}
-        : {
-            predicate: (query: { queryKey: readonly unknown[] }) =>
-              query.queryKey[1] !== access.data?.userId ||
-              query.queryKey[3] !== access.dataUpdatedAt,
-          }),
+      predicate: (query: { queryKey: readonly unknown[] }) =>
+        hidden || JSON.stringify(query.queryKey.slice(0, 3)) !== identity,
     };
     void client.cancelQueries(stale);
     client.removeQueries(stale);
-  }, [hidden, client, access.data?.userId, access.dataUpdatedAt]);
+    if (
+      !hidden &&
+      previousAccess.current?.identity === identity &&
+      previousAccess.current.at !== access.dataUpdatedAt
+    ) {
+      void client.invalidateQueries({ queryKey: ["dashboards"] });
+    }
+    previousAccess.current = hidden
+      ? null
+      : { identity, at: access.dataUpdatedAt };
+  }, [hidden, client, identity, access.dataUpdatedAt]);
   // Existing mutations remain the only write paths. A successful write may alter
   // assignments/membership as well as counts, so recheck access before refetching.
   useEffect(
     () =>
       client.getMutationCache().subscribe((event) => {
-        if (event.type === "updated" && event.action.type === "success")
+        if (
+          event.type === "updated" &&
+          event.action.type === "success" &&
+          event.mutation.options.mutationKey?.[0] !== "notifications"
+        )
           void client.invalidateQueries({ queryKey: accessKey });
       }),
     [client],
   );
-  if (access.isFetching || access.isPending || access.isPaused)
+  if (
+    !ready ||
+    access.isPending ||
+    (!access.data && access.isFetching) ||
+    access.isPaused
+  )
     return (
       <DashboardWorkspace
         access={null}
@@ -145,9 +174,8 @@ export function DashboardScreen() {
     );
   return (
     <DashboardManager
-      key={`${access.data.userId}:${access.dataUpdatedAt}`}
+      key={identity}
       access={access.data}
-      epoch={access.dataUpdatedAt}
       onAuthorizationError={failClosed}
       savedDraft={draft}
       onDraftChange={setDraft}
@@ -156,13 +184,11 @@ export function DashboardScreen() {
 }
 function DashboardManager({
   access,
-  epoch,
   onAuthorizationError,
   savedDraft,
   onDraftChange,
 }: {
   access: DashboardAccess;
-  epoch: number;
   onAuthorizationError: (error: DashboardRequestError) => void;
   savedDraft: SavedDraft | null;
   onDraftChange: (draft: SavedDraft) => void;
@@ -177,7 +203,7 @@ function DashboardManager({
     defaults,
   );
   const { audience, filters, error } = selection;
-  const owner = JSON.stringify(dashboardIdentity(access, 0));
+  const owner = JSON.stringify(dashboardIdentity(access));
   const draftKey = `${audience}:${JSON.stringify(filters)}`;
   const saveDraft = useCallback(
     (filters: DashboardFilters) =>
@@ -187,7 +213,7 @@ function DashboardManager({
   const allowed = canEnter(access, audience);
   const query = useQuery({
     queryKey: [
-      ...dashboardIdentity(access, epoch),
+      ...dashboardIdentity(access),
       audience,
       dashboardQuery(selection),
     ],

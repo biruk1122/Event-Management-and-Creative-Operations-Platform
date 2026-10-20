@@ -53,14 +53,11 @@ describe("role and department dashboard presentation", () => {
     ).toBe("Not assigned");
   });
   it("does not reuse dashboard caches after a department transfer", () => {
-    expect(dashboardIdentity(access, 1)).not.toEqual(
-      dashboardIdentity(
-        {
-          ...access,
-          department: { id: "production", name: "Production", active: true },
-        },
-        1,
-      ),
+    expect(dashboardIdentity(access)).not.toEqual(
+      dashboardIdentity({
+        ...access,
+        department: { id: "production", name: "Production", active: true },
+      }),
     );
   });
 });

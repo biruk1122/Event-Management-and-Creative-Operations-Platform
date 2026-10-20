@@ -92,7 +92,7 @@ describe("application shell", () => {
       screen.getByRole("link", { name: "Skip to main content" }),
     ).toHaveAttribute("href", "#shell-content");
   });
-  it.each(["fetching", "error", "pendingLogout"] as const)(
+  it.each(["error", "pendingLogout"] as const)(
     "hides cached destinations while %s",
     (flag) => {
       mocks[flag] = true;
@@ -107,6 +107,21 @@ describe("application shell", () => {
       ).not.toBeInTheDocument();
     },
   );
+  it("keeps verified navigation and the bell mounted during background permission checks", () => {
+    const { rerender } = render(<ApplicationShell>{content}</ApplicationShell>);
+    const bell = screen.getByRole("button", { name: "Open notifications" });
+    mocks.fetching = true;
+    rerender(<ApplicationShell>{content}</ApplicationShell>);
+    expect(screen.getByRole("button", { name: "Open notifications" })).toBe(
+      bell,
+    );
+    expect(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "link",
+        { name: "Tasks" },
+      ),
+    ).toBeVisible();
+  });
   it("rejects an access cache belonging to a different account", () => {
     mocks.userId = "previous-user";
     render(<ApplicationShell>{content}</ApplicationShell>);

@@ -1,6 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { readCsrfToken } from "@/lib/api/csrf";
 
 import { useLoginMutation } from "../api/auth-queries";
 import type { LoginOutcome } from "../lib/login-outcome";
@@ -21,6 +23,30 @@ interface LoginProps {
 export function Login({ redirectTo }: LoginProps) {
   const router = useRouter();
   const mutation = useLoginMutation();
+  const [recovering, setRecovering] = useState(true);
+  useEffect(() => {
+    let active = true;
+    const restore = async () => {
+      if (!readCsrfToken()) return;
+      const { browserSession } = await import("@/lib/api/browser");
+      const user = await browserSession.recover();
+      if (user && active) {
+        const destination = await loginDestination(redirectTo);
+        if (active) {
+          router.replace(destination);
+          router.refresh();
+        }
+      }
+    };
+    void restore()
+      .catch(() => {})
+      .finally(() => {
+        if (active) setRecovering(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [redirectTo, router]);
 
   async function handleSubmit(values: LoginValues): Promise<LoginOutcome> {
     const { outcome } = await mutation.mutateAsync(values);
@@ -34,9 +60,16 @@ export function Login({ redirectTo }: LoginProps) {
   }
 
   return (
-    <LoginForm
-      onSubmit={handleSubmit}
-      {...(redirectTo ? { redirectTo } : {})}
-    />
+    <fieldset disabled={recovering} className="min-w-0" aria-busy={recovering}>
+      {recovering ? (
+        <p role="status" className="sr-only">
+          Restoring your session…
+        </p>
+      ) : null}
+      <LoginForm
+        onSubmit={handleSubmit}
+        {...(redirectTo ? { redirectTo } : {})}
+      />
+    </fieldset>
   );
 }

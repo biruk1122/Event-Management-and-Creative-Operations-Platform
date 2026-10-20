@@ -1,8 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
+import { hydrateRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CurrentAccess } from "@/features/auth/api/access-queries";
+import {
+  accessKey,
+  type CurrentAccess,
+} from "@/features/auth/api/access-queries";
 import { CampaignsScreen } from "./campaigns-screen";
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
@@ -63,6 +68,44 @@ function setup() {
 }
 
 describe("CampaignsScreen access boundary", () => {
+  it("hydrates without replacing public content when the shell has warmed access", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const element = (
+      <QueryClientProvider client={client}>
+        <section>
+          <h1>Campaigns</h1>
+          <CampaignsScreen />
+        </section>
+      </QueryClientProvider>
+    );
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(element);
+    expect(container.textContent).toContain("Checking permissions");
+    const heading = container.querySelector("h1");
+    document.body.append(container);
+    client.setQueryData(accessKey, fullAccess);
+    const onRecoverableError = vi.fn();
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, element, { onRecoverableError });
+      });
+      await within(container).findByText("0 campaigns");
+      expect(onRecoverableError).not.toHaveBeenCalled();
+      expect(container.querySelector("h1")).toBe(heading);
+      expect(
+        get.mock.calls.filter(
+          ([path]) => path === "/api/v1/auth/me/permissions",
+        ),
+      ).toHaveLength(0);
+    } finally {
+      await act(async () => root?.unmount());
+      client.clear();
+      container.remove();
+    }
+  });
   it("announces the permission check while it runs", () => {
     get.mockImplementation(() => new Promise(() => undefined));
     setup();

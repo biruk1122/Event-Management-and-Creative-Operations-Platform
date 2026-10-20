@@ -74,6 +74,7 @@ describe("NotificationsService", () => {
       listFeed: vi.fn().mockResolvedValue({ items: [], nextCursor: null }),
       unreadCount: vi.fn().mockResolvedValue(0),
       markRead: vi.fn().mockResolvedValue(makeNotification()),
+      dismiss: vi.fn().mockResolvedValue(makeNotification()),
       listMutedTypes: vi.fn().mockResolvedValue([]),
       setMuted: vi.fn().mockResolvedValue(undefined),
       getTask: vi.fn().mockResolvedValue({
@@ -105,6 +106,24 @@ describe("NotificationsService", () => {
     );
   });
 
+  it("removes only an owned notification and invalidates the caller's live feed", async () => {
+    await service.remove(ACTOR, "notification-1");
+    expect(repository.dismiss).toHaveBeenCalledWith(ACTOR, "notification-1");
+    expect(realtime.publish).toHaveBeenCalledWith(
+      "user:actor-1",
+      "notification.invalidated",
+      1,
+      {
+        notificationId: "notification-1",
+        type: NotificationType.TASK_ASSIGNED,
+      },
+    );
+    repository.dismiss!.mockResolvedValue(null);
+    await expectCode(
+      service.remove(ACTOR, "someone-elses-id"),
+      "NOTIFICATION_NOT_FOUND",
+    );
+  });
   it("denies every self-scoped operation when the caller lacks notification.read at SELF", async () => {
     permissions.hasGrant.mockResolvedValue(false);
     await expectCode(
@@ -112,6 +131,10 @@ describe("NotificationsService", () => {
       "PERMISSION_DENIED",
     );
     await expectCode(service.unreadCount(ACTOR), "PERMISSION_DENIED");
+    await expectCode(
+      service.remove(ACTOR, "notification-1"),
+      "PERMISSION_DENIED",
+    );
     await expectCode(
       service.markRead(ACTOR, "notification-1"),
       "PERMISSION_DENIED",

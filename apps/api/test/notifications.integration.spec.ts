@@ -231,6 +231,84 @@ describe("notifications API and delivery pipeline", () => {
     return body<{ items: NotificationBody[] }>(response).items;
   }
 
+  it("removes notifications persistently, preserves deduplication, and enforces ownership and CSRF", async () => {
+    const event = await prisma.outboxEvent.create({
+      data: {
+        name: "task.assigned",
+        version: 1,
+        occurredAt: new Date(),
+        actorKind: "SYSTEM",
+        resourceType: "task",
+      },
+    });
+    const notification = await prisma.notification.create({
+      data: {
+        recipientUserId: member.id,
+        type: "TASK_ASSIGNED",
+        sourceEventId: event.id,
+        occurrenceKey: event.id,
+        title: "Remove me",
+        body: "An owned notification",
+      },
+    });
+    const path = `/api/v1/notifications/${notification.id}`;
+    const before = body<{ unreadCount: number }>(
+      await as(member, "get", "/api/v1/notifications/unread-count"),
+    ).unreadCount;
+    await request(http).delete(path).expect(401);
+    await request(http).delete(path).set("Cookie", member.cookies).expect(403);
+    await as(secondMember, "delete", path).expect(404);
+    expect(
+      (await feedFor(member)).some((item) => item.id === notification.id),
+    ).toBe(true);
+    await as(member, "delete", path).expect(204);
+    await as(member, "delete", path).expect(204);
+    expect(
+      (await feedFor(member)).some((item) => item.id === notification.id),
+    ).toBe(false);
+    expect(
+      body<{ unreadCount: number }>(
+        await as(member, "get", "/api/v1/notifications/unread-count"),
+      ).unreadCount,
+    ).toBe(before - 1);
+    const removed = await prisma.notification.findUniqueOrThrow({
+      where: { id: notification.id },
+    });
+    expect(removed.dismissedAt).not.toBeNull();
+    await as(member, "put", `${path}/read`).expect(404);
+    // The unique occurrence is retained, preventing replay from recreating it.
+    await expect(
+      prisma.notification.create({
+        data: {
+          recipientUserId: member.id,
+          type: "TASK_ASSIGNED",
+          sourceEventId: event.id,
+          occurrenceKey: event.id,
+          title: "Replay",
+          body: "Replay",
+        },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
+    const read = await prisma.notification.create({
+      data: {
+        recipientUserId: member.id,
+        type: "TASK_ASSIGNED",
+        sourceEventId: event.id,
+        occurrenceKey: randomUUID(),
+        title: "Already read",
+        body: "History",
+        createdAt: new Date(Date.now() - 1000),
+        readAt: new Date(),
+      },
+    });
+    await as(member, "delete", `/api/v1/notifications/${read.id}`).expect(204);
+    expect(
+      body<{ unreadCount: number }>(
+        await as(member, "get", "/api/v1/notifications/unread-count"),
+      ).unreadCount,
+    ).toBe(before - 1);
+  });
+
   it(
     "delivers TASK_ASSIGNED and TASK_APPROVED/TASK_REJECTED through the outbox relay, and supports read state",
     { timeout: 60_000 },
