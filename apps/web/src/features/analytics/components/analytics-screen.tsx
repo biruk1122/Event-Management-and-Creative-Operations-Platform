@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,9 @@ const PINNED_MEASURES: readonly PinnedMeasure[] = [
   "departments",
   "monthly",
 ];
+const subscribeToHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
 export function AnalyticsScreen() {
   return (
@@ -34,6 +37,13 @@ export function AnalyticsScreen() {
 }
 
 function AnalyticsController() {
+  // The shell can warm access before this streamed boundary hydrates. Match
+  // its server checking state first, then consume the fresh cache in place.
+  const ready = useSyncExternalStore(
+    subscribeToHydration,
+    clientReady,
+    serverReady,
+  );
   const access = useCurrentAccess(),
     client = useQueryClient();
   const [blocked, setBlocked] = useState<{
@@ -81,7 +91,7 @@ function AnalyticsController() {
       client.removeQueries(stale);
     }
   }, [hidden, client, access.data?.userId, access.dataUpdatedAt]);
-  if (access.isPending || access.isFetching)
+  if (!ready || access.isPending || access.isFetching)
     return <p role="status">Checking current analytics permissions…</p>;
   if (access.isError)
     return (

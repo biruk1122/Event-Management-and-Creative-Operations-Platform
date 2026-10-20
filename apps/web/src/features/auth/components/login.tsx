@@ -59,19 +59,17 @@ export function Login({ redirectTo }: LoginProps) {
     return outcome;
   }
 
-  if (recovering)
-    return (
-      <p
-        role="status"
-        className="text-muted-foreground py-8 text-center text-sm"
-      >
-        Restoring your session…
-      </p>
-    );
   return (
-    <LoginForm
-      onSubmit={handleSubmit}
-      {...(redirectTo ? { redirectTo } : {})}
-    />
+    <fieldset disabled={recovering} className="min-w-0" aria-busy={recovering}>
+      {recovering ? (
+        <p role="status" className="sr-only">
+          Restoring your session…
+        </p>
+      ) : null}
+      <LoginForm
+        onSubmit={handleSubmit}
+        {...(redirectTo ? { redirectTo } : {})}
+      />
+    </fieldset>
   );
 }

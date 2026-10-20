@@ -636,13 +636,16 @@ test.describe("ANA-06 department boundary", () => {
       await expect(
         page.getByRole("rowheader", { name: fixture.departmentA }),
       ).toHaveCount(0);
-      // Same grants, changed department: focus recheck must not resurrect A.
+      // Same grants, changed department: the next permission poll must apply
+      // the new scope. A focus event inside the fresh 30-second window reuses
+      // verified access instead of forcing another request.
       await panel
         .getByLabel("Department ID (optional)")
         .fill(fixture.departmentA);
       await fixture.setManagerDepartment(fixture.departmentA);
-      const access = page.waitForResponse((response) =>
-        response.url().includes("/auth/me/permissions"),
+      const access = page.waitForResponse(
+        (response) => response.url().includes("/auth/me/permissions"),
+        { timeout: 45_000 },
       );
       // The access recheck landing is not the same moment the pinned
       // department panel's own re-fetch (triggered reactively by its new
@@ -652,6 +655,7 @@ test.describe("ANA-06 department boundary", () => {
         (response) =>
           response.url().includes("/analytics/departments") &&
           response.status() === 200,
+        { timeout: 45_000 },
       );
       await page.evaluate(() => {
         window.dispatchEvent(new Event("visibilitychange"));

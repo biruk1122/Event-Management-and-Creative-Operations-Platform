@@ -227,7 +227,7 @@ test.describe("In-app notifications — end to end", () => {
         ).toBeVisible();
 
         await feedItem.getByRole("button", { name: "Mark as read" }).click();
-        await expect(feedItem.getByText("Read", { exact: true })).toBeVisible();
+        await expect(feedItem).toHaveCount(0);
         await expect(
           memberPage.getByText("1 unread notification", { exact: true }),
         ).toBeVisible();
@@ -236,7 +236,11 @@ test.describe("In-app notifications — end to end", () => {
         // mutable notification type (notifications.policy.ts), so this
         // checks preference persistence independently of the assignment
         // notifications above, not a mute of them.
-        const newMessageToggle = memberPage.getByRole("checkbox", {
+        await memberPage
+          .getByRole("button", { name: "All", exact: true })
+          .click();
+        await expect(feedItem.getByText("Read", { exact: true })).toBeVisible();
+        const newMessageToggle = memberPage.getByRole("switch", {
           name: "New message enabled",
         });
         await expect(newMessageToggle).toBeChecked();
@@ -249,6 +253,9 @@ test.describe("In-app notifications — end to end", () => {
         // Reload proves REST persistence, not client cache: both the read
         // state and the preference must survive a fresh load.
         await memberPage.reload();
+        await memberPage
+          .getByRole("button", { name: "All", exact: true })
+          .click();
         const reloadedFirst = memberPage
           .getByRole("listitem")
           .filter({ hasText: firstTitle })
@@ -257,7 +264,7 @@ test.describe("In-app notifications — end to end", () => {
           reloadedFirst.getByText("Read", { exact: true }),
         ).toBeVisible();
         await expect(
-          memberPage.getByRole("checkbox", { name: "New message enabled" }),
+          memberPage.getByRole("switch", { name: "New message enabled" }),
         ).not.toBeChecked();
 
         // The nav bell reflects the same authoritative state.
