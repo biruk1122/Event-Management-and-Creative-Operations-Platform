@@ -84,6 +84,7 @@ const ACTION_ERRORS: Record<string, string> = {
   not_assigned: "That team is not assigned to this event.",
   invalid_transition: "That move is not allowed from the current status.",
   schedule_invalid: "The end must be on or after the start.",
+  reminder_invalid: "The reminder must be at or before the start.",
   budget_incomplete: "Enter an amount and a currency, or clear both.",
   not_found: "This event no longer exists. Close this and refresh the list.",
   permission_denied: "You do not have permission to do that.",
@@ -325,6 +326,13 @@ function EventDetailBody({
     ) {
       localErrors.endAt = "The end must be on or after the start.";
     }
+    if (fields.reminderAt !== "") {
+      if (fields.startAt === "") {
+        localErrors.reminderAt = "Set a start time first.";
+      } else if (fields.reminderAt > fields.startAt) {
+        localErrors.reminderAt = "The reminder must be at or before the start.";
+      }
+    }
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors);
       return;
@@ -339,6 +347,7 @@ function EventDetailBody({
       description: fields.description,
       startAt: fields.startAt,
       endAt: fields.endAt,
+      reminderAt: fields.reminderAt,
       location: fields.location,
       organizerName: fields.organizerName,
     });
@@ -908,6 +917,7 @@ function fieldsFromEvent(event: Event): EventFieldValues {
     description: event.description ?? "",
     startAt: toLocalInput(event.startAt),
     endAt: toLocalInput(event.endAt),
+    reminderAt: toLocalInput(event.reminderAt),
     location: event.location ?? "",
     organizerName: event.organizerName ?? "",
   };

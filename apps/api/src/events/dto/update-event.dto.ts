@@ -62,6 +62,18 @@ export class UpdateEventDto {
 
   @ApiPropertyOptional({
     type: String,
+    format: "date-time",
+    nullable: true,
+    description:
+      "UTC reminder instant. Requires startAt to be set (now or after this patch) and may not be later than it.",
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsISO8601({ strict: true })
+  reminderAt?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
     nullable: true,
     minLength: 1,
     maxLength: 200,

@@ -3,12 +3,14 @@ import { Injectable } from "@nestjs/common";
 import {
   AuditActorKind,
   AuditOutcome,
+  OutboxActorKind,
   Prisma,
   type ReportReviewOutcome,
   type ReportStatus,
   type ReportType,
 } from "../../generated/prisma/client.js";
 import { AuditWriterService } from "../../audit/audit-writer.service.js";
+import { OutboxWriterService } from "../../outbox/outbox-writer.service.js";
 import { DatabaseService } from "../../database/database.service.js";
 import {
   reportConcurrentChange,
@@ -79,6 +81,7 @@ export class ReportsRepository {
   constructor(
     private readonly db: DatabaseService,
     private readonly audit: AuditWriterService,
+    private readonly outbox: OutboxWriterService,
   ) {}
 
   async findUserDepartmentId(userId: string): Promise<string | null> {
@@ -310,6 +313,16 @@ export class ReportsRepository {
         resourceId: id,
         outcome: AuditOutcome.SUCCEEDED,
       });
+      await this.outbox.append(tx, {
+        name: "report.submitted",
+        version: 1,
+        actorKind: OutboxActorKind.USER,
+        actorUserId: actorId,
+        correlationId: requestId,
+        resourceType: "report",
+        resourceId: id,
+        consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
+      });
       return tx.report.findUniqueOrThrow({ where: { id }, include });
     });
   }
@@ -391,6 +404,17 @@ export class ReportsRepository {
         resourceType: "report",
         resourceId: id,
         outcome: AuditOutcome.SUCCEEDED,
+      });
+      await this.outbox.append(tx, {
+        name: "report.reviewed",
+        version: 1,
+        actorKind: OutboxActorKind.USER,
+        actorUserId: reviewerId,
+        correlationId: requestId,
+        resourceType: "report",
+        resourceId: id,
+        payload: { outcome },
+        consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
       });
       return tx.report.findUniqueOrThrow({ where: { id }, include });
     });

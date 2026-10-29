@@ -67,6 +67,7 @@ function toIsoUtc(local: string): string | null {
 function createBody(values: CreateEventValues) {
   const start = toIsoUtc(values.startAt);
   const end = toIsoUtc(values.endAt);
+  const reminder = toIsoUtc(values.reminderAt);
   return {
     name: values.name.trim(),
     eventType: values.eventType,
@@ -75,6 +76,7 @@ function createBody(values: CreateEventValues) {
       : {}),
     ...(start ? { startAt: start } : {}),
     ...(end ? { endAt: end } : {}),
+    ...(reminder ? { reminderAt: reminder } : {}),
     ...(values.location.trim() ? { location: values.location.trim() } : {}),
     ...(values.organizerName.trim()
       ? { organizerName: values.organizerName.trim() }
@@ -94,6 +96,7 @@ function updateBody(values: EditEventValues) {
     description: trimmedDescription === "" ? null : trimmedDescription,
     startAt: toIsoUtc(values.startAt),
     endAt: toIsoUtc(values.endAt),
+    reminderAt: toIsoUtc(values.reminderAt),
     location: trimmedLocation === "" ? null : trimmedLocation,
     organizerName: trimmedOrganizer === "" ? null : trimmedOrganizer,
   };
@@ -104,6 +107,8 @@ function saveFailure(error: unknown, status: number): SaveEventOutcome {
     if (error.code === "USER_NOT_FOUND") return { status: "manager_not_found" };
     if (error.code === "EVENT_SCHEDULE_INVALID")
       return { status: "schedule_invalid" };
+    if (error.code === "EVENT_REMINDER_INVALID")
+      return { status: "reminder_invalid" };
     if (error.code === "VALIDATION_ERROR") {
       const fields = fieldErrorsOf(error);
       const fieldErrors: Partial<Record<keyof CreateEventValues, string>> = {};
@@ -113,6 +118,7 @@ function saveFailure(error: unknown, status: number): SaveEventOutcome {
         "description",
         "startAt",
         "endAt",
+        "reminderAt",
         "location",
         "organizerName",
         "managerId",
@@ -133,6 +139,8 @@ function updateFailure(error: unknown, status: number): UpdateEventOutcome {
     if (error.code === "EVENT_NOT_FOUND") return { status: "not_found" };
     if (error.code === "EVENT_SCHEDULE_INVALID")
       return { status: "schedule_invalid" };
+    if (error.code === "EVENT_REMINDER_INVALID")
+      return { status: "reminder_invalid" };
     if (error.code === "VALIDATION_ERROR") {
       const fields = fieldErrorsOf(error);
       const fieldErrors: Partial<Record<keyof EditEventValues, string>> = {};
@@ -142,6 +150,7 @@ function updateFailure(error: unknown, status: number): UpdateEventOutcome {
         "description",
         "startAt",
         "endAt",
+        "reminderAt",
         "location",
         "organizerName",
       ] as const) {

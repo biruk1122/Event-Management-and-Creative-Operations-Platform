@@ -1,7 +1,7 @@
 import { NotificationType } from "../generated/prisma/client.js";
 
 /**
- * The seven types a recipient may mute (ADR 0003 §4). Assignment,
+ * The types a recipient may mute (ADR 0003 §4). Assignment,
  * review-outcome, mention, and meeting-invitation notifications represent a
  * direct action, outcome, or participation obligation and can never be
  * silenced. The database CHECK constraint on `notification_preferences`
@@ -17,6 +17,9 @@ export const MUTABLE_NOTIFICATION_TYPES: readonly NotificationType[] = [
   NotificationType.EVENT_REMINDER,
   NotificationType.TODO_REMINDER,
   NotificationType.REPORT_REMINDER,
+  NotificationType.PARTNER_FOLLOW_UP_DUE,
+  NotificationType.LETTER_SHARED,
+  NotificationType.DOCUMENT_SHARED,
 ];
 
 export function isMutableNotificationType(type: NotificationType): boolean {
@@ -84,6 +87,114 @@ export function expenseRejectedContent(
   description: string,
 ): NotificationContent {
   return { title: "Expense rejected", body: description };
+}
+
+export function reportSubmittedContent(
+  reportTitle: string,
+): NotificationContent {
+  return { title: "Report submitted for review", body: reportTitle };
+}
+
+export function reportReviewedContent(
+  reportTitle: string,
+): NotificationContent {
+  return { title: "Report reviewed", body: reportTitle };
+}
+
+export function reportChangesRequestedContent(
+  reportTitle: string,
+): NotificationContent {
+  return { title: "Changes requested on your report", body: reportTitle };
+}
+
+export function todoReminderContent(title: string): NotificationContent {
+  return { title: "To-Do reminder", body: title };
+}
+
+export function eventReminderContent(name: string): NotificationContent {
+  return { title: "Event reminder", body: name };
+}
+
+export function reportReminderContent(title: string): NotificationContent {
+  return { title: "Report reminder", body: title };
+}
+
+export function partnerFollowUpDueContent(
+  organizationName: string,
+): NotificationContent {
+  return { title: "Partner follow-up due", body: organizationName };
+}
+
+export function letterSharedContent(
+  referenceNumber: string,
+): NotificationContent {
+  return { title: "A letter was shared with you", body: referenceNumber };
+}
+
+export function documentSharedContent(
+  displayName: string,
+): NotificationContent {
+  return { title: "A document was shared with you", body: displayName };
+}
+
+export function attendanceShiftAssignedContent(
+  eventName: string,
+): NotificationContent {
+  return { title: "You were assigned a shift", body: eventName };
+}
+
+export function attendanceShiftScheduleChangedContent(
+  eventName: string,
+): NotificationContent {
+  return { title: "A shift you're assigned to changed", body: eventName };
+}
+
+export function attendanceOvertimeApprovedContent(
+  eventDate: string,
+): NotificationContent {
+  return { title: "Overtime approved", body: eventDate };
+}
+
+export function attendanceOvertimeRejectedContent(
+  eventDate: string,
+): NotificationContent {
+  return { title: "Overtime rejected", body: eventDate };
+}
+
+export function attendanceExceptionApprovedContent(
+  description: string,
+): NotificationContent {
+  return { title: "Attendance exception approved", body: description };
+}
+
+export function attendanceExceptionRejectedContent(
+  description: string,
+): NotificationContent {
+  return { title: "Attendance exception rejected", body: description };
+}
+
+export function leaveRequestSubmittedContent(
+  employeeName: string,
+): NotificationContent {
+  return { title: "Leave request needs your review", body: employeeName };
+}
+
+export function leaveRequestApprovedContent(
+  leaveTypeName: string,
+): NotificationContent {
+  return { title: "Leave request approved", body: leaveTypeName };
+}
+
+export function leaveRequestRejectedContent(
+  leaveTypeName: string,
+): NotificationContent {
+  return { title: "Leave request rejected", body: leaveTypeName };
+}
+
+export function leaveRequestReturnedContent(
+  leaveTypeName: string,
+): NotificationContent {
+  return { title: "Leave request returned for changes", body: leaveTypeName };
 }
 
 /** Server-derived body text is bounded, never the raw message verbatim past

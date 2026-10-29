@@ -30,6 +30,18 @@ export class NotificationResponse {
   @ApiProperty({ type: String, format: "uuid", nullable: true })
   expenseId!: string | null;
 
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  reportId!: string | null;
+
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  partnerId!: string | null;
+
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  letterId!: string | null;
+
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  documentId!: string | null;
+
   @ApiProperty({ format: "date-time" })
   createdAt!: string;
 

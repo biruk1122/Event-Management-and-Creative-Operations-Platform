@@ -44,6 +44,7 @@ const createValues: CreateEventValues = {
   description: "  Opening night.  ",
   startAt: "2026-10-04T18:00",
   endAt: "",
+  reminderAt: "",
   location: "",
   organizerName: "  City Arts  ",
   managerId: null,
@@ -55,6 +56,7 @@ const editValues: EditEventValues = {
   description: "",
   startAt: "2026-10-04T18:00",
   endAt: "",
+  reminderAt: "",
   location: "Hall A",
   organizerName: "",
 };
@@ -181,6 +183,7 @@ describe("events gateway writes", () => {
       description: null,
       startAt: "2026-10-04T18:00:00.000Z",
       endAt: null,
+      reminderAt: null,
       location: "Hall A",
       organizerName: null,
     });

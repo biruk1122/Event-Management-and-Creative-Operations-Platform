@@ -5,11 +5,14 @@ import { AuditModule } from "../audit/audit.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
 import { EventsModule } from "../events/events.module.js";
 import { ExpensesModule } from "../expenses/expenses.module.js";
+import { OutboxModule } from "../outbox/outbox.module.js";
 import { ProjectsModule } from "../projects/projects.module.js";
 import { TasksModule } from "../tasks/tasks.module.js";
 import { WorkspacesModule } from "../workspaces/workspaces.module.js";
 import { ReportsRepository } from "./infrastructure/reports.repository.js";
+import { ReportsSchedulerRepository } from "./infrastructure/reports-scheduler.repository.js";
 import { ReportsController } from "./reports.controller.js";
+import { ReportsSchedulerService } from "./reports-scheduler.service.js";
 import { ReportsService } from "./reports.service.js";
 
 @Module({
@@ -18,13 +21,19 @@ import { ReportsService } from "./reports.service.js";
     AuthModule,
     EventsModule,
     ExpensesModule,
+    OutboxModule,
     PermissionsModule,
     ProjectsModule,
     TasksModule,
     WorkspacesModule,
   ],
   controllers: [ReportsController],
-  providers: [ReportsService, ReportsRepository],
+  providers: [
+    ReportsService,
+    ReportsRepository,
+    ReportsSchedulerRepository,
+    ReportsSchedulerService,
+  ],
   exports: [ReportsService],
 })
 export class ReportsModule {}

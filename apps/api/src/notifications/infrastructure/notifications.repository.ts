@@ -1,11 +1,15 @@
 import { Injectable } from "@nestjs/common";
 
 import {
+  EventStatus,
   MeetingParticipantResponse,
   MeetingStatus,
   NotificationType,
+  PartnerStatus,
   Prisma,
+  ReportStatus,
   type PermissionScope,
+  TodoStatus,
   UserAccountStatus,
 } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
@@ -28,6 +32,10 @@ export interface NotificationRecord {
   eventId: string | null;
   meetingId: string | null;
   expenseId: string | null;
+  reportId: string | null;
+  partnerId: string | null;
+  letterId: string | null;
+  documentId: string | null;
   createdAt: Date;
   readAt: Date | null;
 }
@@ -42,6 +50,10 @@ const NOTIFICATION_SELECT = {
   eventId: true,
   meetingId: true,
   expenseId: true,
+  reportId: true,
+  partnerId: true,
+  letterId: true,
+  documentId: true,
   createdAt: true,
   readAt: true,
 } as const;
@@ -58,6 +70,10 @@ export interface CreateNotificationInput {
   eventId?: string;
   meetingId?: string;
   expenseId?: string;
+  reportId?: string;
+  partnerId?: string;
+  letterId?: string;
+  documentId?: string;
 }
 
 interface FeedCursor {
@@ -70,6 +86,7 @@ function visibleToRecipient(
 ): Prisma.NotificationWhereInput {
   return {
     recipientUserId,
+    dismissedAt: null,
     OR: [
       { meetingId: null },
       {
@@ -131,6 +148,10 @@ export class NotificationsRepository {
           ...(input.eventId ? { eventId: input.eventId } : {}),
           ...(input.meetingId ? { meetingId: input.meetingId } : {}),
           ...(input.expenseId ? { expenseId: input.expenseId } : {}),
+          ...(input.reportId ? { reportId: input.reportId } : {}),
+          ...(input.partnerId ? { partnerId: input.partnerId } : {}),
+          ...(input.letterId ? { letterId: input.letterId } : {}),
+          ...(input.documentId ? { documentId: input.documentId } : {}),
         },
         select: NOTIFICATION_SELECT,
       });
@@ -213,6 +234,22 @@ export class NotificationsRepository {
     }
     return this.db.notification.findUniqueOrThrow({
       where: { id },
+      select: NOTIFICATION_SELECT,
+    });
+  }
+
+  async dismiss(
+    recipientUserId: string,
+    id: string,
+  ): Promise<NotificationRecord | null> {
+    await this.db.notification.updateMany({
+      where: { id, recipientUserId, dismissedAt: null },
+      data: { dismissedAt: new Date() },
+    });
+    // Check ownership for repeated removals too, preserving the deduplication
+    // record until normal retention cleanup.
+    return this.db.notification.findFirst({
+      where: { id, recipientUserId },
       select: NOTIFICATION_SELECT,
     });
   }
@@ -381,5 +418,269 @@ export class NotificationsRepository {
       select: { userId: true },
     });
     return rows.map((row) => row.userId);
+  }
+
+  async getReport(reportId: string): Promise<{
+    title: string;
+    authorId: string;
+    departmentId: string | null;
+    status: ReportStatus;
+  } | null> {
+    return this.db.report.findUnique({
+      where: { id: reportId },
+      select: {
+        title: true,
+        authorId: true,
+        departmentId: true,
+        status: true,
+      },
+    });
+  }
+
+  /** Every active user who can review this report: holding `report.review`
+   * at ORGANIZATION scope (anyone), or at DEPARTMENT scope within the
+   * report's own department - resolved at process time (ADR 0003 §1), the
+   * same per-user department comparison `ReportsService.visibility` already
+   * performs for authorization, never a payload snapshot. */
+  async getReportReviewerIds(departmentId: string | null): Promise<string[]> {
+    const organization = await this.db.userRoleAssignment.findMany({
+      where: {
+        role: {
+          rolePermissions: {
+            some: { permissionKey: "report.review", scope: "ORGANIZATION" },
+          },
+        },
+        user: { status: UserAccountStatus.ACTIVE },
+      },
+      select: { userId: true },
+    });
+    const department = departmentId
+      ? await this.db.userRoleAssignment.findMany({
+          where: {
+            role: {
+              rolePermissions: {
+                some: { permissionKey: "report.review", scope: "DEPARTMENT" },
+              },
+            },
+            user: { status: UserAccountStatus.ACTIVE, departmentId },
+          },
+          select: { userId: true },
+        })
+      : [];
+    return [
+      ...new Set([...organization, ...department].map((row) => row.userId)),
+    ];
+  }
+
+  async getTodo(
+    todoId: string,
+  ): Promise<{ title: string; userId: string; status: TodoStatus } | null> {
+    return this.db.todo.findUnique({
+      where: { id: todoId },
+      select: { title: true, userId: true, status: true },
+    });
+  }
+
+  async getEvent(
+    eventId: string,
+  ): Promise<{ name: string; status: EventStatus } | null> {
+    return this.db.event.findUnique({
+      where: { id: eventId },
+      select: { name: true, status: true },
+    });
+  }
+
+  /** Creator + the connected workspace's manager (low-blast-radius default -
+   * Event has no richer "all participants" roster suited for a mass-notify
+   * reminder); deduped, filtered to active users. */
+  async getEventReminderRecipientIds(eventId: string): Promise<string[]> {
+    const event = await this.db.event.findUnique({
+      where: { id: eventId },
+      select: {
+        createdById: true,
+        workspace: { select: { managerId: true } },
+      },
+    });
+    if (!event) return [];
+    const candidates = [event.createdById, event.workspace.managerId].filter(
+      (id): id is string => id !== null,
+    );
+    const ids = [...new Set(candidates)];
+    if (ids.length === 0) return [];
+    const active = await this.db.user.findMany({
+      where: { id: { in: ids }, status: UserAccountStatus.ACTIVE },
+      select: { id: true },
+    });
+    return active.map((user) => user.id);
+  }
+
+  async getPartner(partnerId: string): Promise<{
+    organizationName: string;
+    ownerId: string | null;
+    status: PartnerStatus;
+  } | null> {
+    return this.db.partner.findUnique({
+      where: { id: partnerId },
+      select: { organizationName: true, ownerId: true, status: true },
+    });
+  }
+
+  /** `deletedAt` is intentionally excluded from the select set: a letter
+   * soft-deleted after being shared must still resolve a content string for
+   * any notification already in flight, so this never 404s on its own -
+   * the share's own `revokedAt` (re-checked by the caller) is what gates
+   * delivery. */
+  async getLetter(
+    letterId: string,
+  ): Promise<{ referenceNumber: string } | null> {
+    return this.db.letter.findUnique({
+      where: { id: letterId },
+      select: { referenceNumber: true },
+    });
+  }
+
+  async getDocument(
+    documentId: string,
+  ): Promise<{ displayName: string } | null> {
+    return this.db.document.findUnique({
+      where: { id: documentId },
+      select: { displayName: true },
+    });
+  }
+
+  /**
+   * Re-loads the share that triggered `letter.shared`/`document.shared` -
+   * the outbox payload only carries `shareId`, never trusting audience/scope
+   * at the time the event was appended, since the share may have already
+   * been revoked by the time this is delivered.
+   */
+  async getShare(shareId: string): Promise<{
+    recipientId: string | null;
+    allEmployees: boolean;
+    revokedAt: Date | null;
+  } | null> {
+    return this.db.share.findUnique({
+      where: { id: shareId },
+      select: { recipientId: true, allEmployees: true, revokedAt: true },
+    });
+  }
+
+  /**
+   * One bounded page of active user ids, ordered by id for stable
+   * keyset pagination - the all-employees share fan-out pages through this
+   * rather than loading every active employee into memory at once.
+   */
+  async listActiveUserIds(
+    afterId: string | null,
+    limit: number,
+  ): Promise<string[]> {
+    const rows = await this.db.user.findMany({
+      where: {
+        status: UserAccountStatus.ACTIVE,
+        ...(afterId ? { id: { gt: afterId } } : {}),
+      },
+      select: { id: true },
+      orderBy: { id: "asc" },
+      take: limit,
+    });
+    return rows.map((row) => row.id);
+  }
+
+  // -------------------------------------------------------------------
+  // Attendance and leave (ATT-01/ATT-02)
+  // -------------------------------------------------------------------
+
+  async getEventShift(
+    shiftId: string,
+  ): Promise<{ eventName: string; status: string } | null> {
+    const shift = await this.db.eventShift.findUnique({
+      where: { id: shiftId },
+      select: { status: true, event: { select: { name: true } } },
+    });
+    return shift ? { eventName: shift.event.name, status: shift.status } : null;
+  }
+
+  /** Re-verifies the assignment still exists before notifying - the
+   * payload's `employeeId` is only a hint, never trusted on its own. */
+  async hasActiveShiftAssignment(
+    shiftId: string,
+    employeeId: string,
+  ): Promise<boolean> {
+    const count = await this.db.eventShiftAssignment.count({
+      where: { eventShiftId: shiftId, employeeId, unassignedAt: null },
+    });
+    return count === 1;
+  }
+
+  async getShiftAssignedEmployeeIds(shiftId: string): Promise<string[]> {
+    const rows = await this.db.eventShiftAssignment.findMany({
+      where: { eventShiftId: shiftId, unassignedAt: null },
+      select: { employeeId: true },
+    });
+    return rows.map((row) => row.employeeId);
+  }
+
+  async getOvertimeApproval(id: string): Promise<{
+    status: string;
+    employeeId: string;
+    sessionDate: Date;
+  } | null> {
+    const row = await this.db.attendanceOvertimeApproval.findUnique({
+      where: { id },
+      select: { status: true, session: { select: { employeeId: true, sessionDate: true } } },
+    });
+    return row
+      ? { status: row.status, employeeId: row.session.employeeId, sessionDate: row.session.sessionDate }
+      : null;
+  }
+
+  async getAttendanceException(id: string): Promise<{
+    status: string;
+    employeeId: string;
+    description: string | null;
+  } | null> {
+    return this.db.attendanceException.findUnique({
+      where: { id },
+      select: { status: true, employeeId: true, description: true },
+    });
+  }
+
+  async getLeaveRequest(id: string): Promise<{
+    status: string;
+    employeeId: string;
+    employeeName: string | null;
+    employeeDepartmentId: string | null;
+    leaveTypeName: string;
+  } | null> {
+    const row = await this.db.leaveRequest.findUnique({
+      where: { id },
+      select: {
+        status: true,
+        employeeId: true,
+        leaveType: { select: { name: true } },
+        employee: {
+          select: { firstName: true, lastName: true, email: true, departmentId: true },
+        },
+      },
+    });
+    if (!row) return null;
+    const name = [row.employee.firstName, row.employee.lastName]
+      .filter((part): part is string => Boolean(part))
+      .join(" ");
+    return {
+      status: row.status,
+      employeeId: row.employeeId,
+      employeeName: name.length > 0 ? name : row.employee.email,
+      employeeDepartmentId: row.employee.departmentId,
+      leaveTypeName: row.leaveType.name,
+    };
+  }
+
+  async getDepartmentManagerId(departmentId: string): Promise<string | null> {
+    const department = await this.db.department.findUnique({
+      where: { id: departmentId },
+      select: { managerId: true },
+    });
+    return department?.managerId ?? null;
   }
 }

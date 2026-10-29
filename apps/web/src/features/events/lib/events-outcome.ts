@@ -12,6 +12,7 @@ export interface CreateEventValues {
   description: string;
   startAt: string;
   endAt: string;
+  reminderAt: string;
   location: string;
   organizerName: string;
   managerId: string | null;
@@ -24,6 +25,7 @@ export interface EditEventValues {
   description: string;
   startAt: string;
   endAt: string;
+  reminderAt: string;
   location: string;
   organizerName: string;
 }
@@ -39,6 +41,7 @@ export type SaveEventOutcome =
   | { status: "success"; event: Event }
   | { status: "manager_not_found" }
   | { status: "schedule_invalid" }
+  | { status: "reminder_invalid" }
   | {
       status: "field_errors";
       fieldErrors: FieldErrors<keyof CreateEventValues>;
@@ -54,6 +57,7 @@ export type CreateEvent = (
 export type UpdateEventOutcome =
   | { status: "success"; event: Event }
   | { status: "schedule_invalid" }
+  | { status: "reminder_invalid" }
   | { status: "field_errors"; fieldErrors: FieldErrors<keyof EditEventValues> }
   | { status: "not_found" }
   | { status: "permission_denied" }

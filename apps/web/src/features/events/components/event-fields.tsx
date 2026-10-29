@@ -25,6 +25,7 @@ export interface EventFieldValues {
   description: string;
   startAt: string;
   endAt: string;
+  reminderAt: string;
   location: string;
   organizerName: string;
 }
@@ -51,6 +52,7 @@ export function EventFields({
     description: useId(),
     startAt: useId(),
     endAt: useId(),
+    reminderAt: useId(),
     location: useId(),
     organizer: useId(),
   };
@@ -139,6 +141,40 @@ export function EventFields({
             </p>
           ) : null}
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={ids.reminderAt}>Reminder (UTC)</Label>
+        <Input
+          id={ids.reminderAt}
+          type="datetime-local"
+          value={values.reminderAt}
+          disabled={disabled || values.startAt === ""}
+          aria-invalid={errors.reminderAt ? true : undefined}
+          aria-describedby={
+            errors.reminderAt
+              ? `${ids.reminderAt}-error`
+              : values.startAt === ""
+                ? `${ids.reminderAt}-hint`
+                : undefined
+          }
+          onChange={(event) => onChange("reminderAt", event.target.value)}
+        />
+        {errors.reminderAt ? (
+          <p
+            id={`${ids.reminderAt}-error`}
+            className="text-destructive text-sm"
+          >
+            {errors.reminderAt}
+          </p>
+        ) : values.startAt === "" ? (
+          <p
+            id={`${ids.reminderAt}-hint`}
+            className="text-muted-foreground text-sm"
+          >
+            Set a start time to enable a reminder.
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

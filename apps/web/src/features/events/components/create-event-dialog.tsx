@@ -43,6 +43,7 @@ const EMPTY: CreateEventValues = {
   description: "",
   startAt: "",
   endAt: "",
+  reminderAt: "",
   location: "",
   organizerName: "",
   managerId: null,
@@ -105,6 +106,13 @@ export function CreateEventDialog({
     ) {
       localErrors.endAt = "The end must be on or after the start.";
     }
+    if (values.reminderAt !== "") {
+      if (values.startAt === "") {
+        localErrors.reminderAt = "Set a start time first.";
+      } else if (values.reminderAt > values.startAt) {
+        localErrors.reminderAt = "The reminder must be at or before the start.";
+      }
+    }
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors);
       return;
@@ -125,6 +133,11 @@ export function CreateEventDialog({
         return;
       case "schedule_invalid":
         setFieldErrors({ endAt: "The end must be on or after the start." });
+        return;
+      case "reminder_invalid":
+        setFieldErrors({
+          reminderAt: "The reminder must be at or before the start.",
+        });
         return;
       default:
         setFormError(FORM_ERRORS[outcome.status] ?? FORM_ERRORS.unexpected!);

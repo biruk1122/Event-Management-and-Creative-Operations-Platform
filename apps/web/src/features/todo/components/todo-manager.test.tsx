@@ -113,6 +113,172 @@ function setup(fake = fakeConnect()) {
 }
 
 describe("TodoManager", () => {
+  it("keeps keyboard focus on an item after completion moves it to another group", async () => {
+    let current = item();
+    get.mockImplementation((path: string) =>
+      Promise.resolve(ok({ items: path === "/api/v1/todos" ? [current] : [] })),
+    );
+    patch.mockImplementation(async () => {
+      current = { ...current, status: "COMPLETED" };
+      return ok(current);
+    });
+    const { user } = setup();
+    const toggle = await screen.findByRole("button", {
+      name: 'Mark "Confirm venue availability" as completed',
+    });
+    toggle.focus();
+    await user.keyboard(" ");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", {
+          name: 'Mark "Confirm venue availability" as not started',
+        }),
+      ).toHaveFocus(),
+    );
+    expect(
+      within(
+        screen.getByRole("region", { name: "Completed to-dos" }),
+      ).getByText("Confirm venue availability"),
+    ).toBeVisible();
+  });
+
+  it("combines description search with priority filtering and clears both from the summary", async () => {
+    mockGetRoutes({
+      "/api/v1/todos": {
+        items: [
+          item({ description: "Call the venue manager" }),
+          item({
+            id: "low",
+            title: "Bring refreshments",
+            priority: "LOW",
+            description: "Call the catering team",
+          }),
+          item({
+            id: "future",
+            title: "Future reminder",
+            dueDate: "2026-09-20",
+          }),
+        ],
+      },
+    });
+    const { user } = setup();
+    await screen.findByText("Confirm venue availability");
+    expect(
+      within(screen.getByRole("button", { name: "My Day" })).getByText("2"),
+    ).toBeInTheDocument();
+    await user.type(
+      screen.getByRole("textbox", { name: "Search to-dos" }),
+      "call",
+    );
+    await user.click(
+      screen.getByRole("combobox", { name: "Filter by priority" }),
+    );
+    await user.click(screen.getByRole("option", { name: "High" }));
+    expect(screen.getByText("Confirm venue availability")).toBeVisible();
+    expect(screen.queryByText("Bring refreshments")).not.toBeInTheDocument();
+    await user.clear(screen.getByRole("textbox", { name: "Search to-dos" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Search to-dos" }),
+      "missing item",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("No matching to-dos");
+    await user.click(screen.getByRole("button", { name: "View all to-dos" }));
+    expect(screen.getByRole("textbox", { name: "Search to-dos" })).toHaveValue(
+      "",
+    );
+    expect(screen.getByText("Bring refreshments")).toBeVisible();
+    expect(screen.getByText("Future reminder")).toBeVisible();
+  });
+
+  it("sorts each due-date group by priority or title and retains the items in grid layout", async () => {
+    mockGetRoutes({
+      "/api/v1/todos": {
+        items: [
+          item({
+            id: "a",
+            title: "Zulu",
+            priority: "LOW",
+            dueTime: "08:00:00",
+          }),
+          item({
+            id: "b",
+            title: "Alpha",
+            priority: "HIGH",
+            dueTime: "09:00:00",
+          }),
+          item({
+            id: "c",
+            title: "Beta",
+            priority: "URGENT",
+            dueTime: "10:00:00",
+          }),
+        ],
+      },
+    });
+    const { user } = setup();
+    await screen.findByText("Zulu");
+    const firstRow = () =>
+      within(screen.getByRole("list")).getAllByRole("listitem")[0]!;
+    expect(within(firstRow()).getByText("Zulu")).toBeVisible();
+    await user.click(screen.getByRole("combobox", { name: "Sort to-dos" }));
+    await user.click(screen.getByRole("option", { name: "Sort by: Priority" }));
+    expect(within(firstRow()).getByText("Beta")).toBeVisible();
+    await user.click(screen.getByRole("combobox", { name: "Sort to-dos" }));
+    await user.click(screen.getByRole("option", { name: "Sort by: Title" }));
+    expect(within(firstRow()).getByText("Alpha")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Grid layout" }));
+    expect(screen.getByRole("button", { name: "Grid layout" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("groups completed items separately instead of labeling them overdue", async () => {
+    mockGetRoutes({
+      "/api/v1/todos": {
+        items: [
+          item({
+            title: "Done yesterday",
+            status: "COMPLETED",
+            dueDate: "2026-09-15",
+          }),
+        ],
+      },
+    });
+    const { user } = setup();
+    await user.click(await screen.findByRole("button", { name: "All" }));
+    expect(
+      within(
+        screen.getByRole("region", { name: "Completed to-dos" }),
+      ).getByText("Done yesterday"),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: /Overdue/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a rejected completion update without marking the item complete", async () => {
+    mockGetRoutes({ "/api/v1/todos": { items: [item()] } });
+    patch.mockResolvedValue(failed(403));
+    const { user } = setup();
+    await user.click(
+      await screen.findByRole("button", {
+        name: 'Mark "Confirm venue availability" as completed',
+      }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "could not update this to-do",
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", {
+          name: 'Mark "Confirm venue availability" as completed',
+        }),
+      ).toBeEnabled(),
+    );
+  });
+
   it("shows a loading state, then the My Day view with only today's item from the real API", async () => {
     let resolveGet: (value: unknown) => void = () => {};
     get.mockImplementation((path: string) => {
@@ -299,6 +465,9 @@ describe("TodoManager", () => {
     expect(
       screen.queryByText("Confirm venue availability"),
     ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "All" })).toHaveFocus(),
+    );
   });
 
   it("creates a new to-do through the real API via the toolbar's Add to-do action", async () => {

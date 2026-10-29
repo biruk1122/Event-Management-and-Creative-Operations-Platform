@@ -13,6 +13,7 @@ import {
 import { seedRbac } from "../src/rbac/seed-rbac.js";
 import type { DatabaseService } from "../src/database/database.service.js";
 import type { AuditWriterService } from "../src/audit/audit-writer.service.js";
+import type { OutboxWriterService } from "../src/outbox/outbox-writer.service.js";
 import {
   createIsolatedDatabase,
   type IsolatedDatabase,
@@ -760,6 +761,7 @@ describe("EVE-167 report verification", () => {
       const reports = new ReportsRepository(
         logged as unknown as DatabaseService,
         {} as AuditWriterService,
+        {} as OutboxWriterService,
       );
       const small = await reports.list({
         visibility: { organization: true },

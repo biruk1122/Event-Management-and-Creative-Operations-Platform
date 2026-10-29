@@ -68,6 +68,7 @@ const EVENT_KEYS = [
   "name",
   "organizerName",
   "participants",
+  "reminderAt",
   "startAt",
   "status",
   "teams",

@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -49,6 +49,10 @@ function notification(
     eventId: null,
     meetingId: null,
     expenseId: null,
+    reportId: null,
+    partnerId: null,
+    letterId: null,
+    documentId: null,
     ...overrides,
   };
 }
@@ -118,6 +122,49 @@ function setup(fake = fakeConnect()) {
 }
 
 describe("NotificationsManager", () => {
+  it("marks the entire feed read and refreshes the count after an explicit bulk action", async () => {
+    let readAt: string | null = null;
+    get.mockImplementation((path: string) =>
+      Promise.resolve(
+        ok(
+          path.endsWith("unread-count")
+            ? { unreadCount: readAt ? 0 : 1 }
+            : path.endsWith("preferences")
+              ? { items: [] }
+              : { items: [notification({ readAt })], nextCursor: null },
+        ),
+      ),
+    );
+    put.mockImplementation(async () => {
+      readAt = "2026-10-19T12:00:00Z";
+      return ok(notification({ readAt }));
+    });
+    const { user } = setup();
+    await screen.findByText("You were assigned a task");
+    expect(put).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Mark all as read" }));
+    expect(await screen.findByText("You’re all caught up")).toBeVisible();
+    expect(screen.getByText("0 unread notifications")).toBeInTheDocument();
+    expect(put).toHaveBeenCalledWith(
+      "/api/v1/notifications/{id}/read",
+      expect.objectContaining({ params: { path: { id: "notification-1" } } }),
+    );
+  });
+  it("shows feedback when an individual read action is rejected", async () => {
+    mockGet({
+      "/api/v1/notifications": { items: [notification()], nextCursor: null },
+      "/api/v1/notifications/unread-count": { unreadCount: 1 },
+    });
+    put.mockResolvedValue({ response: { ok: false, status: 500 } });
+    const { user } = setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Mark as read" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This notification could not be marked read",
+    );
+    expect(screen.getByText("You were assigned a task")).toBeVisible();
+  });
   it("loads the feed, unread count, and preferences from the real API", async () => {
     mockGet({
       "/api/v1/notifications": { items: [notification()], nextCursor: null },
@@ -206,7 +253,7 @@ describe("NotificationsManager", () => {
   it("shows a reconnecting banner while the live connection drops", async () => {
     mockGet({});
     const { fake } = setup();
-    await screen.findByText("End of notifications.");
+    await screen.findByText("You’re all caught up");
 
     fake.emit({ status: "reconnecting", detail: null, rooms: [] });
     expect(
@@ -235,7 +282,7 @@ describe("NotificationsManager", () => {
       "/api/v1/notifications/unread-count": { unreadCount: 0 },
     });
     const { fake } = setup();
-    await screen.findByText("End of notifications.");
+    await screen.findByText("You’re all caught up");
     const callsBeforeFrame = get.mock.calls.length;
 
     fake.emitFrame("notification.invalidated", {
@@ -251,7 +298,7 @@ describe("NotificationsManager", () => {
   it("ignores a frame for an unrelated event name", async () => {
     mockGet({});
     const { fake } = setup();
-    await screen.findByText("End of notifications.");
+    await screen.findByText("You’re all caught up");
     const callsBeforeFrame = get.mock.calls.length;
 
     fake.emitFrame("some.other.event", {});

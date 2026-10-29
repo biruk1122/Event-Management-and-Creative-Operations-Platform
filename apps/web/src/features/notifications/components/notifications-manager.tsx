@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -68,6 +68,90 @@ export function NotificationsManager({
   const unread = useUnreadCount(access);
   const preferences = usePreferences(access);
   const mutations = useNotificationsMutations(access);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingIds, setPendingIds] = useState<string[]>([]);
+  const [removingIds, setRemovingIds] = useState<string[]>([]);
+  const [pendingPreferences, setPendingPreferences] = useState<string[]>([]);
+
+  async function markRead(id: string) {
+    if (pendingIds.includes(id) || mutations.markAllRead.isPending) return;
+    setActionError(null);
+    setPendingIds((current) => [...current, id]);
+    try {
+      const result = await mutations.markRead.mutateAsync(id);
+      if (result.status !== "success") {
+        setActionError(
+          "This notification could not be marked read. Please try again.",
+        );
+        if (result.status === "permission_denied")
+          void client.invalidateQueries({ queryKey: accessKey });
+      }
+    } catch {
+      setActionError(
+        "This notification could not be marked read. Please try again.",
+      );
+    } finally {
+      setPendingIds((current) => current.filter((value) => value !== id));
+    }
+  }
+  async function markAllRead() {
+    if (mutations.markAllRead.isPending || pendingIds.length > 0) return;
+    setActionError(null);
+    try {
+      await mutations.markAllRead.mutateAsync();
+    } catch {
+      setActionError(
+        "Some notifications could not be marked read. Please try again.",
+      );
+    }
+  }
+  async function remove(id: string) {
+    if (pendingIds.includes(id) || mutations.markAllRead.isPending) return;
+    setActionError(null);
+    setPendingIds((current) => [...current, id]);
+    setRemovingIds((current) => [...current, id]);
+    try {
+      await mutations.remove.mutateAsync(id);
+    } catch (error) {
+      setActionError(
+        "This notification could not be removed. Please try again.",
+      );
+      if (
+        error instanceof NotificationsRequestError &&
+        [401, 403].includes(error.status)
+      )
+        void client.invalidateQueries({ queryKey: accessKey });
+    } finally {
+      setPendingIds((current) => current.filter((value) => value !== id));
+      setRemovingIds((current) => current.filter((value) => value !== id));
+    }
+  }
+  async function togglePreference(
+    type: MutableNotificationType,
+    muted: boolean,
+  ) {
+    if (pendingPreferences.includes(type)) return;
+    setActionError(null);
+    setPendingPreferences((current) => [...current, type]);
+    try {
+      const result = await mutations.setPreference.mutateAsync({ type, muted });
+      if (result.status !== "success") {
+        setActionError(
+          "Your reminder preference could not be saved. Please try again.",
+        );
+        if (result.status === "permission_denied")
+          void client.invalidateQueries({ queryKey: accessKey });
+      }
+    } catch {
+      setActionError(
+        "Your reminder preference could not be saved. Please try again.",
+      );
+    } finally {
+      setPendingPreferences((current) =>
+        current.filter((value) => value !== type),
+      );
+    }
+  }
 
   // A 401/403 on any notifications query means the caller's authority
   // changed under them; re-check access so the screen can drop to its
@@ -114,10 +198,15 @@ export function NotificationsManager({
         void preferences.refetch();
       }}
       onLoadMore={() => void feed.fetchNextPage()}
-      onMarkRead={(id) => void mutations.markRead.mutateAsync(id)}
-      onTogglePreference={(type: MutableNotificationType, muted: boolean) =>
-        void mutations.setPreference.mutateAsync({ type, muted })
-      }
+      onMarkRead={(id) => void markRead(id)}
+      onRemove={(id) => void remove(id)}
+      onMarkAllRead={() => void markAllRead()}
+      onTogglePreference={(type, muted) => void togglePreference(type, muted)}
+      markingAll={mutations.markAllRead.isPending}
+      pendingIds={pendingIds}
+      removingIds={removingIds}
+      pendingPreferences={pendingPreferences}
+      actionError={actionError}
     />
   );
 }

@@ -1,22 +1,30 @@
-"use client";
-
+﻿"use client";
 import { useMemo, useState } from "react";
-
+import Link from "next/link";
+import {
+  Bell,
+  CheckCheck,
+  ChevronRight,
+  LoaderCircle,
+  Trash2,
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-
 import {
   NOTIFICATION_TYPE_LABELS,
   type MutableNotificationType,
   type NotificationItem,
   type NotificationPreference,
 } from "../lib/notifications-types";
-
+import { notificationHref } from "../lib/notifications-link";
+import {
+  notificationAppearance,
+  notificationDate,
+  notificationGroup,
+} from "../lib/notifications-presentation";
+import styles from "./notifications-center.module.css";
 export type NotificationsViewState =
   "ready" | "loading" | "error" | "reconnecting" | "disabled";
-
 export interface NotificationsCenterProps {
   items: readonly NotificationItem[];
   unreadCount: number;
@@ -27,16 +35,15 @@ export interface NotificationsCenterProps {
   onRetry: () => void;
   onLoadMore: () => void;
   onMarkRead: (id: string) => void;
+  onRemove: (id: string) => void;
+  onMarkAllRead: () => void;
   onTogglePreference: (type: MutableNotificationType, muted: boolean) => void;
+  markingAll?: boolean;
+  pendingIds?: readonly string[];
+  removingIds?: readonly string[];
+  pendingPreferences?: readonly string[];
+  actionError?: string | null;
 }
-
-function relativeDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
 export function NotificationsCenter({
   items,
   unreadCount,
@@ -47,43 +54,96 @@ export function NotificationsCenter({
   onRetry,
   onLoadMore,
   onMarkRead,
+  onRemove,
+  onMarkAllRead,
   onTogglePreference,
+  markingAll = false,
+  pendingIds = [],
+  removingIds = [],
+  pendingPreferences = [],
+  actionError,
 }: NotificationsCenterProps) {
-  const [showUnread, setShowUnread] = useState(false);
+  const [showUnread, setShowUnread] = useState(true);
+  const [now] = useState(() => new Date());
   const interactionsDisabled = state === "disabled";
-  // The feed endpoint has no server-side unread filter, so this only
-  // narrows the pages already loaded - it is not a separate query.
   const visibleItems = useMemo(
     () => (showUnread ? items.filter((item) => item.readAt === null) : items),
     [items, showUnread],
   );
-
-  if (state === "loading") return <p role="status">Loading notifications…</p>;
-  if (state === "error") {
+  const groups = useMemo(() => {
+    const result = new Map<string, NotificationItem[]>();
+    for (const item of visibleItems) {
+      const group = notificationGroup(item.createdAt, now);
+      result.set(group, [...(result.get(group) ?? []), item]);
+    }
+    return result;
+  }, [visibleItems, now]);
+  const header = (
+    <header className={styles.pageHeader}>
+      <div>
+        <h1>Notifications</h1>
+        <p>Stay on top of your events, tasks and messages.</p>
+      </div>
+      <Button
+        variant="outline"
+        className={styles.markAll}
+        disabled={
+          interactionsDisabled ||
+          markingAll ||
+          pendingIds.length > 0 ||
+          unreadCount === 0 ||
+          state === "loading" ||
+          state === "error"
+        }
+        onClick={onMarkAllRead}
+        aria-busy={markingAll}
+      >
+        {markingAll ? (
+          <LoaderCircle aria-hidden="true" className="animate-spin" />
+        ) : (
+          <CheckCheck aria-hidden="true" />
+        )}
+        {markingAll ? "Marking all read…" : "Mark all as read"}
+      </Button>
+    </header>
+  );
+  if (state === "loading")
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Notifications could not load</AlertTitle>
-        <AlertDescription className="space-y-3">
-          <p>Try again to recover your notification feed.</p>
-          <Button variant="outline" onClick={onRetry}>
-            Try again
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <div className={styles.center}>
+        {header}
+        <div className={styles.loading} role="status">
+          <LoaderCircle aria-hidden="true" className="animate-spin" />
+          Loading notifications…
+        </div>
+      </div>
     );
-  }
-
+  if (state === "error")
+    return (
+      <div className={styles.center}>
+        {header}
+        <Alert variant="destructive">
+          <AlertTitle>Notifications could not load</AlertTitle>
+          <AlertDescription>
+            <p>Try again to recover your notification feed.</p>
+            <Button variant="outline" onClick={onRetry}>
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
   return (
-    <div className="space-y-8">
-      {state === "reconnecting" ? (
+    <div className={styles.center}>
+      {header}
+      {state === "reconnecting" && (
         <Alert>
           <AlertTitle>Reconnecting to live updates</AlertTitle>
           <AlertDescription>
             Your saved feed remains available while we reconnect.
           </AlertDescription>
         </Alert>
-      ) : null}
-      {interactionsDisabled ? (
+      )}
+      {interactionsDisabled && (
         <Alert>
           <AlertTitle>
             Notification actions are temporarily unavailable
@@ -92,121 +152,283 @@ export function NotificationsCenter({
             Your saved feed remains visible while access is restored.
           </AlertDescription>
         </Alert>
-      ) : null}
-      <section
-        aria-labelledby="notification-feed-heading"
-        className="space-y-4"
-      >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2
-              id="notification-feed-heading"
-              className="text-lg font-semibold"
-            >
-              Notifications
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {unreadCount} unread notification{unreadCount === 1 ? "" : "s"}
-            </p>
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={showUnread}
-              disabled={interactionsDisabled}
-              onCheckedChange={(checked) => setShowUnread(checked === true)}
-            />
-            Unread only
-          </label>
-        </div>
-        {visibleItems.length === 0 ? (
-          <p
-            role="status"
-            className="border-border text-muted-foreground rounded-xl border border-dashed p-6 text-sm"
-          >
-            You have no {showUnread ? "unread " : ""}notifications.
-          </p>
-        ) : (
-          <ol className="space-y-3" aria-label="Notification feed">
-            {visibleItems.map((item) => (
-              <li key={item.id}>
-                <article className="border-border bg-card flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <p className="font-medium">{item.title}</p>
-                    <p className="text-muted-foreground text-sm">{item.body}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {NOTIFICATION_TYPE_LABELS[item.type]} ·{" "}
-                      {relativeDate(item.createdAt)}
-                    </p>
-                  </div>
-                  {item.readAt === null ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={interactionsDisabled}
-                      onClick={() => onMarkRead(item.id)}
-                    >
-                      Mark as read
-                    </Button>
-                  ) : (
-                    <span className="text-muted-foreground text-sm">Read</span>
-                  )}
-                </article>
-              </li>
-            ))}
-          </ol>
-        )}
-        {hasMore ? (
-          <Button
-            variant="outline"
-            disabled={interactionsDisabled || loadingMore}
-            onClick={onLoadMore}
-          >
-            {loadingMore ? "Loading…" : "Load more notifications"}
-          </Button>
-        ) : (
-          <p className="text-muted-foreground text-sm">End of notifications.</p>
-        )}
-      </section>
-      <section
-        aria-labelledby="notification-preferences-heading"
-        className="space-y-4"
-      >
-        <div>
-          <h2
-            id="notification-preferences-heading"
-            className="text-lg font-semibold"
-          >
-            Notification preferences
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            Choose which reminder-style notifications appear in this feed.
-          </p>
-        </div>
-        <ul
-          className="divide-border rounded-xl border"
-          aria-label="Notification preferences"
+      )}
+      {actionError && (
+        <p role="alert" className={styles.error}>
+          {actionError}
+        </p>
+      )}
+      <div className={styles.columns}>
+        <section
+          aria-labelledby="notification-feed-heading"
+          className={styles.feed}
         >
-          {preferences.map((preference) => (
-            <li
-              key={preference.type}
-              className="flex items-center justify-between gap-4 p-4"
+          <div className={styles.feedHeader}>
+            <div className={styles.feedTitle}>
+              <h2 id="notification-feed-heading">Your feed</h2>
+              <span
+                className={unreadCount === 0 ? styles.allRead : styles.badge}
+              >
+                {unreadCount === 0 ? "All read" : `${unreadCount} unread`}
+              </span>
+              <span className="sr-only">
+                {unreadCount} unread notification{unreadCount === 1 ? "" : "s"}
+              </span>
+            </div>
+            <div
+              className={styles.filters}
+              role="group"
+              aria-label="Notification filter"
             >
-              <Label htmlFor={`preference-${preference.type}`}>
-                {NOTIFICATION_TYPE_LABELS[preference.type]}
-              </Label>
-              <Checkbox
-                id={`preference-${preference.type}`}
-                checked={!preference.muted}
-                disabled={interactionsDisabled}
-                onCheckedChange={(checked) =>
-                  onTogglePreference(preference.type, checked !== true)
-                }
-                aria-label={`${NOTIFICATION_TYPE_LABELS[preference.type]} enabled`}
-              />
-            </li>
-          ))}
-        </ul>
-      </section>
+              <button
+                type="button"
+                aria-pressed={!showUnread}
+                onClick={() => setShowUnread(false)}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                aria-pressed={showUnread}
+                onClick={() => setShowUnread(true)}
+              >
+                Unread <span className={styles.filterCount}>{unreadCount}</span>
+              </button>
+            </div>
+          </div>
+          {visibleItems.length === 0 ? (
+            <div className={styles.empty} role="status">
+              <div className={styles.emptyHalo}>
+                <span>
+                  <Bell aria-hidden="true" />
+                </span>
+              </div>
+              <h3>
+                {unreadCount === 0
+                  ? "You’re all caught up"
+                  : "Nothing here just yet"}
+              </h3>
+              <p>
+                {showUnread && unreadCount > 0 && hasMore
+                  ? "No unread notifications in the loaded history. Load more to check older notifications."
+                  : showUnread
+                    ? "No unread notifications. New reminders will land here as soon as something needs your attention."
+                    : "Your events, tasks and messages will appear here when there’s an update."}
+              </p>
+              {showUnread && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowUnread(false)}
+                  className={styles.showAll}
+                >
+                  Show all notifications
+                </Button>
+              )}
+            </div>
+          ) : (
+            <ol className={styles.list} aria-label="Notification feed">
+              {[...groups].flatMap(([group, entries]) =>
+                entries.map((item, index) => {
+                  const appearance = notificationAppearance(item.type),
+                    Icon = appearance.icon,
+                    href = notificationHref(item);
+                  const pending = markingAll || pendingIds.includes(item.id),
+                    disabled = interactionsDisabled || pending;
+                  const message = (
+                    <span className={styles.message}>
+                      {item.title !== NOTIFICATION_TYPE_LABELS[item.type] && (
+                        <span className={styles.itemTitle}>{item.title}</span>
+                      )}
+                      <span className={styles.body}>{item.body}</span>
+                    </span>
+                  );
+                  return (
+                    <li key={item.id}>
+                      {index === 0 && (
+                        <h3 className={styles.groupLabel}>{group}</h3>
+                      )}
+                      <article
+                        className={`${styles.item} ${item.readAt === null ? styles.unread : ""}`}
+                      >
+                        <span
+                          className={styles.icon}
+                          data-tone={appearance.tone}
+                        >
+                          <Icon aria-hidden="true" />
+                        </span>
+                        <div className={styles.itemContent}>
+                          <div className={styles.itemMeta}>
+                            <span>{NOTIFICATION_TYPE_LABELS[item.type]}</span>
+                            <span className={styles.date}>
+                              <time
+                                dateTime={item.createdAt}
+                                title={new Date(
+                                  item.createdAt,
+                                ).toLocaleString()}
+                              >
+                                {notificationDate(item.createdAt, now)}
+                              </time>
+                              {item.readAt === null && (
+                                <span className={styles.unreadDot}>
+                                  <span className="sr-only">Unread</span>
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          {href && !interactionsDisabled ? (
+                            <Link
+                              href={href}
+                              aria-label={`${appearance.action}: ${item.title}`}
+                              className={styles.itemLink}
+                              onClick={() => {
+                                if (!pending && item.readAt === null)
+                                  onMarkRead(item.id);
+                              }}
+                            >
+                              {message}
+                              <span className={styles.view}>
+                                {appearance.action}
+                                <ChevronRight aria-hidden="true" />
+                              </span>
+                            </Link>
+                          ) : (
+                            message
+                          )}
+                          <div className={styles.itemActions}>
+                            <button
+                              type="button"
+                              className={styles.remove}
+                              disabled={disabled}
+                              aria-busy={removingIds.includes(item.id)}
+                              onClick={() => onRemove(item.id)}
+                              aria-label={`Remove notification: ${item.title}`}
+                            >
+                              {removingIds.includes(item.id) ? (
+                                <>
+                                  <LoaderCircle
+                                    className="animate-spin"
+                                    aria-hidden="true"
+                                  />
+                                  Removing…
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 aria-hidden="true" />
+                                  Remove
+                                </>
+                              )}
+                            </button>
+                            {item.readAt === null ? (
+                              <button
+                                type="button"
+                                disabled={disabled}
+                                onClick={() => onMarkRead(item.id)}
+                              >
+                                {pending && !removingIds.includes(item.id) ? (
+                                  <>
+                                    <LoaderCircle
+                                      aria-hidden="true"
+                                      className="animate-spin"
+                                    />
+                                    Marking read…
+                                  </>
+                                ) : (
+                                  "Mark as read"
+                                )}
+                              </button>
+                            ) : (
+                              <span className={styles.read}>
+                                <CheckCheck aria-hidden="true" />
+                                Read
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    </li>
+                  );
+                }),
+              )}
+            </ol>
+          )}
+          {hasMore ? (
+            <div className={styles.more}>
+              <Button
+                variant="outline"
+                disabled={interactionsDisabled || loadingMore}
+                onClick={onLoadMore}
+              >
+                {loadingMore ? "Loading…" : "Load more notifications"}
+              </Button>
+            </div>
+          ) : (
+            visibleItems.length > 0 && (
+              <p className={styles.end}>End of notifications.</p>
+            )
+          )}
+        </section>
+        <aside
+          className={styles.preferences}
+          aria-labelledby="notification-preferences-heading"
+        >
+          <div className={styles.preferencesHeading}>
+            <h2 id="notification-preferences-heading">Reminders</h2>
+            <span>
+              {preferences.filter((p) => !p.muted).length} of{" "}
+              {preferences.length} on
+            </span>
+          </div>
+          <p className={styles.preferencesIntro}>
+            Pick which reminders show up in your feed.
+          </p>
+          <ul aria-label="Notification preferences">
+            {preferences.map((preference) => {
+              const appearance = notificationAppearance(preference.type),
+                Icon = appearance.icon;
+              return (
+                <li key={preference.type}>
+                  <span
+                    className={styles.preferenceIcon}
+                    data-tone={appearance.tone}
+                  >
+                    <Icon aria-hidden="true" />
+                  </span>
+                  <label
+                    htmlFor={`preference-${preference.type}`}
+                    className={styles.preferenceLabel}
+                  >
+                    <span>{NOTIFICATION_TYPE_LABELS[preference.type]}</span>
+                    <span>{appearance.description}</span>
+                  </label>
+                  <button
+                    id={`preference-${preference.type}`}
+                    type="button"
+                    role="switch"
+                    aria-checked={!preference.muted}
+                    aria-label={`${NOTIFICATION_TYPE_LABELS[preference.type]} enabled`}
+                    className={styles.switch}
+                    disabled={
+                      interactionsDisabled ||
+                      pendingPreferences.includes(preference.type)
+                    }
+                    aria-busy={pendingPreferences.includes(preference.type)}
+                    onClick={() =>
+                      onTogglePreference(preference.type, !preference.muted)
+                    }
+                  >
+                    <span />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {preferences.length === 0 && (
+            <p className={styles.preferencesIntro}>
+              No reminder preferences are available.
+            </p>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
