@@ -1,10 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { Prisma } from "../generated/prisma/client.js";
 
-import type {
-  CampaignStatus,
-  PermissionScope,
-} from "../generated/prisma/client.js";
+import type { CampaignStatus } from "../generated/prisma/client.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { EventsService } from "../events/events.service.js";
@@ -20,6 +17,7 @@ import {
   campaignActivityNotFound,
   campaignActivityScheduleInvalid,
   campaignBudgetIncomplete,
+  campaignDepartmentNotFound,
   campaignHasManagedFiles,
   campaignInvalidTransition,
   campaignNotFound,
@@ -43,6 +41,7 @@ import {
   CampaignsRepository,
   type CampaignActivityRecord,
   type CampaignRecord,
+  type CampaignVisibility,
 } from "./infrastructure/campaigns.repository.js";
 
 /**
@@ -72,23 +71,80 @@ export class CampaignsService {
     private readonly events: EventsService,
   ) {}
 
-  private async requireGrant(
-    actingUserId: string,
-    permissionKey: string,
-    scope: PermissionScope = "ORGANIZATION",
-  ): Promise<void> {
-    if (
-      !(await this.permissions.hasGrant(actingUserId, permissionKey, scope))
-    ) {
-      throw permissionDenied();
-    }
-  }
-
   /** Loads a campaign or throws 404; used before a permission check on `:id` routes. */
   private async loadOrThrow(id: string): Promise<CampaignRecord> {
     const campaign = await this.repository.findById(id);
     if (!campaign) {
       throw campaignNotFound();
+    }
+    return campaign;
+  }
+
+  /** Resolves an acting caller's reach for one `campaign.*` key: an
+   * organization-scoped caller (Super Admin) sees every campaign; a
+   * department-scoped caller (e.g. the Marketing Department Manager) only
+   * their own department's - the same `visibilityFor`/`isAuthorizedFor` idiom
+   * `TasksService`/`ReportsService`/`ProductionsService` already use. */
+  private async visibilityFor(
+    actingUserId: string,
+    permissionKey: string,
+  ): Promise<CampaignVisibility> {
+    const [organization, department] = await Promise.all([
+      this.permissions.hasGrant(actingUserId, permissionKey, "ORGANIZATION"),
+      this.permissions.hasGrant(actingUserId, permissionKey, "DEPARTMENT"),
+    ]);
+    if (!organization && !department) throw permissionDenied();
+    const departmentId = department
+      ? await this.repository.findUserDepartmentId(actingUserId)
+      : null;
+    return { organization, ...(departmentId ? { departmentId } : {}) };
+  }
+
+  private async isAuthorizedFor(
+    actingUserId: string,
+    permissionKey: string,
+    campaign: CampaignRecord,
+  ): Promise<boolean> {
+    if (
+      await this.permissions.hasGrant(
+        actingUserId,
+        permissionKey,
+        "ORGANIZATION",
+      )
+    )
+      return true;
+    if (
+      await this.permissions.hasGrant(actingUserId, permissionKey, "DEPARTMENT")
+    ) {
+      const departmentId =
+        await this.repository.findUserDepartmentId(actingUserId);
+      if (departmentId && departmentId === campaign.departmentId) return true;
+    }
+    return false;
+  }
+
+  /** Loads a campaign and enforces `permissionKey` against it in one call -
+   * the id-scoped-route equivalent of `visibilityFor` for a list route. */
+  private async authorize(
+    actingUserId: string,
+    id: string,
+    permissionKey: string,
+  ): Promise<CampaignRecord> {
+    const campaign = await this.repository.findById(id);
+    if (!campaign) {
+      if (
+        await this.permissions.hasGrant(
+          actingUserId,
+          permissionKey,
+          "ORGANIZATION",
+        )
+      ) {
+        throw campaignNotFound();
+      }
+      throw permissionDenied();
+    }
+    if (!(await this.isAuthorizedFor(actingUserId, permissionKey, campaign))) {
+      throw permissionDenied();
     }
     return campaign;
   }
@@ -106,12 +162,14 @@ export class CampaignsService {
     actingUserId: string,
     query: ListCampaignsQueryDto,
   ): Promise<PaginatedCampaignsResponse> {
-    await this.requireGrant(actingUserId, "campaign.read");
+    const visibility = await this.visibilityFor(actingUserId, "campaign.read");
 
     const { items, total } = await this.repository.list({
+      visibility,
       ...(query.status ? { status: query.status } : {}),
       ...(query.campaignType ? { campaignType: query.campaignType } : {}),
       ...(query.eventId ? { eventId: query.eventId } : {}),
+      ...(query.departmentId ? { departmentId: query.departmentId } : {}),
       ...(query.managerId ? { managerId: query.managerId } : {}),
       ...(query.search?.trim() ? { search: query.search.trim() } : {}),
       ...(query.startingAfter
@@ -133,8 +191,7 @@ export class CampaignsService {
   }
 
   async get(actingUserId: string, id: string): Promise<CampaignResponse> {
-    const campaign = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.read");
+    const campaign = await this.authorize(actingUserId, id, "campaign.read");
     return toCampaignResponse(campaign);
   }
 
@@ -166,7 +223,32 @@ export class CampaignsService {
     actingUserId: string,
     dto: CreateCampaignDto,
   ): Promise<CampaignResponse> {
-    await this.requireGrant(actingUserId, "campaign.create");
+    const organization = await this.permissions.hasGrant(
+      actingUserId,
+      "campaign.create",
+      "ORGANIZATION",
+    );
+    let departmentId = dto.departmentId;
+    if (!organization) {
+      if (
+        !(await this.permissions.hasGrant(
+          actingUserId,
+          "campaign.create",
+          "DEPARTMENT",
+        ))
+      ) {
+        throw permissionDenied();
+      }
+      // A department-scoped caller's own department is always used - never
+      // trust the client's own `departmentId`, the same rule
+      // `TasksService`/`ProductionsService` already enforce on create.
+      const ownDepartmentId =
+        await this.repository.findUserDepartmentId(actingUserId);
+      if (!ownDepartmentId) throw permissionDenied();
+      departmentId = ownDepartmentId;
+    }
+    if (departmentId && !(await this.repository.departmentExists(departmentId)))
+      throw campaignDepartmentNotFound();
 
     const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
     const endAt = dto.endAt ? new Date(dto.endAt) : undefined;
@@ -177,6 +259,7 @@ export class CampaignsService {
       name: dto.name.trim(),
       campaignType: dto.campaignType,
       createdById: actingUserId,
+      ...(departmentId ? { departmentId } : {}),
       ...(dto.description !== undefined
         ? { description: dto.description.trim() }
         : {}),
@@ -204,8 +287,7 @@ export class CampaignsService {
     id: string,
     dto: UpdateCampaignDto,
   ): Promise<CampaignResponse> {
-    const campaign = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.update");
+    const campaign = await this.authorize(actingUserId, id, "campaign.update");
 
     assertScheduleOrdered(
       resolveInstant(dto.startAt, campaign.startAt),
@@ -276,8 +358,11 @@ export class CampaignsService {
     id: string,
     target: CampaignStatus,
   ): Promise<CampaignResponse> {
-    const campaign = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.transition_status");
+    const campaign = await this.authorize(
+      actingUserId,
+      id,
+      "campaign.transition_status",
+    );
 
     if (!canTransition(campaign.status, target)) {
       throw campaignInvalidTransition(campaign.status, target);
@@ -305,8 +390,7 @@ export class CampaignsService {
     id: string,
     managerId: string | null,
   ): Promise<CampaignResponse> {
-    const campaign = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.assign");
+    const campaign = await this.authorize(actingUserId, id, "campaign.assign");
 
     const result = await this.workspaces.setManager(
       campaign.workspaceId,
@@ -326,8 +410,7 @@ export class CampaignsService {
     id: string,
     teamId: string,
   ): Promise<CampaignResponse> {
-    const campaign = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.assign");
+    const campaign = await this.authorize(actingUserId, id, "campaign.assign");
 
     const result = await this.workspaces.assignTeam(
       campaign.workspaceId,
@@ -347,8 +430,7 @@ export class CampaignsService {
     id: string,
     teamId: string,
   ): Promise<CampaignResponse> {
-    const campaign = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.assign");
+    const campaign = await this.authorize(actingUserId, id, "campaign.assign");
 
     const result = await this.workspaces.unassignTeam(
       campaign.workspaceId,
@@ -367,8 +449,11 @@ export class CampaignsService {
     actingUserId: string,
     id: string,
   ): Promise<CampaignBudgetResponse> {
-    const campaign = await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.budget.read");
+    const campaign = await this.authorize(
+      actingUserId,
+      id,
+      "campaign.budget.read",
+    );
     return { amount: campaign.budgetAmount, currency: campaign.budgetCurrency };
   }
 
@@ -377,8 +462,7 @@ export class CampaignsService {
     id: string,
     dto: SetCampaignBudgetDto,
   ): Promise<CampaignBudgetResponse> {
-    await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.budget.update");
+    await this.authorize(actingUserId, id, "campaign.budget.update");
 
     if ((dto.amount === null) !== (dto.currency === null)) {
       throw campaignBudgetIncomplete();
@@ -393,8 +477,7 @@ export class CampaignsService {
   }
 
   async remove(actingUserId: string, id: string): Promise<void> {
-    await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.delete");
+    await this.authorize(actingUserId, id, "campaign.delete");
 
     const result = await this.repository.delete(id);
     if (result === "not_found") {
@@ -410,8 +493,7 @@ export class CampaignsService {
     id: string,
     query: ListCampaignActivitiesQueryDto,
   ): Promise<PaginatedCampaignActivitiesResponse> {
-    await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.read");
+    await this.authorize(actingUserId, id, "campaign.read");
 
     const { items, total } = await this.repository.listActivities(id, {
       ...(query.status ? { status: query.status } : {}),
@@ -432,8 +514,7 @@ export class CampaignsService {
     campaignId: string,
     activityId: string,
   ): Promise<CampaignActivityResponse> {
-    await this.loadOrThrow(campaignId);
-    await this.requireGrant(actingUserId, "campaign.read");
+    await this.authorize(actingUserId, campaignId, "campaign.read");
     const activity = await this.repository.findActivity(campaignId, activityId);
     if (!activity) throw campaignActivityNotFound();
     return toActivityResponse(activity);
@@ -444,8 +525,7 @@ export class CampaignsService {
     id: string,
     dto: CreateCampaignActivityDto,
   ): Promise<CampaignActivityResponse> {
-    await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.activity.manage");
+    await this.authorize(actingUserId, id, "campaign.activity.manage");
 
     const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
     const endAt = dto.endAt ? new Date(dto.endAt) : undefined;
@@ -472,8 +552,7 @@ export class CampaignsService {
     activityId: string,
     dto: UpdateCampaignActivityDto,
   ): Promise<CampaignActivityResponse> {
-    await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.activity.manage");
+    await this.authorize(actingUserId, id, "campaign.activity.manage");
 
     const activity = await this.repository.findActivity(id, activityId);
     if (!activity) {
@@ -511,8 +590,7 @@ export class CampaignsService {
     id: string,
     activityId: string,
   ): Promise<void> {
-    await this.loadOrThrow(id);
-    await this.requireGrant(actingUserId, "campaign.activity.manage");
+    await this.authorize(actingUserId, id, "campaign.activity.manage");
 
     const result = await this.repository.deleteActivity(id, activityId);
     if (result === "not_found") {
@@ -586,6 +664,7 @@ function toCampaignResponse(record: CampaignRecord): CampaignResponse {
     startAt: record.startAt ? record.startAt.toISOString() : null,
     endAt: record.endAt ? record.endAt.toISOString() : null,
     eventId: record.eventId,
+    departmentId: record.departmentId,
     productName: record.productName,
     progress: record.progress,
     manager: record.manager,

@@ -143,6 +143,14 @@ export class CampaignResponse {
 
   @ApiProperty({
     type: String,
+    format: "uuid",
+    nullable: true,
+    description: "The department that owns this campaign (e.g. Marketing).",
+  })
+  departmentId!: string | null;
+
+  @ApiProperty({
+    type: String,
     nullable: true,
     example: "Nexo Energy Drink",
     description:

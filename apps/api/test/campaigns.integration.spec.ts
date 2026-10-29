@@ -78,6 +78,7 @@ const CAMPAIGN_KEYS = [
   "campaignType",
   "createdAt",
   "createdBy",
+  "departmentId",
   "description",
   "endAt",
   "eventId",

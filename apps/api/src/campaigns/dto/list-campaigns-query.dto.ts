@@ -43,6 +43,14 @@ export class ListCampaignsQueryDto {
   managerId?: string;
 
   @ApiPropertyOptional({
+    format: "uuid",
+    description: "Restrict to campaigns owned by this department.",
+  })
+  @IsOptional()
+  @IsUUID()
+  departmentId?: string;
+
+  @ApiPropertyOptional({
     description: "Case-insensitive match against the campaign name.",
     maxLength: 200,
   })

@@ -76,16 +76,14 @@ describe("CampaignsScreen access boundary", () => {
     expect(await screen.findByText("0 campaigns")).toBeVisible();
   });
 
-  it("denies a department-scoped reader (campaign reads are organization-scoped)", async () => {
+  it("renders the manager for a department-scoped reader (e.g. the Marketing Manager)", async () => {
     currentAccess = {
       userId: "account-1",
       grants: [{ permissionKey: "campaign.read", scope: "DEPARTMENT" }],
     } as CurrentAccess;
     setup();
 
-    expect(
-      await screen.findByText("You do not have access to this area."),
-    ).toBeVisible();
+    expect(await screen.findByText("0 campaigns")).toBeVisible();
   });
 
   it("denies a caller with no campaign read grant and never lists campaigns", async () => {

@@ -22,6 +22,7 @@ export const CAMPAIGN_ERROR = {
   eventNotFound: "EVENT_NOT_FOUND",
   /** The same code the user, department, team, and workspace surfaces use. */
   userNotFound: "USER_NOT_FOUND",
+  campaignDepartmentNotFound: "CAMPAIGN_DEPARTMENT_NOT_FOUND",
 } as const;
 
 export function campaignNotFound(): HttpException {
@@ -53,6 +54,14 @@ export function campaignRelatedEventNotFound(): HttpException {
     code: CAMPAIGN_ERROR.eventNotFound,
     error: "Not Found",
     detail: "No event exists with that id.",
+  });
+}
+
+export function campaignDepartmentNotFound(): HttpException {
+  return new NotFoundException({
+    code: CAMPAIGN_ERROR.campaignDepartmentNotFound,
+    error: "Not Found",
+    detail: "No department exists with that id.",
   });
 }
 
