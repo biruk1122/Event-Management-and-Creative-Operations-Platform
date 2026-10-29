@@ -10,6 +10,7 @@
     "dev": "turbo dev",
     "dev:api": "pnpm --filter @event-platform/api dev",
     "dev:web": "pnpm --filter @event-platform/web dev",
+    "dev:tunnel": "node scripts/dev-tunnel.mjs",
     "db:generate": "pnpm --filter @event-platform/api db:generate",
     "db:migrate": "pnpm --filter @event-platform/api db:migrate",
     "db:migrate:create": "pnpm --filter @event-platform/api db:migrate:create",

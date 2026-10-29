@@ -100,56 +100,93 @@ model User {
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  credential                 UserCredential?
-  sessions                   AuthSession[]
-  roleAssignment             UserRoleAssignment?
-  department                 Department?               @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
-  managedDepartments         Department[]              @relation("DepartmentManager")
-  managedTeams               Team[]                    @relation("TeamManager")
-  teamMemberships            TeamMembership[]
-  managedWorkspaces          Workspace[]               @relation("WorkspaceManager")
-  workspaceParticipations    WorkspaceParticipant[]
-  createdEvents              Event[]                   @relation("EventCreatedBy")
-  createdProjects            Project[]                 @relation("ProjectCreatedBy")
-  createdCampaigns           Campaign[]                @relation("CampaignCreatedBy")
-  createdProductions         Production[]              @relation("ProductionCreatedBy")
-  createdProductionLocations ProductionLocation[]      @relation("ProductionLocationCreatedBy")
-  initiatedManagedFiles      ManagedFile[]             @relation("ManagedFileInitiator")
-  workspaceFileAttachments   WorkspaceFileAttachment[] @relation("WorkspaceFileAttachedBy")
-  createdTasks               Task[]                    @relation("TaskCreatedBy")
-  taskAssignments            TaskAssignment[]          @relation("TaskAssignee")
-  assignedTasks              TaskAssignment[]          @relation("TaskAssignedBy")
-  taskComments               TaskComment[]             @relation("TaskCommentAuthor")
-  taskCommentMentions        TaskCommentMention[]
-  taskAttachments            TaskAttachment[]          @relation("TaskAttachmentActor")
-  taskReviews                TaskReview[]              @relation("TaskReviewer")
-  taskActivities             TaskActivity[]            @relation("TaskActivityActor")
-  calendarEntries            CalendarEntry[]           @relation("CalendarEntryOwner")
-  createdCalendarEntries     CalendarEntry[]           @relation("CalendarEntryCreatedBy")
-  todos                      Todo[]                    @relation("TodoOwner")
-  createdTodos               Todo[]                    @relation("TodoCreatedBy")
-  createdConversations       Conversation[]            @relation("ConversationCreatedBy")
-  conversationMemberships    ConversationMember[]
-  messages                   Message[]                 @relation("MessageAuthor")
-  pinnedMessages             Message[]                 @relation("MessagePinnedBy")
-  messageMentions            MessageMention[]
-  messageAttachments         MessageAttachment[]       @relation("MessageAttachmentActor")
-  notifications              Notification[]
-  notificationPreferences    NotificationPreference[]
-  organizedMeetings          Meeting[]                 @relation("MeetingOrganizer")
-  googleCalendarConnection   GoogleCalendarConnection?
-  googleCalendarConsent      GoogleCalendarConsent?
-  meetingParticipations      MeetingParticipant[]
-  managedTalents             Talent[]                  @relation("TalentManager")
-  authoredReports            Report[]                  @relation("ReportAuthor")
-  reviewedReports            Report[]                  @relation("ReportCurrentReviewer")
-  reportReviews              ReportReview[]            @relation("ReportReviewActor")
-  reportAttachments          ReportAttachment[]        @relation("ReportAttachmentActor")
-  createdExpenses            Expense[]                 @relation("ExpenseCreatedBy")
-  reviewedExpenses           Expense[]                 @relation("ExpenseCurrentReviewer")
-  expenseReviews             ExpenseReview[]           @relation("ExpenseReviewActor")
-  expenseAttachments         ExpenseAttachment[]       @relation("ExpenseAttachmentActor")
-  createdSuppliers           Supplier[]                @relation("SupplierCreatedBy")
+  credential                   UserCredential?
+  sessions                     AuthSession[]
+  roleAssignment               UserRoleAssignment?
+  department                   Department?                  @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
+  managedDepartments           Department[]                 @relation("DepartmentManager")
+  managedTeams                 Team[]                       @relation("TeamManager")
+  teamMemberships              TeamMembership[]
+  managedWorkspaces            Workspace[]                  @relation("WorkspaceManager")
+  workspaceParticipations      WorkspaceParticipant[]
+  createdEvents                Event[]                      @relation("EventCreatedBy")
+  createdProjects              Project[]                    @relation("ProjectCreatedBy")
+  createdCampaigns             Campaign[]                   @relation("CampaignCreatedBy")
+  ownedPartners                Partner[]                    @relation("PartnerOwner")
+  createdPartners              Partner[]                    @relation("PartnerCreatedBy")
+  partnerActivities            PartnerActivity[]            @relation("PartnerActivityAuthor")
+  createdProductions           Production[]                 @relation("ProductionCreatedBy")
+  createdProductionLocations   ProductionLocation[]         @relation("ProductionLocationCreatedBy")
+  initiatedManagedFiles        ManagedFile[]                @relation("ManagedFileInitiator")
+  workspaceFileAttachments     WorkspaceFileAttachment[]    @relation("WorkspaceFileAttachedBy")
+  createdTasks                 Task[]                       @relation("TaskCreatedBy")
+  taskAssignments              TaskAssignment[]             @relation("TaskAssignee")
+  assignedTasks                TaskAssignment[]             @relation("TaskAssignedBy")
+  taskComments                 TaskComment[]                @relation("TaskCommentAuthor")
+  taskCommentMentions          TaskCommentMention[]
+  taskAttachments              TaskAttachment[]             @relation("TaskAttachmentActor")
+  taskReviews                  TaskReview[]                 @relation("TaskReviewer")
+  taskActivities               TaskActivity[]               @relation("TaskActivityActor")
+  checklistItemsCompleted      TaskChecklistItem[]          @relation("TaskChecklistItemCompletedBy")
+  checklistItemsCreated        TaskChecklistItem[]          @relation("TaskChecklistItemCreatedBy")
+  calendarEntries              CalendarEntry[]              @relation("CalendarEntryOwner")
+  createdCalendarEntries       CalendarEntry[]              @relation("CalendarEntryCreatedBy")
+  todos                        Todo[]                       @relation("TodoOwner")
+  createdTodos                 Todo[]                       @relation("TodoCreatedBy")
+  createdConversations         Conversation[]               @relation("ConversationCreatedBy")
+  conversationMemberships      ConversationMember[]
+  messages                     Message[]                    @relation("MessageAuthor")
+  pinnedMessages               Message[]                    @relation("MessagePinnedBy")
+  messageMentions              MessageMention[]
+  messageAttachments           MessageAttachment[]          @relation("MessageAttachmentActor")
+  notifications                Notification[]
+  notificationPreferences      NotificationPreference[]
+  organizedMeetings            Meeting[]                    @relation("MeetingOrganizer")
+  meetingParticipations        MeetingParticipant[]
+  managedTalents               Talent[]                     @relation("TalentManager")
+  authoredReports              Report[]                     @relation("ReportAuthor")
+  reviewedReports              Report[]                     @relation("ReportCurrentReviewer")
+  reportReviews                ReportReview[]               @relation("ReportReviewActor")
+  reportAttachments            ReportAttachment[]           @relation("ReportAttachmentActor")
+  createdExpenses              Expense[]                    @relation("ExpenseCreatedBy")
+  reviewedExpenses             Expense[]                    @relation("ExpenseCurrentReviewer")
+  expenseReviews               ExpenseReview[]              @relation("ExpenseReviewActor")
+  expenseAttachments           ExpenseAttachment[]          @relation("ExpenseAttachmentActor")
+  createdSuppliers             Supplier[]                   @relation("SupplierCreatedBy")
+  employeeProfile              EmployeeProfile?             @relation("EmployeeProfileUser")
+  managedEmployeeProfiles      EmployeeProfile[]            @relation("EmployeeReportingManager")
+  employeeStatusChanges        EmployeeProfile[]            @relation("EmployeeStatusChangedBy")
+  createdEmployeeProfiles      EmployeeProfile[]            @relation("EmployeeCreatedBy")
+  createdLetters               Letter[]                     @relation("LetterCreatedBy")
+  updatedLetters               Letter[]                     @relation("LetterUpdatedBy")
+  letterAttachments            LetterAttachment[]           @relation("LetterAttachmentActor")
+  letterRemarks                LetterRemark[]               @relation("LetterRemarkAuthor")
+  uploadedDocuments            Document[]                   @relation("DocumentUploadedBy")
+  receivedShares               Share[]                      @relation("ShareRecipient")
+  sharedByMe                   Share[]                      @relation("ShareSharedBy")
+  revokedShares                Share[]                      @relation("ShareRevokedBy")
+  createdAttendanceKiosks      AttendanceKiosk[]            @relation("AttendanceKioskCreatedBy")
+  revokedAttendanceKiosks      AttendanceKiosk[]            @relation("AttendanceKioskRevokedBy")
+  createdEventShifts           EventShift[]                 @relation("EventShiftCreatedBy")
+  eventShiftAssignments        EventShiftAssignment[]       @relation("EventShiftAssignee")
+  assignedEventShifts          EventShiftAssignment[]       @relation("EventShiftAssignedBy")
+  unassignedEventShifts        EventShiftAssignment[]       @relation("EventShiftUnassignedBy")
+  eventShiftChanges            EventShiftChange[]           @relation("EventShiftChangeActor")
+  attendancePunches            AttendancePunch[]            @relation("AttendancePunchEmployee")
+  attendanceSessions           AttendanceSession[]          @relation("AttendanceSessionEmployee")
+  decidedOvertimeApprovals     AttendanceOvertimeApproval[] @relation("AttendanceOvertimeDecidedBy")
+  attendanceExceptions         AttendanceException[]        @relation("AttendanceExceptionEmployee")
+  reviewedAttendanceExceptions AttendanceException[]        @relation("AttendanceExceptionReviewedBy")
+  createdAttendanceExceptions  AttendanceException[]        @relation("AttendanceExceptionCreatedBy")
+  createdWeekdaySchedules      AttendanceWeekdaySchedule[]  @relation("AttendanceWeekdayScheduleCreatedBy")
+  createdAttendanceHolidays    AttendanceHoliday[]          @relation("AttendanceHolidayCreatedBy")
+  createdLeaveTypes            LeaveType[]                  @relation("LeaveTypeCreatedBy")
+  leaveGrants                  LeaveGrant[]                 @relation("LeaveGrantEmployee")
+  createdLeaveGrants           LeaveGrant[]                 @relation("LeaveGrantCreatedBy")
+  leaveLedgerEntries           LeaveLedgerEntry[]           @relation("LeaveLedgerEmployee")
+  createdLeaveLedgerEntries    LeaveLedgerEntry[]           @relation("LeaveLedgerCreatedBy")
+  leaveRequests                LeaveRequest[]               @relation("LeaveRequestEmployee")
+  reviewedLeaveRequests        LeaveRequest[]               @relation("LeaveRequestReviewedBy")
 
   // Administrators list and filter users by status and sort them by name.
   @@index([status])
@@ -348,6 +385,8 @@ model Department {
   expenses      Expense[]
   suppliers     Supplier[]
   productions   Production[]
+  campaigns     Campaign[]
+  partners      Partner[]
 
   // Look up the departments a user manages, and list active departments.
   @@index([managerId])
@@ -551,6 +590,19 @@ model ManagedFile {
   /// boundary as every other intent parent above. At most one intent parent
   /// is set.
   intentReportId       String?          @map("intent_report_id") @db.Uuid
+  /// Explicit letter authorized for a letter-attachment upload intent, the
+  /// same boundary as every other intent parent above. At most one intent
+  /// parent is set.
+  intentLetterId       String?          @map("intent_letter_id") @db.Uuid
+  /// Explicit document shell (created with no file yet via `POST /documents`)
+  /// authorized for a standalone document upload intent - the same
+  /// "parent record exists first, then its file is attached" shape as every
+  /// other intent parent above. At most one intent parent is set.
+  intentDocumentId     String?          @map("intent_document_id") @db.Uuid
+  /// Explicit leave request authorized for a supporting-document upload
+  /// intent - the same boundary as every other intent parent above. At
+  /// most one intent parent is set.
+  intentLeaveRequestId String?          @map("intent_leave_request_id") @db.Uuid
   createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -561,12 +613,18 @@ model ManagedFile {
   intentTalent         Talent?                   @relation("ManagedFileIntentTalent", fields: [intentTalentId], references: [id], onDelete: Restrict)
   intentExpense        Expense?                  @relation("ManagedFileIntentExpense", fields: [intentExpenseId], references: [id], onDelete: Restrict)
   intentReport         Report?                   @relation("ManagedFileIntentReport", fields: [intentReportId], references: [id], onDelete: Restrict)
+  intentLetter         Letter?                   @relation("ManagedFileIntentLetter", fields: [intentLetterId], references: [id], onDelete: Restrict)
+  intentDocument       Document?                 @relation("ManagedFileIntentDocument", fields: [intentDocumentId], references: [id], onDelete: Restrict)
+  intentLeaveRequest   LeaveRequest?             @relation("ManagedFileIntentLeaveRequest", fields: [intentLeaveRequestId], references: [id], onDelete: Restrict)
   workspaceAttachments WorkspaceFileAttachment[]
   taskAttachments      TaskAttachment[]
   messageAttachments   MessageAttachment[]
   expenseAttachments   ExpenseAttachment[]
   reportAttachments    ReportAttachment[]
   talentProfileImage   Talent?                   @relation("TalentProfileImage")
+  letterAttachments    LetterAttachment[]
+  document             Document?                 @relation("DocumentFile")
+  leaveRequestDocument LeaveRequest?             @relation("LeaveRequestSupportingDocument")
 
   // Upload expiry, cleanup sweeps, actor investigation, and resolving a
   // file's approved parent are the storage access patterns.
@@ -579,6 +637,9 @@ model ManagedFile {
   @@index([intentTalentId])
   @@index([intentExpenseId])
   @@index([intentReportId])
+  @@index([intentLetterId])
+  @@index([intentDocumentId])
+  @@index([intentLeaveRequestId])
   @@map("managed_files")
 }
 
@@ -710,6 +771,12 @@ enum TaskActivityType {
   COMMENT_ADDED
   ATTACHMENT_ADDED
   REVIEW_RECORDED
+  CHECKLIST_ITEM_ADDED
+  CHECKLIST_ITEM_UPDATED
+  CHECKLIST_ITEM_COMPLETED
+  CHECKLIST_ITEM_REOPENED
+  CHECKLIST_ITEM_REMOVED
+  CHECKLIST_ITEM_REORDERED
 
   @@map("task_activity_type")
 }
@@ -727,13 +794,26 @@ model Task {
   priority        TaskPriority @default(MEDIUM)
   type            TaskType     @default(GENERAL)
   status          TaskStatus   @default(TODO)
-  progress        Int          @default(0)
+  /// Server-computed from checklist items or, when subtasks exist, from the
+  /// mean of direct children's own progress (subtasks always win over this
+  /// task's own checklist). NULL means "not tracked" - no checklist items
+  /// and no subtasks - never a fabricated 0. Never client-settable, and
+  /// reaching 100 never implies review approval (TasksService.review()
+  /// owns that decision independently).
+  progress        Int?
   startAt         DateTime?    @map("start_at") @db.Timestamptz(6)
   dueAt           DateTime?    @map("due_at") @db.Timestamptz(6)
   /// The meeting this task was created from as an action item (EOM-01), or
   /// NULL for an ordinary task. Cleared, not cascaded, if that meeting row is
   /// removed - the task itself stays a real, assignable, trackable task.
   sourceMeetingId String?      @map("source_meeting_id") @db.Uuid
+  /// The higher-level assignment this task was broken down from (e.g. a
+  /// Department Manager's subordinate task created from a Super Admin's
+  /// directive), or NULL for an ordinary, top-level task. Completing every
+  /// subtask never auto-transitions the parent - that only happens through
+  /// an explicit review/transition on the parent itself, enforced in the
+  /// application layer (TasksService), not here.
+  parentTaskId    String?      @map("parent_task_id") @db.Uuid
   createdById     String?      @map("created_by_id") @db.Uuid
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -741,6 +821,8 @@ model Task {
   workspace       Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   department      Department?      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   sourceMeeting   Meeting?         @relation(fields: [sourceMeetingId], references: [id], onDelete: SetNull)
+  parent          Task?            @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subtasks        Task[]           @relation("TaskHierarchy")
   createdBy       User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   assignments     TaskAssignment[]
   comments        TaskComment[]
@@ -748,6 +830,7 @@ model Task {
   fileIntents     ManagedFile[]    @relation("ManagedFileIntentTask")
   reviews         TaskReview[]
   activities      TaskActivity[]
+  checklistItems  TaskChecklistItem[]
   calendarEntries CalendarEntry[]
   notifications   Notification[]
 
@@ -761,6 +844,7 @@ model Task {
   @@index([priority, dueAt])
   @@index([createdById])
   @@index([sourceMeetingId])
+  @@index([parentTaskId])
   @@map("tasks")
 }
 
@@ -869,6 +953,33 @@ model TaskActivity {
   @@map("task_activities")
 }
 
+/// A single creator-defined checkpoint on a task's own work (not its
+/// subtasks). Automatic progress is computed from these: completed / total,
+/// rounded, with "no items" meaning "not tracked" rather than 0% or 100%.
+/// CRUD on the set reuses `task.update` (the same actors who can already
+/// edit title/description); toggling `completed` reuses
+/// `task.update_progress` (the self-report permission, now scoped to "may
+/// toggle my own assigned work's checklist" instead of "may set a number").
+model TaskChecklistItem {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  taskId        String    @map("task_id") @db.Uuid
+  description   String
+  completed     Boolean   @default(false)
+  position      Int
+  completedById String?   @map("completed_by_id") @db.Uuid
+  completedAt   DateTime? @map("completed_at") @db.Timestamptz(6)
+  createdById   String?   @map("created_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  task        Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  completedBy User? @relation("TaskChecklistItemCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  createdBy   User? @relation("TaskChecklistItemCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([taskId, position])
+  @@map("task_checklist_items")
+}
+
 /// The kind of event (SRS 5.5 "Event Types"). `OTHER` is the SRS fallback.
 /// Whether these baseline types are renameable / deactivatable, and who may
 /// supply the value behind an "Other" event, are open in OD-17; modelled as a
@@ -937,6 +1048,10 @@ model Event {
   /// storage stays UTC.
   startAt        DateTime?   @map("start_at") @db.Timestamptz(6)
   endAt          DateTime?   @map("end_at") @db.Timestamptz(6)
+  /// Optional reminder instant. A CHECK requires `start_at` to be set and
+  /// `reminder_at` to be at or before it - "remind me before X" is
+  /// meaningless with no X. Mirrors `Meeting.reminderAt` exactly.
+  reminderAt     DateTime?   @map("reminder_at") @db.Timestamptz(6)
   location       String?
   organizerName  String?     @map("organizer_name")
   status         EventStatus @default(PLANNING)
@@ -974,6 +1089,8 @@ model Event {
   todos             Todo[]
   talentAssignments EventTalent[]
   expenses          Expense[]
+  partners          Partner[]
+  shifts            EventShift[]
 
   // Administration and the connected-workspace overview filter events by
   // lifecycle state, type, schedule, author, and (EOM-01) owning department.
@@ -1297,6 +1414,8 @@ model Project {
   createdBy       User?           @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   calendarEntries CalendarEntry[]
   todos           Todo[]
+  letters         Letter[]
+  documents       Document[]
 
   // Administration and the connected-workspace overview filter projects by
   // lifecycle state, related event, schedule, and author.
@@ -1397,6 +1516,11 @@ model Campaign {
   endAt          DateTime?      @map("end_at") @db.Timestamptz(6)
   status         CampaignStatus @default(PLANNED)
   eventId        String?        @map("event_id") @db.Uuid
+  /// The owning department (e.g. Marketing), independent of the campaign's
+  /// own workspace/event links - lets a Department Manager's DEPARTMENT-scope
+  /// `campaign.*` grants resolve the same way every other department-scoped
+  /// resource does. NULL for a campaign with no department owner.
+  departmentId   String?        @map("department_id") @db.Uuid
   productName    String?        @map("product_name")
   /// Optional budget. A CHECK requires the amount and the ISO-4217 currency
   /// code to be set together, the amount to be non-negative, and the code to
@@ -1411,10 +1535,13 @@ model Campaign {
 
   workspace           Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   event               Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  department          Department?         @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   createdBy           User?               @relation("CampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   activities          CampaignActivity[]
   marketing           MarketingCampaign?
   promotionActivities PromotionActivity[]
+  expenses            Expense[]
+  partners            Partner[]
 
   // Supports a composite FK that fixes promotion detail ownership to PROMOTION.
   @@unique([id, campaignType])
@@ -1423,6 +1550,7 @@ model Campaign {
   @@index([campaignType, status])
   @@index([status])
   @@index([eventId])
+  @@index([departmentId])
   @@index([startAt])
   @@index([createdById])
   @@map("campaigns")
@@ -1561,7 +1689,6 @@ model Meeting {
   startAt     DateTime      @map("start_at") @db.Timestamptz(6)
   endAt       DateTime      @map("end_at") @db.Timestamptz(6)
   location    String?
-  onlineLink  String?       @map("online_link")
   reminderAt  DateTime?     @map("reminder_at") @db.Timestamptz(6)
   /// Free-text meeting agenda, set before or during the meeting (EOM-01).
   agenda      String?       @db.Text
@@ -1572,77 +1699,17 @@ model Meeting {
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organizer        User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
-  googleMeetExport GoogleMeetExport?
-  workspace        Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  participants     MeetingParticipant[]
-  calendarEntries  CalendarEntry[]
-  notifications    Notification[]
-  actionItems      Task[]
+  organizer       User                 @relation("MeetingOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
+  workspace       Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  participants    MeetingParticipant[]
+  calendarEntries CalendarEntry[]
+  notifications   Notification[]
+  actionItems     Task[]
 
   @@index([organizerId, startAt])
   @@index([workspaceId, startAt])
   @@index([status, startAt])
   @@map("meetings")
-}
-
-/// Optional organizer-owned Google grant. Tokens are authenticated ciphertext,
-/// never plaintext; an absent token blocks provider work, not core meetings.
-model GoogleCalendarConnection {
-  userId     String             @id @map("user_id") @db.Uuid
-  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  generation String             @default(uuid()) @db.Uuid
-  subject    String?
-  token      String?
-  status     String             @default("DISCONNECTED")
-  leaseId    String?            @map("lease_id") @db.Uuid
-  leaseUntil DateTime?          @map("lease_until") @db.Timestamptz(6)
-  exports    GoogleMeetExport[]
-
-  @@map("google_calendar_connections")
-}
-
-model GoogleCalendarConsent {
-  userId    String   @id @map("user_id") @db.Uuid
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stateHash String   @unique @map("state_hash")
-  sessionId String   @map("session_id") @db.Uuid
-  verifier  String
-  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
-
-  @@index([expiresAt])
-  @@map("google_calendar_consents")
-}
-
-/// Stable provider identifiers survive ambiguous HTTP outcomes. No calendar scans.
-model GoogleMeetExport {
-  meetingId     String                   @id @map("meeting_id") @db.Uuid
-  meeting       Meeting                  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  userId        String                   @map("user_id") @db.Uuid
-  connection    GoogleCalendarConnection @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  generation    String                   @db.Uuid
-  eventId       String                   @unique @map("event_id")
-  requestId     String                   @map("request_id") @db.Uuid
-  publishedLink String?                  @map("published_link")
-  subject       String?
-  fallbackLink  String?                  @map("fallback_link")
-  status        String                   @default("PENDING")
-  failure       String?
-  attemptedAt   DateTime?                @map("attempted_at") @db.Timestamptz(6)
-  attempts      Int                      @default(0)
-  nextAttemptAt DateTime?                @map("next_attempt_at") @db.Timestamptz(6)
-
-  @@index([userId])
-  @@map("google_meet_exports")
-}
-
-model GoogleCalendarBudget {
-  key       String   @id
-  used      Int      @default(0)
-  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
-
-  @@index([expiresAt])
-  @@map("google_calendar_budgets")
 }
 
 model MeetingParticipant {
@@ -1990,6 +2057,31 @@ enum NotificationType {
   EXPENSE_SUBMITTED
   /// EOM-01: an expense decision (approved or rejected) notifies its author.
   EXPENSE_REVIEWED
+  /// A submitted report notifies every active user holding `report.review`
+  /// at ORGANIZATION scope, plus DEPARTMENT-scope holders in the report's
+  /// own department.
+  REPORT_SUBMITTED
+  /// A report decision (reviewed or changes requested) notifies its author.
+  REPORT_REVIEWED
+  /// A partner relationship's `followUpAt` has passed; notifies its owner.
+  PARTNER_FOLLOW_UP_DUE
+  /// EMP-02: a letter was shared (directly or with all employees).
+  LETTER_SHARED
+  /// EMP-02: a document was shared (directly or with all employees).
+  DOCUMENT_SHARED
+  /// ATT-01: an employee was assigned to an event shift.
+  ATTENDANCE_SHIFT_ASSIGNED
+  /// ATT-01: an assigned shift was rescheduled, cancelled, or reinstated.
+  ATTENDANCE_SHIFT_SCHEDULE_CHANGED
+  /// ATT-01: a potential-overtime review was approved or rejected.
+  ATTENDANCE_OVERTIME_DECIDED
+  /// ATT-01: a flagged attendance exception was approved or rejected.
+  ATTENDANCE_EXCEPTION_DECIDED
+  /// ATT-02: notifies the employee's department manager that a leave
+  /// request needs review.
+  LEAVE_REQUEST_SUBMITTED
+  /// ATT-02: a leave request was approved, rejected, or returned for changes.
+  LEAVE_REQUEST_DECIDED
 
   @@map("notification_type")
 }
@@ -2130,8 +2222,18 @@ model Notification {
   meetingId       String?          @map("meeting_id") @db.Uuid
   /// EOM-01: the fifth typed target, added for EXPENSE_SUBMITTED/REVIEWED.
   expenseId       String?          @map("expense_id") @db.Uuid
+  /// The sixth typed target, added for REPORT_SUBMITTED/REVIEWED.
+  reportId        String?          @map("report_id") @db.Uuid
+  /// The seventh typed target, added for PARTNER_FOLLOW_UP_DUE.
+  partnerId       String?          @map("partner_id") @db.Uuid
+  /// The eighth typed target, added for LETTER_SHARED.
+  letterId        String?          @map("letter_id") @db.Uuid
+  /// The ninth typed target, added for DOCUMENT_SHARED.
+  documentId      String?          @map("document_id") @db.Uuid
   createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   readAt          DateTime?        @map("read_at") @db.Timestamptz(6)
+  /// Retain the occurrence key so redelivery cannot recreate a removed notification.
+  dismissedAt     DateTime?        @map("dismissed_at") @db.Timestamptz(6)
 
   recipient   User        @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
   sourceEvent OutboxEvent @relation(fields: [sourceEventId], references: [id], onDelete: Restrict)
@@ -2140,6 +2242,10 @@ model Notification {
   event       Event?      @relation(fields: [eventId], references: [id], onDelete: Cascade)
   meeting     Meeting?    @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   expense     Expense?    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  report      Report?     @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  partner     Partner?    @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  letter      Letter?     @relation(fields: [letterId], references: [id], onDelete: Cascade)
+  document    Document?   @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   // The cursor feed reads a recipient's own notifications newest first
   // (ADR 0003 section 5); the second index supports the unread count.
@@ -2243,13 +2349,14 @@ model Report {
   createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  author      User               @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  department  Department?        @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  reviewer    User?              @relation("ReportCurrentReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
-  reviews     ReportReview[]
-  workspaces  ReportWorkspace[]
-  attachments ReportAttachment[]
-  fileIntents ManagedFile[]      @relation("ManagedFileIntentReport")
+  author        User               @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  department    Department?        @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  reviewer      User?              @relation("ReportCurrentReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  reviews       ReportReview[]
+  workspaces    ReportWorkspace[]
+  attachments   ReportAttachment[]
+  fileIntents   ManagedFile[]      @relation("ManagedFileIntentReport")
+  notifications Notification[]
 
   @@unique([authorId, type, periodStart])
   @@index([authorId, type, periodStart, id])
@@ -2400,6 +2507,12 @@ model Expense {
   /// linked event (or one specific to the production itself, independent of
   /// any linked event's own expenses).
   productionId  String?         @map("production_id") @db.Uuid
+  /// Optional cross-reference to the campaign this expense's spend counts
+  /// against - lets a campaign's actual spend be computed as the sum of its
+  /// linked, approved expenses, kept distinct from `Campaign.budgetAmount`
+  /// (the plan). Not part of `expenses_has_owner`; an expense still needs an
+  /// event or production as its real owner regardless of any campaign link.
+  campaignId    String?         @map("campaign_id") @db.Uuid
   departmentId  String          @map("department_id") @db.Uuid
   supplierId    String?         @map("supplier_id") @db.Uuid
   category      ExpenseCategory
@@ -2420,6 +2533,7 @@ model Expense {
 
   event         Event?              @relation(fields: [eventId], references: [id], onDelete: Restrict)
   production    Production?         @relation(fields: [productionId], references: [id], onDelete: Restrict)
+  campaign      Campaign?           @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   department    Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   supplier      Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   createdBy     User?               @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -2433,6 +2547,7 @@ model Expense {
   // department and status; this mirrors Task's own `[owner, status]` shape.
   @@index([eventId, status])
   @@index([productionId, status])
+  @@index([campaignId, status])
   @@index([departmentId, status])
   @@index([supplierId])
   @@index([createdById])
@@ -2475,4 +2590,904 @@ model ExpenseAttachment {
   @@index([managedFileId])
   @@index([attachedById])
   @@map("expense_attachments")
+}
+
+/// Lifecycle stage of a sponsorship/partnership opportunity.
+enum PartnerStatus {
+  PROSPECTIVE
+  IN_DISCUSSION
+  COMMITTED
+  DECLINED
+  COMPLETED
+
+  @@map("partner_status")
+}
+
+/// A sponsor, media organization, brand, or strategic-partner relationship
+/// being built or tracked - distinct from `Supplier` (a billed vendor):
+/// a Partner is a commercial relationship under development, not someone
+/// paid for goods or services. Scoped to a department (e.g. Marketing) the
+/// same way every other department-owned resource is.
+model Partner {
+  id                   String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  organizationName     String        @map("organization_name")
+  category             String
+  contactName          String?       @map("contact_name")
+  contactEmail         String?       @map("contact_email")
+  contactPhone         String?       @map("contact_phone")
+  departmentId         String?       @map("department_id") @db.Uuid
+  /// Soft cross-reference to the campaign or event this opportunity relates
+  /// to, where applicable - neither is required; a partnership may exist
+  /// before any specific campaign/event is attached.
+  campaignId           String?       @map("campaign_id") @db.Uuid
+  eventId              String?       @map("event_id") @db.Uuid
+  status               PartnerStatus @default(PROSPECTIVE)
+  proposedContribution String?       @map("proposed_contribution")
+  notes                String?
+  followUpAt           DateTime?     @map("follow_up_at") @db.Timestamptz(6)
+  /// The user responsible for this relationship (the "opportunity owner").
+  ownerId              String?       @map("owner_id") @db.Uuid
+  createdById          String?       @map("created_by_id") @db.Uuid
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  department    Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  campaign      Campaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  event         Event?            @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  owner         User?             @relation("PartnerOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdBy     User?             @relation("PartnerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  activities    PartnerActivity[]
+  notifications Notification[]
+
+  @@index([departmentId, status])
+  @@index([campaignId])
+  @@index([eventId])
+  @@index([ownerId])
+  @@index([followUpAt])
+  @@map("partners")
+}
+
+/// Append-only discussion/communication-history entry for one partner
+/// relationship - the same append-only shape as `TaskActivity`.
+model PartnerActivity {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  partnerId String   @map("partner_id") @db.Uuid
+  authorId  String?  @map("author_id") @db.Uuid
+  note      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  partner Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  author  User?   @relation("PartnerActivityAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId, createdAt])
+  @@map("partner_activities")
+}
+
+/// Working arrangement for an employee profile.
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+
+  @@map("employment_type")
+}
+
+/// Lifecycle status of an employee profile. Distinct from `User.status`
+/// (login/account access): an `INACTIVE` employee is deactivated the same
+/// way `UsersService.deactivate` deactivates any user (login blocked), but
+/// `ON_LEAVE` is purely an HR record state and never touches login access.
+enum EmploymentStatus {
+  ACTIVE
+  ON_LEAVE
+  INACTIVE
+
+  @@map("employment_status")
+}
+
+/// Self-reported sex recorded on an employee profile (HR personal
+/// information only - never used for authorization).
+enum EmployeeGender {
+  MALE
+  FEMALE
+  OTHER
+
+  @@map("employee_gender")
+}
+
+/// HR-only data for an existing `User` account (EMP-01). One-to-one with
+/// `User` - an employee is never a separate account, only a linked profile
+/// of HR fields on top of one. Department, role, and login/account status
+/// all stay the User/Department/RBAC models' own responsibility; this model
+/// never duplicates them. Compensation fields are nullable and read-gated
+/// in the service layer to the Super Admin and the HR & Executive Officer
+/// department manager only - never exposed to a general profile view.
+model EmployeeProfile {
+  id                 String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  userId             String           @unique @map("user_id") @db.Uuid
+  employeeCode       String           @unique @map("employee_code")
+  position           String
+  employmentType     EmploymentType   @map("employment_type")
+  employmentDate     DateTime         @map("employment_date") @db.Date
+  employmentStatus   EmploymentStatus @default(ACTIVE) @map("employment_status")
+  workLocation       String?          @map("work_location")
+  reportingManagerId String?          @map("reporting_manager_id") @db.Uuid
+  grade              String?
+  /// Compensation: amount fields pair with `currency` (all-or-nothing,
+  /// mirroring `campaigns_budget_amount_and_currency`'s convention). Total
+  /// compensation is derived at read time (`baseSalary + allowanceAmount`),
+  /// never stored, so it can never drift from its parts.
+  baseSalary         Decimal?         @map("base_salary") @db.Decimal(14, 2)
+  salaryScale        String?          @map("salary_scale")
+  allowanceAmount    Decimal?         @map("allowance_amount") @db.Decimal(14, 2)
+  currency           String?          @db.Char(3)
+  description        String?
+  gender             EmployeeGender?
+  dateOfBirth        DateTime?        @map("date_of_birth") @db.Date
+  city               String?
+  subCity            String?          @map("sub_city")
+  woreda             String?
+  /// Payroll bank account number. Free text (no bank-identity/IBAN
+  /// structure is required yet) - read-gated the same way compensation is,
+  /// by the module's own authorization boundary, not a separate check.
+  bankAccountNumber  String?          @map("bank_account_number")
+  /// A company-issued phone number, distinct from the linked `User.phone`
+  /// (the employee's own personal number). Lives here, not on `User`,
+  /// because it is tied to the job, not the person - it does not follow the
+  /// employee if they leave or change roles.
+  companyPhone       String?          @map("company_phone")
+  /// Set whenever `employmentStatus` changes, by whom - required so a
+  /// status change always carries an attributable actor (EMP-01 §6).
+  statusChangedAt    DateTime?        @map("status_changed_at") @db.Timestamptz(6)
+  statusChangedById  String?          @map("status_changed_by_id") @db.Uuid
+  createdById        String?          @map("created_by_id") @db.Uuid
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user             User  @relation("EmployeeProfileUser", fields: [userId], references: [id], onDelete: Cascade)
+  reportingManager User? @relation("EmployeeReportingManager", fields: [reportingManagerId], references: [id], onDelete: SetNull)
+  statusChangedBy  User? @relation("EmployeeStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  createdBy        User? @relation("EmployeeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  // The employee list filters/sorts by status and looks up a manager's reports.
+  @@index([employmentStatus])
+  @@index([reportingManagerId])
+  @@map("employee_profiles")
+}
+
+/// Incoming (received) versus outgoing (sent) correspondence. Independent of
+/// `LetterCategory` - the reference-number sequence resets per category and
+/// year, never per direction.
+enum LetterDirection {
+  INCOMING
+  OUTGOING
+
+  @@map("letter_direction")
+}
+
+/// Letter classification driving the reference-number sequence
+/// (`LELA-{category}-{year}-{sequence}`). A small, explicit enum - easy to
+/// extend with a migration, same convention as `DocumentType` below.
+enum LetterCategory {
+  CAST
+  PROD
+  MKT
+  PROMO
+  EOM
+  HR
+  OTHER
+
+  @@map("letter_category")
+}
+
+/// A centralized, easy-to-extend classification for Document records.
+/// `LETTER` marks a document auto-created from a letter attachment.
+enum DocumentType {
+  LETTER
+  REPORT
+  PRICE_QUOTATION
+  CONTRACT
+  INVOICE
+  OTHER
+
+  @@map("document_type")
+}
+
+/// What a share grants: read-only viewing, or viewing plus download. Both
+/// preview and download endpoints enforce this scope.
+enum ShareScope {
+  VIEW
+  VIEW_AND_DOWNLOAD
+
+  @@map("share_scope")
+}
+
+/// Administration correspondence (EMP-02 / Letters and Documents). Only
+/// Super Admin and the HR & Executive Officer department's own manager may
+/// manage letters - enforced in `LettersService`, the same bespoke
+/// service-layer boundary Employee Management uses
+/// (`isHrExecutiveOfficerManager`), never a new role or RBAC catalog branch.
+/// `referenceNumber` is server-generated and immutable; clients can never
+/// supply or change it.
+model Letter {
+  id                    String          @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  referenceNumber       String          @unique @map("reference_number")
+  direction             LetterDirection
+  category              LetterCategory
+  date                  DateTime        @db.Date
+  projectId             String?         @map("project_id") @db.Uuid
+  subject               String
+  /// Set only for INCOMING letters; a CHECK enforces the pairing with
+  /// `direction` and with `toParty`.
+  fromParty             String?         @map("from_party")
+  /// Set only for OUTGOING letters; a CHECK enforces the pairing with
+  /// `direction` and with `fromParty`.
+  toParty               String?         @map("to_party")
+  /// The reference number printed on a received letter - distinct from
+  /// Lela's own generated `referenceNumber`. Incoming only.
+  senderReferenceNumber String?         @map("sender_reference_number")
+  shortDescription      String?         @map("short_description")
+  /// A single quick note captured on the letter itself - distinct from the
+  /// chronological `LetterRemark` thread below.
+  remark                String?
+  createdById           String?         @map("created_by_id") @db.Uuid
+  updatedById           String?         @map("updated_by_id") @db.Uuid
+  /// Excluded from every ordinary list/detail/download/shared-record query
+  /// the moment it is set - never only hidden from the management UI.
+  deletedAt             DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  createdAt             DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  project            Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy          User?              @relation("LetterCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy          User?              @relation("LetterUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  attachments        LetterAttachment[]
+  remarks            LetterRemark[]
+  shares             Share[]
+  documents          Document[]         @relation("DocumentSourceLetter")
+  managedFileIntents ManagedFile[]      @relation("ManagedFileIntentLetter")
+  notifications      Notification[]
+
+  @@index([direction, date])
+  @@index([category])
+  @@index([projectId])
+  @@index([deletedAt])
+  @@map("letters")
+}
+
+/// The atomic sequence backing `Letter.referenceNumber`. One row per
+/// `(category, year)`; incremented with a single `INSERT ... ON CONFLICT
+/// DO UPDATE ... RETURNING` statement, never a read-then-write in
+/// application code, so concurrent creates cannot collide.
+model LetterReferenceCounter {
+  id           String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  category     LetterCategory
+  year         Int
+  lastSequence Int            @default(0) @map("last_sequence")
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([category, year])
+  @@map("letter_reference_counters")
+}
+
+/// A letter's attachment, the same concrete join shape as `TaskAttachment`/
+/// `ReportAttachment` - never a polymorphic entity-type/id reference. Every
+/// letter attachment also gets a `Document` row pointing at the same
+/// `managedFileId`, created in the same finalize transaction (see `Document`
+/// below) - the physical file is never duplicated.
+model LetterAttachment {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  letterId      String   @map("letter_id") @db.Uuid
+  managedFileId String   @map("managed_file_id") @db.Uuid
+  attachedById  String?  @map("attached_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  letter      Letter      @relation(fields: [letterId], references: [id], onDelete: Cascade)
+  managedFile ManagedFile @relation(fields: [managedFileId], references: [id], onDelete: Restrict)
+  attachedBy  User?       @relation("LetterAttachmentActor", fields: [attachedById], references: [id], onDelete: SetNull)
+
+  @@unique([letterId, managedFileId])
+  @@index([managedFileId])
+  @@index([attachedById])
+  @@map("letter_attachments")
+}
+
+/// Append-only remarks thread on a letter - chronological, no edit/delete
+/// path, the same shape as `TaskComment`/`PartnerActivity`. Reading and
+/// adding a remark requires full letter-management authorization; a shared
+/// recipient never sees this thread.
+model LetterRemark {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  letterId  String   @map("letter_id") @db.Uuid
+  authorId  String?  @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  letter Letter @relation(fields: [letterId], references: [id], onDelete: Cascade)
+  author User?  @relation("LetterRemarkAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([letterId, createdAt])
+  @@map("letter_remarks")
+}
+
+/// HR-managed document metadata (EMP-02). `managedFileId` is nullable: a
+/// document row is created first with no file (mirrors every other
+/// attachment flow's "parent exists, then its file is attached" shape -
+/// `intentDocumentId` on `ManagedFile` authorizes the upload against this
+/// now-existing row), then an upload-intent/finalize cycle attaches the
+/// file. `sourceLetterId` is set only for a document auto-created from a
+/// letter attachment; soft-deleting that letter does NOT cascade to this
+/// row - the document keeps its own independent lifecycle and sharing, and
+/// the "from letter" link re-checks letter authorization independently
+/// rather than trusting this reference.
+model Document {
+  id             String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// User-editable display name (Rename). Distinct from the immutable
+  /// `ManagedFile.originalFilename`, which always records what was
+  /// literally uploaded.
+  displayName    String       @map("display_name")
+  documentType   DocumentType @map("document_type")
+  managedFileId  String?      @unique @map("managed_file_id") @db.Uuid
+  projectId      String?      @map("project_id") @db.Uuid
+  sourceLetterId String?      @map("source_letter_id") @db.Uuid
+  description    String?
+  uploadedById   String?      @map("uploaded_by_id") @db.Uuid
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  managedFile        ManagedFile?   @relation("DocumentFile", fields: [managedFileId], references: [id], onDelete: Restrict)
+  project            Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  sourceLetter       Letter?        @relation("DocumentSourceLetter", fields: [sourceLetterId], references: [id], onDelete: SetNull)
+  uploadedBy         User?          @relation("DocumentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  shares             Share[]
+  managedFileIntents ManagedFile[]  @relation("ManagedFileIntentDocument")
+  notifications      Notification[]
+
+  @@index([documentType])
+  @@index([projectId])
+  @@index([sourceLetterId])
+  @@index([uploadedById])
+  @@index([deletedAt])
+  @@map("documents")
+}
+
+/// A grant of access to one letter or document, to one employee or to every
+/// active employee - never a per-employee row for "all employees" (that
+/// audience is evaluated dynamically at read time, so a newly hired
+/// employee gains access immediately with no backfill). CHECKs (added in
+/// hand-authored migration SQL - Prisma's schema DSL cannot express them)
+/// enforce exactly one target (`letterId` xor `documentId`) and exactly one
+/// audience (`recipientId` xor `allEmployees`); partial unique indexes (also
+/// hand-authored) prevent a second *active* share for the same target and
+/// audience while still allowing a new share after the old one is revoked.
+/// Revocation is soft (`revokedAt`/`revokedById`) so history is preserved.
+model Share {
+  id           String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  letterId     String?    @map("letter_id") @db.Uuid
+  documentId   String?    @map("document_id") @db.Uuid
+  recipientId  String?    @map("recipient_id") @db.Uuid
+  allEmployees Boolean    @default(false) @map("all_employees")
+  scope        ShareScope @default(VIEW)
+  sharedById   String?    @map("shared_by_id") @db.Uuid
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt    DateTime?  @map("revoked_at") @db.Timestamptz(6)
+  revokedById  String?    @map("revoked_by_id") @db.Uuid
+
+  letter    Letter?   @relation(fields: [letterId], references: [id], onDelete: Cascade)
+  document  Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  recipient User?     @relation("ShareRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+  sharedBy  User?     @relation("ShareSharedBy", fields: [sharedById], references: [id], onDelete: SetNull)
+  revokedBy User?     @relation("ShareRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([letterId])
+  @@index([documentId])
+  @@index([recipientId])
+  @@map("shares")
+}
+
+// ============================================================
+// Attendance Management (ATT-01)
+// ============================================================
+
+enum AttendanceMethod {
+  OFFICE_KIOSK
+  MOBILE_EVENT
+
+  @@map("attendance_method")
+}
+
+enum PunchType {
+  CHECK_IN
+  CHECK_OUT
+
+  @@map("punch_type")
+}
+
+enum AttendanceSessionStatus {
+  OPEN
+  CLOSED
+  MISSING_CHECKOUT
+
+  @@map("attendance_session_status")
+}
+
+/// `NOT_APPLICABLE` is the office-kiosk default (no geofence applies).
+enum AttendanceVerificationResult {
+  NOT_APPLICABLE
+  VERIFIED
+  OUT_OF_RANGE
+  LOW_ACCURACY
+  LOCATION_UNAVAILABLE
+  EXCEPTION_APPROVED
+
+  @@map("attendance_verification_result")
+}
+
+enum EventShiftStatus {
+  PLANNED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+
+  @@map("event_shift_status")
+}
+
+enum EventShiftChangeType {
+  RESCHEDULE
+  EXTENSION
+  LOCATION_CHANGE
+  CANCELLATION
+  REINSTATEMENT
+  OTHER
+
+  @@map("event_shift_change_type")
+}
+
+enum AttendanceOvertimeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("attendance_overtime_status")
+}
+
+enum AttendanceExceptionType {
+  MISSED_CHECKOUT
+  OUT_OF_RANGE
+  LOCATION_UNAVAILABLE
+  MANUAL_CORRECTION_REQUEST
+  OTHER
+
+  @@map("attendance_exception_type")
+}
+
+enum AttendanceExceptionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@map("attendance_exception_status")
+}
+
+enum AttendanceDayType {
+  FULL
+  HALF
+  OFF
+
+  @@map("attendance_day_type")
+}
+
+/// A registered physical kiosk device (office entrance tablet/computer).
+/// The kiosk authenticates itself with a long-lived, server-issued bearer
+/// secret, hashed at rest with the same Argon2id hasher as user passwords -
+/// a client-supplied device id alone is never trusted as proof of origin.
+model AttendanceKiosk {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name          String
+  locationLabel String    @map("location_label")
+  tokenHash     String    @unique @map("token_hash")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdById   String?   @map("created_by_id") @db.Uuid
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedById   String?   @map("revoked_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User?               @relation("AttendanceKioskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  revokedBy User?               @relation("AttendanceKioskRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+  punches   AttendancePunch[]
+  sessions  AttendanceSession[]
+
+  @@index([isActive])
+  @@map("attendance_kiosks")
+}
+
+/// A scheduled work period against an event/production assignment. Explicit
+/// start/end datetimes (never a single calendar date) so an overnight shift
+/// is one row, not two. The geofence center and radius live here, not on
+/// `Event`, since attendance location policy is this module's own concern.
+model EventShift {
+  id                   String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  eventId              String           @map("event_id") @db.Uuid
+  label                String?
+  plannedStartAt       DateTime         @map("planned_start_at") @db.Timestamptz(6)
+  plannedEndAt         DateTime         @map("planned_end_at") @db.Timestamptz(6)
+  timeZone             String           @map("time_zone")
+  locationLabel        String?          @map("location_label")
+  latitude             Decimal          @db.Decimal(9, 6)
+  longitude            Decimal          @db.Decimal(9, 6)
+  geofenceRadiusMeters Int              @default(150) @map("geofence_radius_meters")
+  breakMinutes         Int              @default(0) @map("break_minutes")
+  status               EventShiftStatus @default(PLANNED)
+  createdById          String?          @map("created_by_id") @db.Uuid
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event       Event                  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy   User?                  @relation("EventShiftCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignments EventShiftAssignment[]
+  changes     EventShiftChange[]
+  punches     AttendancePunch[]
+  sessions    AttendanceSession[]
+
+  @@index([eventId])
+  @@index([plannedStartAt])
+  @@index([status])
+  @@map("event_shifts")
+}
+
+/// Which employees are assigned to a shift - the eligibility boundary for
+/// the mobile event-attendance workflow (only an assigned employee, or an
+/// explicitly authorized exception, may punch against this shift).
+model EventShiftAssignment {
+  id             String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  eventShiftId   String    @map("event_shift_id") @db.Uuid
+  employeeId     String    @map("employee_id") @db.Uuid
+  assignedById   String?   @map("assigned_by_id") @db.Uuid
+  assignedAt     DateTime  @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  unassignedAt   DateTime? @map("unassigned_at") @db.Timestamptz(6)
+  unassignedById String?   @map("unassigned_by_id") @db.Uuid
+
+  eventShift   EventShift @relation(fields: [eventShiftId], references: [id], onDelete: Cascade)
+  employee     User       @relation("EventShiftAssignee", fields: [employeeId], references: [id], onDelete: Cascade)
+  assignedBy   User?      @relation("EventShiftAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  unassignedBy User?      @relation("EventShiftUnassignedBy", fields: [unassignedById], references: [id], onDelete: SetNull)
+
+  @@unique([eventShiftId, employeeId])
+  @@index([employeeId])
+  @@map("event_shift_assignments")
+}
+
+/// Append-only schedule-change history for a shift - every reschedule,
+/// extension, or cancellation is recorded with its reason rather than
+/// overwriting the prior planned times in place.
+model EventShiftChange {
+  id              String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  eventShiftId    String               @map("event_shift_id") @db.Uuid
+  changeType      EventShiftChangeType @map("change_type")
+  previousStartAt DateTime?            @map("previous_start_at") @db.Timestamptz(6)
+  previousEndAt   DateTime?            @map("previous_end_at") @db.Timestamptz(6)
+  newStartAt      DateTime?            @map("new_start_at") @db.Timestamptz(6)
+  newEndAt        DateTime?            @map("new_end_at") @db.Timestamptz(6)
+  reason          String
+  changedById     String?              @map("changed_by_id") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  eventShift EventShift @relation(fields: [eventShiftId], references: [id], onDelete: Cascade)
+  changedBy  User?      @relation("EventShiftChangeActor", fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([eventShiftId, createdAt])
+  @@map("event_shift_changes")
+}
+
+/// One raw, immutable punch attempt - append-only. `clientRequestId` is the
+/// idempotency key: a retried request with the same key resolves to the
+/// same row rather than creating a duplicate. Location fields are set only
+/// for `MOBILE_EVENT`.
+model AttendancePunch {
+  id                 String                       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  employeeId         String                       @map("employee_id") @db.Uuid
+  method             AttendanceMethod
+  punchType          PunchType                    @map("punch_type")
+  kioskId            String?                      @map("kiosk_id") @db.Uuid
+  eventShiftId       String?                      @map("event_shift_id") @db.Uuid
+  clientRequestId    String                       @map("client_request_id")
+  recordedAt         DateTime                     @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  latitude           Decimal?                     @db.Decimal(9, 6)
+  longitude          Decimal?                     @db.Decimal(9, 6)
+  accuracyMeters     Decimal?                     @map("accuracy_meters") @db.Decimal(8, 2)
+  distanceMeters     Decimal?                     @map("distance_meters") @db.Decimal(10, 2)
+  verificationResult AttendanceVerificationResult @default(NOT_APPLICABLE) @map("verification_result")
+  createdAt          DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  employee   User               @relation("AttendancePunchEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  kiosk      AttendanceKiosk?   @relation(fields: [kioskId], references: [id], onDelete: SetNull)
+  eventShift EventShift?        @relation(fields: [eventShiftId], references: [id], onDelete: SetNull)
+  checkInOf  AttendanceSession? @relation("SessionCheckIn")
+  checkOutOf AttendanceSession? @relation("SessionCheckOut")
+
+  @@unique([employeeId, punchType, clientRequestId])
+  @@index([employeeId, recordedAt])
+  @@index([kioskId])
+  @@index([eventShiftId])
+  @@map("attendance_punches")
+}
+
+/// The paired check-in/check-out record dashboards and reports query.
+/// `actualMinutes`/`netMinutes`/`potentialOvertimeMinutes` are server-
+/// computed snapshots, recomputed whenever the session's punches change -
+/// never trusted from the client. A partial unique index keeps at most one
+/// `OPEN` session per employee at a time (hand-authored migration SQL),
+/// which is what actually prevents a duplicate check-in or a check-out with
+/// no matching check-in.
+model AttendanceSession {
+  id                       String                  @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  employeeId               String                  @map("employee_id") @db.Uuid
+  method                   AttendanceMethod
+  kioskId                  String?                 @map("kiosk_id") @db.Uuid
+  eventShiftId             String?                 @map("event_shift_id") @db.Uuid
+  sessionDate              DateTime                @map("session_date") @db.Date
+  checkInPunchId           String                  @unique @map("check_in_punch_id") @db.Uuid
+  checkOutPunchId          String?                 @unique @map("check_out_punch_id") @db.Uuid
+  status                   AttendanceSessionStatus @default(OPEN)
+  scheduledMinutes         Int?                    @map("scheduled_minutes")
+  actualMinutes            Int?                    @map("actual_minutes")
+  breakMinutes             Int                     @default(0) @map("break_minutes")
+  netMinutes               Int?                    @map("net_minutes")
+  lateMinutes              Int                     @default(0) @map("late_minutes")
+  earlyDepartureMinutes    Int                     @default(0) @map("early_departure_minutes")
+  potentialOvertimeMinutes Int                     @default(0) @map("potential_overtime_minutes")
+  createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime                @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employee      User                        @relation("AttendanceSessionEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  kiosk         AttendanceKiosk?            @relation(fields: [kioskId], references: [id], onDelete: SetNull)
+  eventShift    EventShift?                 @relation(fields: [eventShiftId], references: [id], onDelete: SetNull)
+  checkInPunch  AttendancePunch             @relation("SessionCheckIn", fields: [checkInPunchId], references: [id], onDelete: Restrict)
+  checkOutPunch AttendancePunch?            @relation("SessionCheckOut", fields: [checkOutPunchId], references: [id], onDelete: Restrict)
+  overtime      AttendanceOvertimeApproval?
+  exceptions    AttendanceException[]
+
+  @@index([employeeId, sessionDate])
+  @@index([eventShiftId])
+  @@index([status])
+  @@map("attendance_sessions")
+}
+
+/// Overtime review for one session's potential-overtime minutes. One row
+/// per session; the decision itself is immutable once made (re-review is a
+/// new, explicit workflow step, not an overwrite) and is also written to
+/// the existing audit log.
+model AttendanceOvertimeApproval {
+  id                  String                   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  attendanceSessionId String                   @unique @map("attendance_session_id") @db.Uuid
+  potentialMinutes    Int                      @map("potential_minutes")
+  requestedReason     String?                  @map("requested_reason")
+  status              AttendanceOvertimeStatus @default(PENDING)
+  approvedMinutes     Int?                     @map("approved_minutes")
+  decisionReason      String?                  @map("decision_reason")
+  decidedById         String?                  @map("decided_by_id") @db.Uuid
+  decidedAt           DateTime?                @map("decided_at") @db.Timestamptz(6)
+  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                 @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  session   AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  decidedBy User?             @relation("AttendanceOvertimeDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("attendance_overtime_approvals")
+}
+
+/// A flagged or raised attendance irregularity - a missed checkout, an
+/// out-of-geofence punch, or an employee/manager-raised correction request.
+/// Reviewing and deciding this is a separate, auditable step, never a
+/// silent edit of the underlying session/punch rows.
+model AttendanceException {
+  id                  String                    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  attendanceSessionId String?                   @map("attendance_session_id") @db.Uuid
+  employeeId          String                    @map("employee_id") @db.Uuid
+  type                AttendanceExceptionType
+  description         String?
+  requestedCheckInAt  DateTime?                 @map("requested_check_in_at") @db.Timestamptz(6)
+  requestedCheckOutAt DateTime?                 @map("requested_check_out_at") @db.Timestamptz(6)
+  status              AttendanceExceptionStatus @default(PENDING)
+  reviewNote          String?                   @map("review_note")
+  reviewedById        String?                   @map("reviewed_by_id") @db.Uuid
+  reviewedAt          DateTime?                 @map("reviewed_at") @db.Timestamptz(6)
+  createdById         String?                   @map("created_by_id") @db.Uuid
+  createdAt           DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime                  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  session    AttendanceSession? @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  employee   User               @relation("AttendanceExceptionEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy User?              @relation("AttendanceExceptionReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdBy  User?              @relation("AttendanceExceptionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, status])
+  @@index([status])
+  @@map("attendance_exceptions")
+}
+
+/// Effective-dated weekly schedule. Changing a weekday's type INSERTS a new
+/// row with a chosen `effectiveFrom` date rather than mutating an existing
+/// one - existing rows are never updated or deleted, so a report for any
+/// past date always resolves the rule that was actually in effect on that
+/// date, even after later schedule changes. Seeded with 7 rows
+/// (`effectiveFrom = 1970-01-01`) by this model's own migration.
+model AttendanceWeekdaySchedule {
+  id            String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  dayOfWeek     Int               @map("day_of_week")
+  type          AttendanceDayType
+  effectiveFrom DateTime          @map("effective_from") @db.Date
+  createdById   String?           @map("created_by_id") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  createdBy User? @relation("AttendanceWeekdayScheduleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([dayOfWeek, effectiveFrom])
+  @@index([dayOfWeek, effectiveFrom])
+  @@map("attendance_weekday_schedules")
+}
+
+/// A one-off non-working date, org-wide (not per-department). Each holiday
+/// is a factual correction ("this date was/is a declared holiday"), not a
+/// policy that changes over time the way the weekly schedule does - so
+/// unlike `AttendanceWeekdaySchedule`, holidays are mutated/removed in
+/// place, not effective-dated. Overrides the weekly schedule for its date
+/// regardless of that weekday's own type.
+model AttendanceHoliday {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  date        DateTime @unique @db.Date
+  name        String
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User? @relation("AttendanceHolidayCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@map("attendance_holidays")
+}
+
+// ============================================================
+// Leave Management (ATT-02)
+// ============================================================
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  RETURNED_FOR_CHANGES
+  AMENDED
+
+  @@map("leave_request_status")
+}
+
+enum LeaveLedgerEntryKind {
+  GRANT
+  CONSUMPTION
+  EXPIRY
+  ADJUSTMENT
+  REVERSAL
+
+  @@map("leave_ledger_entry_kind")
+}
+
+/// An administrator-configured leave type (annual, sick, unpaid, ...).
+/// Policy, not code: entitlement/accrual is never hard-coded.
+model LeaveType {
+  id                    String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name                  String   @unique
+  description           String?
+  isPaid                Boolean  @default(true) @map("is_paid")
+  requiresDocumentation Boolean  @default(false) @map("requires_documentation")
+  requiresApproval      Boolean  @default(true) @map("requires_approval")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdById           String?  @map("created_by_id") @db.Uuid
+  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User?              @relation("LeaveTypeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  grants    LeaveGrant[]
+  requests  LeaveRequest[]
+  ledger    LeaveLedgerEntry[]
+
+  @@index([isActive])
+  @@map("leave_types")
+}
+
+/// An immutable grant of leave days to one employee, valid for exactly two
+/// years from `grantedAt` (`expiresAt` is set at creation and never
+/// changed thereafter). Remaining balance for this grant = `grantedDays`
+/// plus the sum of its own ledger entries (consumption/expiry are
+/// negative). HR creates these manually - there is no automatic accrual
+/// job in this version.
+model LeaveGrant {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  employeeId  String   @map("employee_id") @db.Uuid
+  leaveTypeId String   @map("leave_type_id") @db.Uuid
+  grantedDays Int      @map("granted_days")
+  grantedAt   DateTime @map("granted_at") @db.Timestamptz(6)
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+  note        String?
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  employee  User               @relation("LeaveGrantEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType          @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  createdBy User?              @relation("LeaveGrantCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  ledger    LeaveLedgerEntry[]
+
+  @@index([employeeId, leaveTypeId])
+  @@index([expiresAt])
+  @@map("leave_grants")
+}
+
+/// Append-only leave balance ledger - the single source of truth for every
+/// employee's remaining balance per leave type. A grant's own row never
+/// changes; every consumption, expiry, adjustment, or reversal is its own
+/// entry, so the full history is always reconstructable. Consumption walks
+/// an employee's non-expired grants oldest-first (FIFO) so each grant's own
+/// two-year clock is respected independently.
+model LeaveLedgerEntry {
+  id             String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  employeeId     String               @map("employee_id") @db.Uuid
+  leaveTypeId    String               @map("leave_type_id") @db.Uuid
+  grantId        String?              @map("grant_id") @db.Uuid
+  kind           LeaveLedgerEntryKind
+  amountDays     Int                  @map("amount_days")
+  leaveRequestId String?              @map("leave_request_id") @db.Uuid
+  note           String?
+  createdById    String?              @map("created_by_id") @db.Uuid
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  employee     User          @relation("LeaveLedgerEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType     @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  grant        LeaveGrant?   @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  leaveRequest LeaveRequest? @relation("LeaveLedgerRequest", fields: [leaveRequestId], references: [id], onDelete: SetNull)
+  createdBy    User?         @relation("LeaveLedgerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, leaveTypeId])
+  @@index([grantId])
+  @@index([leaveRequestId])
+  @@map("leave_ledger_entries")
+}
+
+/// An employee's leave request, full-day only for v1 (`startDate`/`endDate`
+/// are dates, inclusive). `amendsRequestId` links an amendment to the
+/// approved request it proposes to change - the original is preserved
+/// (marked `AMENDED`, not deleted or edited in place) rather than silently
+/// changed.
+model LeaveRequest {
+  id                              String             @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  employeeId                      String             @map("employee_id") @db.Uuid
+  leaveTypeId                     String             @map("leave_type_id") @db.Uuid
+  startDate                       DateTime           @map("start_date") @db.Date
+  endDate                         DateTime           @map("end_date") @db.Date
+  daysRequested                   Int                @map("days_requested")
+  reason                          String?
+  supportingDocumentManagedFileId String?            @unique @map("supporting_document_managed_file_id") @db.Uuid
+  status                          LeaveRequestStatus @default(PENDING)
+  amendsRequestId                 String?            @unique @map("amends_request_id") @db.Uuid
+  reviewedById                    String?            @map("reviewed_by_id") @db.Uuid
+  reviewedAt                      DateTime?          @map("reviewed_at") @db.Timestamptz(6)
+  reviewNote                      String?            @map("review_note")
+  createdAt                       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                       DateTime           @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  employee           User               @relation("LeaveRequestEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType          LeaveType          @relation(fields: [leaveTypeId], references: [id], onDelete: Restrict)
+  supportingDocument ManagedFile?       @relation("LeaveRequestSupportingDocument", fields: [supportingDocumentManagedFileId], references: [id], onDelete: SetNull)
+  amendsRequest      LeaveRequest?      @relation("LeaveRequestAmendment", fields: [amendsRequestId], references: [id], onDelete: SetNull)
+  amendedBy          LeaveRequest?      @relation("LeaveRequestAmendment")
+  reviewedBy         User?              @relation("LeaveRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  ledgerEntries      LeaveLedgerEntry[] @relation("LeaveLedgerRequest")
+  managedFileIntents ManagedFile[]      @relation("ManagedFileIntentLeaveRequest")
+
+  @@index([employeeId, status])
+  @@index([leaveTypeId])
+  @@index([startDate, endDate])
+  @@map("leave_requests")
 }

@@ -6,7 +6,8 @@
 
 This catalogue defines the six management analytics measures in SRS 5.1.1 and
 employee performance from SRS 5.18. It resolves OD-13 for these analytic
-measures only. It does not redefine editable task progress, lifecycle entry
+measures only. It does not redefine a task's own checklist/subtask-derived
+progress formula (resolved separately in the Task module), lifecycle entry
 criteria, report narratives or the separate dashboard overview/communication
 cards. Performance is a set of transparent work counts and rates, not a
 weighted score, employee ranking, attendance assessment, reach, revenue or ROI.

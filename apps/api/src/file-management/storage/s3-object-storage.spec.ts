@@ -1,4 +1,4 @@
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, type S3Client } from "@aws-sdk/client-s3";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Environment } from "../../config/environment.js";
@@ -19,19 +19,11 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 import { S3ObjectStorage } from "./s3-object-storage.js";
 
 const environment: Environment = {
-  GOOGLE_MEET_ENABLED: false,
-  GOOGLE_MEET_ACTIVATION_REVIEW: "",
-  GOOGLE_MEET_OPERATOR: "",
-  GOOGLE_MEET_CLIENT_ID: "",
-  GOOGLE_MEET_CLIENT_SECRET: "",
-  GOOGLE_MEET_CALLBACK_URL: "",
-  GOOGLE_MEET_RETURN_URL: "",
-  GOOGLE_MEET_KEY_ID: "",
-  GOOGLE_MEET_KEYS: "",
-  GOOGLE_MEET_USER_MINUTE_CAP: 10,
-  GOOGLE_MEET_USER_DAY_CAP: 100,
-  GOOGLE_MEET_PROJECT_MINUTE_CAP: 60,
-  GOOGLE_MEET_PROJECT_DAY_CAP: 1000,
+  JITSI_ENABLED: false,
+  JITSI_DOMAIN: "",
+  JITSI_JWT_ENABLED: false,
+  JITSI_APP_ID: "",
+  JITSI_APP_SECRET: "",
   API_HOST: "127.0.0.1",
   API_PORT: 4000,
   API_RATE_LIMIT_MAX: 100,
@@ -62,6 +54,34 @@ const environment: Environment = {
 };
 
 describe("S3ObjectStorage signing policies", () => {
+  it("signs browser grants against the public endpoint when storage is container-internal", async () => {
+    signing.createPresignedPost.mockResolvedValue({
+      fields: {},
+      url: "http://localhost:9000/event-platform-files",
+    });
+    signing.getSignedUrl.mockResolvedValue("http://localhost:9000/download");
+    const storage = new S3ObjectStorage({
+      ...environment,
+      FILE_STORAGE_ENDPOINT: "http://minio:9000",
+      FILE_STORAGE_PUBLIC_ENDPOINT: "http://localhost:9000",
+    });
+    await storage.createUploadGrant({
+      key: "files/opaque",
+      mediaType: "text/plain",
+      sizeBytes: 4,
+    });
+    await storage.createDownloadGrant({
+      key: "files/opaque",
+      filename: "notes.txt",
+      mediaType: "text/plain",
+    });
+    for (const client of [
+      signing.createPresignedPost.mock.calls[0]?.[0],
+      signing.getSignedUrl.mock.calls[0]?.[0],
+    ] as S3Client[]) {
+      expect((await client.config.endpoint!()).hostname).toBe("localhost");
+    }
+  });
   afterEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();

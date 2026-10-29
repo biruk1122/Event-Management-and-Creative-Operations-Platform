@@ -14,8 +14,11 @@ import {
   AuditOutcome,
   type PermissionScope,
 } from "../generated/prisma/client.js";
+import { DocumentsService } from "../documents/documents.service.js";
 import { ExpensesService } from "../expenses/expenses.service.js";
+import { LettersService } from "../letters/letters.service.js";
 import { ReportsService } from "../reports/reports.service.js";
+import { SharedRecordsService } from "../shared-records/shared-records.service.js";
 import { TasksService } from "../tasks/tasks.service.js";
 import type {
   DownloadGrantResponse,
@@ -94,11 +97,14 @@ export class FileManagementService {
     private readonly audit: AuditWriterService,
     private readonly db: DatabaseService,
     private readonly discuss: DiscussService,
+    private readonly documents: DocumentsService,
     private readonly events: EventsRepository,
     private readonly expenses: ExpensesService,
     private readonly files: ManagedFilesRepository,
+    private readonly letters: LettersService,
     private readonly permissions: PermissionsService,
     private readonly reports: ReportsService,
+    private readonly sharedRecords: SharedRecordsService,
     private readonly tasks: TasksService,
     private readonly verification: FileVerificationService,
     @Inject(FILE_OBJECT_STORAGE) private readonly storage: ObjectStorage,
@@ -830,6 +836,460 @@ export class FileManagementService {
       actorKind: AuditActorKind.USER,
       actorUserId: actingUserId,
       metadata: { parentId: reportId, parentType: "report" },
+      outcome: AuditOutcome.SUCCEEDED,
+      requestId,
+      resourceId: file.id,
+      resourceType: "managed_file",
+    });
+    return {
+      expiresAt: grant.expiresAt.toISOString(),
+      filename: file.originalFilename,
+      mediaType: file.verifiedMediaType,
+      url: grant.url,
+    };
+  }
+
+  async createLetterAttachmentUploadIntent(
+    actingUserId: string,
+    letterId: string,
+    dto: CreateUploadIntentDto,
+  ): Promise<UploadIntentResponse> {
+    await this.letters.authorize(actingUserId, letterId, "letter.update");
+    const filename = validateFilename(dto.filename);
+    const intentExpiresAt = new Date(Date.now() + INTENT_TTL_MS);
+    const file = await this.files.createPending({
+      initiatedById: actingUserId,
+      intentExpiresAt,
+      intentLetterId: letterId,
+      mediaType: dto.mediaType,
+      originalFilename: filename,
+      sizeBytes: dto.sizeBytes,
+      storageKey: `files/${randomUUID()}`,
+    });
+    try {
+      const upload = await this.storage.createUploadGrant({
+        key: file.storageKey,
+        mediaType: file.declaredMediaType,
+        sizeBytes: file.declaredSizeBytes,
+      });
+      return {
+        ...toResponse(file),
+        intentExpiresAt: file.intentExpiresAt.toISOString(),
+        upload,
+      };
+    } catch (error) {
+      await this.files.deletePending(file.id);
+      throw error;
+    }
+  }
+
+  /**
+   * Verifies, scans, and attaches a completed letter upload - and, in the
+   * same finalize transaction, creates the linked `Document` row so every
+   * letter attachment also surfaces in the document repository (EMP-02).
+   */
+  async finalizeLetterAttachment(
+    actingUserId: string,
+    letterId: string,
+    fileId: string,
+  ): Promise<ManagedFileResponse> {
+    await this.letters.authorize(actingUserId, letterId, "letter.update");
+    const file = await this.files.findPendingForLetter(fileId, letterId);
+    if (!file) throw fileNotFound();
+    const now = new Date();
+    if (file.intentExpiresAt <= now) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileIntentExpired();
+    }
+    const object = await this.storage.readObject(file.storageKey);
+    if (!object) throw fileUploadNotFound();
+    const verified = await this.verification.verify(
+      file.declaredMediaType,
+      object.bytes,
+    );
+    if (!verified || object.sizeBytes !== file.declaredSizeBytes) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    const scan = await this.scanner.scan({
+      bytes: object.bytes,
+      mediaType: verified.mediaType,
+    });
+    if (scan === "infected") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    if (scan === "unavailable") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileScannerUnavailable();
+    }
+    const finalized = await this.db.$transaction(async (tx) => {
+      await this.letters.lockAttachmentFinalization(tx, {
+        actingUserId,
+        letterId,
+      });
+      const finalizedAt = new Date();
+      const available = await this.files.makeAvailableForLetter(tx, {
+        cleanupAfter: new Date(
+          finalizedAt.getTime() + REJECTED_OBJECT_RETENTION_MS,
+        ),
+        fileId: file.id,
+        finalizedAt,
+        letterId,
+        verifiedMediaType: verified.mediaType,
+        verifiedSizeBytes: verified.sizeBytes,
+      });
+      if (available !== "available") return available;
+      await this.letters.recordAttachment(tx, {
+        actingUserId,
+        fileId: file.id,
+        letterId,
+        originalFilename: file.originalFilename,
+      });
+      return "available" as const;
+    });
+    if (finalized === "expired") throw fileIntentExpired();
+    if (finalized === "conflict") throw fileStateConflict();
+    const available = await this.files.findAvailableById(file.id);
+    if (!available) throw fileStateConflict();
+    return toResponse(available);
+  }
+
+  async listLetterFiles(
+    actingUserId: string,
+    letterId: string,
+    query: ListManagedFilesQueryDto,
+  ): Promise<PaginatedManagedFilesResponse> {
+    const { fileIds, total } = await this.letters.listAttachmentFileIds(
+      actingUserId,
+      letterId,
+      query.page,
+      query.pageSize,
+    );
+    const byId = new Map(
+      (await this.files.findAvailableByIds(fileIds)).map((file) => [
+        file.id,
+        file,
+      ]),
+    );
+    const items = fileIds.flatMap((id) => {
+      const file = byId.get(id);
+      return file ? [file] : [];
+    });
+    return {
+      items: items.map(toResponse),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+    };
+  }
+
+  async downloadLetterFile(
+    actingUserId: string,
+    letterId: string,
+    fileId: string,
+    requestId: string,
+  ): Promise<DownloadGrantResponse> {
+    const parent = await this.letters.readAttachmentContext(
+      actingUserId,
+      letterId,
+      fileId,
+    );
+    if (!parent) throw fileNotFound();
+    const file = await this.files.findAvailableById(fileId);
+    if (!file || file.state !== "AVAILABLE" || !file.verifiedMediaType)
+      throw fileNotFound();
+    const grant = await this.storage.createDownloadGrant({
+      filename: file.originalFilename,
+      key: file.storageKey,
+      mediaType: file.verifiedMediaType,
+    });
+    await this.audit.record({
+      action: "managed_file.downloaded",
+      actorKind: AuditActorKind.USER,
+      actorUserId: actingUserId,
+      metadata: { parentId: letterId, parentType: "letter" },
+      outcome: AuditOutcome.SUCCEEDED,
+      requestId,
+      resourceId: file.id,
+      resourceType: "managed_file",
+    });
+    return {
+      expiresAt: grant.expiresAt.toISOString(),
+      filename: file.originalFilename,
+      mediaType: file.verifiedMediaType,
+      url: grant.url,
+    };
+  }
+
+  /** The shared-with-me path: any active share's recipient may list a
+   * letter's attachments, regardless of scope (view-only still shows what
+   * is attached) - only the download below is scope-gated. */
+  async listSharedLetterFiles(
+    actingUserId: string,
+    letterId: string,
+    query: ListManagedFilesQueryDto,
+  ): Promise<PaginatedManagedFilesResponse> {
+    const { fileIds, total } =
+      await this.sharedRecords.listSharedLetterAttachmentFileIds(
+        actingUserId,
+        letterId,
+        query.page,
+        query.pageSize,
+      );
+    const byId = new Map(
+      (await this.files.findAvailableByIds(fileIds)).map((file) => [
+        file.id,
+        file,
+      ]),
+    );
+    const items = fileIds.flatMap((id) => {
+      const file = byId.get(id);
+      return file ? [file] : [];
+    });
+    return {
+      items: items.map(toResponse),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+    };
+  }
+
+  /** Scope-gated: only a `VIEW_AND_DOWNLOAD` share's recipient ever reaches
+   * a download grant here - `readSharedLetterAttachmentContext` 404s a
+   * `VIEW`-only share exactly like a non-existent file. */
+  async downloadSharedLetterFile(
+    actingUserId: string,
+    letterId: string,
+    fileId: string,
+    requestId: string,
+  ): Promise<DownloadGrantResponse> {
+    const parent = await this.sharedRecords.readSharedLetterAttachmentContext(
+      actingUserId,
+      letterId,
+      fileId,
+    );
+    if (!parent) throw fileNotFound();
+    const file = await this.files.findAvailableById(fileId);
+    if (!file || file.state !== "AVAILABLE" || !file.verifiedMediaType)
+      throw fileNotFound();
+    const grant = await this.storage.createDownloadGrant({
+      filename: file.originalFilename,
+      key: file.storageKey,
+      mediaType: file.verifiedMediaType,
+    });
+    await this.audit.record({
+      action: "managed_file.downloaded",
+      actorKind: AuditActorKind.USER,
+      actorUserId: actingUserId,
+      metadata: { parentId: letterId, parentType: "shared_letter" },
+      outcome: AuditOutcome.SUCCEEDED,
+      requestId,
+      resourceId: file.id,
+      resourceType: "managed_file",
+    });
+    return {
+      expiresAt: grant.expiresAt.toISOString(),
+      filename: file.originalFilename,
+      mediaType: file.verifiedMediaType,
+      url: grant.url,
+    };
+  }
+
+  async createDocumentAttachmentUploadIntent(
+    actingUserId: string,
+    documentId: string,
+    dto: CreateUploadIntentDto,
+  ): Promise<UploadIntentResponse> {
+    await this.documents.authorize(actingUserId, documentId, "document.update");
+    const filename = validateFilename(dto.filename);
+    const intentExpiresAt = new Date(Date.now() + INTENT_TTL_MS);
+    const file = await this.files.createPending({
+      initiatedById: actingUserId,
+      intentExpiresAt,
+      intentDocumentId: documentId,
+      mediaType: dto.mediaType,
+      originalFilename: filename,
+      sizeBytes: dto.sizeBytes,
+      storageKey: `files/${randomUUID()}`,
+    });
+    try {
+      const upload = await this.storage.createUploadGrant({
+        key: file.storageKey,
+        mediaType: file.declaredMediaType,
+        sizeBytes: file.declaredSizeBytes,
+      });
+      return {
+        ...toResponse(file),
+        intentExpiresAt: file.intentExpiresAt.toISOString(),
+        upload,
+      };
+    } catch (error) {
+      await this.files.deletePending(file.id);
+      throw error;
+    }
+  }
+
+  /**
+   * Verifies, scans, and attaches a completed document upload. A Document
+   * takes exactly one file (a direct nullable FK, not a join table), so
+   * `lockAttachmentFinalization` rejects an already-attached document as a
+   * conflict rather than allowing a second file.
+   */
+  async finalizeDocumentUpload(
+    actingUserId: string,
+    documentId: string,
+    fileId: string,
+  ): Promise<ManagedFileResponse> {
+    await this.documents.authorize(actingUserId, documentId, "document.update");
+    const file = await this.files.findPendingForDocument(fileId, documentId);
+    if (!file) throw fileNotFound();
+    const now = new Date();
+    if (file.intentExpiresAt <= now) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileIntentExpired();
+    }
+    const object = await this.storage.readObject(file.storageKey);
+    if (!object) throw fileUploadNotFound();
+    const verified = await this.verification.verify(
+      file.declaredMediaType,
+      object.bytes,
+    );
+    if (!verified || object.sizeBytes !== file.declaredSizeBytes) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    const scan = await this.scanner.scan({
+      bytes: object.bytes,
+      mediaType: verified.mediaType,
+    });
+    if (scan === "infected") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    if (scan === "unavailable") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileScannerUnavailable();
+    }
+    const finalized = await this.db.$transaction(async (tx) => {
+      await this.documents.lockAttachmentFinalization(tx, {
+        actingUserId,
+        documentId,
+      });
+      const finalizedAt = new Date();
+      const available = await this.files.makeAvailableForDocument(tx, {
+        cleanupAfter: new Date(
+          finalizedAt.getTime() + REJECTED_OBJECT_RETENTION_MS,
+        ),
+        fileId: file.id,
+        finalizedAt,
+        documentId,
+        verifiedMediaType: verified.mediaType,
+        verifiedSizeBytes: verified.sizeBytes,
+      });
+      if (available !== "available") return available;
+      await this.documents.recordAttachment(tx, {
+        actingUserId,
+        documentId,
+        fileId: file.id,
+      });
+      return "available" as const;
+    });
+    if (finalized === "expired") throw fileIntentExpired();
+    if (finalized === "conflict") throw fileStateConflict();
+    const available = await this.files.findAvailableById(file.id);
+    if (!available) throw fileStateConflict();
+    return toResponse(available);
+  }
+
+  async downloadDocumentFile(
+    actingUserId: string,
+    documentId: string,
+    fileId: string,
+    requestId: string,
+  ): Promise<DownloadGrantResponse> {
+    const parent = await this.documents.readAttachmentContext(
+      actingUserId,
+      documentId,
+      fileId,
+    );
+    if (!parent) throw fileNotFound();
+    const file = await this.files.findAvailableById(fileId);
+    if (!file || file.state !== "AVAILABLE" || !file.verifiedMediaType)
+      throw fileNotFound();
+    const grant = await this.storage.createDownloadGrant({
+      filename: file.originalFilename,
+      key: file.storageKey,
+      mediaType: file.verifiedMediaType,
+    });
+    await this.audit.record({
+      action: "managed_file.downloaded",
+      actorKind: AuditActorKind.USER,
+      actorUserId: actingUserId,
+      metadata: { parentId: documentId, parentType: "document" },
+      outcome: AuditOutcome.SUCCEEDED,
+      requestId,
+      resourceId: file.id,
+      resourceType: "managed_file",
+    });
+    return {
+      expiresAt: grant.expiresAt.toISOString(),
+      filename: file.originalFilename,
+      mediaType: file.verifiedMediaType,
+      url: grant.url,
+    };
+  }
+
+  /** The shared-with-me path for a document's single file - no `fileId`
+   * param, since a Document never has more than one. Scope-gated: resolves
+   * to `null` (and so a 404) for a `VIEW`-only share. */
+  async downloadSharedDocumentFile(
+    actingUserId: string,
+    documentId: string,
+    requestId: string,
+  ): Promise<DownloadGrantResponse> {
+    const fileId = await this.sharedRecords.readSharedDocumentFileId(
+      actingUserId,
+      documentId,
+    );
+    if (!fileId) throw fileNotFound();
+    const file = await this.files.findAvailableById(fileId);
+    if (!file || file.state !== "AVAILABLE" || !file.verifiedMediaType)
+      throw fileNotFound();
+    const grant = await this.storage.createDownloadGrant({
+      filename: file.originalFilename,
+      key: file.storageKey,
+      mediaType: file.verifiedMediaType,
+    });
+    await this.audit.record({
+      action: "managed_file.downloaded",
+      actorKind: AuditActorKind.USER,
+      actorUserId: actingUserId,
+      metadata: { parentId: documentId, parentType: "shared_document" },
       outcome: AuditOutcome.SUCCEEDED,
       requestId,
       resourceId: file.id,

@@ -123,6 +123,299 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/attendance/calendar/holidays": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List one-off holiday dates - Super Admin and the HR & Executive Officer department's manager only */
+    get: operations["AttendanceReview_listHolidays_v1"];
+    put?: never;
+    /** Add a one-off holiday date */
+    post: operations["AttendanceReview_createHoliday_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/calendar/holidays/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Remove a holiday */
+    delete: operations["AttendanceReview_removeHoliday_v1"];
+    options?: never;
+    head?: never;
+    /** Edit a holiday's date and/or name */
+    patch: operations["AttendanceReview_updateHoliday_v1"];
+    trace?: never;
+  };
+  "/api/v1/attendance/calendar/weekdays": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Each weekday's current effective type - Super Admin and the HR & Executive Officer department's manager only */
+    get: operations["AttendanceReview_listWeekdaySchedule_v1"];
+    put?: never;
+    /** Change a weekday's type from an effective date forward - inserts a new effective-dated row, never overwrites history */
+    post: operations["AttendanceReview_createWeekdaySchedule_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/exceptions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List attendance exceptions visible to the caller */
+    get: operations["AttendanceReview_listExceptions_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/exceptions/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Approve or reject a flagged attendance exception */
+    patch: operations["AttendanceReview_decideException_v1"];
+    trace?: never;
+  };
+  "/api/v1/attendance/kiosk-session/employees": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Search active employees by name or employee code */
+    get: operations["KioskSession_searchEmployees_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/kiosk-session/punch": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Check in or out using a verified session token */
+    post: operations["KioskSession_punch_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/kiosk-session/verify": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify the selected employee's account password */
+    post: operations["KioskSession_verify_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/kiosks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List registered kiosks */
+    get: operations["KioskAdmin_list_v1"];
+    put?: never;
+    /** Register a new kiosk and issue its one-time bearer secret */
+    post: operations["KioskAdmin_register_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/kiosks/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Revoke a kiosk */
+    delete: operations["KioskAdmin_revoke_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/mobile/punch": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Check in or out of an assigned event shift */
+    post: operations["MobileAttendance_punch_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/mobile/sessions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The caller's own recent attendance sessions, most recent first */
+    get: operations["MobileAttendance_mySessions_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/mobile/shifts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the caller's currently assigned, punchable event shifts */
+    get: operations["MobileAttendance_myShifts_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/overtime": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List overtime approvals visible to the caller */
+    get: operations["AttendanceReview_listOvertime_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/overtime/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Approve or reject a potential-overtime review */
+    patch: operations["AttendanceReview_decideOvertime_v1"];
+    trace?: never;
+  };
+  "/api/v1/attendance/reports/sessions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Every individual check-in/check-out over a date range - visible only to Super Admin and the HR & Executive Officer department's manager */
+    get: operations["AttendanceReview_listDetailedSessions_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/attendance/reports/summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Per-employee attendance totals over a date range */
+    get: operations["AttendanceReview_summarize_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/auth/login": {
     parameters: {
       query?: never;
@@ -755,6 +1048,216 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/documents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List documents visible to the caller */
+    get: operations["Documents_list_v1"];
+    put?: never;
+    /** Create a document shell (attach its file afterward) */
+    post: operations["Documents_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/documents/options": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Form options: projects, document types */
+    get: operations["Documents_options_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/documents/{documentId}/files/upload-intents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a direct-upload grant for a document's file */
+    post: operations["DocumentFileManagement_createUploadIntent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/documents/{documentId}/files/{fileId}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a private download grant for a document's file */
+    get: operations["DocumentFileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/documents/{documentId}/files/{fileId}/finalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify, scan, and attach a document's file */
+    post: operations["DocumentFileManagement_finalize_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/documents/{documentId}/shares": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a document's active shares */
+    get: operations["DocumentShares_list_v1"];
+    put?: never;
+    /** Share a document with one employee or with all employees */
+    post: operations["DocumentShares_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/documents/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one document */
+    get: operations["Documents_get_v1"];
+    put?: never;
+    post?: never;
+    /** Remove a document (Super Admin only) */
+    delete: operations["Documents_remove_v1"];
+    options?: never;
+    head?: never;
+    /** Edit a document's permitted fields */
+    patch: operations["Documents_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/employees": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List employee profiles visible to the caller */
+    get: operations["Employees_list_v1"];
+    put?: never;
+    /** Register an employee profile, linking or creating a user */
+    post: operations["Employees_register_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/employees/linkable-users": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Search users without an employee profile, to link one */
+    get: operations["Employees_findLinkableUsers_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/employees/options": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Form options: departments and enum values */
+    get: operations["Employees_options_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/employees/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one employee profile */
+    get: operations["Employees_get_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Edit an employee profile's HR fields */
+    patch: operations["Employees_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/employees/{id}/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Change an employee's employment status */
+    patch: operations["Employees_updateStatus_v1"];
+    trace?: never;
+  };
   "/api/v1/events": {
     parameters: {
       query?: never;
@@ -852,6 +1355,145 @@ export interface paths {
     put?: never;
     /** Verify, scan, and attach a completed direct upload */
     post: operations["FileManagement_finalize_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/shifts": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List an event's shifts */
+    get: operations["EventShifts_list_v1"];
+    put?: never;
+    /** Create an event shift */
+    post: operations["EventShifts_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/shifts/{shiftId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one event shift */
+    get: operations["EventShifts_findOne_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update shift metadata (location, geofence, break) */
+    patch: operations["EventShifts_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/shifts/{shiftId}/assignments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List employees currently assigned to a shift */
+    get: operations["EventShifts_listAssignments_v1"];
+    put?: never;
+    /** Assign an employee to a shift */
+    post: operations["EventShifts_assign_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/shifts/{shiftId}/assignments/{employeeId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Unassign an employee from a shift */
+    delete: operations["EventShifts_unassign_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/shifts/{shiftId}/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cancel a shift, with a required reason */
+    post: operations["EventShifts_cancel_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/shifts/{shiftId}/changes": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Schedule-change history for a shift */
+    get: operations["EventShifts_listChanges_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/shifts/{shiftId}/reinstate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reinstate a previously cancelled shift */
+    post: operations["EventShifts_reinstate_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{eventId}/shifts/{shiftId}/reschedule": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reschedule or extend a shift, with a required reason */
+    post: operations["EventShifts_reschedule_v1"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1102,6 +1744,320 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/leave/balance": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Current remaining, non-expired balance for one leave type */
+    get: operations["Leave_balance_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/leave/calendar": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Approved leave within a date range, scoped to the caller's visibility */
+    get: operations["Leave_calendar_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/leave/grants": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List an employee's leave grants */
+    get: operations["Leave_listGrants_v1"];
+    put?: never;
+    /** Grant leave balance to an employee (HR bookkeeping, manual) */
+    post: operations["Leave_grant_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/leave/requests": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List leave requests visible to the caller */
+    get: operations["Leave_listRequests_v1"];
+    put?: never;
+    /** Submit a full-day leave request */
+    post: operations["Leave_createRequest_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/leave/requests/{id}/decision": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Approve, reject, or return a pending leave request */
+    patch: operations["Leave_decideRequest_v1"];
+    trace?: never;
+  };
+  "/api/v1/leave/requests/{id}/withdraw": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Withdraw your own still-pending leave request */
+    post: operations["Leave_withdrawRequest_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/leave/types": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List leave types */
+    get: operations["LeaveTypes_list_v1"];
+    put?: never;
+    /** Create a leave type */
+    post: operations["LeaveTypes_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/leave/types/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update a leave type */
+    patch: operations["LeaveTypes_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/letters": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List letters visible to the caller */
+    get: operations["Letters_list_v1"];
+    put?: never;
+    /** Register a letter */
+    post: operations["Letters_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/letters/options": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Form options: projects, categories, directions */
+    get: operations["Letters_options_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/letters/reference-preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Non-reserving preview of the next reference number */
+    get: operations["Letters_referencePreview_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/letters/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one letter */
+    get: operations["Letters_get_v1"];
+    put?: never;
+    post?: never;
+    /** Remove a letter (Super Admin only) */
+    delete: operations["Letters_remove_v1"];
+    options?: never;
+    head?: never;
+    /** Edit a letter's permitted fields */
+    patch: operations["Letters_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/letters/{id}/remarks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a letter's remarks, oldest first */
+    get: operations["Letters_listRemarks_v1"];
+    put?: never;
+    /** Add a remark to a letter */
+    post: operations["Letters_addRemark_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/letters/{letterId}/files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List available files attached to a letter */
+    get: operations["LetterFileManagement_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/letters/{letterId}/files/upload-intents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a direct-upload grant for a letter attachment */
+    post: operations["LetterFileManagement_createUploadIntent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/letters/{letterId}/files/{fileId}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a private download grant for a letter attachment */
+    get: operations["LetterFileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/letters/{letterId}/files/{fileId}/finalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify, scan, attach a completed letter upload, and create its linked Document */
+    post: operations["LetterFileManagement_finalize_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/letters/{letterId}/shares": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a letter's active shares */
+    get: operations["LetterShares_list_v1"];
+    put?: never;
+    /** Share a letter with one employee or with all employees */
+    post: operations["LetterShares_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/marketing/campaigns/{campaignId}/strategy": {
     parameters: {
       query?: never;
@@ -1157,70 +2113,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/meetings/google-calendar/authorize": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations["GoogleMeet_authorize_v1"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/meetings/google-calendar/callback": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get: operations["GoogleMeet_callback_v1"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/meetings/google-calendar/connection": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete: operations["GoogleMeet_disconnect_v1"];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/v1/meetings/google-calendar/rotate-key": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post: operations["GoogleMeet_rotate_v1"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/v1/meetings/{id}": {
     parameters: {
       query?: never;
@@ -1232,10 +2124,11 @@ export interface paths {
     get: operations["Meetings_get_v1"];
     put?: never;
     post?: never;
-    delete?: never;
+    /** Delete a meeting as its organizer, retaining action-item tasks */
+    delete: operations["Meetings_remove_v1"];
     options?: never;
     head?: never;
-    /** Update a scheduled meeting as its organizer */
+    /** Update a scheduled or completed meeting as its organizer */
     patch: operations["Meetings_update_v1"];
     trace?: never;
   };
@@ -1256,17 +2149,18 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/meetings/{id}/google-meet": {
+  "/api/v1/meetings/{id}/jitsi-session": {
     parameters: {
       query?: never;
       header?: never;
       path?: never;
       cookie?: never;
     };
-    get: operations["GoogleMeet_status_v1"];
+    /** Get this meeting's self-hosted Jitsi room-join information */
+    get: operations["Meetings_getJitsiSession_v1"];
     put?: never;
-    post: operations["GoogleMeet_sync_v1"];
-    delete: operations["GoogleMeet_cleanup_v1"];
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -1410,6 +2304,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/notifications/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Remove one notification from the caller's own feed */
+    delete: operations["Notifications_remove_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/notifications/{id}/read": {
     parameters: {
       query?: never;
@@ -1421,6 +2332,60 @@ export interface paths {
     /** Mark one of the caller's notifications as read */
     put: operations["Notifications_markRead_v1"];
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/partners": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List partners visible to the caller */
+    get: operations["Partners_list_v1"];
+    put?: never;
+    /** Register a partnership opportunity */
+    post: operations["Partners_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/partners/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one partner */
+    get: operations["Partners_get_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Edit a partner or change its status */
+    patch: operations["Partners_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/partners/{id}/activities": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a partner's activity log */
+    get: operations["Partners_listActivities_v1"];
+    put?: never;
+    /** Add a note to a partner's activity log */
+    post: operations["Partners_createActivity_v1"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2061,6 +3026,159 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/shared-with-me/documents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List documents shared with the caller */
+    get: operations["SharedRecords_listDocuments_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/shared-with-me/documents/{documentId}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a download grant for a shared document's file */
+    get: operations["SharedDocumentFileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/shared-with-me/documents/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one document shared with the caller */
+    get: operations["SharedRecords_getDocument_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/shared-with-me/letters": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List letters shared with the caller */
+    get: operations["SharedRecords_listLetters_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/shared-with-me/letters/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one letter shared with the caller */
+    get: operations["SharedRecords_getLetter_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/shared-with-me/letters/{letterId}/files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List files attached to a letter shared with the caller */
+    get: operations["SharedLetterFileManagement_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/shared-with-me/letters/{letterId}/files/{fileId}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a download grant for a shared letter's attachment */
+    get: operations["SharedLetterFileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/shares/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Revoke a share */
+    delete: operations["Shares_revoke_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sharing/recipients": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Search active employees to share a record with */
+    get: operations["Sharing_recipients_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/suppliers": {
     parameters: {
       query?: never;
@@ -2347,6 +3465,76 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/tasks/{id}/checklist-items": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a task's own checklist items */
+    get: operations["Tasks_listChecklistItems_v1"];
+    put?: never;
+    /** Add a checklist item (checkpoint) to a task */
+    post: operations["Tasks_addChecklistItem_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks/{id}/checklist-items/reorder": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Reorder a task's checklist items */
+    post: operations["Tasks_reorderChecklistItems_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks/{id}/checklist-items/{itemId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Remove a checklist item from a task */
+    delete: operations["Tasks_removeChecklistItem_v1"];
+    options?: never;
+    head?: never;
+    /** Edit a checklist item's description */
+    patch: operations["Tasks_updateChecklistItem_v1"];
+    trace?: never;
+  };
+  "/api/v1/tasks/{id}/checklist-items/{itemId}/completion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Mark one of a task's own checklist items complete or incomplete */
+    patch: operations["Tasks_toggleChecklistItem_v1"];
+    trace?: never;
+  };
   "/api/v1/tasks/{id}/comments": {
     parameters: {
       query?: never;
@@ -2363,23 +3551,6 @@ export interface paths {
     options?: never;
     head?: never;
     patch?: never;
-    trace?: never;
-  };
-  "/api/v1/tasks/{id}/progress": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Set an assigned task's progress from 0 to 100 */
-    patch: operations["Tasks_updateProgress_v1"];
     trace?: never;
   };
   "/api/v1/tasks/{id}/reviews": {
@@ -2903,6 +4074,10 @@ export interface components {
        */
       managerId: string | null;
     };
+    AssignEmployeeDto: {
+      /** Format: uuid */
+      employeeId: string;
+    };
     AssignEventManagerDto: {
       /**
        * Format: uuid
@@ -2968,6 +4143,103 @@ export interface components {
         | "SCREENS_DIGITAL_MEDIA"
         | "ADVERTISING";
       talents?: components["schemas"]["PromotionTalentDto"][];
+    };
+    AttendanceExceptionResponse: {
+      /** Format: uuid */
+      attendanceSessionId: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      description: string | null;
+      /** Format: uuid */
+      employeeId: string;
+      employeeName: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      requestedCheckInAt: string | null;
+      /** Format: date-time */
+      requestedCheckOutAt: string | null;
+      reviewNote: string | null;
+      /** Format: date-time */
+      reviewedAt: string | null;
+      reviewedByName: string | null;
+      /** @enum {string} */
+      status: "PENDING" | "APPROVED" | "REJECTED";
+      /** @enum {string} */
+      type:
+        | "MISSED_CHECKOUT"
+        | "OUT_OF_RANGE"
+        | "LOCATION_UNAVAILABLE"
+        | "MANUAL_CORRECTION_REQUEST"
+        | "OTHER";
+    };
+    AttendanceHolidayResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      createdByName: string | null;
+      /** Format: date */
+      date: string;
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    AttendanceSessionResponse: {
+      actualMinutes: number | null;
+      breakMinutes: number;
+      /** Format: date-time */
+      checkInAt: string;
+      /** Format: date-time */
+      checkOutAt: string | null;
+      earlyDepartureMinutes: number;
+      /** Format: uuid */
+      employeeId: string;
+      employeeName: string | null;
+      eventName: string | null;
+      /** Format: uuid */
+      eventShiftId: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      kioskId: string | null;
+      kioskName: string | null;
+      lateMinutes: number;
+      /** @enum {string} */
+      method: "OFFICE_KIOSK" | "MOBILE_EVENT";
+      netMinutes: number | null;
+      potentialOvertimeMinutes: number;
+      scheduledMinutes: number | null;
+      /** Format: date */
+      sessionDate: string;
+      /** @enum {string} */
+      status: "OPEN" | "CLOSED" | "MISSING_CHECKOUT";
+    };
+    AttendanceSummaryResponse: {
+      /** @description Scheduled days with no attendance session and no approved leave. */
+      absentDays: number;
+      actualMinutes: number;
+      approvedOvertimeMinutes: number;
+      earlyDepartureMinutes: number;
+      /** Format: uuid */
+      employeeId: string;
+      employeeName: string | null;
+      lateMinutes: number;
+      /** @description Scheduled days covered by an approved leave request (checked before Present, so a day with both a session and approved leave counts here). */
+      onLeaveDays: number;
+      potentialOvertimeMinutes: number;
+      /** @description Scheduled days with at least one attendance session (any status) and no approved leave that day. A check-in fact only - not evidence the expected hours were completed. */
+      presentDays: number;
+      /** @description Working days (not OFF, not a holiday) within the report's date range. scheduledDays === presentDays + absentDays + onLeaveDays always holds. */
+      scheduledDays: number;
+      sessionsCount: number;
+    };
+    AttendanceWeekdayScheduleResponse: {
+      dayName: string;
+      /** @description 0 = Sunday .. 6 = Saturday. */
+      dayOfWeek: number;
+      /** Format: date */
+      effectiveFrom: string;
+      /** @enum {string} */
+      type: "FULL" | "HALF" | "OFF";
     };
     AuthenticatedUserResponse: {
       /**
@@ -3096,6 +4368,11 @@ export interface components {
       createdAt: string;
       /** @description The user who created the campaign; null once that user is gone. */
       createdBy: components["schemas"]["CampaignPersonSummary"] | null;
+      /**
+       * Format: uuid
+       * @description The department that owns this campaign (e.g. Marketing).
+       */
+      departmentId: string | null;
       /** @example Awareness push ahead of the launch. */
       description: string | null;
       /**
@@ -3180,6 +4457,15 @@ export interface components {
       /** Format: uuid */
       lastReadMessageId: string | null;
     };
+    ConversationMessagePreview: {
+      content: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      deletedAt: string | null;
+      /** Format: uuid */
+      id: string;
+    };
     ConversationResponse: {
       /** Format: date-time */
       createdAt: string;
@@ -3188,12 +4474,14 @@ export interface components {
       departmentId: string | null;
       /** Format: uuid */
       id: string;
+      lastMessage?: components["schemas"]["ConversationMessagePreview"] | null;
       members: components["schemas"]["ConversationMemberResponse"][];
       name: string | null;
       /** Format: uuid */
       teamId: string | null;
       /** @enum {string} */
       type: "DIRECT" | "GROUP" | "CHANNEL";
+      unreadCount?: number;
       /** Format: date-time */
       updatedAt: string;
       /** @enum {string|null} */
@@ -3243,6 +4531,11 @@ export interface components {
        * @enum {string}
        */
       campaignType: "MARKETING" | "PROMOTION";
+      /**
+       * Format: uuid
+       * @description The owning department (e.g. Marketing). Only honored for an organization-scoped caller - a department-scoped caller's own department is always used instead, regardless of this value.
+       */
+      departmentId?: string;
       /** @example Awareness push ahead of the launch. */
       description?: string;
       /**
@@ -3306,6 +4599,91 @@ export interface components {
       /** @example Event Management */
       name: string;
     };
+    CreateDocumentDto: {
+      description?: string;
+      displayName: string;
+      /** @enum {string} */
+      documentType:
+        | "LETTER"
+        | "REPORT"
+        | "PRICE_QUOTATION"
+        | "CONTRACT"
+        | "INVOICE"
+        | "OTHER";
+      /** Format: uuid */
+      projectId?: string;
+    };
+    CreateEmployeeDto: {
+      /**
+       * @description Non-negative, at most two fraction digits.
+       * @example 1500
+       */
+      allowanceAmount?: number;
+      /** @description Payroll bank account number. */
+      bankAccountNumber?: string;
+      /**
+       * @description Non-negative, at most two fraction digits.
+       * @example 25000
+       */
+      baseSalary?: number;
+      city?: string;
+      /**
+       * @description A company-issued phone number. Applies either way (new or linked account) - it belongs to the job, not the person.
+       * @example +1 (555) 020-4040
+       */
+      companyPhone?: string;
+      /**
+       * @description ISO-4217 alphabetic code. Required when any amount is set.
+       * @example ETB
+       */
+      currency?: string;
+      /** Format: date */
+      dateOfBirth?: string;
+      /**
+       * Format: uuid
+       * @description Required when creating a new account; from existing departments.
+       */
+      departmentId?: string;
+      description?: string;
+      /** Format: email */
+      email?: string;
+      /** @example EMP-0042 */
+      employeeCode: string;
+      /** Format: date */
+      employmentDate: string;
+      /** @enum {string} */
+      employmentType: "FULL_TIME" | "PART_TIME" | "CONTRACT" | "INTERN";
+      firstName?: string;
+      /** @enum {string} */
+      gender?: "MALE" | "FEMALE" | "OTHER";
+      grade?: string;
+      lastName?: string;
+      /**
+       * @description The employee's own personal number. Only applied when creating a new account - stored on the linked User, not the employee profile.
+       * @example +1 (555) 010-2030
+       */
+      personalPhone?: string;
+      /** @example Social Media Coordinator */
+      position: string;
+      /** Format: uuid */
+      reportingManagerId?: string;
+      /**
+       * Format: uuid
+       * @description Required when creating a new account: a Department Manager or Department Member role. A Super Admin role may never be assigned here.
+       */
+      roleId?: string;
+      salaryScale?: string;
+      subCity?: string;
+      /** @description Initial password; the account must change it on first sign-in. */
+      temporaryPassword?: string;
+      /**
+       * Format: uuid
+       * @description Link this existing user account instead of creating one.
+       */
+      userId?: string;
+      woreda?: string;
+      workLocation?: string;
+    };
     CreateEventDto: {
       /** @example Opening night gala for partners and press. */
       description?: string;
@@ -3339,9 +4717,37 @@ export interface components {
       organizerName?: string;
       /**
        * Format: date-time
+       * @description UTC reminder instant. Requires startAt to be set and may not be later than it.
+       */
+      reminderAt?: string;
+      /**
+       * Format: date-time
        * @description UTC start. If both ends are given, the end may not precede it.
        */
       startAt?: string;
+    };
+    CreateEventShiftDto: {
+      breakMinutes?: number;
+      /** @description Geofence radius in meters. Defaults to 150. */
+      geofenceRadiusMeters?: number;
+      label?: string;
+      /** @description Geofence center latitude. */
+      latitude: number;
+      locationLabel?: string;
+      /** @description Geofence center longitude. */
+      longitude: number;
+      /**
+       * Format: date-time
+       * @description UTC end. Must be strictly after plannedStartAt - an overnight shift is one row.
+       */
+      plannedEndAt: string;
+      /**
+       * Format: date-time
+       * @description UTC start. Explicit datetime, never a date-only field.
+       */
+      plannedStartAt: string;
+      /** @example Africa/Addis_Ababa */
+      timeZone: string;
     };
     CreateEventTalentAssignmentDto: {
       /** Format: uuid */
@@ -3390,6 +4796,67 @@ export interface components {
       /** Format: uuid */
       supplierId?: string;
     };
+    CreateHolidayDto: {
+      /** Format: date */
+      date: string;
+      name: string;
+    };
+    CreateLeaveGrantDto: {
+      /** Format: uuid */
+      employeeId: string;
+      /** @description Valid for exactly two years from the grant date. */
+      grantedDays: number;
+      /** Format: uuid */
+      leaveTypeId: string;
+      note?: string;
+    };
+    CreateLeaveRequestDto: {
+      /**
+       * Format: date
+       * @example 2026-12-26
+       */
+      endDate: string;
+      /** Format: uuid */
+      leaveTypeId: string;
+      reason?: string;
+      /**
+       * Format: date
+       * @example 2026-12-24
+       */
+      startDate: string;
+    };
+    CreateLeaveTypeDto: {
+      description?: string;
+      /** @default true */
+      isPaid: boolean;
+      name: string;
+      /** @default true */
+      requiresApproval: boolean;
+      /** @default false */
+      requiresDocumentation: boolean;
+    };
+    CreateLetterDto: {
+      /** @enum {string} */
+      category: "CAST" | "PROD" | "MKT" | "PROMO" | "EOM" | "HR" | "OTHER";
+      /** Format: date */
+      date: string;
+      /** @enum {string} */
+      direction: "INCOMING" | "OUTGOING";
+      /** @description Required when direction is INCOMING. */
+      fromParty?: string;
+      /** Format: uuid */
+      projectId?: string;
+      remark?: string;
+      /** @description The reference number printed on the received letter, distinct from Lela's own generated number. Incoming only. */
+      senderReferenceNumber?: string;
+      shortDescription?: string;
+      subject: string;
+      /** @description Required when direction is OUTGOING. */
+      toParty?: string;
+    };
+    CreateLetterRemarkDto: {
+      body: string;
+    };
     CreateMeetingActionItemDto: {
       /**
        * Format: uuid
@@ -3417,8 +4884,6 @@ export interface components {
        */
       endAt: string;
       location?: string;
-      /** Format: uri */
-      onlineLink?: string;
       participantIds?: string[];
       /** Format: date-time */
       reminderAt?: string;
@@ -3442,6 +4907,48 @@ export interface components {
        * @description Makes this message an explicit reply.
        */
       parentMessageId?: string;
+    };
+    CreatePartnerActivityDto: {
+      /** @example Sent the sponsorship deck; awaiting reply. */
+      note: string;
+    };
+    CreatePartnerDto: {
+      /**
+       * Format: uuid
+       * @description The campaign this opportunity relates to, where applicable.
+       */
+      campaignId?: string;
+      /** @example Media */
+      category: string;
+      /** Format: email */
+      contactEmail?: string;
+      contactName?: string;
+      contactPhone?: string;
+      /**
+       * Format: uuid
+       * @description The owning department (e.g. Marketing). Only honored for an organization-scoped caller - a department-scoped caller's own department is always used instead, regardless of this value.
+       */
+      departmentId?: string;
+      /**
+       * Format: uuid
+       * @description The event this opportunity relates to, where applicable.
+       */
+      eventId?: string;
+      /**
+       * Format: date-time
+       * @description When this relationship next needs a follow-up.
+       */
+      followUpAt?: string;
+      notes?: string;
+      /** @example Northbridge Media Group */
+      organizationName: string;
+      /**
+       * Format: uuid
+       * @description The user responsible for this relationship. Must belong to the same department as the partner, when the partner has one.
+       */
+      ownerId?: string;
+      /** @example Co-branded media placement, estimated 5,000 ETB in kind */
+      proposedContribution?: string;
     };
     CreateProductionDto: {
       /** Format: date-time */
@@ -3551,6 +5058,17 @@ export interface components {
       /** @example Regional Coordinator */
       name: string;
     };
+    CreateShareDto: {
+      /** @default false */
+      allEmployees: boolean;
+      /** Format: uuid */
+      recipientId?: string;
+      /**
+       * @default VIEW
+       * @enum {string}
+       */
+      scope: "VIEW" | "VIEW_AND_DOWNLOAD";
+    };
     CreateSupplierDto: {
       /** @example Catering */
       category?: string;
@@ -3597,6 +5115,10 @@ export interface components {
       /** @example https://instagram.com/amina */
       url: string;
     };
+    CreateTaskChecklistItemDto: {
+      /** @example Confirm venue permits */
+      description: string;
+    };
     CreateTaskCommentDto: {
       content: string;
       mentionedUserIds?: string[];
@@ -3612,6 +5134,11 @@ export interface components {
       description?: string;
       /** Format: date-time */
       dueAt?: string;
+      /**
+       * Format: uuid
+       * @description The higher-level task this is broken down from. When set, the subtask inherits its parent's workspace/department rather than `workspaceId`/`departmentId` above, and only the parent's own assignee (or an organization-scoped caller) may create it.
+       */
+      parentTaskId?: string;
       /**
        * @default MEDIUM
        * @enum {string}
@@ -3733,6 +5260,17 @@ export interface components {
        * @example a temporary secret the user rotates on first sign-in
        */
       temporaryPassword: string;
+    };
+    CreateWeekdayScheduleDto: {
+      /** @description 0 = Sunday .. 6 = Saturday. */
+      dayOfWeek: number;
+      /**
+       * Format: date
+       * @description The date this type takes effect from (inclusive). A past date corrects a mistake; a future date schedules an upcoming change.
+       */
+      effectiveFrom: string;
+      /** @enum {string} */
+      type: "FULL" | "HALF" | "OFF";
     };
     CreateWorkspaceDto: {
       /**
@@ -3899,6 +5437,23 @@ export interface components {
       items: components["schemas"]["DashboardConversationCount"][];
       totalConversations: number;
     };
+    DecideExceptionDto: {
+      /** @enum {string} */
+      decision: "APPROVED" | "REJECTED";
+      reviewNote?: string;
+    };
+    DecideLeaveRequestDto: {
+      /** @enum {string} */
+      decision: "APPROVED" | "REJECTED" | "RETURNED_FOR_CHANGES";
+      reviewNote?: string;
+    };
+    DecideOvertimeDto: {
+      /** @description Required when approving. Never auto-derived from the potential minutes. */
+      approvedMinutes?: number;
+      /** @enum {string} */
+      decision: "APPROVED" | "REJECTED";
+      decisionReason?: string;
+    };
     DepartmentManagerSummary: {
       /**
        * Format: email
@@ -3950,6 +5505,63 @@ export interface components {
       id: string;
       lastName: string | null;
     };
+    DocumentOptionsResponse: {
+      projects: components["schemas"]["DocumentProjectOption"][];
+      types: (
+        | "LETTER"
+        | "REPORT"
+        | "PRICE_QUOTATION"
+        | "CONTRACT"
+        | "INVOICE"
+        | "OTHER"
+      )[];
+    };
+    DocumentProjectOption: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    DocumentResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      description: string | null;
+      displayName: string;
+      /** @enum {string} */
+      documentType:
+        | "LETTER"
+        | "REPORT"
+        | "PRICE_QUOTATION"
+        | "CONTRACT"
+        | "INVOICE"
+        | "OTHER";
+      /** @description Whether a file has been uploaded and finalized yet. */
+      fileAvailable: boolean;
+      /**
+       * Format: uuid
+       * @description The attached file's id, for the download route. Null until a file is attached.
+       */
+      fileId: string | null;
+      /** Format: uuid */
+      id: string;
+      originalFilename: string | null;
+      /** Format: uuid */
+      projectId: string | null;
+      projectName: string | null;
+      sizeBytes: number | null;
+      /**
+       * Format: uuid
+       * @description Set only when this document originated from a letter attachment.
+       */
+      sourceLetterId: string | null;
+      sourceLetterReferenceNumber: string | null;
+      /** Format: date-time */
+      updatedAt: string;
+      /** Format: date-time */
+      uploadedAt: string | null;
+      /** Format: uuid */
+      uploadedById: string | null;
+      uploadedByName: string | null;
+    };
     DownloadGrantResponse: {
       /** Format: date-time */
       expiresAt: string;
@@ -3970,6 +5582,95 @@ export interface components {
         | "WORKSPACE"
         | "SELF"
         | "MANAGEMENT";
+    };
+    EmployeeDepartmentOption: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    EmployeeOptionsResponse: {
+      departments: components["schemas"]["EmployeeDepartmentOption"][];
+      employmentStatuses: ("ACTIVE" | "ON_LEAVE" | "INACTIVE")[];
+      employmentTypes: ("FULL_TIME" | "PART_TIME" | "CONTRACT" | "INTERN")[];
+      genders: ("MALE" | "FEMALE" | "OTHER")[];
+    };
+    EmployeeResponse: {
+      /** @example 1500.00 */
+      allowanceAmount: string | null;
+      /** @description Payroll bank account number. */
+      bankAccountNumber: string | null;
+      /**
+       * @description Decimal string. Null when no compensation is recorded.
+       * @example 25000.00
+       */
+      baseSalary: string | null;
+      city: string | null;
+      /** @description A company-issued phone number. */
+      companyPhone: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      createdById: string | null;
+      /** @example ETB */
+      currency: string | null;
+      /** Format: date */
+      dateOfBirth: string | null;
+      /**
+       * Format: uuid
+       * @description The employee's department, from the user's own record.
+       */
+      departmentId: string | null;
+      departmentName: string | null;
+      description: string | null;
+      /** Format: email */
+      email: string;
+      /** @example EMP-0042 */
+      employeeCode: string;
+      /** Format: date */
+      employmentDate: string;
+      /** @enum {string} */
+      employmentStatus: "ACTIVE" | "ON_LEAVE" | "INACTIVE";
+      /** @enum {string} */
+      employmentType: "FULL_TIME" | "PART_TIME" | "CONTRACT" | "INTERN";
+      firstName: string | null;
+      /** @enum {string|null} */
+      gender: "MALE" | "FEMALE" | "OTHER" | null;
+      grade: string | null;
+      /** Format: uuid */
+      id: string;
+      lastName: string | null;
+      /** @description The employee's own personal number. */
+      personalPhone: string | null;
+      /** @example Social Media Coordinator */
+      position: string;
+      /** Format: uuid */
+      reportingManagerId: string | null;
+      reportingManagerName: string | null;
+      salaryScale: string | null;
+      /** Format: date-time */
+      statusChangedAt: string | null;
+      /** Format: uuid */
+      statusChangedById: string | null;
+      subCity: string | null;
+      /**
+       * @description Derived as baseSalary + allowanceAmount; never stored directly.
+       * @example 26500.00
+       */
+      totalCompensation: string | null;
+      /** Format: date-time */
+      updatedAt: string;
+      /**
+       * Format: uuid
+       * @description The linked user account.
+       */
+      userId: string;
+      /**
+       * @description The linked account's login/access status - distinct from employmentStatus.
+       * @enum {string}
+       */
+      userStatus: "ACTIVE" | "INACTIVE";
+      woreda: string | null;
+      workLocation: string | null;
     };
     EntityProgress: {
       completed: number;
@@ -4074,6 +5775,11 @@ export interface components {
       participants: components["schemas"]["EventPersonSummary"][];
       /**
        * Format: date-time
+       * @description UTC reminder instant, never after the start.
+       */
+      reminderAt: string | null;
+      /**
+       * Format: date-time
        * @description UTC start. Null while the event is not yet scheduled.
        */
       startAt: string | null;
@@ -4091,6 +5797,60 @@ export interface components {
        * @description The connected workspace that anchors this event's manager, teams, and participants.
        */
       workspaceId: string;
+    };
+    EventShiftAssignmentResponse: {
+      /** Format: date-time */
+      assignedAt: string;
+      /** Format: uuid */
+      employeeId: string;
+      employeeName: string | null;
+    };
+    EventShiftChangeResponse: {
+      /** @enum {string} */
+      changeType:
+        | "RESCHEDULE"
+        | "EXTENSION"
+        | "LOCATION_CHANGE"
+        | "CANCELLATION"
+        | "REINSTATEMENT"
+        | "OTHER";
+      changedByName: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      newEndAt: string | null;
+      /** Format: date-time */
+      newStartAt: string | null;
+      /** Format: date-time */
+      previousEndAt: string | null;
+      /** Format: date-time */
+      previousStartAt: string | null;
+      reason: string;
+    };
+    EventShiftResponse: {
+      breakMinutes: number;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      eventId: string;
+      eventName: string;
+      geofenceRadiusMeters: number;
+      /** Format: uuid */
+      id: string;
+      label: string | null;
+      latitude: number;
+      locationLabel: string | null;
+      longitude: number;
+      /** Format: date-time */
+      plannedEndAt: string;
+      /** Format: date-time */
+      plannedStartAt: string;
+      /** @enum {string} */
+      status:
+        "PLANNED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+      timeZone: string;
     };
     EventTeamSummary: {
       /**
@@ -4166,6 +5926,209 @@ export interface components {
       /** Format: uuid */
       reviewerId: string;
     };
+    KioskEmployeeOption: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    KioskPunchDto: {
+      /** @description A client-generated idempotency key - retrying the same request with the same key never creates a duplicate punch. */
+      clientRequestId: string;
+      /** @enum {string} */
+      punchType: "CHECK_IN" | "CHECK_OUT";
+      /** @description The short-lived token returned by /verify. */
+      sessionToken: string;
+    };
+    KioskPunchResponse: {
+      message: string;
+      /** @enum {string} */
+      punchType: "CHECK_IN" | "CHECK_OUT";
+      /** Format: date-time */
+      recordedAt: string;
+    };
+    KioskRegisteredResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      id: string;
+      isActive: boolean;
+      locationLabel: string;
+      name: string;
+      /** Format: date-time */
+      revokedAt: string | null;
+      /** @description The kiosk's bearer secret. Shown only this once - store it on the device now. */
+      token: string;
+    };
+    KioskResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      id: string;
+      isActive: boolean;
+      locationLabel: string;
+      name: string;
+      /** Format: date-time */
+      revokedAt: string | null;
+    };
+    KioskVerifyDto: {
+      /** Format: uuid */
+      employeeId: string;
+      password: string;
+    };
+    KioskVerifyResponse: {
+      employeeName: string;
+      /** Format: date-time */
+      expiresAt: string;
+      /** @description Whether this employee currently has an open check-in. */
+      hasOpenSession: boolean;
+      /** @description Pass this to the punch endpoint within 90 seconds. */
+      sessionToken: string;
+    };
+    LeaveBalanceResponse: {
+      grants: components["schemas"]["LeaveGrantResponse"][];
+      /** Format: uuid */
+      leaveTypeId: string;
+      /** @description Sum of every non-expired grant's own remaining balance. */
+      totalRemaining: number;
+    };
+    LeaveGrantResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      employeeId: string;
+      /**
+       * Format: date-time
+       * @description Exactly two years after grantedAt.
+       */
+      expiresAt: string;
+      /** Format: date-time */
+      grantedAt: string;
+      grantedDays: number;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      leaveTypeId: string;
+      leaveTypeName: string;
+      note: string | null;
+      /** @description Current remaining balance for this grant alone. */
+      remaining: number;
+    };
+    LeaveRequestResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      daysRequested: number;
+      /** Format: uuid */
+      employeeId: string;
+      employeeName: string | null;
+      /** Format: date */
+      endDate: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      leaveTypeId: string;
+      leaveTypeName: string;
+      reason: string | null;
+      reviewNote: string | null;
+      /** Format: date-time */
+      reviewedAt: string | null;
+      reviewedByName: string | null;
+      /** Format: date */
+      startDate: string;
+      /** @enum {string} */
+      status:
+        | "PENDING"
+        | "APPROVED"
+        | "REJECTED"
+        | "WITHDRAWN"
+        | "RETURNED_FOR_CHANGES"
+        | "AMENDED";
+    };
+    LeaveTypeResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      description: string | null;
+      /** Format: uuid */
+      id: string;
+      isActive: boolean;
+      isPaid: boolean;
+      name: string;
+      requiresApproval: boolean;
+      requiresDocumentation: boolean;
+    };
+    LetterOptionsResponse: {
+      categories: (
+        "CAST" | "PROD" | "MKT" | "PROMO" | "EOM" | "HR" | "OTHER"
+      )[];
+      directions: ("INCOMING" | "OUTGOING")[];
+      projects: components["schemas"]["LetterProjectOption"][];
+    };
+    LetterProjectOption: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    LetterReferencePreviewResponse: {
+      /**
+       * @description Non-reserving preview of the next number. Assigned for real only when the letter is created.
+       * @example LELA-CAST-2026-002
+       */
+      referenceNumber: string;
+    };
+    LetterRemarkResponse: {
+      /** Format: uuid */
+      authorId: string | null;
+      authorName: string | null;
+      body: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      letterId: string;
+    };
+    LetterResponse: {
+      /**
+       * @description Attachment count only - never full attachment contents.
+       * @example 2
+       */
+      attachmentCount: number;
+      /** @enum {string} */
+      category: "CAST" | "PROD" | "MKT" | "PROMO" | "EOM" | "HR" | "OTHER";
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      createdById: string | null;
+      createdByName: string | null;
+      /** Format: date */
+      date: string;
+      /** @enum {string} */
+      direction: "INCOMING" | "OUTGOING";
+      fromParty: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      projectId: string | null;
+      projectName: string | null;
+      /** @example LELA-CAST-2026-001 */
+      referenceNumber: string;
+      remark: string | null;
+      senderReferenceNumber: string | null;
+      shortDescription: string | null;
+      subject: string;
+      toParty: string | null;
+      /** Format: date-time */
+      updatedAt: string;
+      /** Format: uuid */
+      updatedById: string | null;
+    };
+    LinkableUserOption: {
+      /** Format: email */
+      email: string;
+      firstName: string | null;
+      /** Format: uuid */
+      id: string;
+      lastName: string | null;
+    };
     LivenessResponse: {
       /**
        * @example ok
@@ -4200,8 +6163,11 @@ export interface components {
       mediaType: string;
       /** @example 1048576 */
       sizeBytes: number;
-      /** @example available */
-      state: string;
+      /**
+       * @example available
+       * @enum {string}
+       */
+      state: "pending" | "available";
     };
     MarketingStrategyDto: {
       /** @example Reach local audiences through partner-led campaigns. */
@@ -4217,19 +6183,6 @@ export interface components {
       /** Format: date-time */
       updatedAt: string;
     };
-    MeetAuthorizeResponse: {
-      /** Format: uri */
-      url: string;
-    };
-    MeetDisconnectResponse: {
-      remoteRevoked: boolean;
-    };
-    MeetStatusResponse: {
-      connection: string;
-      enabled: boolean;
-      exportState: string;
-      failure: string | null;
-    };
     MeetingAcknowledgementResponse: {
       /** Format: uuid */
       meetingId: string;
@@ -4244,6 +6197,16 @@ export interface components {
       /** Format: date-time */
       startAt: string;
       users: components["schemas"]["UserAvailabilityResponse"][];
+    };
+    MeetingJitsiSessionResponse: {
+      displayName: string;
+      /** @description The self-hosted Jitsi deployment's public domain. */
+      domain: string;
+      /** @description Reserved for the optional future JWT auth scheme. */
+      jwt: string | null;
+      /** @description UI hint only in this MVP - no JWT/server-enforced moderator role yet. */
+      moderator: boolean;
+      roomName: string;
     };
     MeetingParticipantResponseContract: {
       /** Format: email */
@@ -4280,8 +6243,6 @@ export interface components {
       location: string | null;
       /** @description Plain text, recorded once the meeting has happened. */
       minutes: string | null;
-      /** Format: uri */
-      onlineLink: string | null;
       organizer: components["schemas"]["MeetingPersonSummary"];
       participants: components["schemas"]["MeetingParticipantResponseContract"][];
       /** Format: date-time */
@@ -4299,6 +6260,7 @@ export interface components {
       workspaceId: string | null;
     };
     MessageResponse: {
+      attachmentCount?: number;
       author: components["schemas"]["DiscussPersonSummary"] | null;
       /**
        * @description Empty once the message has been deleted.
@@ -4323,6 +6285,31 @@ export interface components {
       pinnedBy: components["schemas"]["DiscussPersonSummary"] | null;
       /** Format: date-time */
       updatedAt: string;
+    };
+    MobilePunchDto: {
+      /** @description Device-reported GPS accuracy radius, in meters. */
+      accuracyMeters?: number;
+      /** @description A client-generated idempotency key - retrying the same request with the same key never creates a duplicate punch. */
+      clientRequestId: string;
+      /** Format: uuid */
+      eventShiftId?: string;
+      /** @description Device GPS latitude. Omit entirely when location permission was denied or unavailable - the punch is still recorded, flagged for manager review. */
+      latitude?: number;
+      longitude?: number;
+      /** @enum {string} */
+      punchType: "CHECK_IN" | "CHECK_OUT";
+    };
+    MobilePunchResponse: {
+      message: string;
+      session: components["schemas"]["AttendanceSessionResponse"];
+      /** @enum {string} */
+      verificationResult:
+        | "NOT_APPLICABLE"
+        | "VERIFIED"
+        | "OUT_OF_RANGE"
+        | "LOW_ACCURACY"
+        | "LOCATION_UNAVAILABLE"
+        | "EXCEPTION_APPROVED";
     };
     MonthlyAnalyticsItem: {
       campaignsCreated: number;
@@ -4351,6 +6338,21 @@ export interface components {
       /** Format: date */
       toExclusive: string;
     };
+    MyShiftResponse: {
+      eventName: string;
+      /** Format: uuid */
+      id: string;
+      label: string | null;
+      locationLabel: string | null;
+      /** Format: date-time */
+      plannedEndAt: string;
+      /** Format: date-time */
+      plannedStartAt: string;
+      /** @enum {string} */
+      status:
+        "PLANNED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+      timeZone: string;
+    };
     NotificationFeedResponse: {
       items: components["schemas"]["NotificationResponse"][];
       /** @description Opaque cursor for the next page; null when there is no more. */
@@ -4376,7 +6378,18 @@ export interface components {
         | "TODO_REMINDER"
         | "REPORT_REMINDER"
         | "EXPENSE_SUBMITTED"
-        | "EXPENSE_REVIEWED";
+        | "EXPENSE_REVIEWED"
+        | "REPORT_SUBMITTED"
+        | "REPORT_REVIEWED"
+        | "PARTNER_FOLLOW_UP_DUE"
+        | "LETTER_SHARED"
+        | "DOCUMENT_SHARED"
+        | "ATTENDANCE_SHIFT_ASSIGNED"
+        | "ATTENDANCE_SHIFT_SCHEDULE_CHANGED"
+        | "ATTENDANCE_OVERTIME_DECIDED"
+        | "ATTENDANCE_EXCEPTION_DECIDED"
+        | "LEAVE_REQUEST_SUBMITTED"
+        | "LEAVE_REQUEST_DECIDED";
     };
     NotificationPreferencesResponse: {
       items: components["schemas"]["NotificationPreferenceResponse"][];
@@ -4387,17 +6400,25 @@ export interface components {
       /** Format: date-time */
       createdAt: string;
       /** Format: uuid */
+      documentId: string | null;
+      /** Format: uuid */
       eventId: string | null;
       /** Format: uuid */
       expenseId: string | null;
       /** Format: uuid */
       id: string;
       /** Format: uuid */
+      letterId: string | null;
+      /** Format: uuid */
       meetingId: string | null;
       /** Format: uuid */
       messageId: string | null;
+      /** Format: uuid */
+      partnerId: string | null;
       /** Format: date-time */
       readAt: string | null;
+      /** Format: uuid */
+      reportId: string | null;
       /** Format: uuid */
       taskId: string | null;
       /** @example You were assigned a task */
@@ -4417,9 +6438,42 @@ export interface components {
         | "TODO_REMINDER"
         | "REPORT_REMINDER"
         | "EXPENSE_SUBMITTED"
-        | "EXPENSE_REVIEWED";
+        | "EXPENSE_REVIEWED"
+        | "REPORT_SUBMITTED"
+        | "REPORT_REVIEWED"
+        | "PARTNER_FOLLOW_UP_DUE"
+        | "LETTER_SHARED"
+        | "DOCUMENT_SHARED"
+        | "ATTENDANCE_SHIFT_ASSIGNED"
+        | "ATTENDANCE_SHIFT_SCHEDULE_CHANGED"
+        | "ATTENDANCE_OVERTIME_DECIDED"
+        | "ATTENDANCE_EXCEPTION_DECIDED"
+        | "LEAVE_REQUEST_SUBMITTED"
+        | "LEAVE_REQUEST_DECIDED";
     };
     Object: Record<string, never>;
+    OvertimeApprovalResponse: {
+      approvedMinutes: number | null;
+      /** Format: uuid */
+      attendanceSessionId: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      decidedAt: string | null;
+      decidedByName: string | null;
+      decisionReason: string | null;
+      /** Format: uuid */
+      employeeId: string;
+      employeeName: string | null;
+      /** Format: uuid */
+      id: string;
+      potentialMinutes: number;
+      requestedReason: string | null;
+      /** Format: date */
+      sessionDate: string;
+      /** @enum {string} */
+      status: "PENDING" | "APPROVED" | "REJECTED";
+    };
     PaginatedCampaignActivitiesResponse: {
       items: components["schemas"]["CampaignActivityResponse"][];
       /**
@@ -4471,6 +6525,24 @@ export interface components {
        */
       total: number;
     };
+    PaginatedDocumentsResponse: {
+      items: components["schemas"]["DocumentResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 7 */
+      total: number;
+    };
+    PaginatedEmployeesResponse: {
+      items: components["schemas"]["EmployeeResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 7 */
+      total: number;
+    };
     PaginatedEventsResponse: {
       items: components["schemas"]["EventResponse"][];
       /**
@@ -4488,6 +6560,15 @@ export interface components {
     };
     PaginatedExpensesResponse: {
       items: components["schemas"]["ExpenseResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 7 */
+      total: number;
+    };
+    PaginatedLettersResponse: {
+      items: components["schemas"]["LetterResponse"][];
       /** @example 1 */
       page: number;
       /** @example 25 */
@@ -4514,6 +6595,24 @@ export interface components {
       items: components["schemas"]["MessageResponse"][];
       page: number;
       pageSize: number;
+      total: number;
+    };
+    PaginatedPartnerActivitiesResponse: {
+      items: components["schemas"]["PartnerActivityResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 4 */
+      total: number;
+    };
+    PaginatedPartnersResponse: {
+      items: components["schemas"]["PartnerResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 7 */
       total: number;
     };
     PaginatedProductionsResponse: {
@@ -4550,6 +6649,24 @@ export interface components {
       items: components["schemas"]["ReportResponse"][];
       page: number;
       pageSize: number;
+      total: number;
+    };
+    PaginatedSharedDocumentsResponse: {
+      items: components["schemas"]["DocumentResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 7 */
+      total: number;
+    };
+    PaginatedSharedLettersResponse: {
+      items: components["schemas"]["LetterResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 7 */
       total: number;
     };
     PaginatedSuppliersResponse: {
@@ -4638,6 +6755,83 @@ export interface components {
        * @example 7
        */
       total: number;
+    };
+    PartnerActivityResponse: {
+      /** @description Null once the authoring user is gone. */
+      author: components["schemas"]["PartnerPersonSummary"] | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      id: string;
+      /** @example Sent the sponsorship deck; awaiting reply. */
+      note: string;
+      /** Format: uuid */
+      partnerId: string;
+    };
+    PartnerPersonSummary: {
+      /**
+       * Format: email
+       * @example dana.okafor@example.com
+       */
+      email: string;
+      /** @example Dana */
+      firstName: string | null;
+      /**
+       * Format: uuid
+       * @example 018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77
+       */
+      id: string;
+      /** @example Okafor */
+      lastName: string | null;
+    };
+    PartnerResponse: {
+      /**
+       * Format: uuid
+       * @description The campaign this opportunity relates to, where applicable.
+       */
+      campaignId: string | null;
+      /** @example Media */
+      category: string;
+      /** Format: email */
+      contactEmail: string | null;
+      contactName: string | null;
+      contactPhone: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      createdBy: components["schemas"]["PartnerPersonSummary"] | null;
+      /**
+       * Format: uuid
+       * @description The department that owns this relationship (e.g. Marketing).
+       */
+      departmentId: string | null;
+      /**
+       * Format: uuid
+       * @description The event this opportunity relates to, where applicable.
+       */
+      eventId: string | null;
+      /**
+       * Format: date-time
+       * @description When this relationship next needs a follow-up.
+       */
+      followUpAt: string | null;
+      /** Format: uuid */
+      id: string;
+      notes: string | null;
+      /** @example Northbridge Media Group */
+      organizationName: string;
+      /** @description The user responsible for this relationship. */
+      owner: components["schemas"]["PartnerPersonSummary"] | null;
+      /** @example Co-branded media placement, estimated 5,000 ETB in kind */
+      proposedContribution: string | null;
+      /** @enum {string} */
+      status:
+        | "PROSPECTIVE"
+        | "IN_DISCUSSION"
+        | "COMMITTED"
+        | "DECLINED"
+        | "COMPLETED";
+      /** Format: date-time */
+      updatedAt: string;
     };
     PermissionResponse: {
       /** @example Record Approved or Changes Requested while a task is Under Review. */
@@ -4939,6 +7133,14 @@ export interface components {
        */
       timestamp: string;
     };
+    RegisterKioskDto: {
+      locationLabel: string;
+      name: string;
+    };
+    ReorderTaskChecklistItemsDto: {
+      /** @description Every one of this task's current checklist item ids, in the desired order. */
+      orderedItemIds: string[];
+    };
     ReportDetailResponse: {
       /** Format: uuid */
       authorId: string;
@@ -5066,6 +7268,13 @@ export interface components {
       /** Format: uuid */
       reviewerId: string;
     };
+    RescheduleEventShiftDto: {
+      /** Format: date-time */
+      plannedEndAt?: string;
+      /** Format: date-time */
+      plannedStartAt?: string;
+      reason: string;
+    };
     RespondToMeetingDto: {
       /** @enum {string} */
       response: "ACCEPTED" | "DECLINED";
@@ -5188,6 +7397,119 @@ export interface components {
       /** Format: uuid */
       managerId: Record<string, never> | null;
     };
+    ShareRecipientOption: {
+      email: string;
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    ShareResponse: {
+      allEmployees: boolean;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      documentId: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      letterId: string | null;
+      /** Format: uuid */
+      recipientId: string | null;
+      recipientName: string | null;
+      /** Format: date-time */
+      revokedAt: string | null;
+      /** Format: uuid */
+      revokedById: string | null;
+      revokedByName: string | null;
+      /** @enum {string} */
+      scope: "VIEW" | "VIEW_AND_DOWNLOAD";
+      /** Format: uuid */
+      sharedById: string | null;
+      sharedByName: string | null;
+    };
+    SharedDocumentResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      description: string | null;
+      displayName: string;
+      /** @enum {string} */
+      documentType:
+        | "LETTER"
+        | "REPORT"
+        | "PRICE_QUOTATION"
+        | "CONTRACT"
+        | "INVOICE"
+        | "OTHER";
+      /** @description Whether a file has been uploaded and finalized yet. */
+      fileAvailable: boolean;
+      /**
+       * Format: uuid
+       * @description The attached file's id, for the download route. Null until a file is attached.
+       */
+      fileId: string | null;
+      /** Format: uuid */
+      id: string;
+      originalFilename: string | null;
+      /** Format: uuid */
+      projectId: string | null;
+      projectName: string | null;
+      /** @enum {string} */
+      shareScope: "VIEW" | "VIEW_AND_DOWNLOAD";
+      sizeBytes: number | null;
+      /**
+       * Format: uuid
+       * @description Set only when this document originated from a letter attachment.
+       */
+      sourceLetterId: string | null;
+      sourceLetterReferenceNumber: string | null;
+      /** Format: date-time */
+      updatedAt: string;
+      /** Format: date-time */
+      uploadedAt: string | null;
+      /** Format: uuid */
+      uploadedById: string | null;
+      uploadedByName: string | null;
+    };
+    SharedLetterResponse: {
+      /**
+       * @description Attachment count only - never full attachment contents.
+       * @example 2
+       */
+      attachmentCount: number;
+      /** @enum {string} */
+      category: "CAST" | "PROD" | "MKT" | "PROMO" | "EOM" | "HR" | "OTHER";
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      createdById: string | null;
+      createdByName: string | null;
+      /** Format: date */
+      date: string;
+      /** @enum {string} */
+      direction: "INCOMING" | "OUTGOING";
+      fromParty: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      projectId: string | null;
+      projectName: string | null;
+      /** @example LELA-CAST-2026-001 */
+      referenceNumber: string;
+      remark: string | null;
+      senderReferenceNumber: string | null;
+      /** @enum {string} */
+      shareScope: "VIEW" | "VIEW_AND_DOWNLOAD";
+      shortDescription: string | null;
+      subject: string;
+      toParty: string | null;
+      /** Format: date-time */
+      updatedAt: string;
+      /** Format: uuid */
+      updatedById: string | null;
+    };
+    ShiftReasonDto: {
+      reason: string;
+    };
     SupplierResponse: {
       /** @example Catering */
       category: string | null;
@@ -5308,7 +7630,13 @@ export interface components {
         | "PROGRESS_UPDATED"
         | "COMMENT_ADDED"
         | "ATTACHMENT_ADDED"
-        | "REVIEW_RECORDED";
+        | "REVIEW_RECORDED"
+        | "CHECKLIST_ITEM_ADDED"
+        | "CHECKLIST_ITEM_UPDATED"
+        | "CHECKLIST_ITEM_COMPLETED"
+        | "CHECKLIST_ITEM_REOPENED"
+        | "CHECKLIST_ITEM_REMOVED"
+        | "CHECKLIST_ITEM_REORDERED";
     };
     TaskAnalyticsResponse: {
       /**
@@ -5337,6 +7665,21 @@ export interface components {
       id: string;
       lastName: string | null;
     };
+    TaskChecklistItemResponse: {
+      completed: boolean;
+      /** Format: date-time */
+      completedAt: string | null;
+      completedBy: components["schemas"]["TaskPersonSummary"] | null;
+      /** Format: date-time */
+      createdAt: string;
+      createdBy: components["schemas"]["TaskPersonSummary"] | null;
+      description: string;
+      /** Format: uuid */
+      id: string;
+      position: number;
+      /** Format: date-time */
+      updatedAt: string;
+    };
     TaskCommentResponse: {
       author: components["schemas"]["TaskPersonSummary"] | null;
       /** @example The permit was submitted. */
@@ -5362,6 +7705,7 @@ export interface components {
     };
     TaskResponse: {
       assignees: components["schemas"]["TaskAssigneeResponse"][];
+      checklistItems: components["schemas"]["TaskChecklistItemResponse"][];
       /** Format: date-time */
       createdAt: string;
       createdBy: components["schemas"]["TaskPersonSummary"] | null;
@@ -5372,9 +7716,15 @@ export interface components {
       dueAt: string | null;
       /** Format: uuid */
       id: string;
+      /**
+       * Format: uuid
+       * @description The higher-level task this was broken down from, or null for a top-level task.
+       */
+      parentTaskId: string | null;
       /** @enum {string} */
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-      progress: number;
+      /** @description Server-computed from checklist items or, when subtasks exist, the mean of direct children's own progress (subtasks always win). Null means 'not tracked' - no checklist items and no subtasks. Never client-settable, and reaching 100 never implies review approval. */
+      progress: number | null;
       /** Format: date-time */
       startAt: string | null;
       /** @enum {string} */
@@ -5385,6 +7735,9 @@ export interface components {
         | "BLOCKED"
         | "COMPLETED"
         | "CANCELLED";
+      /** @description Only populated on the single-task detail view, and only when this task has subtasks. */
+      subtaskSummary:
+        components["schemas"]["TaskSubtaskSummaryResponse"] | null;
       /** @example Confirm venue permits */
       title: string;
       /** @enum {string} */
@@ -5410,6 +7763,12 @@ export interface components {
       /** Format: date-time */
       reviewedAt: string;
       reviewer: components["schemas"]["TaskPersonSummary"] | null;
+    };
+    TaskSubtaskSummaryResponse: {
+      completed: number;
+      overdue: number;
+      remaining: number;
+      total: number;
     };
     TeamDepartmentSummary: {
       /**
@@ -5490,6 +7849,10 @@ export interface components {
       type: "PERSONAL" | "WORK" | "REMINDER" | "QUICK_NOTE" | "FOLLOW_UP";
       /** Format: date-time */
       updatedAt: string;
+    };
+    ToggleTaskChecklistItemDto: {
+      /** @example true */
+      completed: boolean;
     };
     TransitionCampaignDto: {
       /**
@@ -5578,6 +7941,56 @@ export interface components {
       /** @example Event Management */
       name?: string;
     };
+    UpdateDocumentDto: {
+      description?: string | null;
+      displayName?: string;
+      /** @enum {string} */
+      documentType?:
+        | "LETTER"
+        | "REPORT"
+        | "PRICE_QUOTATION"
+        | "CONTRACT"
+        | "INVOICE"
+        | "OTHER";
+      /** Format: uuid */
+      projectId?: string | null;
+    };
+    UpdateEmployeeDto: {
+      allowanceAmount?: number | null;
+      /** @description Payroll bank account number. */
+      bankAccountNumber?: string | null;
+      baseSalary?: number | null;
+      city?: string | null;
+      /** @description A company-issued phone number. */
+      companyPhone?: string | null;
+      /** @example ETB */
+      currency?: string | null;
+      /** Format: date */
+      dateOfBirth?: string | null;
+      description?: string | null;
+      /** Format: date */
+      employmentDate?: string;
+      /** @enum {string} */
+      employmentType?: "FULL_TIME" | "PART_TIME" | "CONTRACT" | "INTERN";
+      firstName?: string;
+      /** @enum {string|null} */
+      gender?: "MALE" | "FEMALE" | "OTHER" | null;
+      grade?: string | null;
+      lastName?: string;
+      /** @description The employee's own personal number. */
+      personalPhone?: string;
+      position?: string;
+      /** Format: uuid */
+      reportingManagerId?: string | null;
+      salaryScale?: string | null;
+      subCity?: string | null;
+      woreda?: string | null;
+      workLocation?: string | null;
+    };
+    UpdateEmployeeStatusDto: {
+      /** @enum {string} */
+      status: "ACTIVE" | "ON_LEAVE" | "INACTIVE";
+    };
     UpdateEventDto: {
       description?: string | null;
       /** Format: date-time */
@@ -5594,8 +8007,23 @@ export interface components {
       location?: string | null;
       name?: string;
       organizerName?: string | null;
+      /**
+       * Format: date-time
+       * @description UTC reminder instant. Requires startAt to be set (now or after this patch) and may not be later than it.
+       */
+      reminderAt?: string | null;
       /** Format: date-time */
       startAt?: string | null;
+    };
+    UpdateEventShiftDto: {
+      breakMinutes?: number;
+      geofenceRadiusMeters?: number;
+      label?: string | null;
+      /** @description Geofence center latitude. */
+      latitude?: number;
+      locationLabel?: string | null;
+      /** @description Geofence center longitude. */
+      longitude?: number;
     };
     UpdateExpenseDto: {
       actualAmount?: number;
@@ -5616,14 +8044,38 @@ export interface components {
       /** Format: uuid */
       supplierId?: string | null;
     };
+    UpdateHolidayDto: {
+      /** Format: date */
+      date?: string;
+      name?: string;
+    };
+    UpdateLeaveTypeDto: {
+      description?: string | null;
+      isActive?: boolean;
+      isPaid?: boolean;
+      requiresApproval?: boolean;
+      requiresDocumentation?: boolean;
+    };
+    UpdateLetterDto: {
+      /** Format: date */
+      date?: string;
+      /** @description Only applies to an INCOMING letter. */
+      fromParty?: string;
+      /** Format: uuid */
+      projectId?: string | null;
+      remark?: string | null;
+      senderReferenceNumber?: string | null;
+      shortDescription?: string | null;
+      subject?: string;
+      /** @description Only applies to an OUTGOING letter. */
+      toParty?: string;
+    };
     UpdateMeetingDto: {
       agenda?: string | null;
       description?: string | null;
       /** Format: date-time */
       endAt?: string;
       location?: string | null;
-      /** Format: uri */
-      onlineLink?: string | null;
       /** Format: date-time */
       reminderAt?: string | null;
       /** Format: date-time */
@@ -5634,6 +8086,34 @@ export interface components {
     };
     UpdateMessageDto: {
       content: string;
+    };
+    UpdatePartnerDto: {
+      /** Format: uuid */
+      campaignId?: string | null;
+      category?: string;
+      /** Format: email */
+      contactEmail?: string | null;
+      contactName?: string | null;
+      contactPhone?: string | null;
+      /** Format: uuid */
+      eventId?: string | null;
+      /** Format: date-time */
+      followUpAt?: string | null;
+      notes?: string | null;
+      organizationName?: string;
+      /**
+       * Format: uuid
+       * @description The user responsible for this relationship. Must belong to the same department as the partner, when the partner has one.
+       */
+      ownerId?: string | null;
+      proposedContribution?: string | null;
+      /** @enum {string} */
+      status?:
+        | "PROSPECTIVE"
+        | "IN_DISCUSSION"
+        | "COMMITTED"
+        | "DECLINED"
+        | "COMPLETED";
     };
     UpdateProductionDto: {
       /** Format: date-time */
@@ -5772,6 +8252,9 @@ export interface components {
       /** @example Dress rehearsal */
       title?: string;
     };
+    UpdateTaskChecklistItemDto: {
+      description: string;
+    };
     UpdateTaskDto: {
       description?: string | null;
       /** Format: date-time */
@@ -5790,10 +8273,6 @@ export interface components {
         | "TECHNICAL"
         | "ADMINISTRATIVE"
         | "REVIEW";
-    };
-    UpdateTaskProgressDto: {
-      /** @example 60 */
-      progress: number;
     };
     UpdateTeamDto: {
       /** @example Delivers production for events and campaigns. */
@@ -5866,8 +8345,11 @@ export interface components {
       mediaType: string;
       /** @example 1048576 */
       sizeBytes: number;
-      /** @example available */
-      state: string;
+      /**
+       * @example available
+       * @enum {string}
+       */
+      state: "pending" | "available";
       upload: components["schemas"]["UploadFormResponse"];
     };
     UserAvailabilityResponse: {
@@ -6403,6 +8885,904 @@ export interface operations {
       };
     };
   };
+  AttendanceReview_listHolidays_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceHolidayResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_createHoliday_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateHolidayDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceHolidayResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description A holiday is already recorded for that date */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_removeHoliday_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The holiday was removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_updateHoliday_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateHolidayDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceHolidayResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description A holiday is already recorded for that date */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_listWeekdaySchedule_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceWeekdayScheduleResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_createWeekdaySchedule_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateWeekdayScheduleDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceWeekdayScheduleResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description A change for this weekday is already effective from that date */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_listExceptions_v1: {
+    parameters: {
+      query?: {
+        status?: "PENDING" | "APPROVED" | "REJECTED";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceExceptionResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_decideException_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DecideExceptionDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceExceptionResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  KioskSession_searchEmployees_v1: {
+    parameters: {
+      query: {
+        search: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["KioskEmployeeOption"][];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  KioskSession_punch_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["KioskPunchDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["KioskPunchResponse"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  KioskSession_verify_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["KioskVerifyDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["KioskVerifyResponse"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  KioskAdmin_list_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["KioskResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  KioskAdmin_register_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RegisterKioskDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["KioskRegisteredResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  KioskAdmin_revoke_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  MobileAttendance_punch_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MobilePunchDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MobilePunchResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  MobileAttendance_mySessions_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceSessionResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  MobileAttendance_myShifts_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MyShiftResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_listOvertime_v1: {
+    parameters: {
+      query?: {
+        status?: "PENDING" | "APPROVED" | "REJECTED";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OvertimeApprovalResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_decideOvertime_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DecideOvertimeDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["OvertimeApprovalResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_listDetailedSessions_v1: {
+    parameters: {
+      query: {
+        startDate: string;
+        endDate: string;
+        employeeId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceSessionResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  AttendanceReview_summarize_v1: {
+    parameters: {
+      query: {
+        startDate: string;
+        endDate: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AttendanceSummaryResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Auth_login_v1: {
     parameters: {
       query?: never;
@@ -6843,6 +10223,8 @@ export interface operations {
         eventId?: string;
         /** @description Restrict to campaigns whose connected workspace this user manages. */
         managerId?: string;
+        /** @description Restrict to campaigns owned by this department. */
+        departmentId?: string;
         /** @description Case-insensitive match against the campaign name. */
         search?: string;
         /** @description Only campaigns that start at or after this UTC instant. */
@@ -7716,7 +11098,7 @@ export interface operations {
         page?: components["schemas"]["Object"];
         pageSize?: components["schemas"]["Object"];
         type?: "DIRECT" | "GROUP" | "CHANNEL";
-        /** @description Case-insensitive substring match on channel name. */
+        /** @description Case-insensitive substring match on channel name or participant name/email. */
         search?: string;
       };
       header?: never;
@@ -9468,6 +12850,857 @@ export interface operations {
       };
     };
   };
+  Documents_list_v1: {
+    parameters: {
+      query?: {
+        documentType?:
+          | "LETTER"
+          | "REPORT"
+          | "PRICE_QUOTATION"
+          | "CONTRACT"
+          | "INVOICE"
+          | "OTHER";
+        projectId?: string;
+        uploadedById?: string;
+        /** @description Matches display name, original filename, or project name. */
+        search?: string;
+        sort?: "uploadedAt" | "displayName" | "createdAt";
+        order?: "asc" | "desc";
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedDocumentsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Documents_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateDocumentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DocumentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Documents_options_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DocumentOptionsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  DocumentFileManagement_createUploadIntent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        documentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUploadIntentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UploadIntentResponse"];
+        };
+      };
+      /** @description Invalid upload declaration */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside document-management scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Document not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  DocumentFileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        documentId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside document-management scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Document file not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  DocumentFileManagement_finalize_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        documentId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManagedFileResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside document-management scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Document or intent not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Intent expired, upload missing, unsafe, or the document already has a file */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description File scanner unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  DocumentShares_list_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        documentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShareResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  DocumentShares_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        documentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateShareDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShareResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Documents_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DocumentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Documents_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Documents_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateDocumentDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DocumentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Employees_list_v1: {
+    parameters: {
+      query?: {
+        /** @description Matches name, employee ID, email, personal phone, or company phone. */
+        search?: string;
+        departmentId?: string;
+        position?: string;
+        employmentType?: "FULL_TIME" | "PART_TIME" | "CONTRACT" | "INTERN";
+        employmentStatus?: "ACTIVE" | "ON_LEAVE" | "INACTIVE";
+        workLocation?: string;
+        sort?:
+          "name" | "employeeCode" | "employmentDate" | "department" | "status";
+        direction?: "asc" | "desc";
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedEmployeesResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Employees_register_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateEmployeeDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmployeeResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Employees_findLinkableUsers_v1: {
+    parameters: {
+      query?: {
+        search?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LinkableUserOption"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Employees_options_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmployeeOptionsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Employees_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmployeeResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Employees_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateEmployeeDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmployeeResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Employees_updateStatus_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateEmployeeStatusDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EmployeeResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Events_list_v1: {
     parameters: {
       query?: {
@@ -9843,6 +14076,531 @@ export interface operations {
       };
       /** @description File scanner unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_list_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventShiftResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateEventShiftDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventShiftResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_findOne_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        shiftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventShiftResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        shiftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateEventShiftDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventShiftResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_listAssignments_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        shiftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventShiftAssignmentResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_assign_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        shiftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignEmployeeDto"];
+      };
+    };
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_unassign_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        shiftId: string;
+        employeeId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_cancel_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        shiftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ShiftReasonDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventShiftResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_listChanges_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        shiftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventShiftChangeResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_reinstate_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        shiftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ShiftReasonDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventShiftResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  EventShifts_reschedule_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        eventId: string;
+        shiftId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RescheduleEventShiftDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventShiftResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -10916,6 +15674,1180 @@ export interface operations {
       };
     };
   };
+  Leave_balance_v1: {
+    parameters: {
+      query: {
+        employeeId: string;
+        leaveTypeId: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveBalanceResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Leave_calendar_v1: {
+    parameters: {
+      query: {
+        startDate: string;
+        endDate: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveRequestResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Leave_listGrants_v1: {
+    parameters: {
+      query: {
+        employeeId: string;
+        leaveTypeId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveGrantResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Leave_grant_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateLeaveGrantDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveGrantResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Leave_listRequests_v1: {
+    parameters: {
+      query?: {
+        status?:
+          | "PENDING"
+          | "APPROVED"
+          | "REJECTED"
+          | "WITHDRAWN"
+          | "RETURNED_FOR_CHANGES"
+          | "AMENDED";
+        /** @description Restrict to one employee - only meaningful with department/organization visibility. */
+        employeeId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveRequestResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Leave_createRequest_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateLeaveRequestDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveRequestResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Leave_decideRequest_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DecideLeaveRequestDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveRequestResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Leave_withdrawRequest_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveRequestResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  LeaveTypes_list_v1: {
+    parameters: {
+      query?: {
+        includeInactive?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveTypeResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  LeaveTypes_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateLeaveTypeDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveTypeResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  LeaveTypes_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateLeaveTypeDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LeaveTypeResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Letters_list_v1: {
+    parameters: {
+      query?: {
+        direction?: "INCOMING" | "OUTGOING";
+        category?: "CAST" | "PROD" | "MKT" | "PROMO" | "EOM" | "HR" | "OTHER";
+        projectId?: string;
+        /** @description Matches reference number, subject, from/to party, project name, or sender's reference number. */
+        search?: string;
+        sort?: "date" | "referenceNumber" | "subject";
+        order?: "asc" | "desc";
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedLettersResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Letters_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateLetterDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LetterResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Letters_options_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LetterOptionsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Letters_referencePreview_v1: {
+    parameters: {
+      query: {
+        category: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LetterReferencePreviewResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Letters_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LetterResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Letters_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Letters_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateLetterDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LetterResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Letters_listRemarks_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LetterRemarkResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Letters_addRemark_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateLetterRemarkDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LetterRemarkResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  LetterFileManagement_list_v1: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path: {
+        letterId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedManagedFilesResponse"];
+        };
+      };
+      /** @description Invalid pagination query */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside letter-management scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Letter not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  LetterFileManagement_createUploadIntent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        letterId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUploadIntentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UploadIntentResponse"];
+        };
+      };
+      /** @description Invalid upload declaration */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside letter-management scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Letter not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  LetterFileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        letterId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside letter-management scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Letter file not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  LetterFileManagement_finalize_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        letterId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManagedFileResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside letter-management scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Letter or intent not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Intent expired, upload missing, unsafe, or already finalized */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description File scanner unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  LetterShares_list_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        letterId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShareResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  LetterShares_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        letterId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateShareDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShareResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Marketing_get_v1: {
     parameters: {
       query?: never;
@@ -11308,78 +17240,6 @@ export interface operations {
       };
     };
   };
-  GoogleMeet_authorize_v1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["MeetAuthorizeResponse"];
-        };
-      };
-    };
-  };
-  GoogleMeet_callback_v1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  GoogleMeet_disconnect_v1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["MeetDisconnectResponse"];
-        };
-      };
-    };
-  };
-  GoogleMeet_rotate_v1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      204: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
   Meetings_get_v1: {
     parameters: {
       query?: never;
@@ -11398,6 +17258,62 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["MeetingResponse"];
         };
+      };
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Meeting not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Meetings_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Meeting removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Invalid fields, UTC interval, reminder, or venue details */
       400: {
@@ -11496,7 +17412,7 @@ export interface operations {
           "application/json": components["schemas"]["ProblemDetails"];
         };
       };
-      /** @description Meeting is no longer scheduled */
+      /** @description Meeting is cancelled */
       409: {
         headers: {
           [name: string]: unknown;
@@ -11568,7 +17484,7 @@ export interface operations {
       };
     };
   };
-  GoogleMeet_status_v1: {
+  Meetings_getJitsiSession_v1: {
     parameters: {
       query?: never;
       header?: never;
@@ -11584,49 +17500,52 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["MeetStatusResponse"];
+          "application/json": components["schemas"]["MeetingJitsiSessionResponse"];
         };
       };
-    };
-  };
-  GoogleMeet_sync_v1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
+      /** @description Invalid fields, UTC interval, reminder, or venue details */
+      400: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["MeetStatusResponse"];
+          "application/json": components["schemas"]["ProblemDetails"];
         };
       };
-    };
-  };
-  GoogleMeet_cleanup_v1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
+      /** @description Not authenticated */
+      401: {
         headers: {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["MeetStatusResponse"];
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Meeting not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The meeting is physical and has no video room, or video conferencing is not configured */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
         };
       };
     };
@@ -12184,6 +18103,62 @@ export interface operations {
       };
     };
   };
+  Notifications_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Notification removed */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid notification id */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description No notification exists with that id for the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Notifications_markRead_v1: {
     parameters: {
       query?: never;
@@ -12222,6 +18197,317 @@ export interface operations {
         };
       };
       /** @description No notification exists with that id for the caller */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Partners_list_v1: {
+    parameters: {
+      query?: {
+        status?:
+          | "PROSPECTIVE"
+          | "IN_DISCUSSION"
+          | "COMMITTED"
+          | "DECLINED"
+          | "COMPLETED";
+        /** @description Restrict to partners owned by this department. */
+        departmentId?: string;
+        /** @description Restrict to partners linked to this campaign. */
+        campaignId?: string;
+        /** @description Restrict to partners linked to this event. */
+        eventId?: string;
+        /** @description Restrict to partners owned by this user. */
+        ownerId?: string;
+        /** @description Case-insensitive match against the organization name. */
+        search?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedPartnersResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Partners_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreatePartnerDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PartnerResponse"];
+        };
+      };
+      /** @description Invalid input, or the owner is outside the department */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The department, campaign, or event does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Partners_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PartnerResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Partners_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdatePartnerDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PartnerResponse"];
+        };
+      };
+      /** @description Invalid input, or the owner is outside the department */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Partners_listActivities_v1: {
+    parameters: {
+      query?: {
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedPartnerActivitiesResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Partners_createActivity_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreatePartnerActivityDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PartnerActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
       404: {
         headers: {
           [name: string]: unknown;
@@ -15265,6 +21551,424 @@ export interface operations {
       };
     };
   };
+  SharedRecords_listDocuments_v1: {
+    parameters: {
+      query?: {
+        documentType?:
+          | "LETTER"
+          | "REPORT"
+          | "PRICE_QUOTATION"
+          | "CONTRACT"
+          | "INVOICE"
+          | "OTHER";
+        projectId?: string;
+        uploadedById?: string;
+        /** @description Matches display name, original filename, or project name. */
+        search?: string;
+        sort?: "uploadedAt" | "displayName" | "createdAt";
+        order?: "asc" | "desc";
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedSharedDocumentsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SharedDocumentFileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        documentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not found, or the share does not permit downloading */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SharedRecords_getDocument_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SharedDocumentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SharedRecords_listLetters_v1: {
+    parameters: {
+      query?: {
+        direction?: "INCOMING" | "OUTGOING";
+        category?: "CAST" | "PROD" | "MKT" | "PROMO" | "EOM" | "HR" | "OTHER";
+        projectId?: string;
+        /** @description Matches reference number, subject, from/to party, project name, or sender's reference number. */
+        search?: string;
+        sort?: "date" | "referenceNumber" | "subject";
+        order?: "asc" | "desc";
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedSharedLettersResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SharedRecords_getLetter_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SharedLetterResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SharedLetterFileManagement_list_v1: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path: {
+        letterId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedManagedFilesResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SharedLetterFileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        letterId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not found, or the share does not permit downloading */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Shares_revoke_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Already revoked */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Sharing_recipients_v1: {
+    parameters: {
+      query?: {
+        /** @description Matches name or email. Empty returns the first page alphabetically. */
+        search?: string;
+        limit?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ShareRecipientOption"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Suppliers_list_v1: {
     parameters: {
       query?: {
@@ -15987,6 +22691,10 @@ export interface operations {
         workspaceId?: string;
         departmentId?: string;
         assigneeId?: string;
+        /** @description Only tasks created by this user ("Created by Me"). */
+        createdById?: string;
+        /** @description Only subtasks created from this higher-level task. */
+        parentTaskId?: string;
         search?: string;
         scheduledFrom?: string;
         scheduledTo?: string;
@@ -16458,6 +23166,359 @@ export interface operations {
       };
     };
   };
+  Tasks_listChecklistItems_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskChecklistItemResponse"][];
+        };
+      };
+      /** @description Invalid request fields, owner, progress, or schedule */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Task not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Tasks_addChecklistItem_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTaskChecklistItemDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskChecklistItemResponse"];
+        };
+      };
+      /** @description Invalid request fields, owner, progress, or schedule */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Task not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Tasks_reorderChecklistItems_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReorderTaskChecklistItemsDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskChecklistItemResponse"][];
+        };
+      };
+      /** @description The id list did not exactly match the task's current items */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Task not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Tasks_removeChecklistItem_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        itemId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Invalid request fields, owner, progress, or schedule */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Task or checklist item not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Tasks_updateChecklistItem_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        itemId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTaskChecklistItemDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskChecklistItemResponse"];
+        };
+      };
+      /** @description Invalid request fields, owner, progress, or schedule */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Task or checklist item not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Tasks_toggleChecklistItem_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        itemId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ToggleTaskChecklistItemDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskResponse"];
+        };
+      };
+      /** @description Invalid request fields, owner, progress, or schedule */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Task or checklist item not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Tasks_listComments_v1: {
     parameters: {
       query?: {
@@ -16569,67 +23630,6 @@ export interface operations {
         };
       };
       /** @description Task or mentioned user not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProblemDetails"];
-        };
-      };
-    };
-  };
-  Tasks_updateProgress_v1: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["UpdateTaskProgressDto"];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TaskResponse"];
-        };
-      };
-      /** @description Invalid request fields, owner, progress, or schedule */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProblemDetails"];
-        };
-      };
-      /** @description Not authenticated */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProblemDetails"];
-        };
-      };
-      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProblemDetails"];
-        };
-      };
-      /** @description Task not found */
       404: {
         headers: {
           [name: string]: unknown;

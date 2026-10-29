@@ -26,7 +26,7 @@ export class ManagedFileResponse {
   @ApiProperty({ example: 1048576 })
   sizeBytes!: number;
 
-  @ApiProperty({ example: "available" })
+  @ApiProperty({ enum: ["pending", "available"], example: "available" })
   state!: "pending" | "available";
 
   @ApiProperty({ format: "date-time" })
