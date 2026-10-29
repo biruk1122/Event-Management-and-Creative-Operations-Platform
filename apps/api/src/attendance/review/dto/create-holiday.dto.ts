@@ -1,5 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsDateString, IsString, Matches, MaxLength, MinLength } from "class-validator";
+import {
+  IsDateString,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
 const NOT_BLANK = /\S/;
 

@@ -23,7 +23,11 @@ export function readKioskCredentials(): KioskCredentials | null {
       typeof parsed.token === "string" &&
       typeof parsed.kioskName === "string"
     ) {
-      return { kioskId: parsed.kioskId, token: parsed.token, kioskName: parsed.kioskName };
+      return {
+        kioskId: parsed.kioskId,
+        token: parsed.token,
+        kioskName: parsed.kioskName,
+      };
     }
     return null;
   } catch {
@@ -57,7 +61,10 @@ export const kioskApi = createApiClient({
   getHeaders: () => {
     const credentials = readKioskCredentials();
     return credentials
-      ? { "x-kiosk-id": credentials.kioskId, "x-kiosk-token": credentials.token }
+      ? {
+          "x-kiosk-id": credentials.kioskId,
+          "x-kiosk-token": credentials.token,
+        }
       : {};
   },
 });

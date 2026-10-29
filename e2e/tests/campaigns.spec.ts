@@ -537,12 +537,14 @@ test.describe("Campaign platform — end to end", () => {
   });
 
   test.describe("denied journey", () => {
-    // A Department Manager holds campaign.read at DEPARTMENT scope only.
-    // Campaign reads are organization-scoped, so the surface is fully
-    // denied.
-    test.use({ storageState: authStatePath("deptManager") });
+    // A Department Manager now holds campaign.read/create/update at
+    // DEPARTMENT scope (Marketing department management) - that is a real,
+    // intentional capability, not something to deny here. An ordinary
+    // Department Member holds no campaign.* grant at any scope, so they are
+    // the account that is genuinely, fully denied.
+    test.use({ storageState: authStatePath("member") });
 
-    test("a department-scoped account cannot see, open, or drive campaign management", async ({
+    test("a Department Member with no campaign grant cannot see, open, or drive campaign management", async ({
       page,
     }) => {
       await page.goto("/");

@@ -57,10 +57,13 @@ function headers() {
 // -------------------------------------------------------------------
 
 export async function listMyShifts(signal?: AbortSignal): Promise<MyShift[]> {
-  const { data, response } = await browserApi.GET("/api/v1/attendance/mobile/shifts", {
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data, response } = await browserApi.GET(
+    "/api/v1/attendance/mobile/shifts",
+    {
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
   if (!data) throw new AttendanceRequestError(response.status);
   return data;
 }
@@ -68,10 +71,13 @@ export async function listMyShifts(signal?: AbortSignal): Promise<MyShift[]> {
 export async function listMySessions(
   signal?: AbortSignal,
 ): Promise<AttendanceSession[]> {
-  const { data, response } = await browserApi.GET("/api/v1/attendance/mobile/sessions", {
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data, response } = await browserApi.GET(
+    "/api/v1/attendance/mobile/sessions",
+    {
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
   if (!data) throw new AttendanceRequestError(response.status);
   return data;
 }
@@ -174,7 +180,11 @@ export async function listEventShifts(
 ): Promise<EventShift[]> {
   const { data, response } = await browserApi.GET(
     "/api/v1/events/{eventId}/shifts",
-    { params: { path: { eventId } }, ...(signal ? { signal } : {}), cache: "no-store" },
+    {
+      params: { path: { eventId } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
   );
   if (!data) throw new AttendanceRequestError(response.status);
   return data;
@@ -228,7 +238,9 @@ function shiftBody(values: ShiftFormValues) {
     ...(values.geofenceRadiusMeters
       ? { geofenceRadiusMeters: Number(values.geofenceRadiusMeters) }
       : {}),
-    ...(values.breakMinutes ? { breakMinutes: Number(values.breakMinutes) } : {}),
+    ...(values.breakMinutes
+      ? { breakMinutes: Number(values.breakMinutes) }
+      : {}),
   };
 }
 
@@ -255,15 +267,19 @@ function shiftFailure(
         message: error.detail ?? "That schedule is not valid.",
       };
     }
-    if (error.code === "ATTENDANCE_EVENT_NOT_FOUND") return { status: "event_not_found" };
-    if (error.code === "ATTENDANCE_SHIFT_NOT_FOUND") return { status: "shift_not_found" };
+    if (error.code === "ATTENDANCE_EVENT_NOT_FOUND")
+      return { status: "event_not_found" };
+    if (error.code === "ATTENDANCE_SHIFT_NOT_FOUND")
+      return { status: "shift_not_found" };
     if (error.code === "ATTENDANCE_SHIFT_NOT_AVAILABLE")
       return { status: "shift_not_available" };
     if (error.code === "ATTENDANCE_SHIFT_NOT_CANCELLED")
       return { status: "shift_not_cancelled" };
     if (error.code === "VALIDATION_ERROR") {
       const fields = (error.errors ?? {}) as Record<string, string | string[]>;
-      const fieldErrors: Partial<Record<(typeof SHIFT_FIELD_KEYS)[number], string>> = {};
+      const fieldErrors: Partial<
+        Record<(typeof SHIFT_FIELD_KEYS)[number], string>
+      > = {};
       for (const key of SHIFT_FIELD_KEYS) {
         const value = fields[key];
         if (typeof value === "string") fieldErrors[key] = value;
@@ -379,7 +395,8 @@ function assignmentFailure(
   if (isProblemDetails(error)) {
     if (error.code === "ATTENDANCE_EMPLOYEE_NOT_FOUND")
       return { status: "employee_not_found" };
-    if (error.code === "ATTENDANCE_LEAVE_CONFLICT") return { status: "leave_conflict" };
+    if (error.code === "ATTENDANCE_LEAVE_CONFLICT")
+      return { status: "leave_conflict" };
     if (error.code === "ATTENDANCE_ASSIGNMENT_NOT_FOUND")
       return { status: "assignment_not_found" };
   }
@@ -395,7 +412,11 @@ export async function assignEmployeeToShift(
   try {
     const { error, response } = await browserApi.POST(
       "/api/v1/events/{eventId}/shifts/{shiftId}/assignments",
-      { params: { path: { eventId, shiftId } }, body: { employeeId }, headers: headers() },
+      {
+        params: { path: { eventId, shiftId } },
+        body: { employeeId },
+        headers: headers(),
+      },
     );
     if (response.status === 204) return { status: "success" };
     return assignmentFailure(error, response.status);
@@ -412,7 +433,10 @@ export async function unassignEmployeeFromShift(
   try {
     const { error, response } = await browserApi.DELETE(
       "/api/v1/events/{eventId}/shifts/{shiftId}/assignments/{employeeId}",
-      { params: { path: { eventId, shiftId, employeeId } }, headers: headers() },
+      {
+        params: { path: { eventId, shiftId, employeeId } },
+        headers: headers(),
+      },
     );
     if (response.status === 204) return { status: "success" };
     return assignmentFailure(error, response.status);
@@ -429,11 +453,14 @@ export async function listOvertime(
   status?: OvertimeApproval["status"],
   signal?: AbortSignal,
 ): Promise<OvertimeApproval[]> {
-  const { data, response } = await browserApi.GET("/api/v1/attendance/overtime", {
-    params: { query: status ? { status } : {} },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data, response } = await browserApi.GET(
+    "/api/v1/attendance/overtime",
+    {
+      params: { query: status ? { status } : {} },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
   if (!data) throw new AttendanceRequestError(response.status);
   return data;
 }
@@ -447,7 +474,8 @@ function decideOvertimeFailure(
       return { status: "self_approval_forbidden" };
     if (error.code === "ATTENDANCE_OVERTIME_ALREADY_DECIDED")
       return { status: "already_decided" };
-    if (error.code === "ATTENDANCE_OVERTIME_NOT_FOUND") return { status: "not_found" };
+    if (error.code === "ATTENDANCE_OVERTIME_NOT_FOUND")
+      return { status: "not_found" };
   }
   if (status === 401 || status === 403) return { status: "permission_denied" };
   return { status: "unexpected" };
@@ -486,11 +514,14 @@ export async function listExceptions(
   status?: AttendanceException["status"],
   signal?: AbortSignal,
 ): Promise<AttendanceException[]> {
-  const { data, response } = await browserApi.GET("/api/v1/attendance/exceptions", {
-    params: { query: status ? { status } : {} },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data, response } = await browserApi.GET(
+    "/api/v1/attendance/exceptions",
+    {
+      params: { query: status ? { status } : {} },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
   if (!data) throw new AttendanceRequestError(response.status);
   return data;
 }
@@ -504,7 +535,8 @@ function decideExceptionFailure(
       return { status: "self_approval_forbidden" };
     if (error.code === "ATTENDANCE_EXCEPTION_ALREADY_DECIDED")
       return { status: "already_decided" };
-    if (error.code === "ATTENDANCE_EXCEPTION_NOT_FOUND") return { status: "not_found" };
+    if (error.code === "ATTENDANCE_EXCEPTION_NOT_FOUND")
+      return { status: "not_found" };
   }
   if (status === 401 || status === 403) return { status: "permission_denied" };
   return { status: "unexpected" };
@@ -552,7 +584,10 @@ export async function registerKiosk(
   try {
     const { data, error, response } = await browserApi.POST(
       "/api/v1/attendance/kiosks",
-      { body: { name: name.trim(), locationLabel: locationLabel.trim() }, headers: headers() },
+      {
+        body: { name: name.trim(), locationLabel: locationLabel.trim() },
+        headers: headers(),
+      },
     );
     if (data) return { status: "success", kiosk: data };
     if (isProblemDetails(error) && error.code === "VALIDATION_ERROR") {
@@ -580,12 +615,18 @@ export async function registerKiosk(
 
 export async function revokeKiosk(id: string): Promise<RevokeKioskOutcome> {
   try {
-    const { error, response } = await browserApi.DELETE("/api/v1/attendance/kiosks/{id}", {
-      params: { path: { id } },
-      headers: headers(),
-    });
+    const { error, response } = await browserApi.DELETE(
+      "/api/v1/attendance/kiosks/{id}",
+      {
+        params: { path: { id } },
+        headers: headers(),
+      },
+    );
     if (response.status === 204) return { status: "success" };
-    if (isProblemDetails(error) && error.code === "ATTENDANCE_KIOSK_NOT_FOUND") {
+    if (
+      isProblemDetails(error) &&
+      error.code === "ATTENDANCE_KIOSK_NOT_FOUND"
+    ) {
       return { status: "not_found" };
     }
     if (response.status === 401 || response.status === 403) {
@@ -602,11 +643,14 @@ export async function getSummaryReport(
   endDate: string,
   signal?: AbortSignal,
 ): Promise<AttendanceSummary[]> {
-  const { data, response } = await browserApi.GET("/api/v1/attendance/reports/summary", {
-    params: { query: { startDate, endDate } },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data, response } = await browserApi.GET(
+    "/api/v1/attendance/reports/summary",
+    {
+      params: { query: { startDate, endDate } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
   if (!data) throw new AttendanceRequestError(response.status);
   return data;
 }
@@ -621,11 +665,16 @@ export async function getDetailedSessions(
   employeeId?: string,
   signal?: AbortSignal,
 ): Promise<AttendanceSession[]> {
-  const { data, response } = await browserApi.GET("/api/v1/attendance/reports/sessions", {
-    params: { query: { startDate, endDate, ...(employeeId ? { employeeId } : {}) } },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data, response } = await browserApi.GET(
+    "/api/v1/attendance/reports/sessions",
+    {
+      params: {
+        query: { startDate, endDate, ...(employeeId ? { employeeId } : {}) },
+      },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
   if (!data) throw new AttendanceRequestError(response.status);
   return data;
 }
@@ -651,10 +700,13 @@ function weekdayScheduleFailure(
   status: number,
 ): Exclude<CreateWeekdayScheduleOutcome, { status: "success" }> {
   if (isProblemDetails(error)) {
-    if (error.code === "ATTENDANCE_WEEKDAY_SCHEDULE_CONFLICT") return { status: "conflict" };
+    if (error.code === "ATTENDANCE_WEEKDAY_SCHEDULE_CONFLICT")
+      return { status: "conflict" };
     if (error.code === "VALIDATION_ERROR") {
       const fields = (error.errors ?? {}) as Record<string, string | string[]>;
-      const fieldErrors: Partial<Record<keyof WeekdayScheduleFormValues, string>> = {};
+      const fieldErrors: Partial<
+        Record<keyof WeekdayScheduleFormValues, string>
+      > = {};
       for (const key of ["dayOfWeek", "type", "effectiveFrom"] as const) {
         const value = fields[key];
         if (typeof value === "string") fieldErrors[key] = value;
@@ -699,7 +751,8 @@ export async function listHolidays(signal?: AbortSignal): Promise<Holiday[]> {
 function holidayFieldErrors(
   error: unknown,
 ): Partial<Record<keyof HolidayFormValues, string>> | null {
-  if (!isProblemDetails(error) || error.code !== "VALIDATION_ERROR") return null;
+  if (!isProblemDetails(error) || error.code !== "VALIDATION_ERROR")
+    return null;
   const fields = (error.errors ?? {}) as Record<string, string | string[]>;
   const fieldErrors: Partial<Record<keyof HolidayFormValues, string>> = {};
   for (const key of ["date", "name"] as const) {
@@ -718,10 +771,16 @@ export async function createHoliday(
   try {
     const { data, error, response } = await browserApi.POST(
       "/api/v1/attendance/calendar/holidays",
-      { body: { date: values.date, name: values.name.trim() }, headers: headers() },
+      {
+        body: { date: values.date, name: values.name.trim() },
+        headers: headers(),
+      },
     );
     if (data) return { status: "success", item: data };
-    if (isProblemDetails(error) && error.code === "ATTENDANCE_HOLIDAY_DATE_TAKEN") {
+    if (
+      isProblemDetails(error) &&
+      error.code === "ATTENDANCE_HOLIDAY_DATE_TAKEN"
+    ) {
       return { status: "date_taken" };
     }
     const fieldErrors = holidayFieldErrors(error);
@@ -753,8 +812,10 @@ export async function updateHoliday(
     );
     if (data) return { status: "success", item: data };
     if (isProblemDetails(error)) {
-      if (error.code === "ATTENDANCE_HOLIDAY_DATE_TAKEN") return { status: "date_taken" };
-      if (error.code === "ATTENDANCE_HOLIDAY_NOT_FOUND") return { status: "not_found" };
+      if (error.code === "ATTENDANCE_HOLIDAY_DATE_TAKEN")
+        return { status: "date_taken" };
+      if (error.code === "ATTENDANCE_HOLIDAY_NOT_FOUND")
+        return { status: "not_found" };
     }
     const fieldErrors = holidayFieldErrors(error);
     if (fieldErrors) return { status: "field_errors", fieldErrors };
@@ -774,7 +835,10 @@ export async function removeHoliday(id: string): Promise<RemoveHolidayOutcome> {
       { params: { path: { id } }, headers: headers() },
     );
     if (response.status === 204) return { status: "success" };
-    if (isProblemDetails(error) && error.code === "ATTENDANCE_HOLIDAY_NOT_FOUND") {
+    if (
+      isProblemDetails(error) &&
+      error.code === "ATTENDANCE_HOLIDAY_NOT_FOUND"
+    ) {
       return { status: "not_found" };
     }
     if (response.status === 401 || response.status === 403) {

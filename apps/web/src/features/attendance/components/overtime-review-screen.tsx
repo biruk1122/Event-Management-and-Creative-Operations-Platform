@@ -35,5 +35,7 @@ export function OvertimeReviewScreen() {
     );
   if (!attendanceAbilities(access.data).canReviewOvertime)
     return <p role="alert">You do not have access to overtime review.</p>;
-  return <OvertimeReviewManager key={access.data.userId} access={access.data} />;
+  return (
+    <OvertimeReviewManager key={access.data.userId} access={access.data} />
+  );
 }

@@ -57,7 +57,13 @@ export class MobileAttendanceRepository {
         employeeId,
         unassignedAt: null,
         eventShift: {
-          status: { in: [EventShiftStatus.PLANNED, EventShiftStatus.CONFIRMED, EventShiftStatus.IN_PROGRESS] },
+          status: {
+            in: [
+              EventShiftStatus.PLANNED,
+              EventShiftStatus.CONFIRMED,
+              EventShiftStatus.IN_PROGRESS,
+            ],
+          },
         },
       },
       select: { eventShift: { select: SHIFT_SELECT } },

@@ -13,7 +13,11 @@ import {
 } from "@/components/ui/select";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
-import { useAssignableEvents, useEventShifts, useShiftMutations } from "../api/attendance-queries";
+import {
+  useAssignableEvents,
+  useEventShifts,
+  useShiftMutations,
+} from "../api/attendance-queries";
 import { AttendanceRequestError } from "../api/attendance-gateway";
 import { formatDateTime } from "../lib/attendance-date";
 import { SHIFT_STATUS_LABELS } from "../lib/attendance-types";
@@ -35,13 +39,19 @@ export function ShiftScheduleManager({ access }: ShiftScheduleManagerProps) {
   const mutations = useShiftMutations(access, eventId);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [rescheduleTarget, setRescheduleTarget] = useState<EventShift | null>(null);
-  const [reasonTarget, setReasonTarget] = useState<
-    { mode: "cancel" | "reinstate"; shift: EventShift } | null
-  >(null);
-  const [assignmentTarget, setAssignmentTarget] = useState<EventShift | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<EventShift | null>(
+    null,
+  );
+  const [reasonTarget, setReasonTarget] = useState<{
+    mode: "cancel" | "reinstate";
+    shift: EventShift;
+  } | null>(null);
+  const [assignmentTarget, setAssignmentTarget] = useState<EventShift | null>(
+    null,
+  );
 
-  const selectedEvent = (events.data ?? []).find((event) => event.id === eventId) ?? null;
+  const selectedEvent =
+    (events.data ?? []).find((event) => event.id === eventId) ?? null;
 
   return (
     <div className="space-y-6">
@@ -87,7 +97,9 @@ export function ShiftScheduleManager({ access }: ShiftScheduleManagerProps) {
             <Button onClick={() => setCreateOpen(true)}>New shift</Button>
           </div>
           {(shifts.data ?? []).length === 0 ? (
-            <p className="text-muted-foreground text-sm">No shifts scheduled yet.</p>
+            <p className="text-muted-foreground text-sm">
+              No shifts scheduled yet.
+            </p>
           ) : (
             <ul className="space-y-2">
               {(shifts.data ?? []).map((shift) => (
@@ -114,7 +126,8 @@ export function ShiftScheduleManager({ access }: ShiftScheduleManagerProps) {
                       >
                         Assignments
                       </Button>
-                      {shift.status !== "CANCELLED" && shift.status !== "COMPLETED" ? (
+                      {shift.status !== "CANCELLED" &&
+                      shift.status !== "COMPLETED" ? (
                         <>
                           <Button
                             variant="outline"
@@ -126,7 +139,9 @@ export function ShiftScheduleManager({ access }: ShiftScheduleManagerProps) {
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => setReasonTarget({ mode: "cancel", shift })}
+                            onClick={() =>
+                              setReasonTarget({ mode: "cancel", shift })
+                            }
                           >
                             Cancel
                           </Button>
@@ -135,7 +150,9 @@ export function ShiftScheduleManager({ access }: ShiftScheduleManagerProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setReasonTarget({ mode: "reinstate", shift })}
+                          onClick={() =>
+                            setReasonTarget({ mode: "reinstate", shift })
+                          }
                         >
                           Reinstate
                         </Button>
@@ -162,7 +179,10 @@ export function ShiftScheduleManager({ access }: ShiftScheduleManagerProps) {
           if (!open) setRescheduleTarget(null);
         }}
         onReschedule={(input) =>
-          mutations.reschedule.mutateAsync({ shiftId: rescheduleTarget!.id, input })
+          mutations.reschedule.mutateAsync({
+            shiftId: rescheduleTarget!.id,
+            input,
+          })
         }
         onRescheduled={() => undefined}
       />
@@ -175,8 +195,14 @@ export function ShiftScheduleManager({ access }: ShiftScheduleManagerProps) {
         }}
         onSubmit={(reason) =>
           reasonTarget!.mode === "cancel"
-            ? mutations.cancel.mutateAsync({ shiftId: reasonTarget!.shift.id, reason })
-            : mutations.reinstate.mutateAsync({ shiftId: reasonTarget!.shift.id, reason })
+            ? mutations.cancel.mutateAsync({
+                shiftId: reasonTarget!.shift.id,
+                reason,
+              })
+            : mutations.reinstate.mutateAsync({
+                shiftId: reasonTarget!.shift.id,
+                reason,
+              })
         }
         onDone={() => undefined}
       />

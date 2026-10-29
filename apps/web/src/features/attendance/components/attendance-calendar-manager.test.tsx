@@ -27,11 +27,17 @@ vi.mock("@/env/client", () => ({
 const access: CurrentAccess = {
   userId: "admin-1",
   department: null,
-  grants: [{ permissionKey: "attendance.calendar.manage", scope: "ORGANIZATION" }],
+  grants: [
+    { permissionKey: "attendance.calendar.manage", scope: "ORGANIZATION" },
+  ],
 };
 
 function weekdays(): WeekdaySchedule[] {
-  const defaults: { dayOfWeek: number; dayName: string; type: WeekdaySchedule["type"] }[] = [
+  const defaults: {
+    dayOfWeek: number;
+    dayName: string;
+    type: WeekdaySchedule["type"];
+  }[] = [
     { dayOfWeek: 0, dayName: "Sunday", type: "OFF" },
     { dayOfWeek: 1, dayName: "Monday", type: "FULL" },
     { dayOfWeek: 2, dayName: "Tuesday", type: "FULL" },
@@ -57,7 +63,9 @@ function holiday(overrides: Partial<Holiday> = {}): Holiday {
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } });
 
 function mockGetRoutes(routes: Record<string, unknown>) {
-  get.mockImplementation((path: string) => Promise.resolve(ok(routes[path] ?? [])));
+  get.mockImplementation((path: string) =>
+    Promise.resolve(ok(routes[path] ?? [])),
+  );
 }
 
 afterEach(() => vi.resetAllMocks());
@@ -96,7 +104,12 @@ describe("AttendanceCalendarManager", () => {
       "/api/v1/attendance/calendar/holidays": [],
     });
     post.mockResolvedValue(
-      ok({ dayOfWeek: 6, dayName: "Saturday", type: "OFF", effectiveFrom: "2027-03-01" }),
+      ok({
+        dayOfWeek: 6,
+        dayName: "Saturday",
+        type: "OFF",
+        effectiveFrom: "2027-03-01",
+      }),
     );
     const { user } = setup();
 
@@ -149,7 +162,9 @@ describe("AttendanceCalendarManager", () => {
       "/api/v1/attendance/calendar/weekdays": weekdays(),
       "/api/v1/attendance/calendar/holidays": [],
     });
-    post.mockResolvedValue(ok(holiday({ id: "holiday-2", name: "Labour Day", date: "2027-05-01" })));
+    post.mockResolvedValue(
+      ok(holiday({ id: "holiday-2", name: "Labour Day", date: "2027-05-01" })),
+    );
     const { user } = setup();
 
     await screen.findByText("No holidays recorded yet.");
@@ -160,7 +175,9 @@ describe("AttendanceCalendarManager", () => {
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
         "/api/v1/attendance/calendar/holidays",
-        expect.objectContaining({ body: { date: "2027-05-01", name: "Labour Day" } }),
+        expect.objectContaining({
+          body: { date: "2027-05-01", name: "Labour Day" },
+        }),
       ),
     );
     await waitFor(() => expect(screen.getByLabelText("Name")).toHaveValue(""));
@@ -194,7 +211,11 @@ describe("AttendanceCalendarManager", () => {
       "/api/v1/attendance/calendar/holidays": [holiday()],
     });
     patch.mockResolvedValue(ok(holiday({ name: "Christmas Day" })));
-    del.mockResolvedValue({ data: undefined, error: undefined, response: { ok: true, status: 204 } });
+    del.mockResolvedValue({
+      data: undefined,
+      error: undefined,
+      response: { ok: true, status: 204 },
+    });
     const { user } = setup();
 
     await screen.findByText("Christmas");

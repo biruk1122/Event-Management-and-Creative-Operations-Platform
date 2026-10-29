@@ -17,14 +17,17 @@ import type { LeaveRequestStatus } from "../lib/leave-types";
  * grants, matching `attendanceKeys`'s own convention. */
 export function leaveKeys(access: CurrentAccess) {
   const scope = [
-    ...new Set(access.grants.map((grant) => `${grant.permissionKey}:${grant.scope}`)),
+    ...new Set(
+      access.grants.map((grant) => `${grant.permissionKey}:${grant.scope}`),
+    ),
   ]
     .sort()
     .join(",");
   const all = ["leave", access.userId, scope] as const;
   return {
     all,
-    types: (includeInactive: boolean) => [...all, "types", includeInactive] as const,
+    types: (includeInactive: boolean) =>
+      [...all, "types", includeInactive] as const,
     eligibleEmployees: (departmentId: string) =>
       [...all, "eligible-employees", departmentId] as const,
     grants: (employeeId: string, leaveTypeId?: string) =>
@@ -32,7 +35,12 @@ export function leaveKeys(access: CurrentAccess) {
     balance: (employeeId: string, leaveTypeId: string) =>
       [...all, "balance", employeeId, leaveTypeId] as const,
     requests: (status?: string, employeeId?: string) =>
-      [...all, "requests", status ?? "ALL", employeeId ?? "SELF_OR_VISIBLE"] as const,
+      [
+        ...all,
+        "requests",
+        status ?? "ALL",
+        employeeId ?? "SELF_OR_VISIBLE",
+      ] as const,
     calendar: (startDate: string, endDate: string) =>
       [...all, "calendar", startDate, endDate] as const,
   };
@@ -54,21 +62,31 @@ export function useLeaveTypeMutations(access: CurrentAccess) {
   };
   return {
     create: useMutation({
-      mutationFn: (values: LeaveTypeFormValues) => gateway.createLeaveType(values),
+      mutationFn: (values: LeaveTypeFormValues) =>
+        gateway.createLeaveType(values),
       onSettled: reconcile,
     }),
     update: useMutation({
-      mutationFn: ({ id, values }: { id: string; values: UpdateLeaveTypeFormValues }) =>
-        gateway.updateLeaveType(id, values),
+      mutationFn: ({
+        id,
+        values,
+      }: {
+        id: string;
+        values: UpdateLeaveTypeFormValues;
+      }) => gateway.updateLeaveType(id, values),
       onSettled: reconcile,
     }),
   };
 }
 
-export function useEligibleEmployees(access: CurrentAccess, departmentId: string | null) {
+export function useEligibleEmployees(
+  access: CurrentAccess,
+  departmentId: string | null,
+) {
   return useQuery({
     queryKey: leaveKeys(access).eligibleEmployees(departmentId ?? "none"),
-    queryFn: ({ signal }) => gateway.listEligibleEmployees(departmentId!, signal),
+    queryFn: ({ signal }) =>
+      gateway.listEligibleEmployees(departmentId!, signal),
     enabled: departmentId !== null,
     retry: false,
     staleTime: 30_000,
@@ -90,18 +108,26 @@ export function useBalance(
   leaveTypeId: string | null,
 ) {
   return useQuery({
-    queryKey: leaveKeys(access).balance(employeeId ?? "none", leaveTypeId ?? "none"),
-    queryFn: ({ signal }) => gateway.getBalance(employeeId!, leaveTypeId!, signal),
+    queryKey: leaveKeys(access).balance(
+      employeeId ?? "none",
+      leaveTypeId ?? "none",
+    ),
+    queryFn: ({ signal }) =>
+      gateway.getBalance(employeeId!, leaveTypeId!, signal),
     enabled: employeeId !== null && leaveTypeId !== null,
     retry: false,
   });
 }
 
-export function useGrantMutation(access: CurrentAccess, employeeId: string | null) {
+export function useGrantMutation(
+  access: CurrentAccess,
+  employeeId: string | null,
+) {
   const client = useQueryClient();
   const keys = leaveKeys(access);
   return useMutation({
-    mutationFn: (values: LeaveGrantFormValues) => gateway.createGrant(employeeId!, values),
+    mutationFn: (values: LeaveGrantFormValues) =>
+      gateway.createGrant(employeeId!, values),
     onSettled: async () => {
       if (!employeeId) return;
       await client.invalidateQueries({ queryKey: keys.grants(employeeId) });
@@ -125,7 +151,8 @@ export function useCreateRequestMutation(access: CurrentAccess) {
   const client = useQueryClient();
   const keys = leaveKeys(access);
   return useMutation({
-    mutationFn: (values: LeaveRequestFormValues) => gateway.createRequest(values),
+    mutationFn: (values: LeaveRequestFormValues) =>
+      gateway.createRequest(values),
     onSettled: async () => {
       await client.invalidateQueries({ queryKey: [...keys.all, "requests"] });
       await client.invalidateQueries({ queryKey: [...keys.all, "balance"] });
@@ -166,7 +193,11 @@ export function useDecideRequestMutation(access: CurrentAccess) {
   });
 }
 
-export function useLeaveCalendar(access: CurrentAccess, startDate: string, endDate: string) {
+export function useLeaveCalendar(
+  access: CurrentAccess,
+  startDate: string,
+  endDate: string,
+) {
   return useQuery({
     queryKey: leaveKeys(access).calendar(startDate, endDate),
     queryFn: ({ signal }) => gateway.calendar(startDate, endDate, signal),

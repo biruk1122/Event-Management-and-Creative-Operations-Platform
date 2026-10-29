@@ -42,7 +42,9 @@ export function LeaveManager({ access }: LeaveManagerProps) {
   const withdrawMutation = useWithdrawRequestMutation(access);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(
+    null,
+  );
 
   async function handleWithdraw(request: LeaveRequest) {
     setMessage(null);
@@ -81,7 +83,10 @@ export function LeaveManager({ access }: LeaveManagerProps) {
   return (
     <div className="space-y-6">
       {message ? (
-        <Alert variant={message.ok ? "default" : "destructive"} aria-live="assertive">
+        <Alert
+          variant={message.ok ? "default" : "destructive"}
+          aria-live="assertive"
+        >
           <AlertTitle>{message.text}</AlertTitle>
         </Alert>
       ) : null}
@@ -110,7 +115,9 @@ export function LeaveManager({ access }: LeaveManagerProps) {
         </div>
 
         {effectiveTypeId === null ? (
-          <p className="text-muted-foreground text-sm">No leave types are configured yet.</p>
+          <p className="text-muted-foreground text-sm">
+            No leave types are configured yet.
+          </p>
         ) : balance.isPending ? (
           <p role="status">Loading balance…</p>
         ) : balance.isError ? (
@@ -122,11 +129,13 @@ export function LeaveManager({ access }: LeaveManagerProps) {
         ) : (
           <div className="rounded-xl border p-4">
             <p className="text-2xl font-semibold">
-              {balance.data!.totalRemaining} day{balance.data!.totalRemaining === 1 ? "" : "s"}{" "}
-              remaining
+              {balance.data!.totalRemaining} day
+              {balance.data!.totalRemaining === 1 ? "" : "s"} remaining
             </p>
             {balance.data!.grants.length === 0 ? (
-              <p className="text-muted-foreground mt-2 text-sm">No grants for this type yet.</p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                No grants for this type yet.
+              </p>
             ) : (
               <ul className="text-muted-foreground mt-2 space-y-1 text-sm">
                 {balance.data!.grants.map((grant) => (
@@ -152,7 +161,9 @@ export function LeaveManager({ access }: LeaveManagerProps) {
               : "We could not load your requests. Try again."}
           </p>
         ) : (requests.data ?? []).length === 0 ? (
-          <p className="text-muted-foreground text-sm">You have no leave requests yet.</p>
+          <p className="text-muted-foreground text-sm">
+            You have no leave requests yet.
+          </p>
         ) : (
           <ul className="space-y-2">
             {(requests.data ?? []).map((request) => (
@@ -166,11 +177,14 @@ export function LeaveManager({ access }: LeaveManagerProps) {
                     {formatDate(request.endDate)}
                   </p>
                   <p className="text-muted-foreground text-sm">
-                    {request.daysRequested} day{request.daysRequested === 1 ? "" : "s"} ·{" "}
+                    {request.daysRequested} day
+                    {request.daysRequested === 1 ? "" : "s"} ·{" "}
                     {LEAVE_REQUEST_STATUS_LABELS[request.status]}
                   </p>
                   {request.reviewNote ? (
-                    <p className="text-muted-foreground text-sm">“{request.reviewNote}”</p>
+                    <p className="text-muted-foreground text-sm">
+                      “{request.reviewNote}”
+                    </p>
                   ) : null}
                 </div>
                 {request.status === "PENDING" ? (
@@ -194,7 +208,9 @@ export function LeaveManager({ access }: LeaveManagerProps) {
         onOpenChange={setCreateOpen}
         types={(types.data ?? []).filter((type) => type.isActive)}
         onCreate={createMutation.mutateAsync}
-        onCreated={() => setMessage({ text: "Leave request submitted.", ok: true })}
+        onCreated={() =>
+          setMessage({ text: "Leave request submitted.", ok: true })
+        }
       />
     </div>
   );

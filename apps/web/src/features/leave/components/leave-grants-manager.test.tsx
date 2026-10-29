@@ -58,7 +58,9 @@ function leaveGrant(overrides: Partial<LeaveGrant> = {}): LeaveGrant {
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } });
 
 function mockGetRoutes(routes: Record<string, unknown>) {
-  get.mockImplementation((path: string) => Promise.resolve(ok(routes[path] ?? [])));
+  get.mockImplementation((path: string) =>
+    Promise.resolve(ok(routes[path] ?? [])),
+  );
 }
 
 afterEach(() => vi.resetAllMocks());
@@ -80,29 +82,48 @@ describe("LeaveGrantsManager", () => {
   it("loads an employee's grants once chosen and creates a new one", async () => {
     mockGetRoutes({
       "/api/v1/tasks/eligible-assignees": {
-        items: [{ id: "employee-1", firstName: "Ada", lastName: "Employee", email: "ada@test.invalid" }],
+        items: [
+          {
+            id: "employee-1",
+            firstName: "Ada",
+            lastName: "Employee",
+            email: "ada@test.invalid",
+          },
+        ],
       },
       "/api/v1/leave/types": [leaveType()],
       "/api/v1/leave/grants": [leaveGrant()],
     });
-    post.mockResolvedValue(ok(leaveGrant({ id: "grant-2", grantedDays: 10, remaining: 10 })));
+    post.mockResolvedValue(
+      ok(leaveGrant({ id: "grant-2", grantedDays: 10, remaining: 10 })),
+    );
     const { user } = setup();
 
     await user.click(screen.getByRole("combobox", { name: "Employee" }));
-    await user.click(await screen.findByRole("option", { name: "Ada Employee" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Ada Employee" }),
+    );
 
-    expect(await screen.findByText(/Annual leave · 14 of 14 days remaining/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Annual leave · 14 of 14 days remaining/),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "New grant" }));
     await user.click(screen.getByRole("combobox", { name: "Leave type" }));
-    await user.click(await screen.findByRole("option", { name: "Annual leave" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Annual leave" }),
+    );
     await user.type(screen.getByLabelText("Days granted"), "10");
     await user.click(screen.getByRole("button", { name: "Grant leave" }));
 
     expect(post).toHaveBeenCalledWith(
       "/api/v1/leave/grants",
       expect.objectContaining({
-        body: { employeeId: "employee-1", leaveTypeId: "type-1", grantedDays: 10 },
+        body: {
+          employeeId: "employee-1",
+          leaveTypeId: "type-1",
+          grantedDays: 10,
+        },
       }),
     );
   });
@@ -110,7 +131,14 @@ describe("LeaveGrantsManager", () => {
   it("rejects an out-of-range day count before submitting", async () => {
     mockGetRoutes({
       "/api/v1/tasks/eligible-assignees": {
-        items: [{ id: "employee-1", firstName: "Ada", lastName: "Employee", email: "ada@test.invalid" }],
+        items: [
+          {
+            id: "employee-1",
+            firstName: "Ada",
+            lastName: "Employee",
+            email: "ada@test.invalid",
+          },
+        ],
       },
       "/api/v1/leave/types": [leaveType()],
       "/api/v1/leave/grants": [],
@@ -118,12 +146,16 @@ describe("LeaveGrantsManager", () => {
     const { user } = setup();
 
     await user.click(screen.getByRole("combobox", { name: "Employee" }));
-    await user.click(await screen.findByRole("option", { name: "Ada Employee" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Ada Employee" }),
+    );
     await screen.findByText("No grants recorded yet.");
 
     await user.click(screen.getByRole("button", { name: "New grant" }));
     await user.click(screen.getByRole("combobox", { name: "Leave type" }));
-    await user.click(await screen.findByRole("option", { name: "Annual leave" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Annual leave" }),
+    );
     await user.type(screen.getByLabelText("Days granted"), "999");
     await user.click(screen.getByRole("button", { name: "Grant leave" }));
 

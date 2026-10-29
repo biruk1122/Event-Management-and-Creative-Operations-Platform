@@ -18,13 +18,18 @@ export class LeaveGrantResponse {
   @ApiProperty()
   grantedDays!: number;
 
-  @ApiProperty({ description: "Current remaining balance for this grant alone." })
+  @ApiProperty({
+    description: "Current remaining balance for this grant alone.",
+  })
   remaining!: number;
 
   @ApiProperty({ format: "date-time" })
   grantedAt!: string;
 
-  @ApiProperty({ format: "date-time", description: "Exactly two years after grantedAt." })
+  @ApiProperty({
+    format: "date-time",
+    description: "Exactly two years after grantedAt.",
+  })
   expiresAt!: string;
 
   @ApiProperty({ type: String, nullable: true })
@@ -38,7 +43,9 @@ export class LeaveBalanceResponse {
   @ApiProperty({ format: "uuid" })
   leaveTypeId!: string;
 
-  @ApiProperty({ description: "Sum of every non-expired grant's own remaining balance." })
+  @ApiProperty({
+    description: "Sum of every non-expired grant's own remaining balance.",
+  })
   totalRemaining!: number;
 
   @ApiProperty({ type: [LeaveGrantResponse] })

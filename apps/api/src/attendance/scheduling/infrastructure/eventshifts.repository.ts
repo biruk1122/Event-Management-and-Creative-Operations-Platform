@@ -108,7 +108,11 @@ function toShiftRecord(raw: RawShift): EventShiftRecord {
 }
 
 function personName(
-  person: { firstName: string | null; lastName: string | null; email: string } | null,
+  person: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null,
 ): string | null {
   if (!person) return null;
   const name = [person.firstName, person.lastName]
@@ -221,7 +225,9 @@ export class EventShiftsRepository {
           ? { locationLabel: patch.locationLabel }
           : {}),
         ...(patch.latitude !== undefined ? { latitude: patch.latitude } : {}),
-        ...(patch.longitude !== undefined ? { longitude: patch.longitude } : {}),
+        ...(patch.longitude !== undefined
+          ? { longitude: patch.longitude }
+          : {}),
         ...(patch.geofenceRadiusMeters !== undefined
           ? { geofenceRadiusMeters: patch.geofenceRadiusMeters }
           : {}),
@@ -254,7 +260,10 @@ export class EventShiftsRepository {
     return this.db.$transaction(async (tx) => {
       const raw = await tx.eventShift.update({
         where: { id },
-        data: { plannedStartAt: input.plannedStartAt, plannedEndAt: input.plannedEndAt },
+        data: {
+          plannedStartAt: input.plannedStartAt,
+          plannedEndAt: input.plannedEndAt,
+        },
         select: SHIFT_SELECT,
       });
       await tx.eventShiftChange.create({
@@ -364,7 +373,12 @@ export class EventShiftsRepository {
     await this.db.eventShiftAssignment.upsert({
       where: { eventShiftId_employeeId: { eventShiftId, employeeId } },
       create: { eventShiftId, employeeId, assignedById },
-      update: { assignedAt: new Date(), assignedById, unassignedAt: null, unassignedById: null },
+      update: {
+        assignedAt: new Date(),
+        assignedById,
+        unassignedAt: null,
+        unassignedById: null,
+      },
     });
     await this.outbox.record({
       name: "attendance.shift.assigned",
@@ -390,13 +404,17 @@ export class EventShiftsRepository {
     return result.count === 1 ? "unassigned" : "not_found";
   }
 
-  async listAssignments(eventShiftId: string): Promise<EventShiftAssignmentRecord[]> {
+  async listAssignments(
+    eventShiftId: string,
+  ): Promise<EventShiftAssignmentRecord[]> {
     if (!isUuid(eventShiftId)) return [];
     const rows = await this.db.eventShiftAssignment.findMany({
       where: { eventShiftId, unassignedAt: null },
       select: {
         assignedAt: true,
-        employee: { select: { id: true, firstName: true, lastName: true, email: true } },
+        employee: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
       },
       orderBy: { assignedAt: "asc" },
     });

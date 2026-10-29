@@ -58,7 +58,8 @@ export function attendanceAccountLocked(): HttpException {
   return new ConflictException({
     code: ATTENDANCE_ERROR.accountLocked,
     error: "Conflict",
-    detail: "This account is temporarily locked after too many failed attempts.",
+    detail:
+      "This account is temporarily locked after too many failed attempts.",
   });
 }
 
@@ -234,7 +235,8 @@ export function attendanceSelfApprovalForbidden(): HttpException {
   return new ForbiddenException({
     code: ATTENDANCE_ERROR.selfApprovalForbidden,
     error: "Forbidden",
-    detail: "You cannot approve your own overtime, exception, or leave request.",
+    detail:
+      "You cannot approve your own overtime, exception, or leave request.",
   });
 }
 

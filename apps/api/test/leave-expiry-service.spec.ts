@@ -27,8 +27,18 @@ describe("LeaveExpiryService", () => {
 
   it("expires every candidate grant returned for this tick", async () => {
     repository.findExpiringGrants.mockResolvedValue([
-      { id: "grant-1", employeeId: "emp-1", leaveTypeId: "type-1", remaining: 4 },
-      { id: "grant-2", employeeId: "emp-2", leaveTypeId: "type-1", remaining: 2 },
+      {
+        id: "grant-1",
+        employeeId: "emp-1",
+        leaveTypeId: "type-1",
+        remaining: 4,
+      },
+      {
+        id: "grant-2",
+        employeeId: "emp-2",
+        leaveTypeId: "type-1",
+        remaining: 2,
+      },
     ]);
     await tick();
     expect(repository.expireGrant).toHaveBeenCalledTimes(2);
@@ -62,7 +72,9 @@ describe("LeaveExpiryService", () => {
   });
 
   it("logs and swallows a failure instead of throwing out of the tick", async () => {
-    repository.findExpiringGrants.mockRejectedValue(new Error("db unavailable"));
+    repository.findExpiringGrants.mockRejectedValue(
+      new Error("db unavailable"),
+    );
     await expect(tick()).resolves.toBeUndefined();
   });
 });

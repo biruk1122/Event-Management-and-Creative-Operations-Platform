@@ -33,7 +33,8 @@ export class CreateEventShiftDto {
 
   @ApiProperty({
     format: "date-time",
-    description: "UTC end. Must be strictly after plannedStartAt - an overnight shift is one row.",
+    description:
+      "UTC end. Must be strictly after plannedStartAt - an overnight shift is one row.",
   })
   @IsISO8601({ strict: true })
   plannedEndAt!: string;

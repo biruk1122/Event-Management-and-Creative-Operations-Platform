@@ -42,7 +42,11 @@ export class LeaveTypesService {
 
   private async requireManage(actingUserId: string): Promise<void> {
     if (
-      !(await this.permissions.hasGrant(actingUserId, "leave.type.manage", "ORGANIZATION"))
+      !(await this.permissions.hasGrant(
+        actingUserId,
+        "leave.type.manage",
+        "ORGANIZATION",
+      ))
     ) {
       throw permissionDenied();
     }
@@ -57,12 +61,16 @@ export class LeaveTypesService {
     const result = await this.repository.create({
       name: dto.name,
       createdById: actingUserId,
-      ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.description !== undefined
+        ? { description: dto.description }
+        : {}),
       ...(dto.isPaid !== undefined ? { isPaid: dto.isPaid } : {}),
       ...(dto.requiresDocumentation !== undefined
         ? { requiresDocumentation: dto.requiresDocumentation }
         : {}),
-      ...(dto.requiresApproval !== undefined ? { requiresApproval: dto.requiresApproval } : {}),
+      ...(dto.requiresApproval !== undefined
+        ? { requiresApproval: dto.requiresApproval }
+        : {}),
     });
     if (result === "name_taken") throw leaveTypeNameTaken();
     await this.audit.record({
@@ -78,7 +86,10 @@ export class LeaveTypesService {
     return toResponse(result);
   }
 
-  async list(actingUserId: string, includeInactive: boolean): Promise<LeaveTypeResponse[]> {
+  async list(
+    actingUserId: string,
+    includeInactive: boolean,
+  ): Promise<LeaveTypeResponse[]> {
     if (includeInactive) await this.requireManage(actingUserId);
     const records = await this.repository.list(includeInactive);
     return records.map(toResponse);
@@ -94,12 +105,16 @@ export class LeaveTypesService {
     const existing = await this.repository.findById(id);
     if (!existing) throw leaveTypeNotFound();
     const record = await this.repository.update(id, {
-      ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.description !== undefined
+        ? { description: dto.description }
+        : {}),
       ...(dto.isPaid !== undefined ? { isPaid: dto.isPaid } : {}),
       ...(dto.requiresDocumentation !== undefined
         ? { requiresDocumentation: dto.requiresDocumentation }
         : {}),
-      ...(dto.requiresApproval !== undefined ? { requiresApproval: dto.requiresApproval } : {}),
+      ...(dto.requiresApproval !== undefined
+        ? { requiresApproval: dto.requiresApproval }
+        : {}),
       ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
     });
     await this.audit.record({

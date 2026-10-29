@@ -36,7 +36,10 @@ describe("event shift scheduling persistence", () => {
   beforeAll(async () => {
     db = await createIsolatedDatabase();
     prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString: db.url }, { schema: db.schema }),
+      adapter: new PrismaPg(
+        { connectionString: db.url },
+        { schema: db.schema },
+      ),
     });
     const outbox = new OutboxWriterService(
       prisma as never,
@@ -70,7 +73,9 @@ describe("event shift scheduling persistence", () => {
     });
     employeeId = employee.id;
 
-    const workspace = await prisma.workspace.create({ data: { kind: "EVENT" } });
+    const workspace = await prisma.workspace.create({
+      data: { kind: "EVENT" },
+    });
     const event = await prisma.event.create({
       data: {
         workspaceId: workspace.id,
@@ -90,7 +95,11 @@ describe("event shift scheduling persistence", () => {
   it("resolves the acting manager's own department and the event's department", async () => {
     expect(await repository.findUserDepartmentId(managerId)).toBe(departmentId);
     const context = await repository.findEventContext(eventId);
-    expect(context).toEqual({ id: eventId, name: "Launch Night", departmentId });
+    expect(context).toEqual({
+      id: eventId,
+      name: "Launch Night",
+      departmentId,
+    });
   });
 
   it("creates a shift and returns the event's own name and numeric geofence fields", async () => {
@@ -121,14 +130,22 @@ describe("event shift scheduling persistence", () => {
       reason: "Venue confirmed an hour later",
       changedById: managerId,
     });
-    expect(updated.plannedStartAt.toISOString()).toBe("2026-11-01T19:00:00.000Z");
+    expect(updated.plannedStartAt.toISOString()).toBe(
+      "2026-11-01T19:00:00.000Z",
+    );
 
     const changes = await repository.listChanges(shiftId);
     expect(changes).toHaveLength(1);
     expect(changes[0]?.changeType).toBe("RESCHEDULE");
-    expect(changes[0]?.previousStartAt?.toISOString()).toBe(before!.plannedStartAt.toISOString());
-    expect(changes[0]?.newStartAt?.toISOString()).toBe("2026-11-01T19:00:00.000Z");
-    expect(changes[0]?.changedByName).toContain("shift-manager@attendance.test");
+    expect(changes[0]?.previousStartAt?.toISOString()).toBe(
+      before!.plannedStartAt.toISOString(),
+    );
+    expect(changes[0]?.newStartAt?.toISOString()).toBe(
+      "2026-11-01T19:00:00.000Z",
+    );
+    expect(changes[0]?.changedByName).toContain(
+      "shift-manager@attendance.test",
+    );
 
     const outboxEvents = await prisma.outboxEvent.findMany({
       where: { name: "attendance.shift.schedule_changed", resourceId: shiftId },
@@ -174,7 +191,11 @@ describe("event shift scheduling persistence", () => {
     expect(outboxEvents).toHaveLength(1);
     expect(outboxEvents[0]?.payload).toEqual({ employeeId });
 
-    const unassignResult = await repository.unassign(shiftId, employeeId, managerId);
+    const unassignResult = await repository.unassign(
+      shiftId,
+      employeeId,
+      managerId,
+    );
     expect(unassignResult).toBe("unassigned");
     assignments = await repository.listAssignments(shiftId);
     expect(assignments).toHaveLength(0);
@@ -188,7 +209,9 @@ describe("event shift scheduling persistence", () => {
   });
 
   it("reports not_found when unassigning an employee with no active assignment", async () => {
-    const other = await prisma.user.create({ data: { email: "never-assigned@attendance.test" } });
+    const other = await prisma.user.create({
+      data: { email: "never-assigned@attendance.test" },
+    });
     const result = await repository.unassign(shiftId, other.id, managerId);
     expect(result).toBe("not_found");
   });

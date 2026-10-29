@@ -104,7 +104,9 @@ export function KioskScreen() {
         clearKioskCredentials();
         setStage({ name: "activation" });
       } else {
-        setError("Could not reach the server. Check the connection and reload.");
+        setError(
+          "Could not reach the server. Check the connection and reload.",
+        );
         enterSelectStage();
       }
     });
@@ -208,7 +210,11 @@ export function KioskScreen() {
   async function handlePunch(punchType: "CHECK_IN" | "CHECK_OUT") {
     if (stage.name !== "punch") return;
     setBusy(true);
-    const outcome = await punch(stage.sessionToken, punchType, newClientRequestId());
+    const outcome = await punch(
+      stage.sessionToken,
+      punchType,
+      newClientRequestId(),
+    );
     setBusy(false);
     if (outcome.status === "success") {
       setStage({ name: "result", message: outcome.result.message, ok: true });
@@ -345,7 +351,12 @@ export function KioskScreen() {
             >
               Not you?
             </Button>
-            <Button type="submit" className="flex-1" disabled={busy} aria-busy={busy}>
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={busy}
+              aria-busy={busy}
+            >
               {busy ? "Checking…" : "Continue"}
             </Button>
           </div>
@@ -404,7 +415,10 @@ export function KioskScreen() {
         />
         <ul className="space-y-2">
           {searching ? (
-            <li role="status" className="text-muted-foreground text-center text-sm">
+            <li
+              role="status"
+              className="text-muted-foreground text-center text-sm"
+            >
               Searching…
             </li>
           ) : options.length === 0 ? (

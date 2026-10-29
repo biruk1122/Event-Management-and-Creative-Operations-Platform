@@ -65,10 +65,12 @@ describe("attendance and leave schema", () => {
     return row!.id;
   }
 
-  async function insertEventShift(overrides: {
-    plannedStartAt?: string;
-    plannedEndAt?: string;
-  } = {}): Promise<string> {
+  async function insertEventShift(
+    overrides: {
+      plannedStartAt?: string;
+      plannedEndAt?: string;
+    } = {},
+  ): Promise<string> {
     const eventId = await insertEvent();
     const [row] = await db.query<{ id: string }>(
       `INSERT INTO event_shifts
@@ -129,10 +131,12 @@ describe("attendance and leave schema", () => {
   describe("attendance_kiosks", () => {
     it("creates an active kiosk by default", async () => {
       const id = await insertKiosk();
-      const [row] = await db.query<{ is_active: boolean; revoked_at: Date | null }>(
-        `SELECT is_active, revoked_at FROM attendance_kiosks WHERE id = $1`,
-        [id],
-      );
+      const [row] = await db.query<{
+        is_active: boolean;
+        revoked_at: Date | null;
+      }>(`SELECT is_active, revoked_at FROM attendance_kiosks WHERE id = $1`, [
+        id,
+      ]);
       expect(row!.is_active).toBe(true);
       expect(row!.revoked_at).toBeNull();
     });
@@ -163,7 +167,10 @@ describe("attendance and leave schema", () => {
         plannedStartAt: "2026-11-01T21:00:00Z",
         plannedEndAt: "2026-11-02T03:00:00Z",
       });
-      const [row] = await db.query<{ planned_start_at: Date; planned_end_at: Date }>(
+      const [row] = await db.query<{
+        planned_start_at: Date;
+        planned_end_at: Date;
+      }>(
         `SELECT planned_start_at, planned_end_at FROM event_shifts WHERE id = $1`,
         [id],
       );
@@ -207,9 +214,15 @@ describe("attendance and leave schema", () => {
       const employeeId = await insertUser();
       const kioskId = await insertKiosk();
       const clientRequestId = unique("retry");
-      await insertPunch(employeeId, { kiosk_id: kioskId, client_request_id: clientRequestId });
+      await insertPunch(employeeId, {
+        kiosk_id: kioskId,
+        client_request_id: clientRequestId,
+      });
       await expect(
-        insertPunch(employeeId, { kiosk_id: kioskId, client_request_id: clientRequestId }),
+        insertPunch(employeeId, {
+          kiosk_id: kioskId,
+          client_request_id: clientRequestId,
+        }),
       ).rejects.toMatchObject({ code: PG_ERROR.uniqueViolation });
     });
   });

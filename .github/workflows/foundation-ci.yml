@@ -220,7 +220,13 @@ jobs:
   end-to-end:
     name: End-to-end
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The last clean run on main alone already used 18m5s of this budget
+    # before this branch's additional backend modules (Attendance, Leave,
+    # Employees, Letters, Documents, Partners, Jitsi, several notification
+    # schedulers) landed - same "suite has grown" pattern the rate-limit
+    # comment below already documents once. 20 minutes is no longer safe
+    # headroom; 30 restores it.
+    timeout-minutes: 30
     env:
       # Full browser journeys make many more requests than the unit/integration
       # rate-limit checks the workflow-wide value is tuned for. 1000 was

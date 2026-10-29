@@ -12,7 +12,12 @@ import {
 const NOT_BLANK = /\S/;
 
 export class UpdateLeaveTypeDto {
-  @ApiPropertyOptional({ type: String, nullable: true, minLength: 1, maxLength: 1000 })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    minLength: 1,
+    maxLength: 1000,
+  })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
   @IsString()

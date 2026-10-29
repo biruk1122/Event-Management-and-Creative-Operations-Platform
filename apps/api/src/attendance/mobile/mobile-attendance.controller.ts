@@ -46,15 +46,21 @@ export class MobileAttendanceController {
 
   @Get("sessions")
   @RequirePermissions("attendance.read")
-  @ApiOperation({ summary: "The caller's own recent attendance sessions, most recent first" })
+  @ApiOperation({
+    summary: "The caller's own recent attendance sessions, most recent first",
+  })
   @ApiOkResponse({ type: [AttendanceSessionResponse] })
-  mySessions(@Req() req: RequestWithContext): Promise<AttendanceSessionResponse[]> {
+  mySessions(
+    @Req() req: RequestWithContext,
+  ): Promise<AttendanceSessionResponse[]> {
     return this.mobile.mySessions(actingUserId(req));
   }
 
   @Get("shifts")
   @RequirePermissions("attendance.read")
-  @ApiOperation({ summary: "List the caller's currently assigned, punchable event shifts" })
+  @ApiOperation({
+    summary: "List the caller's currently assigned, punchable event shifts",
+  })
   @ApiOkResponse({ type: [MyShiftResponse] })
   myShifts(@Req() req: RequestWithContext): Promise<MyShiftResponse[]> {
     return this.mobile.myShifts(actingUserId(req));

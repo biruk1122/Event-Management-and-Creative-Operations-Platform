@@ -8,7 +8,11 @@ import type { CurrentAccess } from "@/features/auth/api/access-queries";
 import { LeaveTypesManager } from "./leave-types-manager";
 import type { LeaveType } from "../lib/leave-types";
 
-const { get, post, patch } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn() }));
+const { get, post, patch } = vi.hoisted(() => ({
+  get: vi.fn(),
+  post: vi.fn(),
+  patch: vi.fn(),
+}));
 vi.mock("@/lib/api/browser", () => ({
   browserApi: { GET: get, POST: post, PATCH: patch, DELETE: vi.fn() },
 }));
@@ -42,7 +46,9 @@ function leaveType(overrides: Partial<LeaveType> = {}): LeaveType {
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } });
 
 function mockGetRoutes(routes: Record<string, unknown>) {
-  get.mockImplementation((path: string) => Promise.resolve(ok(routes[path] ?? [])));
+  get.mockImplementation((path: string) =>
+    Promise.resolve(ok(routes[path] ?? [])),
+  );
 }
 
 afterEach(() => vi.resetAllMocks());

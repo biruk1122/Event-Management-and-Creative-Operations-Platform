@@ -12,7 +12,10 @@ import {
   AttendanceSessionStatus,
 } from "../src/generated/prisma/client.js";
 
-const request = { ip: "203.0.113.7", get: () => "vitest" } as unknown as Request;
+const request = {
+  ip: "203.0.113.7",
+  get: () => "vitest",
+} as unknown as Request;
 
 function makeAccount(overrides: Partial<AccountRecord> = {}): AccountRecord {
   return {
@@ -80,7 +83,10 @@ describe("KioskSessionService", () => {
     checkIn: ReturnType<typeof vi.fn>;
     checkOut: ReturnType<typeof vi.fn>;
   };
-  let sessionTokens: { issue: ReturnType<typeof vi.fn>; verify: ReturnType<typeof vi.fn> };
+  let sessionTokens: {
+    issue: ReturnType<typeof vi.fn>;
+    verify: ReturnType<typeof vi.fn>;
+  };
   let audit: { record: ReturnType<typeof vi.fn> };
   let service: KioskSessionService;
 
@@ -93,7 +99,9 @@ describe("KioskSessionService", () => {
     authRepository = {
       findAccountByUserId: vi.fn().mockResolvedValue(makeAccount()),
     };
-    authService = { verifyAccountPassword: vi.fn().mockResolvedValue(undefined) };
+    authService = {
+      verifyAccountPassword: vi.fn().mockResolvedValue(undefined),
+    };
     attendance = {
       findOpenSession: vi.fn().mockResolvedValue(null),
       checkIn: vi.fn().mockResolvedValue(makeSession()),
@@ -189,7 +197,10 @@ describe("KioskSessionService", () => {
 
     it("propagates a locked-account rejection without issuing a session token", async () => {
       authService.verifyAccountPassword.mockRejectedValue(
-        new HttpException({ code: AUTH_ERROR.accountLocked, error: "Conflict" }, 409),
+        new HttpException(
+          { code: AUTH_ERROR.accountLocked, error: "Conflict" },
+          409,
+        ),
       );
       await expectCode(
         service.verify(request, "kiosk-1", {
@@ -203,7 +214,10 @@ describe("KioskSessionService", () => {
 
     it("propagates an inactive-account rejection without issuing a session token", async () => {
       authService.verifyAccountPassword.mockRejectedValue(
-        new HttpException({ code: AUTH_ERROR.accountInactive, error: "Conflict" }, 409),
+        new HttpException(
+          { code: AUTH_ERROR.accountInactive, error: "Conflict" },
+          409,
+        ),
       );
       await expectCode(
         service.verify(request, "kiosk-1", {
@@ -232,7 +246,11 @@ describe("KioskSessionService", () => {
       await expectCode(
         service.punch(
           "kiosk-1",
-          { sessionToken: "stale", punchType: "CHECK_IN", clientRequestId: "r-1" },
+          {
+            sessionToken: "stale",
+            punchType: "CHECK_IN",
+            clientRequestId: "r-1",
+          },
           "req-1",
         ),
         ATTENDANCE_ERROR.kioskSessionExpired,
@@ -297,7 +315,10 @@ describe("KioskSessionService", () => {
       );
       expect(result.punchType).toBe("CHECK_OUT");
       expect(attendance.checkOut).toHaveBeenCalledWith(
-        expect.objectContaining({ employeeId: "employee-1", clientRequestId: "r-2" }),
+        expect.objectContaining({
+          employeeId: "employee-1",
+          clientRequestId: "r-2",
+        }),
       );
       expect(audit.record).toHaveBeenCalledWith(
         expect.objectContaining({ action: "attendance.checked_out" }),

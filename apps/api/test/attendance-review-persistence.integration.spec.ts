@@ -85,7 +85,10 @@ describe("attendance review persistence", () => {
   beforeAll(async () => {
     db = await createIsolatedDatabase();
     prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString: db.url }, { schema: db.schema }),
+      adapter: new PrismaPg(
+        { connectionString: db.url },
+        { schema: db.schema },
+      ),
     });
     const outbox = new OutboxWriterService(
       prisma as never,
@@ -94,8 +97,12 @@ describe("attendance review persistence", () => {
     repository = new AttendanceReviewRepository(prisma as never, outbox);
     attendanceRepository = new AttendanceRepository(prisma as never);
 
-    const departmentA = await prisma.department.create({ data: { name: "Dept A" } });
-    const departmentB = await prisma.department.create({ data: { name: "Dept B" } });
+    const departmentA = await prisma.department.create({
+      data: { name: "Dept A" },
+    });
+    const departmentB = await prisma.department.create({
+      data: { name: "Dept B" },
+    });
     deptA = departmentA.id;
     deptB = departmentB.id;
 
@@ -115,7 +122,11 @@ describe("attendance review persistence", () => {
     employeeInDeptBId = employeeB.id;
 
     const kiosk = await prisma.attendanceKiosk.create({
-      data: { name: "Front Desk", locationLabel: "Main Office", tokenHash: "review-test-hash" },
+      data: {
+        name: "Front Desk",
+        locationLabel: "Main Office",
+        tokenHash: "review-test-hash",
+      },
     });
     kioskId = kiosk.id;
 
@@ -169,9 +180,13 @@ describe("attendance review persistence", () => {
   });
 
   it("filters overtime by status", async () => {
-    const pending = await repository.listOvertime({ status: AttendanceOvertimeStatus.PENDING });
+    const pending = await repository.listOvertime({
+      status: AttendanceOvertimeStatus.PENDING,
+    });
     expect(pending).toHaveLength(2);
-    const approved = await repository.listOvertime({ status: AttendanceOvertimeStatus.APPROVED });
+    const approved = await repository.listOvertime({
+      status: AttendanceOvertimeStatus.APPROVED,
+    });
     expect(approved).toHaveLength(0);
   });
 
@@ -191,17 +206,26 @@ describe("attendance review persistence", () => {
     expect(refetched?.status).toBe("APPROVED");
 
     const outboxEvents = await prisma.outboxEvent.findMany({
-      where: { name: "attendance.overtime.decided", resourceId: overtimeInDeptAId },
+      where: {
+        name: "attendance.overtime.decided",
+        resourceId: overtimeInDeptAId,
+      },
     });
     expect(outboxEvents).toHaveLength(1);
     expect(outboxEvents[0]?.payload).toEqual({ employeeId: employeeInDeptAId });
   });
 
   it("lists and decides exceptions scoped by department", async () => {
-    const deptAExceptions = await repository.listExceptions({ departmentId: deptA });
-    expect(deptAExceptions.map((item) => item.id)).toEqual([exceptionInDeptAId]);
+    const deptAExceptions = await repository.listExceptions({
+      departmentId: deptA,
+    });
+    expect(deptAExceptions.map((item) => item.id)).toEqual([
+      exceptionInDeptAId,
+    ]);
 
-    const deptBExceptions = await repository.listExceptions({ departmentId: deptB });
+    const deptBExceptions = await repository.listExceptions({
+      departmentId: deptB,
+    });
     expect(deptBExceptions).toHaveLength(0);
 
     const decided = await repository.decideException(exceptionInDeptAId, {
@@ -215,8 +239,14 @@ describe("attendance review persistence", () => {
   });
 
   it("returns null for an unknown overtime or exception id", async () => {
-    expect(await repository.findOvertimeById("00000000-0000-0000-0000-000000000000")).toBeNull();
-    expect(await repository.findExceptionById("00000000-0000-0000-0000-000000000000")).toBeNull();
+    expect(
+      await repository.findOvertimeById("00000000-0000-0000-0000-000000000000"),
+    ).toBeNull();
+    expect(
+      await repository.findExceptionById(
+        "00000000-0000-0000-0000-000000000000",
+      ),
+    ).toBeNull();
   });
 
   it("summarizes per-employee attendance totals, scoped by department", async () => {
@@ -276,16 +306,18 @@ describe("attendance review persistence", () => {
         endDate: new Date("2026-11-01"),
         employeeId: employeeInDeptAId,
       });
-      expect(sessions.every((session) => session.employeeId === employeeInDeptAId)).toBe(
-        true,
-      );
+      expect(
+        sessions.every((session) => session.employeeId === employeeInDeptAId),
+      ).toBe(true);
       expect(sessions.length).toBeGreaterThan(0);
     });
   });
 
   describe("listActiveEmployees / listPresentDates (Present/Absent reporting)", () => {
     it("lists only active employees in the given department", async () => {
-      const employees = await repository.listActiveEmployees({ departmentId: deptA });
+      const employees = await repository.listActiveEmployees({
+        departmentId: deptA,
+      });
       const ids = employees.map((employee) => employee.id);
       expect(ids).toContain(managerId);
       expect(ids).toContain(employeeInDeptAId);
@@ -308,8 +340,12 @@ describe("attendance review persistence", () => {
           deactivatedAt: new Date(),
         },
       });
-      const employees = await repository.listActiveEmployees({ departmentId: deptA });
-      expect(employees.map((employee) => employee.id)).not.toContain(inactive.id);
+      const employees = await repository.listActiveEmployees({
+        departmentId: deptA,
+      });
+      expect(employees.map((employee) => employee.id)).not.toContain(
+        inactive.id,
+      );
     });
 
     it("returns the distinct session dates per employee, department-scoped", async () => {
@@ -393,9 +429,9 @@ describe("attendance review persistence", () => {
 
     it("returns not_found for an unknown or already-removed holiday", async () => {
       const missing = "00000000-0000-0000-0000-000000000000";
-      expect(await attendanceRepository.updateHoliday(missing, { name: "x" })).toBe(
-        "not_found",
-      );
+      expect(
+        await attendanceRepository.updateHoliday(missing, { name: "x" }),
+      ).toBe("not_found");
       expect(await attendanceRepository.removeHoliday(missing)).toBe(false);
     });
 
@@ -410,7 +446,12 @@ describe("attendance review persistence", () => {
         new Date("2027-02-01"),
         new Date("2027-02-28"),
       );
-      for (const saturday of ["2027-02-06", "2027-02-13", "2027-02-20", "2027-02-27"]) {
+      for (const saturday of [
+        "2027-02-06",
+        "2027-02-13",
+        "2027-02-20",
+        "2027-02-27",
+      ]) {
         expect(beforeChange.get(saturday)).toBe("HALF");
       }
 
@@ -418,7 +459,12 @@ describe("attendance review persistence", () => {
         new Date("2027-03-01"),
         new Date("2027-03-31"),
       );
-      for (const saturday of ["2027-03-06", "2027-03-13", "2027-03-20", "2027-03-27"]) {
+      for (const saturday of [
+        "2027-03-06",
+        "2027-03-13",
+        "2027-03-20",
+        "2027-03-27",
+      ]) {
         expect(afterChange.has(saturday)).toBe(false);
       }
 

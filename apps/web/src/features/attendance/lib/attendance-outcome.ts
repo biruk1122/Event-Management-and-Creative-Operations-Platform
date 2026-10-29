@@ -73,7 +73,10 @@ export type DecideExceptionOutcome =
 
 export type RegisterKioskOutcome =
   | { status: "success"; kiosk: KioskRegistered }
-  | { status: "field_errors"; fieldErrors: FieldErrors<"name" | "locationLabel"> }
+  | {
+      status: "field_errors";
+      fieldErrors: FieldErrors<"name" | "locationLabel">;
+    }
   | { status: "permission_denied" }
   | { status: "unexpected" };
 
@@ -109,7 +112,10 @@ export interface HolidayFormValues {
 export type CreateHolidayOutcome =
   | { status: "success"; item: Holiday }
   | { status: "date_taken" }
-  | { status: "field_errors"; fieldErrors: FieldErrors<keyof HolidayFormValues> }
+  | {
+      status: "field_errors";
+      fieldErrors: FieldErrors<keyof HolidayFormValues>;
+    }
   | { status: "permission_denied" }
   | { status: "unexpected" };
 
@@ -117,7 +123,10 @@ export type UpdateHolidayOutcome =
   | { status: "success"; item: Holiday }
   | { status: "date_taken" }
   | { status: "not_found" }
-  | { status: "field_errors"; fieldErrors: FieldErrors<keyof HolidayFormValues> }
+  | {
+      status: "field_errors";
+      fieldErrors: FieldErrors<keyof HolidayFormValues>;
+    }
   | { status: "permission_denied" }
   | { status: "unexpected" };
 

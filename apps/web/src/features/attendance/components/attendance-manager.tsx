@@ -6,7 +6,11 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
-import { useMySessions, useMyShifts, usePunchMutation } from "../api/attendance-queries";
+import {
+  useMySessions,
+  useMyShifts,
+  usePunchMutation,
+} from "../api/attendance-queries";
 import { AttendanceRequestError } from "../api/attendance-gateway";
 import { readCurrentPosition } from "../lib/geolocation";
 import { formatDateTime, formatMinutes } from "../lib/attendance-date";
@@ -32,10 +36,14 @@ export function AttendanceManager({ access }: AttendanceManagerProps) {
   const shifts = useMyShifts(access);
   const sessions = useMySessions(access);
   const punchMutation = usePunchMutation(access);
-  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(
+    null,
+  );
   const [busyShiftId, setBusyShiftId] = useState<string | null>(null);
 
-  const openSession = (sessions.data ?? []).find((session) => session.status === "OPEN");
+  const openSession = (sessions.data ?? []).find(
+    (session) => session.status === "OPEN",
+  );
 
   async function handleCheckIn(eventShiftId: string) {
     setBusyShiftId(eventShiftId);
@@ -110,7 +118,11 @@ export function AttendanceManager({ access }: AttendanceManagerProps) {
     const error = shifts.error ?? sessions.error;
     return (
       <div role="alert" className="space-y-2">
-        <p>{error instanceof AttendanceRequestError ? error.message : "We could not load your attendance. Try again."}</p>
+        <p>
+          {error instanceof AttendanceRequestError
+            ? error.message
+            : "We could not load your attendance. Try again."}
+        </p>
         <Button
           variant="outline"
           onClick={() => {
@@ -131,7 +143,10 @@ export function AttendanceManager({ access }: AttendanceManagerProps) {
   return (
     <div className="space-y-6">
       {message ? (
-        <Alert variant={message.ok ? "default" : "destructive"} aria-live="assertive">
+        <Alert
+          variant={message.ok ? "default" : "destructive"}
+          aria-live="assertive"
+        >
           <AlertTitle>{message.text}</AlertTitle>
         </Alert>
       ) : null}
@@ -142,7 +157,8 @@ export function AttendanceManager({ access }: AttendanceManagerProps) {
           <div className="flex items-center justify-between rounded-xl border p-4">
             <div>
               <p className="font-medium">
-                Checked in{openSession.eventName ? ` · ${openSession.eventName}` : ""}
+                Checked in
+                {openSession.eventName ? ` · ${openSession.eventName}` : ""}
               </p>
               <p className="text-muted-foreground text-sm">
                 Since {formatDateTime(openSession.checkInAt)}
@@ -173,7 +189,8 @@ export function AttendanceManager({ access }: AttendanceManagerProps) {
                     {shift.label ? ` · ${shift.label}` : ""}
                   </p>
                   <p className="text-muted-foreground text-sm">
-                    {formatDateTime(shift.plannedStartAt)} – {formatDateTime(shift.plannedEndAt)}
+                    {formatDateTime(shift.plannedStartAt)} –{" "}
+                    {formatDateTime(shift.plannedEndAt)}
                     {shift.locationLabel ? ` · ${shift.locationLabel}` : ""}
                   </p>
                   <p className="text-muted-foreground text-xs">
@@ -196,7 +213,9 @@ export function AttendanceManager({ access }: AttendanceManagerProps) {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Recent sessions</h2>
         {(sessions.data ?? []).length === 0 ? (
-          <p className="text-muted-foreground text-sm">No attendance recorded yet.</p>
+          <p className="text-muted-foreground text-sm">
+            No attendance recorded yet.
+          </p>
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -214,7 +233,9 @@ export function AttendanceManager({ access }: AttendanceManagerProps) {
                   <td className="py-2">{session.eventName ?? "Office"}</td>
                   <td className="py-2">{formatDateTime(session.checkInAt)}</td>
                   <td className="py-2">
-                    {session.checkOutAt ? formatDateTime(session.checkOutAt) : "—"}
+                    {session.checkOutAt
+                      ? formatDateTime(session.checkOutAt)
+                      : "—"}
                   </td>
                   <td className="py-2">{formatMinutes(session.netMinutes)}</td>
                   <td className="py-2">

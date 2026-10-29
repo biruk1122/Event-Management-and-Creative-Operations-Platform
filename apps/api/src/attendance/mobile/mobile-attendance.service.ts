@@ -41,7 +41,10 @@ function resolveVerification(
     longitude?: number;
     accuracyMeters?: number;
   },
-  shift: Pick<ShiftGeofenceRecord, "latitude" | "longitude" | "geofenceRadiusMeters">,
+  shift: Pick<
+    ShiftGeofenceRecord,
+    "latitude" | "longitude" | "geofenceRadiusMeters"
+  >,
 ): { result: AttendanceVerificationResult; distanceMeters?: number } {
   if (location.latitude === undefined || location.longitude === undefined) {
     return { result: AttendanceVerificationResult.LOCATION_UNAVAILABLE };
@@ -53,13 +56,19 @@ function resolveVerification(
   );
 
   if (distanceMeters > shift.geofenceRadiusMeters) {
-    return { result: AttendanceVerificationResult.OUT_OF_RANGE, distanceMeters };
+    return {
+      result: AttendanceVerificationResult.OUT_OF_RANGE,
+      distanceMeters,
+    };
   }
   if (
     location.accuracyMeters !== undefined &&
     location.accuracyMeters > LOW_ACCURACY_THRESHOLD_METERS
   ) {
-    return { result: AttendanceVerificationResult.LOW_ACCURACY, distanceMeters };
+    return {
+      result: AttendanceVerificationResult.LOW_ACCURACY,
+      distanceMeters,
+    };
   }
   return { result: AttendanceVerificationResult.VERIFIED, distanceMeters };
 }
@@ -68,7 +77,8 @@ function messageFor(
   punchType: PunchType,
   result: AttendanceVerificationResult,
 ): string {
-  const action = punchType === PunchType.CHECK_IN ? "Checked in" : "Checked out";
+  const action =
+    punchType === PunchType.CHECK_IN ? "Checked in" : "Checked out";
   switch (result) {
     case AttendanceVerificationResult.OUT_OF_RANGE:
       return `${action}, but you were outside the event location. This has been flagged for manager review.`;
@@ -101,7 +111,10 @@ export class MobileAttendanceService {
   ) {}
 
   async mySessions(employeeId: string): Promise<AttendanceSessionResponse[]> {
-    const sessions = await this.attendance.listSessionsForEmployee(employeeId, 25);
+    const sessions = await this.attendance.listSessionsForEmployee(
+      employeeId,
+      25,
+    );
     return sessions.map(toAttendanceSessionResponse);
   }
 
@@ -174,7 +187,13 @@ export class MobileAttendanceService {
     });
     if (checkIn === "already_checked_in") throw attendanceAlreadyCheckedIn();
 
-    await this.flagIfNeeded(checkIn.id, employeeId, result, distanceMeters, shift);
+    await this.flagIfNeeded(
+      checkIn.id,
+      employeeId,
+      result,
+      distanceMeters,
+      shift,
+    );
     await this.audit.record({
       action: "attendance.checked_in",
       actorKind: AuditActorKind.USER,
@@ -183,7 +202,11 @@ export class MobileAttendanceService {
       resourceType: "attendance_session",
       resourceId: checkIn.id,
       outcome: AuditOutcome.SUCCEEDED,
-      metadata: { method: "MOBILE_EVENT", eventShiftId, verificationResult: result },
+      metadata: {
+        method: "MOBILE_EVENT",
+        eventShiftId,
+        verificationResult: result,
+      },
     });
 
     return {
@@ -201,7 +224,8 @@ export class MobileAttendanceService {
     const open = await this.attendance.findOpenSession(employeeId);
     if (!open) throw attendanceNoOpenSession();
 
-    let result: AttendanceVerificationResult = AttendanceVerificationResult.NOT_APPLICABLE;
+    let result: AttendanceVerificationResult =
+      AttendanceVerificationResult.NOT_APPLICABLE;
     let distanceMeters: number | undefined;
     let shift: ShiftGeofenceRecord | null = null;
     if (open.eventShiftId) {
@@ -230,7 +254,13 @@ export class MobileAttendanceService {
     });
     if (checkOut === "no_open_session") throw attendanceNoOpenSession();
 
-    await this.flagIfNeeded(checkOut.id, employeeId, result, distanceMeters, shift);
+    await this.flagIfNeeded(
+      checkOut.id,
+      employeeId,
+      result,
+      distanceMeters,
+      shift,
+    );
     await this.audit.record({
       action: "attendance.checked_out",
       actorKind: AuditActorKind.USER,

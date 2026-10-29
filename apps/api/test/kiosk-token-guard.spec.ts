@@ -22,7 +22,9 @@ function makeKiosk(overrides: Partial<KioskAuthRecord> = {}): KioskAuthRecord {
   };
 }
 
-function makeContext(headers: Record<string, string | undefined>): ExecutionContext {
+function makeContext(
+  headers: Record<string, string | undefined>,
+): ExecutionContext {
   const request = {
     header: (name: string) => headers[name.toLowerCase()],
   };

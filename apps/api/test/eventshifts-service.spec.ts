@@ -7,7 +7,9 @@ import type { EventShiftRecord } from "../src/attendance/scheduling/infrastructu
 import { SECURITY_ERROR } from "../src/common/security/security.errors.js";
 import { EventShiftStatus } from "../src/generated/prisma/client.js";
 
-function makeShift(overrides: Partial<EventShiftRecord> = {}): EventShiftRecord {
+function makeShift(
+  overrides: Partial<EventShiftRecord> = {},
+): EventShiftRecord {
   return {
     id: "shift-1",
     eventId: "event-1",
@@ -65,15 +67,19 @@ describe("EventShiftsService", () => {
   beforeEach(() => {
     repository = {
       findUserDepartmentId: vi.fn().mockResolvedValue("dept-1"),
-      findEventContext: vi
-        .fn()
-        .mockResolvedValue({ id: "event-1", name: "Launch Night", departmentId: "dept-1" }),
+      findEventContext: vi.fn().mockResolvedValue({
+        id: "event-1",
+        name: "Launch Night",
+        departmentId: "dept-1",
+      }),
       create: vi.fn().mockResolvedValue(makeShift()),
       findById: vi.fn().mockResolvedValue(makeShift()),
       listByEvent: vi.fn().mockResolvedValue([makeShift()]),
       updateMetadata: vi.fn().mockResolvedValue(makeShift()),
       reschedule: vi.fn().mockResolvedValue(makeShift()),
-      setStatus: vi.fn().mockResolvedValue(makeShift({ status: EventShiftStatus.CANCELLED })),
+      setStatus: vi
+        .fn()
+        .mockResolvedValue(makeShift({ status: EventShiftStatus.CANCELLED })),
       listChanges: vi.fn().mockResolvedValue([]),
       assign: vi.fn().mockResolvedValue(undefined),
       unassign: vi.fn().mockResolvedValue("unassigned"),
@@ -81,9 +87,11 @@ describe("EventShiftsService", () => {
       isActiveEmployee: vi.fn().mockResolvedValue(true),
     };
     permissions = {
-      hasGrant: vi.fn().mockImplementation((_userId: string, _key: string, scope: string) =>
-        Promise.resolve(scope === "DEPARTMENT"),
-      ),
+      hasGrant: vi
+        .fn()
+        .mockImplementation((_userId: string, _key: string, scope: string) =>
+          Promise.resolve(scope === "DEPARTMENT"),
+        ),
     };
     leave = { hasApprovedLeaveOverlap: vi.fn().mockResolvedValue(false) };
     audit = { record: vi.fn().mockResolvedValue(undefined) };
@@ -133,7 +141,9 @@ describe("EventShiftsService", () => {
 
   describe("object-level shift/event binding", () => {
     it("rejects a shift id that belongs to a different event", async () => {
-      repository.findById.mockResolvedValue(makeShift({ eventId: "event-OTHER" }));
+      repository.findById.mockResolvedValue(
+        makeShift({ eventId: "event-OTHER" }),
+      );
       await expectCode(
         service.findOne("user-1", "event-1", "shift-1"),
         ATTENDANCE_ERROR.shiftEventMismatch,
@@ -191,7 +201,13 @@ describe("EventShiftsService", () => {
   describe("reschedule", () => {
     it("rejects a reschedule with neither field provided", async () => {
       await expectCode(
-        service.reschedule("user-1", "event-1", "shift-1", { reason: "x" }, "req-1"),
+        service.reschedule(
+          "user-1",
+          "event-1",
+          "shift-1",
+          { reason: "x" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.invalidSchedule,
       );
     });
@@ -274,14 +290,26 @@ describe("EventShiftsService", () => {
         makeShift({ status: EventShiftStatus.CANCELLED }),
       );
       await expectCode(
-        service.cancel("user-1", "event-1", "shift-1", { reason: "x" }, "req-1"),
+        service.cancel(
+          "user-1",
+          "event-1",
+          "shift-1",
+          { reason: "x" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.shiftNotAvailable,
       );
     });
 
     it("rejects reinstating a shift that was never cancelled", async () => {
       await expectCode(
-        service.reinstate("user-1", "event-1", "shift-1", { reason: "x" }, "req-1"),
+        service.reinstate(
+          "user-1",
+          "event-1",
+          "shift-1",
+          { reason: "x" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.shiftNotCancelled,
       );
     });
@@ -290,10 +318,19 @@ describe("EventShiftsService", () => {
       repository.findById.mockResolvedValue(
         makeShift({ status: EventShiftStatus.CANCELLED }),
       );
-      await service.reinstate("user-1", "event-1", "shift-1", { reason: "back on" }, "req-1");
+      await service.reinstate(
+        "user-1",
+        "event-1",
+        "shift-1",
+        { reason: "back on" },
+        "req-1",
+      );
       expect(repository.setStatus).toHaveBeenCalledWith(
         "shift-1",
-        expect.objectContaining({ status: "PLANNED", changeType: "REINSTATEMENT" }),
+        expect.objectContaining({
+          status: "PLANNED",
+          changeType: "REINSTATEMENT",
+        }),
       );
     });
   });
@@ -302,7 +339,13 @@ describe("EventShiftsService", () => {
     it("rejects assigning an employee who is not active", async () => {
       repository.isActiveEmployee.mockResolvedValue(false);
       await expectCode(
-        service.assign("user-1", "event-1", "shift-1", { employeeId: "emp-1" }, "req-1"),
+        service.assign(
+          "user-1",
+          "event-1",
+          "shift-1",
+          { employeeId: "emp-1" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.employeeNotFound,
       );
       expect(repository.assign).not.toHaveBeenCalled();
@@ -311,7 +354,13 @@ describe("EventShiftsService", () => {
     it("rejects assigning an employee who has approved leave covering the shift", async () => {
       leave.hasApprovedLeaveOverlap.mockResolvedValue(true);
       await expectCode(
-        service.assign("user-1", "event-1", "shift-1", { employeeId: "emp-1" }, "req-1"),
+        service.assign(
+          "user-1",
+          "event-1",
+          "shift-1",
+          { employeeId: "emp-1" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.leaveConflict,
       );
       expect(repository.assign).not.toHaveBeenCalled();

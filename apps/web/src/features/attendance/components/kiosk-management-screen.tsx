@@ -35,5 +35,7 @@ export function KioskManagementScreen() {
     );
   if (!attendanceAbilities(access.data).canManageKiosks)
     return <p role="alert">You do not have access to kiosk management.</p>;
-  return <KioskManagementManager key={access.data.userId} access={access.data} />;
+  return (
+    <KioskManagementManager key={access.data.userId} access={access.data} />
+  );
 }

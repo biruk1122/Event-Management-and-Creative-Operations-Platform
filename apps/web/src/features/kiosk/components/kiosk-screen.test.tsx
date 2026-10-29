@@ -17,7 +17,11 @@ vi.mock("../api/kiosk-gateway");
 const EMPLOYEE = { id: "employee-1", name: "Ada Employee" };
 
 function activate() {
-  storeKioskCredentials({ kioskId: "kiosk-1", token: "token-1", kioskName: "Front Desk" });
+  storeKioskCredentials({
+    kioskId: "kiosk-1",
+    token: "token-1",
+    kioskName: "Front Desk",
+  });
 }
 
 describe("KioskScreen", () => {
@@ -52,7 +56,9 @@ describe("KioskScreen", () => {
     expect(
       await screen.findByRole("heading", { name: "Find your name" }),
     ).toBeInTheDocument();
-    expect(window.localStorage.getItem("lela:kiosk:credentials")).toContain("kiosk-1");
+    expect(window.localStorage.getItem("lela:kiosk:credentials")).toContain(
+      "kiosk-1",
+    );
   });
 
   it("goes straight to employee selection when stored credentials are still valid", async () => {
@@ -88,7 +94,11 @@ describe("KioskScreen", () => {
     });
     vi.mocked(gateway.punch).mockResolvedValue({
       status: "success",
-      result: { punchType: "CHECK_IN", recordedAt: new Date().toISOString(), message: "Checked in successfully." },
+      result: {
+        punchType: "CHECK_IN",
+        recordedAt: new Date().toISOString(),
+        message: "Checked in successfully.",
+      },
     });
 
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
@@ -100,10 +110,14 @@ describe("KioskScreen", () => {
     await user.type(screen.getByLabelText("Password"), "correct-password");
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
-    expect(await screen.findByRole("button", { name: "Check in" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Check in" }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Check in" }));
 
-    expect(await screen.findByText("Checked in successfully.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Checked in successfully."),
+    ).toBeInTheDocument();
     expect(gateway.punch).toHaveBeenCalledWith(
       "session-token",
       "CHECK_IN",
@@ -112,14 +126,18 @@ describe("KioskScreen", () => {
 
     vi.advanceTimersByTime(4100);
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Find your name" })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("heading", { name: "Find your name" }),
+      ).toBeInTheDocument(),
     );
     vi.useRealTimers();
   });
 
   it("shows an inline error for a wrong password without leaving the password screen", async () => {
     activate();
-    vi.mocked(gateway.verifyEmployee).mockResolvedValue({ status: "invalid_credentials" });
+    vi.mocked(gateway.verifyEmployee).mockResolvedValue({
+      status: "invalid_credentials",
+    });
     const user = userEvent.setup();
     render(<KioskScreen />);
     await screen.findByText("Ada Employee");

@@ -33,7 +33,10 @@ export class KioskSessionTokenService {
   }
 
   issue(claims: KioskSessionClaims): Promise<string> {
-    return new SignJWT({ employeeId: claims.employeeId, kioskId: claims.kioskId })
+    return new SignJWT({
+      employeeId: claims.employeeId,
+      kioskId: claims.kioskId,
+    })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
       .setIssuer(ISSUER)
       .setAudience(AUDIENCE)

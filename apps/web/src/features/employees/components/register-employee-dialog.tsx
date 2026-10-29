@@ -471,7 +471,9 @@ export function RegisterEmployeeDialog({
                       id={ids.personalPhone}
                       type="tel"
                       value={values.personalPhone}
-                      aria-invalid={fieldErrors.personalPhone ? true : undefined}
+                      aria-invalid={
+                        fieldErrors.personalPhone ? true : undefined
+                      }
                       onChange={(event) =>
                         set("personalPhone", event.target.value)
                       }

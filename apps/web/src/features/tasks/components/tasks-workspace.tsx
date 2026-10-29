@@ -309,7 +309,7 @@ function canCancelFromList(
 ): boolean {
   return Boolean(
     collaboration?.canTransition(task) &&
-      ASSIGNEE_TRANSITION_TARGETS[task.status].includes("CANCELLED"),
+    ASSIGNEE_TRANSITION_TARGETS[task.status].includes("CANCELLED"),
   );
 }
 
@@ -855,7 +855,8 @@ function TaskDetailDialog({
                 </p>
               </section>
             </div>
-            {collaboration?.canReview(task) && task.status === "UNDER_REVIEW" ? (
+            {collaboration?.canReview(task) &&
+            task.status === "UNDER_REVIEW" ? (
               <section
                 className="border-border space-y-2 border-t pt-4"
                 aria-labelledby="task-review-decision"

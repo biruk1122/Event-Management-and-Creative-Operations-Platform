@@ -21,7 +21,9 @@ export interface KioskManagementManagerProps {
   access: CurrentAccess;
 }
 
-export function KioskManagementManager({ access }: KioskManagementManagerProps) {
+export function KioskManagementManager({
+  access,
+}: KioskManagementManagerProps) {
   const nameId = useId();
   const locationId = useId();
   const kiosks = useKiosks(access);
@@ -40,13 +42,17 @@ export function KioskManagementManager({ access }: KioskManagementManagerProps) 
     setFormError(null);
     const localErrors: Partial<Record<"name" | "locationLabel", string>> = {};
     if (name.trim() === "") localErrors.name = "Enter a device name.";
-    if (locationLabel.trim() === "") localErrors.locationLabel = "Enter a location.";
+    if (locationLabel.trim() === "")
+      localErrors.locationLabel = "Enter a location.";
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors);
       return;
     }
     setFieldErrors({});
-    const outcome = await mutations.register.mutateAsync({ name, locationLabel });
+    const outcome = await mutations.register.mutateAsync({
+      name,
+      locationLabel,
+    });
     switch (outcome.status) {
       case "success":
         setRevealed(outcome.kiosk);
@@ -103,7 +109,9 @@ export function KioskManagementManager({ access }: KioskManagementManagerProps) 
               aria-invalid={Boolean(fieldErrors.locationLabel)}
             />
             {fieldErrors.locationLabel ? (
-              <p className="text-destructive text-sm">{fieldErrors.locationLabel}</p>
+              <p className="text-destructive text-sm">
+                {fieldErrors.locationLabel}
+              </p>
             ) : null}
           </div>
         </div>
@@ -119,8 +127,8 @@ export function KioskManagementManager({ access }: KioskManagementManagerProps) 
       {revealed ? (
         <Alert aria-live="assertive">
           <AlertTitle>
-            Kiosk registered. Copy this token onto the device now - it will not be shown
-            again.
+            Kiosk registered. Copy this token onto the device now - it will not
+            be shown again.
           </AlertTitle>
           <p className="mt-1 font-mono text-sm break-all">
             Kiosk ID: {revealed.id}
@@ -143,7 +151,9 @@ export function KioskManagementManager({ access }: KioskManagementManagerProps) 
           </Button>
         </div>
       ) : (kiosks.data ?? []).length === 0 ? (
-        <p className="text-muted-foreground text-sm">No kiosks registered yet.</p>
+        <p className="text-muted-foreground text-sm">
+          No kiosks registered yet.
+        </p>
       ) : (
         <ul className="space-y-2">
           {(kiosks.data ?? []).map((kiosk) => (
@@ -153,7 +163,9 @@ export function KioskManagementManager({ access }: KioskManagementManagerProps) 
             >
               <div>
                 <p className="font-medium">{kiosk.name}</p>
-                <p className="text-muted-foreground text-sm">{kiosk.locationLabel}</p>
+                <p className="text-muted-foreground text-sm">
+                  {kiosk.locationLabel}
+                </p>
                 <p className="text-muted-foreground text-xs">
                   {kiosk.isActive ? "Active" : "Revoked"}
                 </p>

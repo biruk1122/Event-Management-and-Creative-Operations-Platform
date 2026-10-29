@@ -137,7 +137,9 @@ describe("AttendanceReportManager", () => {
     await user.type(screen.getByLabelText("To"), "2000-01-01");
 
     expect(
-      await screen.findByText("The end date must be on or after the start date."),
+      await screen.findByText(
+        "The end date must be on or after the start date.",
+      ),
     ).toBeInTheDocument();
   });
 });

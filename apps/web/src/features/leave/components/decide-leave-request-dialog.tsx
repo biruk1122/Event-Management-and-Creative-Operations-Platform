@@ -21,17 +21,19 @@ import type { LeaveRequest } from "../lib/leave-types";
 const FORM_ERRORS: Record<string, string> = {
   self_approval_forbidden: "You cannot decide your own leave request.",
   already_decided: "This request has already been decided.",
-  insufficient_balance: "There isn't enough remaining balance to approve this request.",
+  insufficient_balance:
+    "There isn't enough remaining balance to approve this request.",
   not_found: "This request no longer exists.",
   permission_denied: "You do not have permission to review leave requests.",
   unexpected: "We could not save that decision. Try again.",
 };
 
-const TITLES: Record<"APPROVED" | "REJECTED" | "RETURNED_FOR_CHANGES", string> = {
-  APPROVED: "Approve leave request",
-  REJECTED: "Reject leave request",
-  RETURNED_FOR_CHANGES: "Return for changes",
-};
+const TITLES: Record<"APPROVED" | "REJECTED" | "RETURNED_FOR_CHANGES", string> =
+  {
+    APPROVED: "Approve leave request",
+    REJECTED: "Reject leave request",
+    RETURNED_FOR_CHANGES: "Return for changes",
+  };
 
 export interface DecideLeaveRequestDialogProps {
   item: {
@@ -128,12 +130,19 @@ export function DecideLeaveRequestDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={close}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button
               type="submit"
-              variant={item?.decision === "REJECTED" ? "destructive" : "default"}
+              variant={
+                item?.decision === "REJECTED" ? "destructive" : "default"
+              }
               disabled={submitting}
               aria-busy={submitting}
             >

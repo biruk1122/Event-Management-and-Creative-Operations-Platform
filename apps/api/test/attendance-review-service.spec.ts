@@ -130,10 +130,14 @@ describe("AttendanceReviewService", () => {
       findUserDepartmentId: vi.fn().mockResolvedValue("dept-1"),
       findOvertimeById: vi.fn().mockResolvedValue(makeOvertime()),
       listOvertime: vi.fn().mockResolvedValue([makeOvertime()]),
-      decideOvertime: vi.fn().mockResolvedValue(makeOvertime({ status: "APPROVED" })),
+      decideOvertime: vi
+        .fn()
+        .mockResolvedValue(makeOvertime({ status: "APPROVED" })),
       findExceptionById: vi.fn().mockResolvedValue(makeException()),
       listExceptions: vi.fn().mockResolvedValue([makeException()]),
-      decideException: vi.fn().mockResolvedValue(makeException({ status: "APPROVED" })),
+      decideException: vi
+        .fn()
+        .mockResolvedValue(makeException({ status: "APPROVED" })),
       summarize: vi.fn().mockResolvedValue([
         {
           employeeId: "employee-1",
@@ -156,16 +160,20 @@ describe("AttendanceReviewService", () => {
         ),
     };
     permissions = {
-      hasGrant: vi.fn().mockImplementation(
-        (_userId: string, _key: string, scope: string): Promise<boolean> =>
-          Promise.resolve(scope === "DEPARTMENT"),
-      ),
+      hasGrant: vi
+        .fn()
+        .mockImplementation(
+          (_userId: string, _key: string, scope: string): Promise<boolean> =>
+            Promise.resolve(scope === "DEPARTMENT"),
+        ),
       getAccessContext: vi.fn().mockResolvedValue(MARKETING_MANAGER_CONTEXT),
     };
     audit = { record: vi.fn().mockResolvedValue(undefined) };
     attendance = {
       listSessions: vi.fn().mockResolvedValue([]),
-      resolveWorkingDays: vi.fn().mockResolvedValue(new Map(DEFAULT_WORKING_DAYS)),
+      resolveWorkingDays: vi
+        .fn()
+        .mockResolvedValue(new Map(DEFAULT_WORKING_DAYS)),
       listWeekdaySchedule: vi.fn().mockResolvedValue([]),
       createWeekdaySchedule: vi.fn().mockResolvedValue({
         dayOfWeek: 6,
@@ -228,7 +236,9 @@ describe("AttendanceReviewService", () => {
     });
 
     it("rejects deciding an overtime that was already decided", async () => {
-      repository.findOvertimeById.mockResolvedValue(makeOvertime({ status: "APPROVED" }));
+      repository.findOvertimeById.mockResolvedValue(
+        makeOvertime({ status: "APPROVED" }),
+      );
       await expectCode(
         service.decideOvertime(
           "manager-1",
@@ -276,12 +286,20 @@ describe("AttendanceReviewService", () => {
     });
 
     it("rejects without requiring approvedMinutes", async () => {
-      await service.decideOvertime("manager-1", "overtime-1", { decision: "REJECTED" }, "req-1");
+      await service.decideOvertime(
+        "manager-1",
+        "overtime-1",
+        { decision: "REJECTED" },
+        "req-1",
+      );
       expect(repository.decideOvertime).toHaveBeenCalledWith(
         "overtime-1",
         expect.objectContaining({ status: "REJECTED" }),
       );
-      const call = repository.decideOvertime.mock.calls[0]![1] as Record<string, unknown>;
+      const call = repository.decideOvertime.mock.calls[0]![1] as Record<
+        string,
+        unknown
+      >;
       expect(call.approvedMinutes).toBeUndefined();
     });
 
@@ -295,13 +313,19 @@ describe("AttendanceReviewService", () => {
     it("lists organization-wide with no department filter for an org-scope grant", async () => {
       permissions.hasGrant.mockResolvedValue(true);
       await service.listOvertime("admin-1");
-      const call = repository.listOvertime.mock.calls[0]![0] as Record<string, unknown>;
+      const call = repository.listOvertime.mock.calls[0]![0] as Record<
+        string,
+        unknown
+      >;
       expect(call.departmentId).toBeUndefined();
     });
 
     it("denies listing when the caller has no grant at all", async () => {
       permissions.hasGrant.mockResolvedValue(false);
-      await expectCode(service.listOvertime("user-1"), SECURITY_ERROR.permissionDenied);
+      await expectCode(
+        service.listOvertime("user-1"),
+        SECURITY_ERROR.permissionDenied,
+      );
     });
   });
 
@@ -309,16 +333,28 @@ describe("AttendanceReviewService", () => {
     it("forbids reviewing your own flagged exception", async () => {
       permissions.hasGrant.mockResolvedValue(true);
       await expectCode(
-        service.decideException("employee-1", "exception-1", { decision: "APPROVED" }, "req-1"),
+        service.decideException(
+          "employee-1",
+          "exception-1",
+          { decision: "APPROVED" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.selfApprovalForbidden,
       );
       expect(repository.decideException).not.toHaveBeenCalled();
     });
 
     it("rejects deciding an exception that was already decided", async () => {
-      repository.findExceptionById.mockResolvedValue(makeException({ status: "REJECTED" }));
+      repository.findExceptionById.mockResolvedValue(
+        makeException({ status: "REJECTED" }),
+      );
       await expectCode(
-        service.decideException("manager-1", "exception-1", { decision: "APPROVED" }, "req-1"),
+        service.decideException(
+          "manager-1",
+          "exception-1",
+          { decision: "APPROVED" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.exceptionAlreadyDecided,
       );
     });
@@ -326,7 +362,12 @@ describe("AttendanceReviewService", () => {
     it("rejects an unknown exception id", async () => {
       repository.findExceptionById.mockResolvedValue(null);
       await expectCode(
-        service.decideException("manager-1", "missing", { decision: "APPROVED" }, "req-1"),
+        service.decideException(
+          "manager-1",
+          "missing",
+          { decision: "APPROVED" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.exceptionNotFound,
       );
     });
@@ -351,7 +392,12 @@ describe("AttendanceReviewService", () => {
     it("denies a department manager from a different department", async () => {
       repository.findUserDepartmentId.mockResolvedValue("dept-OTHER");
       await expectCode(
-        service.decideException("manager-1", "exception-1", { decision: "REJECTED" }, "req-1"),
+        service.decideException(
+          "manager-1",
+          "exception-1",
+          { decision: "REJECTED" },
+          "req-1",
+        ),
         SECURITY_ERROR.permissionDenied,
       );
     });
@@ -567,7 +613,9 @@ describe("AttendanceReviewService", () => {
         "req-1",
       );
       expect(audit.record).toHaveBeenCalledWith(
-        expect.objectContaining({ action: "attendance.calendar.weekday_updated" }),
+        expect.objectContaining({
+          action: "attendance.calendar.weekday_updated",
+        }),
       );
     });
 
@@ -610,7 +658,9 @@ describe("AttendanceReviewService", () => {
       );
       expect(attendance.listHolidays).toHaveBeenCalled();
       expect(audit.record).toHaveBeenCalledWith(
-        expect.objectContaining({ action: "attendance.calendar.holiday_created" }),
+        expect.objectContaining({
+          action: "attendance.calendar.holiday_created",
+        }),
       );
     });
 
@@ -633,7 +683,12 @@ describe("AttendanceReviewService", () => {
       permissions.hasGrant.mockResolvedValue(true);
       attendance.updateHoliday.mockResolvedValue("date_taken");
       await expectCode(
-        service.updateHoliday("admin-1", "holiday-1", { date: "2027-01-07" }, "req-1"),
+        service.updateHoliday(
+          "admin-1",
+          "holiday-1",
+          { date: "2027-01-07" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.holidayDateTaken,
       );
     });
@@ -663,7 +718,9 @@ describe("AttendanceReviewService", () => {
       permissions.hasGrant.mockResolvedValue(true);
       await service.removeHoliday("admin-1", "holiday-1", "req-1");
       expect(audit.record).toHaveBeenCalledWith(
-        expect.objectContaining({ action: "attendance.calendar.holiday_removed" }),
+        expect.objectContaining({
+          action: "attendance.calendar.holiday_removed",
+        }),
       );
     });
 
@@ -708,7 +765,12 @@ describe("AttendanceReviewService", () => {
     it("allows the HR & Executive Officer department's own manager", async () => {
       permissions.getAccessContext.mockResolvedValue(HR_MANAGER_CONTEXT);
       permissions.hasGrant.mockResolvedValue(true);
-      await service.listDetailedSessions("hr-manager-1", START, END, "employee-9");
+      await service.listDetailedSessions(
+        "hr-manager-1",
+        START,
+        END,
+        "employee-9",
+      );
       expect(attendance.listSessions).toHaveBeenCalledWith({
         startDate: START,
         endDate: END,

@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { AttendanceNavigation, AttendanceSessionsScreen } from "@/features/attendance";
+import {
+  AttendanceNavigation,
+  AttendanceSessionsScreen,
+} from "@/features/attendance";
 import { WorkSurface } from "@/components/ui/work-surface";
 export const metadata: Metadata = { title: "Detailed Attendance Sessions" };
 export default function AttendanceSessionsPage() {

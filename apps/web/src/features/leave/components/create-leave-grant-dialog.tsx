@@ -23,7 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { CreateLeaveGrantOutcome, LeaveGrantFormValues } from "../lib/leave-outcome";
+import type {
+  CreateLeaveGrantOutcome,
+  LeaveGrantFormValues,
+} from "../lib/leave-outcome";
 import type { LeaveGrant, LeaveType } from "../lib/leave-types";
 
 const FORM_ERRORS: Record<string, string> = {
@@ -34,7 +37,11 @@ const FORM_ERRORS: Record<string, string> = {
   unexpected: "We could not create the grant. Try again.",
 };
 
-const EMPTY: LeaveGrantFormValues = { leaveTypeId: "", grantedDays: "", note: "" };
+const EMPTY: LeaveGrantFormValues = {
+  leaveTypeId: "",
+  grantedDays: "",
+  note: "",
+};
 
 export interface CreateLeaveGrantDialogProps {
   open: boolean;
@@ -64,7 +71,10 @@ export function CreateLeaveGrantDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function set<K extends keyof LeaveGrantFormValues>(key: K, value: LeaveGrantFormValues[K]) {
+  function set<K extends keyof LeaveGrantFormValues>(
+    key: K,
+    value: LeaveGrantFormValues[K],
+  ) {
     setValues((current) => ({ ...current, [key]: value }));
   }
 
@@ -84,9 +94,15 @@ export function CreateLeaveGrantDialog({
     setFormError(null);
 
     const localErrors: Partial<Record<keyof LeaveGrantFormValues, string>> = {};
-    if (values.leaveTypeId === "") localErrors.leaveTypeId = "Choose a leave type.";
+    if (values.leaveTypeId === "")
+      localErrors.leaveTypeId = "Choose a leave type.";
     const days = Number(values.grantedDays);
-    if (values.grantedDays.trim() === "" || Number.isNaN(days) || days < 1 || days > 365) {
+    if (
+      values.grantedDays.trim() === "" ||
+      Number.isNaN(days) ||
+      days < 1 ||
+      days > 365
+    ) {
       localErrors.grantedDays = "Enter a number of days between 1 and 365.";
     }
     if (Object.keys(localErrors).length > 0) {
@@ -124,7 +140,8 @@ export function CreateLeaveGrantDialog({
         <DialogHeader>
           <DialogTitle>Grant leave balance</DialogTitle>
           <DialogDescription>
-            {employeeName} · the grant is valid for exactly two years from today.
+            {employeeName} · the grant is valid for exactly two years from
+            today.
           </DialogDescription>
         </DialogHeader>
 
@@ -147,7 +164,10 @@ export function CreateLeaveGrantDialog({
               disabled={submitting}
               onValueChange={(value) => set("leaveTypeId", value)}
             >
-              <SelectTrigger id={typeId} aria-invalid={Boolean(fieldErrors.leaveTypeId)}>
+              <SelectTrigger
+                id={typeId}
+                aria-invalid={Boolean(fieldErrors.leaveTypeId)}
+              >
                 <SelectValue placeholder="Choose a leave type" />
               </SelectTrigger>
               <SelectContent>
@@ -159,7 +179,9 @@ export function CreateLeaveGrantDialog({
               </SelectContent>
             </Select>
             {fieldErrors.leaveTypeId ? (
-              <p className="text-destructive text-sm">{fieldErrors.leaveTypeId}</p>
+              <p className="text-destructive text-sm">
+                {fieldErrors.leaveTypeId}
+              </p>
             ) : null}
           </div>
 
@@ -174,7 +196,9 @@ export function CreateLeaveGrantDialog({
               aria-invalid={Boolean(fieldErrors.grantedDays)}
             />
             {fieldErrors.grantedDays ? (
-              <p className="text-destructive text-sm">{fieldErrors.grantedDays}</p>
+              <p className="text-destructive text-sm">
+                {fieldErrors.grantedDays}
+              </p>
             ) : null}
           </div>
 
@@ -189,7 +213,12 @@ export function CreateLeaveGrantDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={close}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={submitting} aria-busy={submitting}>

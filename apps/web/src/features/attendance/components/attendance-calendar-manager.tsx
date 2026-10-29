@@ -15,7 +15,11 @@ import {
 } from "@/components/ui/select";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
-import { useCalendarMutations, useHolidays, useWeekdaySchedule } from "../api/attendance-queries";
+import {
+  useCalendarMutations,
+  useHolidays,
+  useWeekdaySchedule,
+} from "../api/attendance-queries";
 import { AttendanceRequestError } from "../api/attendance-gateway";
 import type { Holiday, WeekdaySchedule } from "../lib/attendance-types";
 
@@ -42,7 +46,9 @@ export interface AttendanceCalendarManagerProps {
   access: CurrentAccess;
 }
 
-export function AttendanceCalendarManager({ access }: AttendanceCalendarManagerProps) {
+export function AttendanceCalendarManager({
+  access,
+}: AttendanceCalendarManagerProps) {
   const weekdays = useWeekdaySchedule(access);
   const holidays = useHolidays(access);
   const mutations = useCalendarMutations(access);
@@ -105,7 +111,8 @@ function WeeklyScheduleSection({
                   <div>
                     <p className="font-medium">{day.dayName}</p>
                     <p className="text-muted-foreground text-sm">
-                      {DAY_TYPE_LABELS[day.type]} · effective from {day.effectiveFrom}
+                      {DAY_TYPE_LABELS[day.type]} · effective from{" "}
+                      {day.effectiveFrom}
                     </p>
                   </div>
                   <Button
@@ -155,10 +162,15 @@ function WeekdayEditForm({
       return;
     }
     if (outcome.status === "field_errors") {
-      setFormError(Object.values(outcome.fieldErrors)[0] ?? WEEKDAY_FORM_ERRORS.unexpected!);
+      setFormError(
+        Object.values(outcome.fieldErrors)[0] ??
+          WEEKDAY_FORM_ERRORS.unexpected!,
+      );
       return;
     }
-    setFormError(WEEKDAY_FORM_ERRORS[outcome.status] ?? WEEKDAY_FORM_ERRORS.unexpected!);
+    setFormError(
+      WEEKDAY_FORM_ERRORS[outcome.status] ?? WEEKDAY_FORM_ERRORS.unexpected!,
+    );
   }
 
   return (
@@ -257,7 +269,10 @@ function HolidaysSection({
         setFieldErrors(outcome.fieldErrors);
         return;
       default:
-        setFormError(HOLIDAY_FORM_ERRORS[outcome.status] ?? HOLIDAY_FORM_ERRORS.unexpected!);
+        setFormError(
+          HOLIDAY_FORM_ERRORS[outcome.status] ??
+            HOLIDAY_FORM_ERRORS.unexpected!,
+        );
     }
   }
 
@@ -272,8 +287,8 @@ function HolidaysSection({
           Holidays
         </h2>
         <p className="text-muted-foreground text-sm">
-          One-off dates that override the weekly schedule, even on an
-          otherwise full working day.
+          One-off dates that override the weekly schedule, even on an otherwise
+          full working day.
         </p>
       </div>
 
@@ -340,7 +355,9 @@ function HolidaysSection({
           </Button>
         </div>
       ) : (holidays.data ?? []).length === 0 ? (
-        <p className="text-muted-foreground text-sm">No holidays recorded yet.</p>
+        <p className="text-muted-foreground text-sm">
+          No holidays recorded yet.
+        </p>
       ) : (
         <ul className="space-y-2">
           {(holidays.data ?? []).map((holiday) =>
@@ -359,7 +376,9 @@ function HolidaysSection({
               >
                 <div>
                   <p className="font-medium">{holiday.name}</p>
-                  <p className="text-muted-foreground text-sm">{holiday.date}</p>
+                  <p className="text-muted-foreground text-sm">
+                    {holiday.date}
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -414,10 +433,15 @@ function HolidayEditForm({
       return;
     }
     if (outcome.status === "field_errors") {
-      setFormError(Object.values(outcome.fieldErrors)[0] ?? HOLIDAY_FORM_ERRORS.unexpected!);
+      setFormError(
+        Object.values(outcome.fieldErrors)[0] ??
+          HOLIDAY_FORM_ERRORS.unexpected!,
+      );
       return;
     }
-    setFormError(HOLIDAY_FORM_ERRORS[outcome.status] ?? HOLIDAY_FORM_ERRORS.unexpected!);
+    setFormError(
+      HOLIDAY_FORM_ERRORS[outcome.status] ?? HOLIDAY_FORM_ERRORS.unexpected!,
+    );
   }
 
   return (

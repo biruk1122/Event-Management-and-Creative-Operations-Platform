@@ -45,7 +45,9 @@ export function LeaveTypesManager({ access }: LeaveTypesManagerProps) {
       </div>
 
       {(types.data ?? []).length === 0 ? (
-        <p className="text-muted-foreground text-sm">No leave types configured yet.</p>
+        <p className="text-muted-foreground text-sm">
+          No leave types configured yet.
+        </p>
       ) : (
         <ul className="space-y-2">
           {(types.data ?? []).map((type) => (
@@ -56,18 +58,30 @@ export function LeaveTypesManager({ access }: LeaveTypesManagerProps) {
               <div>
                 <p className="flex items-center gap-2 font-medium">
                   {type.name}
-                  {!type.isActive ? <Badge variant="secondary">Inactive</Badge> : null}
+                  {!type.isActive ? (
+                    <Badge variant="secondary">Inactive</Badge>
+                  ) : null}
                 </p>
                 {type.description ? (
-                  <p className="text-muted-foreground text-sm">{type.description}</p>
+                  <p className="text-muted-foreground text-sm">
+                    {type.description}
+                  </p>
                 ) : null}
                 <p className="text-muted-foreground text-xs">
                   {type.isPaid ? "Paid" : "Unpaid"}
-                  {type.requiresDocumentation ? " · requires documentation" : ""}
-                  {type.requiresApproval ? " · requires approval" : " · auto-approved"}
+                  {type.requiresDocumentation
+                    ? " · requires documentation"
+                    : ""}
+                  {type.requiresApproval
+                    ? " · requires approval"
+                    : " · auto-approved"}
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setEditTarget(type)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditTarget(type)}
+              >
                 Edit
               </Button>
             </li>
@@ -87,7 +101,9 @@ export function LeaveTypesManager({ access }: LeaveTypesManagerProps) {
         onOpenChange={(open) => {
           if (!open) setEditTarget(null);
         }}
-        onUpdate={(values) => mutations.update.mutateAsync({ id: editTarget!.id, values })}
+        onUpdate={(values) =>
+          mutations.update.mutateAsync({ id: editTarget!.id, values })
+        }
         onUpdated={() => undefined}
       />
     </div>

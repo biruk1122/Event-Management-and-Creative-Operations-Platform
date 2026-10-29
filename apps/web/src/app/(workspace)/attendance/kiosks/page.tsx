@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { AttendanceNavigation, KioskManagementScreen } from "@/features/attendance";
+import {
+  AttendanceNavigation,
+  KioskManagementScreen,
+} from "@/features/attendance";
 import { WorkSurface } from "@/components/ui/work-surface";
 export const metadata: Metadata = { title: "Kiosk Management" };
 export default function AttendanceKiosksPage() {

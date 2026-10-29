@@ -27,7 +27,10 @@ const FORM_ERRORS: Record<string, string> = {
 };
 
 export interface DecideExceptionDialogProps {
-  item: { exception: AttendanceException; decision: "APPROVED" | "REJECTED" } | null;
+  item: {
+    exception: AttendanceException;
+    decision: "APPROVED" | "REJECTED";
+  } | null;
   onOpenChange: (open: boolean) => void;
   onDecide: (input: {
     decision: "APPROVED" | "REJECTED";
@@ -75,7 +78,8 @@ export function DecideExceptionDialog({
     setFormError(FORM_ERRORS[outcome.status] ?? FORM_ERRORS.unexpected!);
   }
 
-  const title = item?.decision === "APPROVED" ? "Approve exception" : "Reject exception";
+  const title =
+    item?.decision === "APPROVED" ? "Approve exception" : "Reject exception";
 
   return (
     <Dialog
@@ -118,12 +122,19 @@ export function DecideExceptionDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={close}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button
               type="submit"
-              variant={item?.decision === "REJECTED" ? "destructive" : "default"}
+              variant={
+                item?.decision === "REJECTED" ? "destructive" : "default"
+              }
               disabled={submitting}
               aria-busy={submitting}
             >

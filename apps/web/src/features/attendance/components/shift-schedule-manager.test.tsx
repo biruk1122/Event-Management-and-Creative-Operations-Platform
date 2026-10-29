@@ -22,7 +22,9 @@ vi.mock("@/env/client", () => ({
 const access: CurrentAccess = {
   userId: "manager-1",
   department: null,
-  grants: [{ permissionKey: "attendance.schedule.manage", scope: "DEPARTMENT" }],
+  grants: [
+    { permissionKey: "attendance.schedule.manage", scope: "DEPARTMENT" },
+  ],
 };
 
 function shift(overrides: Partial<EventShift> = {}): EventShift {
@@ -71,16 +73,24 @@ function setup() {
 describe("ShiftScheduleManager", () => {
   it("loads an event's shifts once chosen and creates a new one", async () => {
     mockGetRoutes({
-      "/api/v1/events": { items: [{ id: "event-1", name: "Spring Gala", departmentId: null }] },
+      "/api/v1/events": {
+        items: [{ id: "event-1", name: "Spring Gala", departmentId: null }],
+      },
       "/api/v1/events/{eventId}/shifts": [shift()],
     });
-    post.mockResolvedValue(ok(shift({ id: "shift-2", label: "Back of house" })));
+    post.mockResolvedValue(
+      ok(shift({ id: "shift-2", label: "Back of house" })),
+    );
     const { user } = setup();
 
     await user.click(screen.getByRole("combobox", { name: "Event" }));
-    await user.click(await screen.findByRole("option", { name: "Spring Gala" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Spring Gala" }),
+    );
 
-    expect(await screen.findByText("Front of house · Main hall")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Front of house · Main hall"),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "New shift" }));
     await user.type(
@@ -107,14 +117,18 @@ describe("ShiftScheduleManager", () => {
 
   it("cancels a shift after entering a reason", async () => {
     mockGetRoutes({
-      "/api/v1/events": { items: [{ id: "event-1", name: "Spring Gala", departmentId: null }] },
+      "/api/v1/events": {
+        items: [{ id: "event-1", name: "Spring Gala", departmentId: null }],
+      },
       "/api/v1/events/{eventId}/shifts": [shift()],
     });
     post.mockResolvedValue(ok(shift({ status: "CANCELLED" })));
     const { user } = setup();
 
     await user.click(screen.getByRole("combobox", { name: "Event" }));
-    await user.click(await screen.findByRole("option", { name: "Spring Gala" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Spring Gala" }),
+    );
     await screen.findByText("Front of house · Main hall");
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));

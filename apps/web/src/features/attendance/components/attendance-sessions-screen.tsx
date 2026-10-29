@@ -34,6 +34,12 @@ export function AttendanceSessionsScreen() {
       </div>
     );
   if (!attendanceAbilities(access.data).canReadDetailedSessions)
-    return <p role="alert">You do not have access to detailed attendance sessions.</p>;
-  return <AttendanceSessionsManager key={access.data.userId} access={access.data} />;
+    return (
+      <p role="alert">
+        You do not have access to detailed attendance sessions.
+      </p>
+    );
+  return (
+    <AttendanceSessionsManager key={access.data.userId} access={access.data} />
+  );
 }

@@ -56,7 +56,8 @@ export function leaveOverlap(): HttpException {
   return new ConflictException({
     code: LEAVE_ERROR.overlap,
     error: "Conflict",
-    detail: "This date range overlaps an existing pending or approved leave request.",
+    detail:
+      "This date range overlaps an existing pending or approved leave request.",
   });
 }
 

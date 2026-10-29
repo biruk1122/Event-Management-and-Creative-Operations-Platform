@@ -157,7 +157,8 @@ export function notificationAppearance(type: NotificationType) {
         icon: Plane,
         tone: "green",
         action: "View leave request",
-        description: "When your leave request is approved, rejected, or returned",
+        description:
+          "When your leave request is approved, rejected, or returned",
       };
     default:
       return {

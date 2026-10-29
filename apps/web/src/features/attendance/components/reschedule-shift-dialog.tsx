@@ -122,7 +122,9 @@ export function RescheduleShiftDialog({
         <DialogHeader>
           <DialogTitle>Reschedule shift</DialogTitle>
           <DialogDescription>
-            {shift ? `${shift.eventName}${shift.label ? ` · ${shift.label}` : ""}` : ""}
+            {shift
+              ? `${shift.eventName}${shift.label ? ` · ${shift.label}` : ""}`
+              : ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -172,11 +174,18 @@ export function RescheduleShiftDialog({
               onChange={(event) => setReason(event.target.value)}
               aria-invalid={Boolean(fieldError)}
             />
-            {fieldError ? <p className="text-destructive text-sm">{fieldError}</p> : null}
+            {fieldError ? (
+              <p className="text-destructive text-sm">{fieldError}</p>
+            ) : null}
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={close}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={submitting} aria-busy={submitting}>

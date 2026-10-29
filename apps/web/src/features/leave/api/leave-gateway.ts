@@ -75,7 +75,9 @@ function typeFailure(
     if (error.code === "LEAVE_TYPE_NAME_TAKEN") return { status: "name_taken" };
     if (error.code === "VALIDATION_ERROR") {
       const fields = (error.errors ?? {}) as Record<string, string | string[]>;
-      const fieldErrors: Partial<Record<(typeof TYPE_FIELD_KEYS)[number], string>> = {};
+      const fieldErrors: Partial<
+        Record<(typeof TYPE_FIELD_KEYS)[number], string>
+      > = {};
       for (const key of TYPE_FIELD_KEYS) {
         const value = fields[key];
         if (typeof value === "string") fieldErrors[key] = value;
@@ -83,7 +85,8 @@ function typeFailure(
           fieldErrors[key] = value[0];
         }
       }
-      if (Object.keys(fieldErrors).length > 0) return { status: "field_errors", fieldErrors };
+      if (Object.keys(fieldErrors).length > 0)
+        return { status: "field_errors", fieldErrors };
     }
   }
   if (status === 401 || status === 403) return { status: "permission_denied" };
@@ -95,17 +98,22 @@ export async function createLeaveType(
 ): Promise<CreateLeaveTypeOutcome> {
   try {
     const description = values.description.trim();
-    const { data, error, response } = await browserApi.POST("/api/v1/leave/types", {
-      body: {
-        name: values.name.trim(),
-        isPaid: values.isPaid,
-        requiresDocumentation: values.requiresDocumentation,
-        requiresApproval: values.requiresApproval,
-        ...(description ? { description } : {}),
+    const { data, error, response } = await browserApi.POST(
+      "/api/v1/leave/types",
+      {
+        body: {
+          name: values.name.trim(),
+          isPaid: values.isPaid,
+          requiresDocumentation: values.requiresDocumentation,
+          requiresApproval: values.requiresApproval,
+          ...(description ? { description } : {}),
+        },
+        headers: headers(),
       },
-      headers: headers(),
-    });
-    return data ? { status: "success", type: data } : typeFailure(error, response.status);
+    );
+    return data
+      ? { status: "success", type: data }
+      : typeFailure(error, response.status);
   } catch {
     return { status: "unexpected" };
   }
@@ -117,30 +125,42 @@ export async function updateLeaveType(
 ): Promise<UpdateLeaveTypeOutcome> {
   try {
     const description = values.description.trim();
-    const { data, error, response } = await browserApi.PATCH("/api/v1/leave/types/{id}", {
-      params: { path: { id } },
-      body: {
-        description: description === "" ? null : description,
-        isPaid: values.isPaid,
-        requiresDocumentation: values.requiresDocumentation,
-        requiresApproval: values.requiresApproval,
-        isActive: values.isActive,
+    const { data, error, response } = await browserApi.PATCH(
+      "/api/v1/leave/types/{id}",
+      {
+        params: { path: { id } },
+        body: {
+          description: description === "" ? null : description,
+          isPaid: values.isPaid,
+          requiresDocumentation: values.requiresDocumentation,
+          requiresApproval: values.requiresApproval,
+          isActive: values.isActive,
+        },
+        headers: headers(),
       },
-      headers: headers(),
-    });
+    );
     if (data) return { status: "success", type: data };
     if (response.status === 404) return { status: "not_found" };
     if (isProblemDetails(error) && error.code === "VALIDATION_ERROR") {
       const fields = (error.errors ?? {}) as Record<string, string | string[]>;
-      const fieldErrors: Partial<Record<keyof UpdateLeaveTypeFormValues, string>> = {};
-      for (const key of ["description", "isPaid", "requiresDocumentation", "requiresApproval", "isActive"] as const) {
+      const fieldErrors: Partial<
+        Record<keyof UpdateLeaveTypeFormValues, string>
+      > = {};
+      for (const key of [
+        "description",
+        "isPaid",
+        "requiresDocumentation",
+        "requiresApproval",
+        "isActive",
+      ] as const) {
         const value = fields[key];
         if (typeof value === "string") fieldErrors[key] = value;
         else if (Array.isArray(value) && typeof value[0] === "string") {
           fieldErrors[key] = value[0];
         }
       }
-      if (Object.keys(fieldErrors).length > 0) return { status: "field_errors", fieldErrors };
+      if (Object.keys(fieldErrors).length > 0)
+        return { status: "field_errors", fieldErrors };
     }
     if (response.status === 401 || response.status === 403) {
       return { status: "permission_denied" };
@@ -211,12 +231,17 @@ function grantFailure(
   status: number,
 ): Exclude<CreateLeaveGrantOutcome, { status: "success" }> {
   if (isProblemDetails(error)) {
-    if (error.code === "ATTENDANCE_EMPLOYEE_NOT_FOUND") return { status: "employee_not_found" };
-    if (error.code === "LEAVE_TYPE_NOT_FOUND") return { status: "type_not_found" };
-    if (error.code === "LEAVE_TYPE_INACTIVE") return { status: "type_inactive" };
+    if (error.code === "ATTENDANCE_EMPLOYEE_NOT_FOUND")
+      return { status: "employee_not_found" };
+    if (error.code === "LEAVE_TYPE_NOT_FOUND")
+      return { status: "type_not_found" };
+    if (error.code === "LEAVE_TYPE_INACTIVE")
+      return { status: "type_inactive" };
     if (error.code === "VALIDATION_ERROR") {
       const fields = (error.errors ?? {}) as Record<string, string | string[]>;
-      const fieldErrors: Partial<Record<(typeof GRANT_FIELD_KEYS)[number], string>> = {};
+      const fieldErrors: Partial<
+        Record<(typeof GRANT_FIELD_KEYS)[number], string>
+      > = {};
       for (const key of GRANT_FIELD_KEYS) {
         const value = fields[key];
         if (typeof value === "string") fieldErrors[key] = value;
@@ -224,7 +249,8 @@ function grantFailure(
           fieldErrors[key] = value[0];
         }
       }
-      if (Object.keys(fieldErrors).length > 0) return { status: "field_errors", fieldErrors };
+      if (Object.keys(fieldErrors).length > 0)
+        return { status: "field_errors", fieldErrors };
     }
   }
   if (status === 401 || status === 403) return { status: "permission_denied" };
@@ -237,16 +263,21 @@ export async function createGrant(
 ): Promise<CreateLeaveGrantOutcome> {
   try {
     const note = values.note.trim();
-    const { data, error, response } = await browserApi.POST("/api/v1/leave/grants", {
-      body: {
-        employeeId,
-        leaveTypeId: values.leaveTypeId,
-        grantedDays: Number(values.grantedDays),
-        ...(note ? { note } : {}),
+    const { data, error, response } = await browserApi.POST(
+      "/api/v1/leave/grants",
+      {
+        body: {
+          employeeId,
+          leaveTypeId: values.leaveTypeId,
+          grantedDays: Number(values.grantedDays),
+          ...(note ? { note } : {}),
+        },
+        headers: headers(),
       },
-      headers: headers(),
-    });
-    return data ? { status: "success", grant: data } : grantFailure(error, response.status);
+    );
+    return data
+      ? { status: "success", grant: data }
+      : grantFailure(error, response.status);
   } catch {
     return { status: "unexpected" };
   }
@@ -269,21 +300,32 @@ export async function listRequests(
   return data;
 }
 
-const REQUEST_FIELD_KEYS = ["leaveTypeId", "startDate", "endDate", "reason"] as const;
+const REQUEST_FIELD_KEYS = [
+  "leaveTypeId",
+  "startDate",
+  "endDate",
+  "reason",
+] as const;
 
 function requestFailure(
   error: unknown,
   status: number,
 ): Exclude<CreateLeaveRequestOutcome, { status: "success" }> {
   if (isProblemDetails(error)) {
-    if (error.code === "LEAVE_TYPE_NOT_FOUND") return { status: "type_not_found" };
-    if (error.code === "LEAVE_TYPE_INACTIVE") return { status: "type_inactive" };
-    if (error.code === "LEAVE_INVALID_DATE_RANGE") return { status: "invalid_date_range" };
+    if (error.code === "LEAVE_TYPE_NOT_FOUND")
+      return { status: "type_not_found" };
+    if (error.code === "LEAVE_TYPE_INACTIVE")
+      return { status: "type_inactive" };
+    if (error.code === "LEAVE_INVALID_DATE_RANGE")
+      return { status: "invalid_date_range" };
     if (error.code === "LEAVE_OVERLAP") return { status: "overlap" };
-    if (error.code === "LEAVE_INSUFFICIENT_BALANCE") return { status: "insufficient_balance" };
+    if (error.code === "LEAVE_INSUFFICIENT_BALANCE")
+      return { status: "insufficient_balance" };
     if (error.code === "VALIDATION_ERROR") {
       const fields = (error.errors ?? {}) as Record<string, string | string[]>;
-      const fieldErrors: Partial<Record<(typeof REQUEST_FIELD_KEYS)[number], string>> = {};
+      const fieldErrors: Partial<
+        Record<(typeof REQUEST_FIELD_KEYS)[number], string>
+      > = {};
       for (const key of REQUEST_FIELD_KEYS) {
         const value = fields[key];
         if (typeof value === "string") fieldErrors[key] = value;
@@ -291,7 +333,8 @@ function requestFailure(
           fieldErrors[key] = value[0];
         }
       }
-      if (Object.keys(fieldErrors).length > 0) return { status: "field_errors", fieldErrors };
+      if (Object.keys(fieldErrors).length > 0)
+        return { status: "field_errors", fieldErrors };
     }
   }
   if (status === 401 || status === 403) return { status: "permission_denied" };
@@ -303,22 +346,29 @@ export async function createRequest(
 ): Promise<CreateLeaveRequestOutcome> {
   try {
     const reason = values.reason.trim();
-    const { data, error, response } = await browserApi.POST("/api/v1/leave/requests", {
-      body: {
-        leaveTypeId: values.leaveTypeId,
-        startDate: values.startDate,
-        endDate: values.endDate,
-        ...(reason ? { reason } : {}),
+    const { data, error, response } = await browserApi.POST(
+      "/api/v1/leave/requests",
+      {
+        body: {
+          leaveTypeId: values.leaveTypeId,
+          startDate: values.startDate,
+          endDate: values.endDate,
+          ...(reason ? { reason } : {}),
+        },
+        headers: headers(),
       },
-      headers: headers(),
-    });
-    return data ? { status: "success", request: data } : requestFailure(error, response.status);
+    );
+    return data
+      ? { status: "success", request: data }
+      : requestFailure(error, response.status);
   } catch {
     return { status: "unexpected" };
   }
 }
 
-export async function withdrawRequest(id: string): Promise<WithdrawLeaveRequestOutcome> {
+export async function withdrawRequest(
+  id: string,
+): Promise<WithdrawLeaveRequestOutcome> {
   try {
     const { data, error, response } = await browserApi.POST(
       "/api/v1/leave/requests/{id}/withdraw",
@@ -326,7 +376,8 @@ export async function withdrawRequest(id: string): Promise<WithdrawLeaveRequestO
     );
     if (data) return { status: "success", request: data };
     if (isProblemDetails(error)) {
-      if (error.code === "LEAVE_REQUEST_NOT_FOUND") return { status: "not_found" };
+      if (error.code === "LEAVE_REQUEST_NOT_FOUND")
+        return { status: "not_found" };
       if (error.code === "LEAVE_REQUEST_NOT_WITHDRAWABLE") {
         return { status: "not_withdrawable" };
       }
@@ -359,9 +410,12 @@ export async function decideRequest(
       if (error.code === "ATTENDANCE_SELF_APPROVAL_FORBIDDEN") {
         return { status: "self_approval_forbidden" };
       }
-      if (error.code === "LEAVE_REQUEST_ALREADY_DECIDED") return { status: "already_decided" };
-      if (error.code === "LEAVE_INSUFFICIENT_BALANCE") return { status: "insufficient_balance" };
-      if (error.code === "LEAVE_REQUEST_NOT_FOUND") return { status: "not_found" };
+      if (error.code === "LEAVE_REQUEST_ALREADY_DECIDED")
+        return { status: "already_decided" };
+      if (error.code === "LEAVE_INSUFFICIENT_BALANCE")
+        return { status: "insufficient_balance" };
+      if (error.code === "LEAVE_REQUEST_NOT_FOUND")
+        return { status: "not_found" };
     }
     if (response.status === 401 || response.status === 403) {
       return { status: "permission_denied" };

@@ -17,10 +17,15 @@ describe("leave type persistence", () => {
   beforeAll(async () => {
     db = await createIsolatedDatabase();
     prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString: db.url }, { schema: db.schema }),
+      adapter: new PrismaPg(
+        { connectionString: db.url },
+        { schema: db.schema },
+      ),
     });
     repository = new LeaveTypesRepository(prisma as never);
-    const admin = await prisma.user.create({ data: { email: "leave-type-admin@attendance.test" } });
+    const admin = await prisma.user.create({
+      data: { email: "leave-type-admin@attendance.test" },
+    });
     adminId = admin.id;
   });
 
@@ -30,7 +35,10 @@ describe("leave type persistence", () => {
   });
 
   it("creates a leave type with its defaults", async () => {
-    const result = await repository.create({ name: "Sick Leave", createdById: adminId });
+    const result = await repository.create({
+      name: "Sick Leave",
+      createdById: adminId,
+    });
     if (result === "name_taken") throw new Error("unexpected");
     const type = result;
     expect(type.isPaid).toBe(true);
@@ -40,12 +48,18 @@ describe("leave type persistence", () => {
   });
 
   it("rejects a duplicate name with name_taken, not a thrown error", async () => {
-    const result = await repository.create({ name: "Sick Leave", createdById: adminId });
+    const result = await repository.create({
+      name: "Sick Leave",
+      createdById: adminId,
+    });
     expect(result).toBe("name_taken");
   });
 
   it("lists active-only by default and all when includeInactive is true", async () => {
-    const created = await repository.create({ name: "Unpaid Leave", createdById: adminId });
+    const created = await repository.create({
+      name: "Unpaid Leave",
+      createdById: adminId,
+    });
     if (created === "name_taken") throw new Error("unexpected");
     await repository.update(created.id, { isActive: false });
 
@@ -64,12 +78,17 @@ describe("leave type persistence", () => {
     });
     if (created === "name_taken") throw new Error("unexpected");
 
-    const updated = await repository.update(created.id, { description: null, isPaid: false });
+    const updated = await repository.update(created.id, {
+      description: null,
+      isPaid: false,
+    });
     expect(updated.description).toBeNull();
     expect(updated.isPaid).toBe(false);
   });
 
   it("returns null for an unknown id", async () => {
-    expect(await repository.findById("00000000-0000-0000-0000-000000000000")).toBeNull();
+    expect(
+      await repository.findById("00000000-0000-0000-0000-000000000000"),
+    ).toBeNull();
   });
 });

@@ -7,7 +7,11 @@ import { AttendanceDayType } from "../../../generated/prisma/client.js";
  * no PATCH/update here on purpose, see `AttendanceWeekdaySchedule`'s own
  * schema comment for why. */
 export class CreateWeekdayScheduleDto {
-  @ApiProperty({ minimum: 0, maximum: 6, description: "0 = Sunday .. 6 = Saturday." })
+  @ApiProperty({
+    minimum: 0,
+    maximum: 6,
+    description: "0 = Sunday .. 6 = Saturday.",
+  })
   @IsInt()
   @Min(0)
   @Max(6)

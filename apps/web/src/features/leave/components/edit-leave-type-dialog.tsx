@@ -16,7 +16,10 @@ import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-import type { UpdateLeaveTypeFormValues, UpdateLeaveTypeOutcome } from "../lib/leave-outcome";
+import type {
+  UpdateLeaveTypeFormValues,
+  UpdateLeaveTypeOutcome,
+} from "../lib/leave-outcome";
 import type { LeaveType } from "../lib/leave-types";
 
 const FORM_ERRORS: Record<string, string> = {
@@ -38,7 +41,9 @@ function valuesFrom(type: LeaveType): UpdateLeaveTypeFormValues {
 export interface EditLeaveTypeDialogProps {
   type: LeaveType | null;
   onOpenChange: (open: boolean) => void;
-  onUpdate: (values: UpdateLeaveTypeFormValues) => Promise<UpdateLeaveTypeOutcome>;
+  onUpdate: (
+    values: UpdateLeaveTypeFormValues,
+  ) => Promise<UpdateLeaveTypeOutcome>;
   onUpdated: (type: LeaveType) => void;
 }
 
@@ -130,7 +135,10 @@ export function EditLeaveTypeDialog({
             </div>
 
             <div className="space-y-3">
-              <label htmlFor={isPaidId} className="flex items-center gap-2 text-sm">
+              <label
+                htmlFor={isPaidId}
+                className="flex items-center gap-2 text-sm"
+              >
                 <Checkbox
                   id={isPaidId}
                   checked={current.isPaid}
@@ -161,26 +169,42 @@ export function EditLeaveTypeDialog({
                   id={requiresApprovalId}
                   checked={current.requiresApproval}
                   disabled={submitting}
-                  onCheckedChange={(checked) => set("requiresApproval", checked === true)}
+                  onCheckedChange={(checked) =>
+                    set("requiresApproval", checked === true)
+                  }
                 />
                 Requires approval
               </label>
-              <label htmlFor={isActiveId} className="flex items-center gap-2 text-sm">
+              <label
+                htmlFor={isActiveId}
+                className="flex items-center gap-2 text-sm"
+              >
                 <Checkbox
                   id={isActiveId}
                   checked={current.isActive}
                   disabled={submitting}
-                  onCheckedChange={(checked) => set("isActive", checked === true)}
+                  onCheckedChange={(checked) =>
+                    set("isActive", checked === true)
+                  }
                 />
                 Active
               </label>
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={close}
+                disabled={submitting}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting} aria-busy={submitting}>
+              <Button
+                type="submit"
+                disabled={submitting}
+                aria-busy={submitting}
+              >
                 {submitting ? "Saving…" : "Save changes"}
               </Button>
             </DialogFooter>

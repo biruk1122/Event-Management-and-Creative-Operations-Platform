@@ -13,7 +13,12 @@ import {
 } from "@/components/ui/select";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
-import { useEligibleEmployees, useGrants, useGrantMutation, useLeaveTypes } from "../api/leave-queries";
+import {
+  useEligibleEmployees,
+  useGrants,
+  useGrantMutation,
+  useLeaveTypes,
+} from "../api/leave-queries";
 import { LeaveRequestError } from "../api/leave-gateway";
 import { formatDate } from "../lib/leave-date";
 import { CreateLeaveGrantDialog } from "./create-leave-grant-dialog";
@@ -32,7 +37,9 @@ export function LeaveGrantsManager({ access }: LeaveGrantsManagerProps) {
   const grantMutation = useGrantMutation(access, employeeId);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const selectedEmployee = (employees.data ?? []).find((person) => person.id === employeeId);
+  const selectedEmployee = (employees.data ?? []).find(
+    (person) => person.id === employeeId,
+  );
 
   if (departmentId === null) {
     return (
@@ -86,21 +93,25 @@ export function LeaveGrantsManager({ access }: LeaveGrantsManagerProps) {
             <Button onClick={() => setDialogOpen(true)}>New grant</Button>
           </div>
           {(grants.data ?? []).length === 0 ? (
-            <p className="text-muted-foreground text-sm">No grants recorded yet.</p>
+            <p className="text-muted-foreground text-sm">
+              No grants recorded yet.
+            </p>
           ) : (
             <ul className="space-y-2">
               {(grants.data ?? []).map((grant) => (
                 <li key={grant.id} className="rounded-xl border p-4">
                   <p className="font-medium">
-                    {grant.leaveTypeName} · {grant.remaining} of {grant.grantedDays} days
-                    remaining
+                    {grant.leaveTypeName} · {grant.remaining} of{" "}
+                    {grant.grantedDays} days remaining
                   </p>
                   <p className="text-muted-foreground text-sm">
                     Granted {formatDate(grant.grantedAt.slice(0, 10))} · expires{" "}
                     {formatDate(grant.expiresAt.slice(0, 10))}
                   </p>
                   {grant.note ? (
-                    <p className="text-muted-foreground text-sm">“{grant.note}”</p>
+                    <p className="text-muted-foreground text-sm">
+                      “{grant.note}”
+                    </p>
                   ) : null}
                 </li>
               ))}

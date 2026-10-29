@@ -62,7 +62,9 @@ function leaveRequest(overrides: Partial<LeaveRequest> = {}): LeaveRequest {
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } });
 
 function mockGetRoutes(routes: Record<string, unknown>) {
-  get.mockImplementation((path: string) => Promise.resolve(ok(routes[path] ?? [])));
+  get.mockImplementation((path: string) =>
+    Promise.resolve(ok(routes[path] ?? [])),
+  );
 }
 
 afterEach(() => vi.resetAllMocks());
@@ -108,7 +110,9 @@ describe("LeaveManager", () => {
 
     expect(await screen.findByText("12 days remaining")).toBeInTheDocument();
     expect(screen.getByText(/12 of 14 days/)).toBeInTheDocument();
-    expect(screen.getByText(/Annual leave · Dec 24, 2026 – Dec 26, 2026/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Annual leave · Dec 24, 2026 – Dec 26, 2026/),
+    ).toBeInTheDocument();
     expect(get).toHaveBeenCalledWith(
       "/api/v1/leave/requests",
       expect.objectContaining({
@@ -122,7 +126,11 @@ describe("LeaveManager", () => {
   it("submits a new leave request through the dialog", async () => {
     mockGetRoutes({
       "/api/v1/leave/types": [leaveType()],
-      "/api/v1/leave/balance": { leaveTypeId: "type-1", totalRemaining: 5, grants: [] },
+      "/api/v1/leave/balance": {
+        leaveTypeId: "type-1",
+        totalRemaining: 5,
+        grants: [],
+      },
       "/api/v1/leave/requests": [],
     });
     post.mockResolvedValue(ok(leaveRequest()));
@@ -131,12 +139,16 @@ describe("LeaveManager", () => {
     await screen.findByText("5 days remaining");
     await user.click(screen.getByRole("button", { name: "Request leave" }));
     await user.click(screen.getByRole("combobox", { name: "Leave type" }));
-    await user.click(await screen.findByRole("option", { name: "Annual leave" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Annual leave" }),
+    );
     await user.type(screen.getByLabelText("Start date"), "2026-12-24");
     await user.type(screen.getByLabelText("End date"), "2026-12-26");
     await user.click(screen.getByRole("button", { name: "Submit request" }));
 
-    expect(await screen.findByText("Leave request submitted.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Leave request submitted."),
+    ).toBeInTheDocument();
     expect(post).toHaveBeenCalledWith(
       "/api/v1/leave/requests",
       expect.objectContaining({
@@ -152,7 +164,11 @@ describe("LeaveManager", () => {
   it("withdraws a pending request", async () => {
     mockGetRoutes({
       "/api/v1/leave/types": [leaveType()],
-      "/api/v1/leave/balance": { leaveTypeId: "type-1", totalRemaining: 5, grants: [] },
+      "/api/v1/leave/balance": {
+        leaveTypeId: "type-1",
+        totalRemaining: 5,
+        grants: [],
+      },
       "/api/v1/leave/requests": [leaveRequest()],
     });
     post.mockResolvedValue(ok(leaveRequest({ status: "WITHDRAWN" })));

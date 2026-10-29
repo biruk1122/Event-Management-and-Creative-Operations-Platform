@@ -95,7 +95,9 @@ export function ShiftReasonDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
-            {shift ? `${shift.eventName}${shift.label ? ` · ${shift.label}` : ""}` : ""}
+            {shift
+              ? `${shift.eventName}${shift.label ? ` · ${shift.label}` : ""}`
+              : ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -119,10 +121,17 @@ export function ShiftReasonDialog({
               onChange={(event) => setReason(event.target.value)}
               aria-invalid={Boolean(fieldError)}
             />
-            {fieldError ? <p className="text-destructive text-sm">{fieldError}</p> : null}
+            {fieldError ? (
+              <p className="text-destructive text-sm">{fieldError}</p>
+            ) : null}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={close}
+              disabled={submitting}
+            >
               Back
             </Button>
             <Button

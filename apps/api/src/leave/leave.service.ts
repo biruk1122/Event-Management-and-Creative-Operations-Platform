@@ -1,6 +1,9 @@
 import { Injectable } from "@nestjs/common";
 
-import { attendanceEmployeeNotFound, attendanceSelfApprovalForbidden } from "../attendance/attendance.errors.js";
+import {
+  attendanceEmployeeNotFound,
+  attendanceSelfApprovalForbidden,
+} from "../attendance/attendance.errors.js";
 import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
@@ -100,9 +103,11 @@ export class LeaveService {
     permissionKey: string,
     employeeDepartmentId: string | null,
   ): Promise<void> {
-    if (await this.hasGrant(actingUserId, permissionKey, "ORGANIZATION")) return;
+    if (await this.hasGrant(actingUserId, permissionKey, "ORGANIZATION"))
+      return;
     if (await this.hasGrant(actingUserId, permissionKey, "DEPARTMENT")) {
-      const departmentId = await this.repository.findUserDepartmentId(actingUserId);
+      const departmentId =
+        await this.repository.findUserDepartmentId(actingUserId);
       if (departmentId && departmentId === employeeDepartmentId) return;
     }
     throw permissionDenied();
@@ -122,10 +127,18 @@ export class LeaveService {
     employeeDepartmentId: string | null,
   ): Promise<void> {
     try {
-      await this.requireDepartmentBound(actingUserId, GRANT_PERMISSION, employeeDepartmentId);
+      await this.requireDepartmentBound(
+        actingUserId,
+        GRANT_PERMISSION,
+        employeeDepartmentId,
+      );
       return;
     } catch {
-      await this.requireDepartmentBound(actingUserId, REVIEW_PERMISSION, employeeDepartmentId);
+      await this.requireDepartmentBound(
+        actingUserId,
+        REVIEW_PERMISSION,
+        employeeDepartmentId,
+      );
     }
   }
 
@@ -141,8 +154,14 @@ export class LeaveService {
     if (!(await this.repository.isActiveEmployee(dto.employeeId))) {
       throw attendanceEmployeeNotFound();
     }
-    const employeeDepartmentId = await this.repository.findUserDepartmentId(dto.employeeId);
-    await this.requireDepartmentBound(actingUserId, GRANT_PERMISSION, employeeDepartmentId);
+    const employeeDepartmentId = await this.repository.findUserDepartmentId(
+      dto.employeeId,
+    );
+    await this.requireDepartmentBound(
+      actingUserId,
+      GRANT_PERMISSION,
+      employeeDepartmentId,
+    );
     await this.requireActiveLeaveType(dto.leaveTypeId);
 
     const grantedAt = new Date();
@@ -175,7 +194,8 @@ export class LeaveService {
   ): Promise<LeaveGrantResponse[]> {
     const viewingOwn = actingUserId === employeeId;
     if (!viewingOwn) {
-      const employeeDepartmentId = await this.repository.findUserDepartmentId(employeeId);
+      const employeeDepartmentId =
+        await this.repository.findUserDepartmentId(employeeId);
       await this.requireEmployeeVisibility(actingUserId, employeeDepartmentId);
     }
     const records = await this.repository.listGrants(employeeId, leaveTypeId);
@@ -189,17 +209,24 @@ export class LeaveService {
   ): Promise<LeaveBalanceResponse> {
     const viewingOwn = actingUserId === employeeId;
     if (!viewingOwn) {
-      const employeeDepartmentId = await this.repository.findUserDepartmentId(employeeId);
+      const employeeDepartmentId =
+        await this.repository.findUserDepartmentId(employeeId);
       await this.requireEmployeeVisibility(actingUserId, employeeDepartmentId);
     }
     await this.requireActiveLeaveType(leaveTypeId);
-    const summary = await this.repository.computeBalance(employeeId, leaveTypeId, new Date());
+    const summary = await this.repository.computeBalance(
+      employeeId,
+      leaveTypeId,
+      new Date(),
+    );
     const grants = await this.repository.listGrants(employeeId, leaveTypeId);
     return {
       leaveTypeId,
       totalRemaining: summary.totalRemaining,
       grants: grants
-        .filter((grant) => summary.grants.some((entry) => entry.grantId === grant.id))
+        .filter((grant) =>
+          summary.grants.some((entry) => entry.grantId === grant.id),
+        )
         .map(toGrantResponse),
     };
   }
@@ -220,12 +247,23 @@ export class LeaveService {
     if (endDate < startDate) throw leaveInvalidDateRange();
     const daysRequested = inclusiveDaySpan(startDate, endDate);
 
-    if (await this.repository.hasOverlappingRequest(actingUserId, startDate, endDate)) {
+    if (
+      await this.repository.hasOverlappingRequest(
+        actingUserId,
+        startDate,
+        endDate,
+      )
+    ) {
       throw leaveOverlap();
     }
 
-    const balance = await this.repository.computeBalance(actingUserId, dto.leaveTypeId, new Date());
-    if (balance.totalRemaining < daysRequested) throw leaveInsufficientBalance();
+    const balance = await this.repository.computeBalance(
+      actingUserId,
+      dto.leaveTypeId,
+      new Date(),
+    );
+    if (balance.totalRemaining < daysRequested)
+      throw leaveInsufficientBalance();
 
     const record = await this.repository.createRequest({
       employeeId: actingUserId,
@@ -256,7 +294,8 @@ export class LeaveService {
     const request = await this.repository.findRequestById(id);
     if (!request) throw leaveRequestNotFound();
     if (request.employeeId !== actingUserId) throw permissionDenied();
-    if (request.status !== LeaveRequestStatus.PENDING) throw leaveRequestNotWithdrawable();
+    if (request.status !== LeaveRequestStatus.PENDING)
+      throw leaveRequestNotWithdrawable();
     const record = await this.repository.withdrawRequest(id);
     await this.audit.record({
       action: "leave.request.withdrawn",
@@ -277,8 +316,14 @@ export class LeaveService {
     actingUserId: string,
     input: { status?: LeaveRequestStatus; employeeId?: string },
   ): Promise<LeaveRequestResponse[]> {
-    const org = await this.hasGrant(actingUserId, REVIEW_PERMISSION, "ORGANIZATION");
-    const dept = !org && (await this.hasGrant(actingUserId, REVIEW_PERMISSION, "DEPARTMENT"));
+    const org = await this.hasGrant(
+      actingUserId,
+      REVIEW_PERMISSION,
+      "ORGANIZATION",
+    );
+    const dept =
+      !org &&
+      (await this.hasGrant(actingUserId, REVIEW_PERMISSION, "DEPARTMENT"));
     const departmentId = dept
       ? await this.repository.findUserDepartmentId(actingUserId)
       : null;
@@ -304,9 +349,15 @@ export class LeaveService {
   ): Promise<LeaveRequestResponse> {
     const request = await this.repository.findRequestById(id);
     if (!request) throw leaveRequestNotFound();
-    if (request.employeeId === actingUserId) throw attendanceSelfApprovalForbidden();
-    await this.requireDepartmentBound(actingUserId, REVIEW_PERMISSION, request.employeeDepartmentId);
-    if (request.status !== LeaveRequestStatus.PENDING) throw leaveRequestAlreadyDecided();
+    if (request.employeeId === actingUserId)
+      throw attendanceSelfApprovalForbidden();
+    await this.requireDepartmentBound(
+      actingUserId,
+      REVIEW_PERMISSION,
+      request.employeeDepartmentId,
+    );
+    if (request.status !== LeaveRequestStatus.PENDING)
+      throw leaveRequestAlreadyDecided();
 
     if (dto.decision === "APPROVED") {
       const result = await this.repository.consumeForRequest({
@@ -355,8 +406,14 @@ export class LeaveService {
     startDate: Date,
     endDate: Date,
   ): Promise<LeaveRequestResponse[]> {
-    const org = await this.hasGrant(actingUserId, REVIEW_PERMISSION, "ORGANIZATION");
-    const dept = !org && (await this.hasGrant(actingUserId, REVIEW_PERMISSION, "DEPARTMENT"));
+    const org = await this.hasGrant(
+      actingUserId,
+      REVIEW_PERMISSION,
+      "ORGANIZATION",
+    );
+    const dept =
+      !org &&
+      (await this.hasGrant(actingUserId, REVIEW_PERMISSION, "DEPARTMENT"));
     const departmentId = dept
       ? await this.repository.findUserDepartmentId(actingUserId)
       : undefined;
@@ -364,7 +421,11 @@ export class LeaveService {
     const records = await this.repository.listApprovedInRange({
       startDate,
       endDate,
-      ...(org ? {} : departmentId ? { departmentId } : { employeeId: actingUserId }),
+      ...(org
+        ? {}
+        : departmentId
+          ? { departmentId }
+          : { employeeId: actingUserId }),
     });
     return records.map(toRequestResponse);
   }

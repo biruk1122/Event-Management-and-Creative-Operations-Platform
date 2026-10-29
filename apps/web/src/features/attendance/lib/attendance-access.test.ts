@@ -9,7 +9,9 @@ function access(overrides: Partial<CurrentAccess> = {}): CurrentAccess {
     userId: "user-1",
     role: null,
     department: null,
-    grants: [{ permissionKey: "attendance.reports.read", scope: "ORGANIZATION" }],
+    grants: [
+      { permissionKey: "attendance.reports.read", scope: "ORGANIZATION" },
+    ],
     ...overrides,
   };
 }
@@ -18,7 +20,8 @@ describe("attendanceAbilities", () => {
   describe("canReadDetailedSessions", () => {
     it("is true for Super Admin holding the grant", () => {
       expect(
-        attendanceAbilities(access({ role: "SUPER_ADMIN" })).canReadDetailedSessions,
+        attendanceAbilities(access({ role: "SUPER_ADMIN" }))
+          .canReadDetailedSessions,
       ).toBe(true);
     });
 
@@ -27,8 +30,14 @@ describe("attendanceAbilities", () => {
         attendanceAbilities(
           access({
             role: "DEPARTMENT_MANAGER",
-            department: { id: "dept-hr", name: "HR & Executive Officer", active: true },
-            grants: [{ permissionKey: "attendance.reports.read", scope: "DEPARTMENT" }],
+            department: {
+              id: "dept-hr",
+              name: "HR & Executive Officer",
+              active: true,
+            },
+            grants: [
+              { permissionKey: "attendance.reports.read", scope: "DEPARTMENT" },
+            ],
           }),
         ).canReadDetailedSessions,
       ).toBe(true);
@@ -39,8 +48,14 @@ describe("attendanceAbilities", () => {
         attendanceAbilities(
           access({
             role: "DEPARTMENT_MANAGER",
-            department: { id: "dept-marketing", name: "Marketing", active: true },
-            grants: [{ permissionKey: "attendance.reports.read", scope: "DEPARTMENT" }],
+            department: {
+              id: "dept-marketing",
+              name: "Marketing",
+              active: true,
+            },
+            grants: [
+              { permissionKey: "attendance.reports.read", scope: "DEPARTMENT" },
+            ],
           }),
         ).canReadDetailedSessions,
       ).toBe(false);
@@ -51,8 +66,14 @@ describe("attendanceAbilities", () => {
         attendanceAbilities(
           access({
             role: "DEPARTMENT_MANAGER",
-            department: { id: "dept-hr", name: "HR & Executive Officer", active: false },
-            grants: [{ permissionKey: "attendance.reports.read", scope: "DEPARTMENT" }],
+            department: {
+              id: "dept-hr",
+              name: "HR & Executive Officer",
+              active: false,
+            },
+            grants: [
+              { permissionKey: "attendance.reports.read", scope: "DEPARTMENT" },
+            ],
           }),
         ).canReadDetailedSessions,
       ).toBe(false);
@@ -72,7 +93,12 @@ describe("attendanceAbilities", () => {
         attendanceAbilities(
           access({
             role: "SUPER_ADMIN",
-            grants: [{ permissionKey: "attendance.calendar.manage", scope: "ORGANIZATION" }],
+            grants: [
+              {
+                permissionKey: "attendance.calendar.manage",
+                scope: "ORGANIZATION",
+              },
+            ],
           }),
         ).canManageCalendar,
       ).toBe(true);
@@ -83,8 +109,17 @@ describe("attendanceAbilities", () => {
         attendanceAbilities(
           access({
             role: "DEPARTMENT_MANAGER",
-            department: { id: "dept-hr", name: "HR & Executive Officer", active: true },
-            grants: [{ permissionKey: "attendance.calendar.manage", scope: "DEPARTMENT" }],
+            department: {
+              id: "dept-hr",
+              name: "HR & Executive Officer",
+              active: true,
+            },
+            grants: [
+              {
+                permissionKey: "attendance.calendar.manage",
+                scope: "DEPARTMENT",
+              },
+            ],
           }),
         ).canManageCalendar,
       ).toBe(true);
@@ -95,8 +130,17 @@ describe("attendanceAbilities", () => {
         attendanceAbilities(
           access({
             role: "DEPARTMENT_MANAGER",
-            department: { id: "dept-marketing", name: "Marketing", active: true },
-            grants: [{ permissionKey: "attendance.calendar.manage", scope: "DEPARTMENT" }],
+            department: {
+              id: "dept-marketing",
+              name: "Marketing",
+              active: true,
+            },
+            grants: [
+              {
+                permissionKey: "attendance.calendar.manage",
+                scope: "DEPARTMENT",
+              },
+            ],
           }),
         ).canManageCalendar,
       ).toBe(false);
@@ -107,8 +151,17 @@ describe("attendanceAbilities", () => {
         attendanceAbilities(
           access({
             role: "DEPARTMENT_MEMBER",
-            department: { id: "dept-hr", name: "HR & Executive Officer", active: true },
-            grants: [{ permissionKey: "attendance.calendar.manage", scope: "DEPARTMENT" }],
+            department: {
+              id: "dept-hr",
+              name: "HR & Executive Officer",
+              active: true,
+            },
+            grants: [
+              {
+                permissionKey: "attendance.calendar.manage",
+                scope: "DEPARTMENT",
+              },
+            ],
           }),
         ).canManageCalendar,
       ).toBe(false);
@@ -119,8 +172,17 @@ describe("attendanceAbilities", () => {
         attendanceAbilities(
           access({
             role: "DEPARTMENT_MANAGER",
-            department: { id: "dept-hr", name: "HR & Executive Officer", active: false },
-            grants: [{ permissionKey: "attendance.calendar.manage", scope: "DEPARTMENT" }],
+            department: {
+              id: "dept-hr",
+              name: "HR & Executive Officer",
+              active: false,
+            },
+            grants: [
+              {
+                permissionKey: "attendance.calendar.manage",
+                scope: "DEPARTMENT",
+              },
+            ],
           }),
         ).canManageCalendar,
       ).toBe(false);
@@ -128,7 +190,8 @@ describe("attendanceAbilities", () => {
 
     it("is false without the underlying calendar permission at all", () => {
       expect(
-        attendanceAbilities(access({ role: "SUPER_ADMIN", grants: [] })).canManageCalendar,
+        attendanceAbilities(access({ role: "SUPER_ADMIN", grants: [] }))
+          .canManageCalendar,
       ).toBe(false);
     });
   });

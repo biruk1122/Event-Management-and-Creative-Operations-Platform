@@ -32,7 +32,8 @@ const SELECT = {
 
 function isUniqueViolation(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
   );
 }
 
@@ -53,7 +54,9 @@ export class LeaveTypesRepository {
         data: {
           name: input.name,
           createdById: input.createdById,
-          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.description !== undefined
+            ? { description: input.description }
+            : {}),
           ...(input.isPaid !== undefined ? { isPaid: input.isPaid } : {}),
           ...(input.requiresDocumentation !== undefined
             ? { requiresDocumentation: input.requiresDocumentation }
@@ -96,7 +99,9 @@ export class LeaveTypesRepository {
     return this.db.leaveType.update({
       where: { id },
       data: {
-        ...(patch.description !== undefined ? { description: patch.description } : {}),
+        ...(patch.description !== undefined
+          ? { description: patch.description }
+          : {}),
         ...(patch.isPaid !== undefined ? { isPaid: patch.isPaid } : {}),
         ...(patch.requiresDocumentation !== undefined
           ? { requiresDocumentation: patch.requiresDocumentation }

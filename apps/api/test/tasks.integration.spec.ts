@@ -1309,7 +1309,10 @@ describe("task assignment and collaboration API", () => {
     expect(assignerList.status).toBe(200);
     expect(
       body<{ items: Array<{ id: string }>; total: number }>(assignerList),
-    ).toMatchObject({ items: [expect.objectContaining({ id: intentId })], total: 1 });
+    ).toMatchObject({
+      items: [expect.objectContaining({ id: intentId })],
+      total: 1,
+    });
     const assignerDownload = await as(
       departmentManager,
       "get",
@@ -1327,7 +1330,10 @@ describe("task assignment and collaboration API", () => {
     expect(assigneeList.status).toBe(200);
     expect(
       body<{ items: Array<{ id: string }>; total: number }>(assigneeList),
-    ).toMatchObject({ items: [expect.objectContaining({ id: intentId })], total: 1 });
+    ).toMatchObject({
+      items: [expect.objectContaining({ id: intentId })],
+      total: 1,
+    });
     const assigneeDownload = await as(
       member,
       "get",

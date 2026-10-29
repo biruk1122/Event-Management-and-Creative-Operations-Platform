@@ -60,14 +60,17 @@ export interface AttendanceSessionsManagerProps {
   access: CurrentAccess;
 }
 
-export function AttendanceSessionsManager({ access }: AttendanceSessionsManagerProps) {
+export function AttendanceSessionsManager({
+  access,
+}: AttendanceSessionsManagerProps) {
   const startId = useId();
   const endId = useId();
   const [startDate, setStartDate] = useState(startOfMonth());
   const [endDate, setEndDate] = useState(isoDate(new Date()));
   const sessions = useDetailedSessions(access, startDate, endDate);
 
-  const rangeInvalid = startDate !== "" && endDate !== "" && endDate < startDate;
+  const rangeInvalid =
+    startDate !== "" && endDate !== "" && endDate < startDate;
   const groups = groupByMonth(sessions.data ?? []);
 
   return (
@@ -132,8 +135,12 @@ export function AttendanceSessionsManager({ access }: AttendanceSessionsManagerP
                 <tbody>
                   {group.sessions.map((session) => (
                     <tr key={session.id} className="border-t">
-                      <td className="py-2">{session.employeeName ?? "Former employee"}</td>
-                      <td className="py-2">{formatDateTime(session.checkInAt)}</td>
+                      <td className="py-2">
+                        {session.employeeName ?? "Former employee"}
+                      </td>
+                      <td className="py-2">
+                        {formatDateTime(session.checkInAt)}
+                      </td>
                       <td className="py-2">
                         {session.checkOutAt ? (
                           formatDateTime(session.checkOutAt)
@@ -141,12 +148,16 @@ export function AttendanceSessionsManager({ access }: AttendanceSessionsManagerP
                           <span className="flex items-center gap-2">
                             —
                             {session.status === "MISSING_CHECKOUT" ? (
-                              <Badge variant="destructive">Missing checkout</Badge>
+                              <Badge variant="destructive">
+                                Missing checkout
+                              </Badge>
                             ) : null}
                           </span>
                         )}
                       </td>
-                      <td className="py-2">{formatMinutes(session.netMinutes)}</td>
+                      <td className="py-2">
+                        {formatMinutes(session.netMinutes)}
+                      </td>
                       <td className="py-2">
                         {SOURCE_LABELS[session.method]}
                         {session.kioskName ? ` · ${session.kioskName}` : ""}

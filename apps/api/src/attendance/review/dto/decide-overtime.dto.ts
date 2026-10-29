@@ -20,7 +20,8 @@ export class DecideOvertimeDto {
   decision!: "APPROVED" | "REJECTED";
 
   @ApiPropertyOptional({
-    description: "Required when approving. Never auto-derived from the potential minutes.",
+    description:
+      "Required when approving. Never auto-derived from the potential minutes.",
     minimum: 0,
     maximum: 1_440,
   })

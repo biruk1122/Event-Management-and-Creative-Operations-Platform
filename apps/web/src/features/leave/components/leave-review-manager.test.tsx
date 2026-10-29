@@ -48,7 +48,9 @@ function leaveRequest(overrides: Partial<LeaveRequest> = {}): LeaveRequest {
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } });
 
 function mockGetRoutes(routes: Record<string, unknown>) {
-  get.mockImplementation((path: string) => Promise.resolve(ok(routes[path] ?? [])));
+  get.mockImplementation((path: string) =>
+    Promise.resolve(ok(routes[path] ?? [])),
+  );
 }
 
 afterEach(() => vi.resetAllMocks());
@@ -77,7 +79,9 @@ describe("LeaveReviewManager", () => {
 
     await user.click(screen.getByRole("button", { name: "Approve" }));
     await user.type(await screen.findByLabelText("Note (optional)"), "Enjoy!");
-    await user.click(screen.getByRole("button", { name: "Approve leave request" }));
+    await user.click(
+      screen.getByRole("button", { name: "Approve leave request" }),
+    );
 
     expect(patch).toHaveBeenCalledWith(
       "/api/v1/leave/requests/{id}/decision",
@@ -99,7 +103,9 @@ describe("LeaveReviewManager", () => {
 
     await screen.findByText("Ada Employee");
     await user.click(screen.getByRole("button", { name: "Reject" }));
-    await user.click(await screen.findByRole("button", { name: "Reject leave request" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Reject leave request" }),
+    );
 
     expect(
       await screen.findByText("You cannot decide your own leave request."),

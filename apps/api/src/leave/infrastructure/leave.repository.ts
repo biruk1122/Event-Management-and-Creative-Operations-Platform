@@ -22,12 +22,17 @@ function isUuid(value: string): boolean {
 
 function isUniqueViolation(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
   );
 }
 
 function personName(
-  person: { firstName: string | null; lastName: string | null; email: string } | null,
+  person: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null,
 ): string | null {
   if (!person) return null;
   const name = [person.firstName, person.lastName]
@@ -91,7 +96,12 @@ const REQUEST_SELECT = {
   reviewNote: true,
   createdAt: true,
   employee: {
-    select: { departmentId: true, firstName: true, lastName: true, email: true },
+    select: {
+      departmentId: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+    },
   },
   leaveType: { select: { name: true } },
   reviewedBy: { select: { firstName: true, lastName: true, email: true } },
@@ -116,7 +126,11 @@ type RawRequest = {
     email: string;
   };
   leaveType: { name: string };
-  reviewedBy: { firstName: string | null; lastName: string | null; email: string } | null;
+  reviewedBy: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
 };
 
 function toRequestRecord(raw: RawRequest): LeaveRequestRecord {
@@ -204,7 +218,14 @@ export class LeaveRepository {
           createdById: input.createdById,
           ...(input.note !== undefined ? { note: input.note } : {}),
         },
-        select: { id: true, grantedDays: true, grantedAt: true, expiresAt: true, note: true, createdAt: true },
+        select: {
+          id: true,
+          grantedDays: true,
+          grantedAt: true,
+          expiresAt: true,
+          note: true,
+          createdAt: true,
+        },
       });
       await tx.leaveLedgerEntry.create({
         data: {
@@ -235,7 +256,10 @@ export class LeaveRepository {
     });
   }
 
-  async listGrants(employeeId: string, leaveTypeId?: string): Promise<GrantRecord[]> {
+  async listGrants(
+    employeeId: string,
+    leaveTypeId?: string,
+  ): Promise<GrantRecord[]> {
     if (!isUuid(employeeId)) return [];
     const grants = await this.db.leaveGrant.findMany({
       where: { employeeId, ...(leaveTypeId ? { leaveTypeId } : {}) },
@@ -276,7 +300,11 @@ export class LeaveRepository {
   ): Promise<BalanceSummary> {
     const grants = await this.db.leaveGrant.findMany({
       where: { employeeId, leaveTypeId, expiresAt: { gt: asOf } },
-      select: { id: true, expiresAt: true, ledger: { select: { amountDays: true } } },
+      select: {
+        id: true,
+        expiresAt: true,
+        ledger: { select: { amountDays: true } },
+      },
       orderBy: { grantedAt: "asc" },
     });
     const summaries = grants.map((grant) => ({
@@ -285,7 +313,10 @@ export class LeaveRepository {
       expiresAt: grant.expiresAt,
     }));
     return {
-      totalRemaining: summaries.reduce((sum, grant) => sum + Math.max(0, grant.remaining), 0),
+      totalRemaining: summaries.reduce(
+        (sum, grant) => sum + Math.max(0, grant.remaining),
+        0,
+      ),
       grants: summaries,
     };
   }
@@ -306,13 +337,20 @@ export class LeaveRepository {
   }): Promise<"consumed" | "insufficient_balance"> {
     return this.db.$transaction(async (tx) => {
       const grants = await tx.leaveGrant.findMany({
-        where: { employeeId: input.employeeId, leaveTypeId: input.leaveTypeId, expiresAt: { gt: input.asOf } },
+        where: {
+          employeeId: input.employeeId,
+          leaveTypeId: input.leaveTypeId,
+          expiresAt: { gt: input.asOf },
+        },
         select: { id: true, ledger: { select: { amountDays: true } } },
         orderBy: { grantedAt: "asc" },
       });
       const balances: GrantBalance[] = grants.map((grant) => ({
         grantId: grant.id,
-        remaining: grant.ledger.reduce((sum, entry) => sum + entry.amountDays, 0),
+        remaining: grant.ledger.reduce(
+          (sum, entry) => sum + entry.amountDays,
+          0,
+        ),
       }));
       const plan = planConsumption(balances, input.daysToConsume);
       if (plan === "insufficient_balance") return "insufficient_balance";
@@ -401,7 +439,9 @@ export class LeaveRepository {
       actorUserId: input.employeeId,
       resourceType: "leave_request",
       resourceId: record.id,
-      payload: { employeeId: input.employeeId } satisfies LeaveRequestSubmittedEventPayload,
+      payload: {
+        employeeId: input.employeeId,
+      } satisfies LeaveRequestSubmittedEventPayload,
       consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
     });
     return record;
@@ -409,7 +449,10 @@ export class LeaveRepository {
 
   async findRequestById(id: string): Promise<LeaveRequestRecord | null> {
     if (!isUuid(id)) return null;
-    const raw = await this.db.leaveRequest.findUnique({ where: { id }, select: REQUEST_SELECT });
+    const raw = await this.db.leaveRequest.findUnique({
+      where: { id },
+      select: REQUEST_SELECT,
+    });
     return raw ? toRequestRecord(raw) : null;
   }
 
@@ -421,7 +464,9 @@ export class LeaveRepository {
     const rows = await this.db.leaveRequest.findMany({
       where: {
         ...(input.employeeId ? { employeeId: input.employeeId } : {}),
-        ...(input.departmentId ? { employee: { departmentId: input.departmentId } } : {}),
+        ...(input.departmentId
+          ? { employee: { departmentId: input.departmentId } }
+          : {}),
         ...(input.status ? { status: input.status } : {}),
       },
       select: REQUEST_SELECT,
@@ -432,7 +477,11 @@ export class LeaveRepository {
 
   async decideRequest(
     id: string,
-    input: { status: LeaveRequestStatusType; reviewedById: string; reviewNote?: string },
+    input: {
+      status: LeaveRequestStatusType;
+      reviewedById: string;
+      reviewNote?: string;
+    },
   ): Promise<LeaveRequestRecord> {
     const raw = await this.db.leaveRequest.update({
       where: { id },
@@ -452,7 +501,9 @@ export class LeaveRepository {
       actorUserId: input.reviewedById,
       resourceType: "leave_request",
       resourceId: id,
-      payload: { employeeId: record.employeeId } satisfies LeaveRequestDecidedEventPayload,
+      payload: {
+        employeeId: record.employeeId,
+      } satisfies LeaveRequestDecidedEventPayload,
       consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
     });
     return record;
@@ -478,7 +529,9 @@ export class LeaveRepository {
         status: LeaveRequestStatus.APPROVED,
         startDate: { lte: input.endDate },
         endDate: { gte: input.startDate },
-        ...(input.departmentId ? { employee: { departmentId: input.departmentId } } : {}),
+        ...(input.departmentId
+          ? { employee: { departmentId: input.departmentId } }
+          : {}),
         ...(input.employeeId ? { employeeId: input.employeeId } : {}),
       },
       select: REQUEST_SELECT,
@@ -496,7 +549,9 @@ export class LeaveRepository {
    * only candidates. */
   async findExpiringGrants(
     asOf: Date,
-  ): Promise<{ id: string; employeeId: string; leaveTypeId: string; remaining: number }[]> {
+  ): Promise<
+    { id: string; employeeId: string; leaveTypeId: string; remaining: number }[]
+  > {
     const grants = await this.db.leaveGrant.findMany({
       where: {
         expiresAt: { lte: asOf },
@@ -514,7 +569,10 @@ export class LeaveRepository {
         id: grant.id,
         employeeId: grant.employeeId,
         leaveTypeId: grant.leaveTypeId,
-        remaining: grant.ledger.reduce((sum, entry) => sum + entry.amountDays, 0),
+        remaining: grant.ledger.reduce(
+          (sum, entry) => sum + entry.amountDays,
+          0,
+        ),
       }))
       .filter((grant) => grant.remaining > 0);
   }

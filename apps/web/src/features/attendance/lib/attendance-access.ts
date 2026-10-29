@@ -47,7 +47,9 @@ export interface AttendanceAbilities {
   canManageCalendar: boolean;
 }
 
-export function attendanceAbilities(access: CurrentAccess): AttendanceAbilities {
+export function attendanceAbilities(
+  access: CurrentAccess,
+): AttendanceAbilities {
   const can = (key: string) => holdsAny(access.grants, key);
   return {
     canPunch: can("attendance.punch"),
@@ -56,8 +58,10 @@ export function attendanceAbilities(access: CurrentAccess): AttendanceAbilities 
     canReviewOvertime: can("attendance.overtime.review"),
     canReviewExceptions: can("attendance.exception.review"),
     canReadReports: can("attendance.reports.read"),
-    canReadDetailedSessions: can("attendance.reports.read") && isHrOrSuperAdmin(access),
-    canManageCalendar: can("attendance.calendar.manage") && isHrOrSuperAdmin(access),
+    canReadDetailedSessions:
+      can("attendance.reports.read") && isHrOrSuperAdmin(access),
+    canManageCalendar:
+      can("attendance.calendar.manage") && isHrOrSuperAdmin(access),
   };
 }
 

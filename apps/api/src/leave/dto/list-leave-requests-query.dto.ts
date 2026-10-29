@@ -11,7 +11,8 @@ export class ListLeaveRequestsQueryDto {
 
   @ApiPropertyOptional({
     format: "uuid",
-    description: "Restrict to one employee - only meaningful with department/organization visibility.",
+    description:
+      "Restrict to one employee - only meaningful with department/organization visibility.",
   })
   @IsOptional()
   @IsUUID()

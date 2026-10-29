@@ -103,7 +103,9 @@ export class EventShiftsController {
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("attendance.schedule.manage")
-  @ApiOperation({ summary: "Update shift metadata (location, geofence, break)" })
+  @ApiOperation({
+    summary: "Update shift metadata (location, geofence, break)",
+  })
   @ApiOkResponse({ type: EventShiftResponse })
   update(
     @Req() req: RequestWithContext,
@@ -118,7 +120,9 @@ export class EventShiftsController {
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("attendance.schedule.manage")
-  @ApiOperation({ summary: "Reschedule or extend a shift, with a required reason" })
+  @ApiOperation({
+    summary: "Reschedule or extend a shift, with a required reason",
+  })
   @ApiOkResponse({ type: EventShiftResponse })
   reschedule(
     @Req() req: RequestWithContext,
@@ -126,7 +130,13 @@ export class EventShiftsController {
     @Param("shiftId") shiftId: string,
     @Body() body: RescheduleEventShiftDto,
   ): Promise<EventShiftResponse> {
-    return this.shifts.reschedule(actingUserId(req), eventId, shiftId, body, req.id);
+    return this.shifts.reschedule(
+      actingUserId(req),
+      eventId,
+      shiftId,
+      body,
+      req.id,
+    );
   }
 
   @Post(":shiftId/cancel")
@@ -141,7 +151,13 @@ export class EventShiftsController {
     @Param("shiftId") shiftId: string,
     @Body() body: ShiftReasonDto,
   ): Promise<EventShiftResponse> {
-    return this.shifts.cancel(actingUserId(req), eventId, shiftId, body, req.id);
+    return this.shifts.cancel(
+      actingUserId(req),
+      eventId,
+      shiftId,
+      body,
+      req.id,
+    );
   }
 
   @Post(":shiftId/reinstate")
@@ -156,7 +172,13 @@ export class EventShiftsController {
     @Param("shiftId") shiftId: string,
     @Body() body: ShiftReasonDto,
   ): Promise<EventShiftResponse> {
-    return this.shifts.reinstate(actingUserId(req), eventId, shiftId, body, req.id);
+    return this.shifts.reinstate(
+      actingUserId(req),
+      eventId,
+      shiftId,
+      body,
+      req.id,
+    );
   }
 
   @Get(":shiftId/changes")
@@ -212,6 +234,12 @@ export class EventShiftsController {
     @Param("shiftId") shiftId: string,
     @Param("employeeId") employeeId: string,
   ): Promise<void> {
-    await this.shifts.unassign(actingUserId(req), eventId, shiftId, employeeId, req.id);
+    await this.shifts.unassign(
+      actingUserId(req),
+      eventId,
+      shiftId,
+      employeeId,
+      req.id,
+    );
   }
 }

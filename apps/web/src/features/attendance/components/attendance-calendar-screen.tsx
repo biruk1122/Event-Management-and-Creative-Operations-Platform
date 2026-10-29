@@ -35,5 +35,7 @@ export function AttendanceCalendarScreen() {
     );
   if (!attendanceAbilities(access.data).canManageCalendar)
     return <p role="alert">You do not have access to the work calendar.</p>;
-  return <AttendanceCalendarManager key={access.data.userId} access={access.data} />;
+  return (
+    <AttendanceCalendarManager key={access.data.userId} access={access.data} />
+  );
 }

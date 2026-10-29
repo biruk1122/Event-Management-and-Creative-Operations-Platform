@@ -88,7 +88,9 @@ describe("TaskWorkspace", () => {
       details: {
         ...TASK_WORKSPACE_FIXTURE.details,
         [TASK_WORKSPACE_FIXTURE.tasks[0]!.id]: {
-          ...TASK_WORKSPACE_FIXTURE.details[TASK_WORKSPACE_FIXTURE.tasks[0]!.id]!,
+          ...TASK_WORKSPACE_FIXTURE.details[
+            TASK_WORKSPACE_FIXTURE.tasks[0]!.id
+          ]!,
           files: [
             {
               id: "f0f00000-0000-4000-8000-000000000099",
@@ -196,9 +198,7 @@ describe("TaskWorkspace", () => {
       "File",
       "Action",
     ]) {
-      expect(
-        screen.getByRole("columnheader", { name: header }),
-      ).toBeVisible();
+      expect(screen.getByRole("columnheader", { name: header })).toBeVisible();
     }
     const rows = within(table).getAllByRole("row").slice(1);
     expect(rows[0]).toHaveTextContent("1");

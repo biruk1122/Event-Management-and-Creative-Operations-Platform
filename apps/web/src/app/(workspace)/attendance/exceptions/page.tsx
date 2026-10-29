@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { AttendanceNavigation, ExceptionReviewScreen } from "@/features/attendance";
+import {
+  AttendanceNavigation,
+  ExceptionReviewScreen,
+} from "@/features/attendance";
 import { WorkSurface } from "@/components/ui/work-surface";
 export const metadata: Metadata = { title: "Exception Review" };
 export default function AttendanceExceptionsPage() {

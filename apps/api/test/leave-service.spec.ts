@@ -92,26 +92,43 @@ describe("LeaveService", () => {
         .mockResolvedValue({ id: "type-1", name: "Annual", isActive: true }),
       createGrant: vi.fn().mockResolvedValue(makeGrantRecord()),
       listGrants: vi.fn().mockResolvedValue([makeGrantRecord()]),
-      computeBalance: vi
-        .fn()
-        .mockResolvedValue({ totalRemaining: 10, grants: [{ grantId: "grant-1", remaining: 10, expiresAt: new Date("2028-01-01") }] }),
+      computeBalance: vi.fn().mockResolvedValue({
+        totalRemaining: 10,
+        grants: [
+          {
+            grantId: "grant-1",
+            remaining: 10,
+            expiresAt: new Date("2028-01-01"),
+          },
+        ],
+      }),
       consumeForRequest: vi.fn().mockResolvedValue("consumed"),
       hasOverlappingRequest: vi.fn().mockResolvedValue(false),
       createRequest: vi.fn().mockResolvedValue(makeRequestRecord()),
       findRequestById: vi.fn().mockResolvedValue(makeRequestRecord()),
       listRequests: vi.fn().mockResolvedValue([makeRequestRecord()]),
-      decideRequest: vi.fn().mockResolvedValue(makeRequestRecord({ status: "APPROVED" })),
-      withdrawRequest: vi.fn().mockResolvedValue(makeRequestRecord({ status: "WITHDRAWN" })),
+      decideRequest: vi
+        .fn()
+        .mockResolvedValue(makeRequestRecord({ status: "APPROVED" })),
+      withdrawRequest: vi
+        .fn()
+        .mockResolvedValue(makeRequestRecord({ status: "WITHDRAWN" })),
       listApprovedInRange: vi.fn().mockResolvedValue([]),
     };
     permissions = {
-      hasGrant: vi.fn().mockImplementation(
-        (_u: string, _k: string, scope: string): Promise<boolean> =>
-          Promise.resolve(scope === "DEPARTMENT"),
-      ),
+      hasGrant: vi
+        .fn()
+        .mockImplementation(
+          (_u: string, _k: string, scope: string): Promise<boolean> =>
+            Promise.resolve(scope === "DEPARTMENT"),
+        ),
     };
     audit = { record: vi.fn().mockResolvedValue(undefined) };
-    service = new LeaveService(repository as never, permissions as never, audit as never);
+    service = new LeaveService(
+      repository as never,
+      permissions as never,
+      audit as never,
+    );
   });
 
   describe("grant", () => {
@@ -143,7 +160,11 @@ describe("LeaveService", () => {
     });
 
     it("rejects an inactive leave type", async () => {
-      repository.findLeaveTypeContext.mockResolvedValue({ id: "type-1", name: "Annual", isActive: false });
+      repository.findLeaveTypeContext.mockResolvedValue({
+        id: "type-1",
+        name: "Annual",
+        isActive: false,
+      });
       await expectCode(
         service.grant(
           "manager-1",
@@ -164,16 +185,26 @@ describe("LeaveService", () => {
         grantedAt: Date;
         expiresAt: Date;
       };
-      expect(call.expiresAt.getUTCFullYear() - call.grantedAt.getUTCFullYear()).toBe(2);
+      expect(
+        call.expiresAt.getUTCFullYear() - call.grantedAt.getUTCFullYear(),
+      ).toBe(2);
     });
   });
 
   describe("createRequest", () => {
-    const dto = { leaveTypeId: "type-1", startDate: "2026-12-24", endDate: "2026-12-26" };
+    const dto = {
+      leaveTypeId: "type-1",
+      startDate: "2026-12-24",
+      endDate: "2026-12-26",
+    };
 
     it("rejects an end date before the start date", async () => {
       await expectCode(
-        service.createRequest("employee-1", { ...dto, endDate: "2026-12-20" }, "req-1"),
+        service.createRequest(
+          "employee-1",
+          { ...dto, endDate: "2026-12-20" },
+          "req-1",
+        ),
         LEAVE_ERROR.invalidDateRange,
       );
     });
@@ -188,7 +219,10 @@ describe("LeaveService", () => {
     });
 
     it("rejects insufficient balance", async () => {
-      repository.computeBalance.mockResolvedValue({ totalRemaining: 1, grants: [] });
+      repository.computeBalance.mockResolvedValue({
+        totalRemaining: 1,
+        grants: [],
+      });
       await expectCode(
         service.createRequest("employee-1", dto, "req-1"),
         LEAVE_ERROR.insufficientBalance,
@@ -203,7 +237,11 @@ describe("LeaveService", () => {
     });
 
     it("rejects a request against an inactive leave type", async () => {
-      repository.findLeaveTypeContext.mockResolvedValue({ id: "type-1", name: "Annual", isActive: false });
+      repository.findLeaveTypeContext.mockResolvedValue({
+        id: "type-1",
+        name: "Annual",
+        isActive: false,
+      });
       await expectCode(
         service.createRequest("employee-1", dto, "req-1"),
         LEAVE_ERROR.typeInactive,
@@ -220,7 +258,9 @@ describe("LeaveService", () => {
     });
 
     it("rejects withdrawing an already-decided request", async () => {
-      repository.findRequestById.mockResolvedValue(makeRequestRecord({ status: "APPROVED" }));
+      repository.findRequestById.mockResolvedValue(
+        makeRequestRecord({ status: "APPROVED" }),
+      );
       await expectCode(
         service.withdrawRequest("employee-1", "request-1", "req-1"),
         LEAVE_ERROR.requestNotWithdrawable,
@@ -228,7 +268,11 @@ describe("LeaveService", () => {
     });
 
     it("withdraws your own pending request", async () => {
-      const result = await service.withdrawRequest("employee-1", "request-1", "req-1");
+      const result = await service.withdrawRequest(
+        "employee-1",
+        "request-1",
+        "req-1",
+      );
       expect(result.status).toBe("WITHDRAWN");
     });
   });
@@ -237,7 +281,12 @@ describe("LeaveService", () => {
     it("forbids approving your own leave request", async () => {
       permissions.hasGrant.mockResolvedValue(true);
       await expectCode(
-        service.decideRequest("employee-1", "request-1", { decision: "APPROVED" }, "req-1"),
+        service.decideRequest(
+          "employee-1",
+          "request-1",
+          { decision: "APPROVED" },
+          "req-1",
+        ),
         ATTENDANCE_ERROR.selfApprovalForbidden,
       );
       expect(repository.consumeForRequest).not.toHaveBeenCalled();
@@ -246,21 +295,38 @@ describe("LeaveService", () => {
     it("denies a manager from a different department", async () => {
       repository.findUserDepartmentId.mockResolvedValue("dept-OTHER");
       await expectCode(
-        service.decideRequest("manager-1", "request-1", { decision: "APPROVED" }, "req-1"),
+        service.decideRequest(
+          "manager-1",
+          "request-1",
+          { decision: "APPROVED" },
+          "req-1",
+        ),
         SECURITY_ERROR.permissionDenied,
       );
     });
 
     it("rejects deciding an already-decided request", async () => {
-      repository.findRequestById.mockResolvedValue(makeRequestRecord({ status: "APPROVED" }));
+      repository.findRequestById.mockResolvedValue(
+        makeRequestRecord({ status: "APPROVED" }),
+      );
       await expectCode(
-        service.decideRequest("manager-1", "request-1", { decision: "APPROVED" }, "req-1"),
+        service.decideRequest(
+          "manager-1",
+          "request-1",
+          { decision: "APPROVED" },
+          "req-1",
+        ),
         LEAVE_ERROR.requestAlreadyDecided,
       );
     });
 
     it("consumes balance via FIFO on approval", async () => {
-      await service.decideRequest("manager-1", "request-1", { decision: "APPROVED" }, "req-1");
+      await service.decideRequest(
+        "manager-1",
+        "request-1",
+        { decision: "APPROVED" },
+        "req-1",
+      );
       expect(repository.consumeForRequest).toHaveBeenCalledWith(
         expect.objectContaining({ employeeId: "employee-1", daysToConsume: 3 }),
       );
@@ -269,13 +335,23 @@ describe("LeaveService", () => {
     it("surfaces insufficient balance discovered at approval time", async () => {
       repository.consumeForRequest.mockResolvedValue("insufficient_balance");
       await expectCode(
-        service.decideRequest("manager-1", "request-1", { decision: "APPROVED" }, "req-1"),
+        service.decideRequest(
+          "manager-1",
+          "request-1",
+          { decision: "APPROVED" },
+          "req-1",
+        ),
         LEAVE_ERROR.insufficientBalance,
       );
     });
 
     it("never consumes balance on rejection", async () => {
-      await service.decideRequest("manager-1", "request-1", { decision: "REJECTED" }, "req-1");
+      await service.decideRequest(
+        "manager-1",
+        "request-1",
+        { decision: "REJECTED" },
+        "req-1",
+      );
       expect(repository.consumeForRequest).not.toHaveBeenCalled();
     });
 
@@ -313,7 +389,10 @@ describe("LeaveService", () => {
     it("applies no department filter for an organization-scope grant", async () => {
       permissions.hasGrant.mockResolvedValue(true);
       await service.listRequests("admin-1", {});
-      const call = repository.listRequests.mock.calls[0]![0] as Record<string, unknown>;
+      const call = repository.listRequests.mock.calls[0]![0] as Record<
+        string,
+        unknown
+      >;
       expect(call.departmentId).toBeUndefined();
     });
   });
@@ -321,7 +400,11 @@ describe("LeaveService", () => {
   describe("calendar visibility", () => {
     it("restricts to the caller's own approved leave with no review grant", async () => {
       permissions.hasGrant.mockResolvedValue(false);
-      await service.calendar("employee-1", new Date("2026-12-01"), new Date("2026-12-31"));
+      await service.calendar(
+        "employee-1",
+        new Date("2026-12-01"),
+        new Date("2026-12-31"),
+      );
       expect(repository.listApprovedInRange).toHaveBeenCalledWith(
         expect.objectContaining({ employeeId: "employee-1" }),
       );
@@ -329,8 +412,15 @@ describe("LeaveService", () => {
 
     it("shows the whole organization for an organization-scope grant", async () => {
       permissions.hasGrant.mockResolvedValue(true);
-      await service.calendar("admin-1", new Date("2026-12-01"), new Date("2026-12-31"));
-      const call = repository.listApprovedInRange.mock.calls[0]![0] as Record<string, unknown>;
+      await service.calendar(
+        "admin-1",
+        new Date("2026-12-01"),
+        new Date("2026-12-31"),
+      );
+      const call = repository.listApprovedInRange.mock.calls[0]![0] as Record<
+        string,
+        unknown
+      >;
       expect(call.departmentId).toBeUndefined();
       expect(call.employeeId).toBeUndefined();
     });

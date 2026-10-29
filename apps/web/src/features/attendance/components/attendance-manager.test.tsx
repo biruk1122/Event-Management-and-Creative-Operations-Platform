@@ -39,7 +39,9 @@ function shift(overrides: Partial<MyShift> = {}): MyShift {
   };
 }
 
-function session(overrides: Partial<AttendanceSession> = {}): AttendanceSession {
+function session(
+  overrides: Partial<AttendanceSession> = {},
+): AttendanceSession {
   return {
     id: "session-1",
     employeeId: "viewer-1",
@@ -102,14 +104,21 @@ describe("AttendanceManager", () => {
     );
     const { user } = setup();
 
-    expect(await screen.findByText("Spring Gala · Front of house")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Spring Gala · Front of house"),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Check in" }));
 
-    expect(await screen.findByText("Checked in successfully.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Checked in successfully."),
+    ).toBeInTheDocument();
     expect(post).toHaveBeenCalledWith(
       "/api/v1/attendance/mobile/punch",
       expect.objectContaining({
-        body: expect.objectContaining({ punchType: "CHECK_IN", eventShiftId: "shift-1" }),
+        body: expect.objectContaining({
+          punchType: "CHECK_IN",
+          eventShiftId: "shift-1",
+        }),
       }),
     );
   });
@@ -130,11 +139,17 @@ describe("AttendanceManager", () => {
     );
     const { user } = setup();
 
-    expect(await screen.findByText("Checked in · Spring Gala")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Check in" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("Checked in · Spring Gala"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Check in" }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Check out" }));
 
-    expect(await screen.findByText("Checked out successfully.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Checked out successfully."),
+    ).toBeInTheDocument();
     expect(post).toHaveBeenCalledWith(
       "/api/v1/attendance/mobile/punch",
       expect.objectContaining({
@@ -171,7 +186,9 @@ describe("AttendanceManager", () => {
     setup();
 
     expect(
-      await screen.findByText("You have no assigned event shifts to check into right now."),
+      await screen.findByText(
+        "You have no assigned event shifts to check into right now.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText("No attendance recorded yet.")).toBeInTheDocument();
   });

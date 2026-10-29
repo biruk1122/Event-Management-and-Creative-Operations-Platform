@@ -3,9 +3,11 @@
  * `null`, matching the backend's own "omit entirely when unavailable"
  * contract (`MobilePunchDto.latitude`/`longitude` are optional) - the punch
  * is still recorded and flagged for review, never blocked client-side. */
-export function readCurrentPosition(
-  timeoutMs = 8000,
-): Promise<{ latitude: number; longitude: number; accuracyMeters: number } | null> {
+export function readCurrentPosition(timeoutMs = 8000): Promise<{
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number;
+} | null> {
   return new Promise((resolve) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       resolve(null);

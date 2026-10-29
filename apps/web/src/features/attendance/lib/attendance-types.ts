@@ -1,15 +1,20 @@
 import type { components } from "@event-platform/api-client";
 
-export type AttendanceSession = components["schemas"]["AttendanceSessionResponse"];
+export type AttendanceSession =
+  components["schemas"]["AttendanceSessionResponse"];
 export type MyShift = components["schemas"]["MyShiftResponse"];
 export type MobilePunchResult = components["schemas"]["MobilePunchResponse"];
 export type EventShift = components["schemas"]["EventShiftResponse"];
-export type EventShiftChange = components["schemas"]["EventShiftChangeResponse"];
+export type EventShiftChange =
+  components["schemas"]["EventShiftChangeResponse"];
 export type EventShiftAssignment =
   components["schemas"]["EventShiftAssignmentResponse"];
-export type OvertimeApproval = components["schemas"]["OvertimeApprovalResponse"];
-export type AttendanceException = components["schemas"]["AttendanceExceptionResponse"];
-export type AttendanceSummary = components["schemas"]["AttendanceSummaryResponse"];
+export type OvertimeApproval =
+  components["schemas"]["OvertimeApprovalResponse"];
+export type AttendanceException =
+  components["schemas"]["AttendanceExceptionResponse"];
+export type AttendanceSummary =
+  components["schemas"]["AttendanceSummaryResponse"];
 export type Kiosk = components["schemas"]["KioskResponse"];
 export type KioskRegistered = components["schemas"]["KioskRegisteredResponse"];
 export type WeekdaySchedule =

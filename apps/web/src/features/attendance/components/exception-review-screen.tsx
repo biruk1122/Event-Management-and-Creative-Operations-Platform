@@ -35,5 +35,7 @@ export function ExceptionReviewScreen() {
     );
   if (!attendanceAbilities(access.data).canReviewExceptions)
     return <p role="alert">You do not have access to exception review.</p>;
-  return <ExceptionReviewManager key={access.data.userId} access={access.data} />;
+  return (
+    <ExceptionReviewManager key={access.data.userId} access={access.data} />
+  );
 }

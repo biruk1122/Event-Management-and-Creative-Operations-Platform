@@ -13,10 +13,16 @@ import {
 } from "@/components/ui/select";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
-import { useDecideRequestMutation, useLeaveRequests } from "../api/leave-queries";
+import {
+  useDecideRequestMutation,
+  useLeaveRequests,
+} from "../api/leave-queries";
 import { LeaveRequestError } from "../api/leave-gateway";
 import { formatDate } from "../lib/leave-date";
-import { LEAVE_REQUEST_STATUS_LABELS, LEAVE_REQUEST_STATUSES } from "../lib/leave-types";
+import {
+  LEAVE_REQUEST_STATUS_LABELS,
+  LEAVE_REQUEST_STATUSES,
+} from "../lib/leave-types";
 import type { LeaveRequest, LeaveRequestStatus } from "../lib/leave-types";
 import { DecideLeaveRequestDialog } from "./decide-leave-request-dialog";
 
@@ -29,15 +35,19 @@ export function LeaveReviewManager({ access }: LeaveReviewManagerProps) {
   const [status, setStatus] = useState<LeaveRequestStatus>("PENDING");
   const requests = useLeaveRequests(access, { status });
   const mutations = useDecideRequestMutation(access);
-  const [target, setTarget] = useState<
-    { request: LeaveRequest; decision: "APPROVED" | "REJECTED" | "RETURNED_FOR_CHANGES" } | null
-  >(null);
+  const [target, setTarget] = useState<{
+    request: LeaveRequest;
+    decision: "APPROVED" | "REJECTED" | "RETURNED_FOR_CHANGES";
+  } | null>(null);
 
   return (
     <div className="space-y-6">
       <div className="max-w-xs space-y-2">
         <Label htmlFor={statusSelectId}>Status</Label>
-        <Select value={status} onValueChange={(value) => setStatus(value as LeaveRequestStatus)}>
+        <Select
+          value={status}
+          onValueChange={(value) => setStatus(value as LeaveRequestStatus)}
+        >
           <SelectTrigger id={statusSelectId}>
             <SelectValue />
           </SelectTrigger>
@@ -65,7 +75,9 @@ export function LeaveReviewManager({ access }: LeaveReviewManagerProps) {
           </Button>
         </div>
       ) : (requests.data ?? []).length === 0 ? (
-        <p className="text-muted-foreground text-sm">No requests with this status.</p>
+        <p className="text-muted-foreground text-sm">
+          No requests with this status.
+        </p>
       ) : (
         <ul className="space-y-2">
           {(requests.data ?? []).map((request) => (
@@ -74,14 +86,18 @@ export function LeaveReviewManager({ access }: LeaveReviewManagerProps) {
               className="flex items-center justify-between gap-4 rounded-xl border p-4"
             >
               <div>
-                <p className="font-medium">{request.employeeName ?? "Former employee"}</p>
+                <p className="font-medium">
+                  {request.employeeName ?? "Former employee"}
+                </p>
                 <p className="text-muted-foreground text-sm">
                   {request.leaveTypeName} · {formatDate(request.startDate)} –{" "}
                   {formatDate(request.endDate)} · {request.daysRequested} day
                   {request.daysRequested === 1 ? "" : "s"}
                 </p>
                 {request.reason ? (
-                  <p className="text-muted-foreground text-sm">“{request.reason}”</p>
+                  <p className="text-muted-foreground text-sm">
+                    “{request.reason}”
+                  </p>
                 ) : null}
                 {request.reviewNote ? (
                   <p className="text-muted-foreground text-sm">
@@ -125,7 +141,9 @@ export function LeaveReviewManager({ access }: LeaveReviewManagerProps) {
         onOpenChange={(open) => {
           if (!open) setTarget(null);
         }}
-        onDecide={(input) => mutations.mutateAsync({ id: target!.request.id, ...input })}
+        onDecide={(input) =>
+          mutations.mutateAsync({ id: target!.request.id, ...input })
+        }
         onDecided={() => undefined}
       />
     </div>

@@ -15,7 +15,8 @@ export function LeaveNavigation() {
   const abilities = leaveAbilities(access.data);
 
   const items: { label: string; href: Route }[] = [];
-  if (abilities.canRequestLeave) items.push({ label: "My leave", href: "/leave" as Route });
+  if (abilities.canRequestLeave)
+    items.push({ label: "My leave", href: "/leave" as Route });
   if (abilities.canReadLeave) {
     items.push({ label: "Calendar", href: "/leave/calendar" as Route });
   }
@@ -33,7 +34,10 @@ export function LeaveNavigation() {
   return (
     <SectionNavigation
       label="Leave sections"
-      items={items.map((item) => ({ ...item, current: pathname === item.href }))}
+      items={items.map((item) => ({
+        ...item,
+        current: pathname === item.href,
+      }))}
     />
   );
 }

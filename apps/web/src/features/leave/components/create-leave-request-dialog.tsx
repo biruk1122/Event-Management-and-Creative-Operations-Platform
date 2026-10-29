@@ -23,7 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { CreateLeaveRequestOutcome, LeaveRequestFormValues } from "../lib/leave-outcome";
+import type {
+  CreateLeaveRequestOutcome,
+  LeaveRequestFormValues,
+} from "../lib/leave-outcome";
 import type { LeaveRequest, LeaveType } from "../lib/leave-types";
 
 const FORM_ERRORS: Record<string, string> = {
@@ -31,7 +34,8 @@ const FORM_ERRORS: Record<string, string> = {
   type_inactive: "That leave type is no longer active.",
   invalid_date_range: "The end date must be on or after the start date.",
   overlap: "This date range overlaps an existing pending or approved request.",
-  insufficient_balance: "There isn't enough remaining balance for this leave type.",
+  insufficient_balance:
+    "There isn't enough remaining balance for this leave type.",
   permission_denied: "You do not have permission to submit a leave request.",
   unexpected: "We could not submit the request. Try again.",
 };
@@ -47,7 +51,9 @@ export interface CreateLeaveRequestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   types: readonly LeaveType[];
-  onCreate: (values: LeaveRequestFormValues) => Promise<CreateLeaveRequestOutcome>;
+  onCreate: (
+    values: LeaveRequestFormValues,
+  ) => Promise<CreateLeaveRequestOutcome>;
   onCreated: (request: LeaveRequest) => void;
 }
 
@@ -92,8 +98,10 @@ export function CreateLeaveRequestDialog({
     event.preventDefault();
     setFormError(null);
 
-    const localErrors: Partial<Record<keyof LeaveRequestFormValues, string>> = {};
-    if (values.leaveTypeId === "") localErrors.leaveTypeId = "Choose a leave type.";
+    const localErrors: Partial<Record<keyof LeaveRequestFormValues, string>> =
+      {};
+    if (values.leaveTypeId === "")
+      localErrors.leaveTypeId = "Choose a leave type.";
     if (values.startDate === "") localErrors.startDate = "Set a start date.";
     if (values.endDate === "") localErrors.endDate = "Set an end date.";
     if (
@@ -162,7 +170,10 @@ export function CreateLeaveRequestDialog({
               disabled={submitting}
               onValueChange={(value) => set("leaveTypeId", value)}
             >
-              <SelectTrigger id={typeId} aria-invalid={Boolean(fieldErrors.leaveTypeId)}>
+              <SelectTrigger
+                id={typeId}
+                aria-invalid={Boolean(fieldErrors.leaveTypeId)}
+              >
                 <SelectValue placeholder="Choose a leave type" />
               </SelectTrigger>
               <SelectContent>
@@ -174,7 +185,9 @@ export function CreateLeaveRequestDialog({
               </SelectContent>
             </Select>
             {fieldErrors.leaveTypeId ? (
-              <p className="text-destructive text-sm">{fieldErrors.leaveTypeId}</p>
+              <p className="text-destructive text-sm">
+                {fieldErrors.leaveTypeId}
+              </p>
             ) : null}
           </div>
 
@@ -190,7 +203,9 @@ export function CreateLeaveRequestDialog({
                 aria-invalid={Boolean(fieldErrors.startDate)}
               />
               {fieldErrors.startDate ? (
-                <p className="text-destructive text-sm">{fieldErrors.startDate}</p>
+                <p className="text-destructive text-sm">
+                  {fieldErrors.startDate}
+                </p>
               ) : null}
             </div>
             <div className="space-y-2">
@@ -204,7 +219,9 @@ export function CreateLeaveRequestDialog({
                 aria-invalid={Boolean(fieldErrors.endDate)}
               />
               {fieldErrors.endDate ? (
-                <p className="text-destructive text-sm">{fieldErrors.endDate}</p>
+                <p className="text-destructive text-sm">
+                  {fieldErrors.endDate}
+                </p>
               ) : null}
             </div>
           </div>
@@ -220,7 +237,12 @@ export function CreateLeaveRequestDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={close}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={submitting} aria-busy={submitting}>

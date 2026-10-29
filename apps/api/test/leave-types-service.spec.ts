@@ -53,7 +53,11 @@ describe("LeaveTypesService", () => {
     };
     permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
     audit = { record: vi.fn().mockResolvedValue(undefined) };
-    service = new LeaveTypesService(repository as never, permissions as never, audit as never);
+    service = new LeaveTypesService(
+      repository as never,
+      permissions as never,
+      audit as never,
+    );
   });
 
   it("denies creating a leave type without organization-scope access", async () => {
@@ -82,7 +86,10 @@ describe("LeaveTypesService", () => {
 
   it("denies listing inactive types without organization-scope access", async () => {
     permissions.hasGrant.mockResolvedValue(false);
-    await expectCode(service.list("user-1", true), SECURITY_ERROR.permissionDenied);
+    await expectCode(
+      service.list("user-1", true),
+      SECURITY_ERROR.permissionDenied,
+    );
   });
 
   it("rejects updating an unknown leave type", async () => {
@@ -94,7 +101,12 @@ describe("LeaveTypesService", () => {
   });
 
   it("updates an existing leave type", async () => {
-    const result = await service.update("admin-1", "type-1", { isActive: false }, "req-1");
+    const result = await service.update(
+      "admin-1",
+      "type-1",
+      { isActive: false },
+      "req-1",
+    );
     expect(result.isActive).toBe(false);
   });
 });

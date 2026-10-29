@@ -499,7 +499,8 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   // delegated to a Department Manager at all - Super Admin only.
   {
     key: "attendance.punch",
-    description: "Check in or out for an assigned event shift via the mobile workflow.",
+    description:
+      "Check in or out for an assigned event shift via the mobile workflow.",
   },
   {
     key: "attendance.read",
@@ -511,19 +512,23 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   },
   {
     key: "attendance.schedule.manage",
-    description: "Create and change event shifts and their employee assignments.",
+    description:
+      "Create and change event shifts and their employee assignments.",
   },
   {
     key: "attendance.overtime.review",
-    description: "Approve or reject potential overtime on an attendance session.",
+    description:
+      "Approve or reject potential overtime on an attendance session.",
   },
   {
     key: "attendance.exception.review",
-    description: "Approve or reject an attendance exception or correction request.",
+    description:
+      "Approve or reject an attendance exception or correction request.",
   },
   {
     key: "attendance.reports.read",
-    description: "View attendance dashboards and reports beyond the caller's own record.",
+    description:
+      "View attendance dashboards and reports beyond the caller's own record.",
   },
   {
     key: "attendance.calendar.manage",
@@ -532,7 +537,8 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   },
   {
     key: "attendance.kiosk.manage",
-    description: "Register or revoke an office attendance kiosk. Super Admin only.",
+    description:
+      "Register or revoke an office attendance kiosk. Super Admin only.",
   },
   {
     key: "leave.request.create",

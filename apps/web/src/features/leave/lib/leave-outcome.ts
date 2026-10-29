@@ -13,7 +13,10 @@ export interface LeaveTypeFormValues {
 export type CreateLeaveTypeOutcome =
   | { status: "success"; type: LeaveType }
   | { status: "name_taken" }
-  | { status: "field_errors"; fieldErrors: FieldErrors<keyof LeaveTypeFormValues> }
+  | {
+      status: "field_errors";
+      fieldErrors: FieldErrors<keyof LeaveTypeFormValues>;
+    }
   | { status: "permission_denied" }
   | { status: "unexpected" };
 
@@ -28,7 +31,10 @@ export interface UpdateLeaveTypeFormValues {
 export type UpdateLeaveTypeOutcome =
   | { status: "success"; type: LeaveType }
   | { status: "not_found" }
-  | { status: "field_errors"; fieldErrors: FieldErrors<keyof UpdateLeaveTypeFormValues> }
+  | {
+      status: "field_errors";
+      fieldErrors: FieldErrors<keyof UpdateLeaveTypeFormValues>;
+    }
   | { status: "permission_denied" }
   | { status: "unexpected" };
 
@@ -43,7 +49,10 @@ export type CreateLeaveGrantOutcome =
   | { status: "employee_not_found" }
   | { status: "type_not_found" }
   | { status: "type_inactive" }
-  | { status: "field_errors"; fieldErrors: FieldErrors<keyof LeaveGrantFormValues> }
+  | {
+      status: "field_errors";
+      fieldErrors: FieldErrors<keyof LeaveGrantFormValues>;
+    }
   | { status: "permission_denied" }
   | { status: "unexpected" };
 
@@ -61,7 +70,10 @@ export type CreateLeaveRequestOutcome =
   | { status: "invalid_date_range" }
   | { status: "overlap" }
   | { status: "insufficient_balance" }
-  | { status: "field_errors"; fieldErrors: FieldErrors<keyof LeaveRequestFormValues> }
+  | {
+      status: "field_errors";
+      fieldErrors: FieldErrors<keyof LeaveRequestFormValues>;
+    }
   | { status: "permission_denied" }
   | { status: "unexpected" };
 

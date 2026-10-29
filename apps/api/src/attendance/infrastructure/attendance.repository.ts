@@ -180,7 +180,11 @@ export function computeScheduleDeltas(input: {
   potentialOvertimeMinutes: number;
 } {
   if (!input.plannedStartAt || !input.plannedEndAt) {
-    return { lateMinutes: 0, earlyDepartureMinutes: 0, potentialOvertimeMinutes: 0 };
+    return {
+      lateMinutes: 0,
+      earlyDepartureMinutes: 0,
+      potentialOvertimeMinutes: 0,
+    };
   }
   const lateMinutes = Math.max(
     0,
@@ -326,7 +330,9 @@ export class AttendanceRepository {
           ...(input.kioskId ? { kioskId: input.kioskId } : {}),
           ...(input.eventShiftId ? { eventShiftId: input.eventShiftId } : {}),
           ...(input.latitude !== undefined ? { latitude: input.latitude } : {}),
-          ...(input.longitude !== undefined ? { longitude: input.longitude } : {}),
+          ...(input.longitude !== undefined
+            ? { longitude: input.longitude }
+            : {}),
           ...(input.accuracyMeters !== undefined
             ? { accuracyMeters: input.accuracyMeters }
             : {}),
@@ -430,7 +436,9 @@ export class AttendanceRepository {
           ...(open.kioskId ? { kioskId: open.kioskId } : {}),
           ...(open.eventShiftId ? { eventShiftId: open.eventShiftId } : {}),
           ...(input.latitude !== undefined ? { latitude: input.latitude } : {}),
-          ...(input.longitude !== undefined ? { longitude: input.longitude } : {}),
+          ...(input.longitude !== undefined
+            ? { longitude: input.longitude }
+            : {}),
           ...(input.accuracyMeters !== undefined
             ? { accuracyMeters: input.accuracyMeters }
             : {}),
@@ -539,7 +547,11 @@ export class AttendanceRepository {
           ...(input.createdById ? { createdById: input.createdById } : {}),
         },
       });
-      return { dayOfWeek: row.dayOfWeek, type: row.type, effectiveFrom: row.effectiveFrom };
+      return {
+        dayOfWeek: row.dayOfWeek,
+        type: row.type,
+        effectiveFrom: row.effectiveFrom,
+      };
     } catch (error) {
       if (isUniqueViolation(error)) return "already_effective";
       throw error;
@@ -674,7 +686,10 @@ export class AttendanceRepository {
         resolved = entry.type;
       }
       if (resolved === AttendanceDayType.OFF) continue;
-      workingDays.set(iso, resolved === AttendanceDayType.HALF ? "HALF" : "FULL");
+      workingDays.set(
+        iso,
+        resolved === AttendanceDayType.HALF ? "HALF" : "FULL",
+      );
     }
     return workingDays;
   }

@@ -172,7 +172,9 @@ describe("MobileAttendanceService", () => {
 
     it("records a VERIFIED check-in inside the geofence and raises no exception", async () => {
       const result = await service.punch("employee-1", base, "req-1");
-      expect(result.verificationResult).toBe(AttendanceVerificationResult.VERIFIED);
+      expect(result.verificationResult).toBe(
+        AttendanceVerificationResult.VERIFIED,
+      );
       expect(attendance.checkIn).toHaveBeenCalledWith(
         expect.objectContaining({
           employeeId: "employee-1",
@@ -250,12 +252,17 @@ describe("MobileAttendanceService", () => {
       attendance.findOpenSession.mockResolvedValue(makeSession());
       const result = await service.punch("employee-1", base, "req-1");
       expect(mobile.findShiftGeofence).toHaveBeenCalledWith("shift-1");
-      expect(result.verificationResult).toBe(AttendanceVerificationResult.VERIFIED);
+      expect(result.verificationResult).toBe(
+        AttendanceVerificationResult.VERIFIED,
+      );
     });
 
     it("treats a kiosk-opened open session (no eventShiftId) as not applicable", async () => {
       attendance.findOpenSession.mockResolvedValue(
-        makeSession({ method: AttendanceMethod.OFFICE_KIOSK, eventShiftId: null }),
+        makeSession({
+          method: AttendanceMethod.OFFICE_KIOSK,
+          eventShiftId: null,
+        }),
       );
       const result = await service.punch("employee-1", base, "req-1");
       expect(mobile.findShiftGeofence).not.toHaveBeenCalled();

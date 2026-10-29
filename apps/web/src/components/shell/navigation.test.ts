@@ -176,7 +176,12 @@ describe("shell destinations", () => {
   });
 
   it("hides Production from the Marketing department manager's own nav", () => {
-    const keys = ["event.read", "project.read", "campaign.read", "partner.read"];
+    const keys = [
+      "event.read",
+      "project.read",
+      "campaign.read",
+      "partner.read",
+    ];
     const marketingGrants = keys.map((permissionKey) => ({
       permissionKey,
       scope: "DEPARTMENT" as const,

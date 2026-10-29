@@ -28,14 +28,17 @@ export interface AttendanceReportManagerProps {
   access: CurrentAccess;
 }
 
-export function AttendanceReportManager({ access }: AttendanceReportManagerProps) {
+export function AttendanceReportManager({
+  access,
+}: AttendanceReportManagerProps) {
   const startId = useId();
   const endId = useId();
   const [startDate, setStartDate] = useState(startOfMonth());
   const [endDate, setEndDate] = useState(isoDate(new Date()));
   const report = useSummaryReport(access, startDate, endDate);
 
-  const rangeInvalid = startDate !== "" && endDate !== "" && endDate < startDate;
+  const rangeInvalid =
+    startDate !== "" && endDate !== "" && endDate < startDate;
 
   return (
     <div className="space-y-6">
@@ -101,13 +104,21 @@ export function AttendanceReportManager({ access }: AttendanceReportManagerProps
           <tbody>
             {(report.data ?? []).map((row) => (
               <tr key={row.employeeId} className="border-t">
-                <td className="py-2">{row.employeeName ?? "Former employee"}</td>
+                <td className="py-2">
+                  {row.employeeName ?? "Former employee"}
+                </td>
                 <td className="py-2">{row.sessionsCount}</td>
                 <td className="py-2">{formatMinutes(row.actualMinutes)}</td>
                 <td className="py-2">{formatMinutes(row.lateMinutes)}</td>
-                <td className="py-2">{formatMinutes(row.earlyDepartureMinutes)}</td>
-                <td className="py-2">{formatMinutes(row.approvedOvertimeMinutes)}</td>
-                <td className="py-2">{formatMinutes(row.potentialOvertimeMinutes)}</td>
+                <td className="py-2">
+                  {formatMinutes(row.earlyDepartureMinutes)}
+                </td>
+                <td className="py-2">
+                  {formatMinutes(row.approvedOvertimeMinutes)}
+                </td>
+                <td className="py-2">
+                  {formatMinutes(row.potentialOvertimeMinutes)}
+                </td>
                 <td className="py-2">{formatDays(row.scheduledDays)}</td>
                 <td className="py-2">{formatDays(row.presentDays)}</td>
                 <td className="py-2">{formatDays(row.absentDays)}</td>

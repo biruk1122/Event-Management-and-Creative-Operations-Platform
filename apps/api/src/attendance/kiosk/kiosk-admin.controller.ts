@@ -30,10 +30,7 @@ import type { RequestWithContext } from "../../common/http/request-with-context.
 import { RequirePermissions } from "../../common/security/permissions.decorator.js";
 import { PermissionsGuard } from "../../common/security/permissions.guard.js";
 import { RegisterKioskDto } from "./dto/register-kiosk.dto.js";
-import {
-  KioskRegisteredResponse,
-  KioskResponse,
-} from "./kiosk.contracts.js";
+import { KioskRegisteredResponse, KioskResponse } from "./kiosk.contracts.js";
 import { KioskService } from "./kiosk.service.js";
 
 function actingUserId(request: RequestWithContext): string {

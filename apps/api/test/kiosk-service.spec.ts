@@ -47,10 +47,7 @@ describe("KioskService", () => {
       revoke: vi.fn().mockResolvedValue("revoked"),
     };
     permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
-    service = new KioskService(
-      repository as never,
-      permissions as never,
-    );
+    service = new KioskService(repository as never, permissions as never);
   });
 
   describe("authorization boundary", () => {
@@ -65,10 +62,7 @@ describe("KioskService", () => {
 
     it("denies list when the caller lacks attendance.kiosk.manage", async () => {
       permissions.hasGrant.mockResolvedValue(false);
-      await expectCode(
-        service.list("user-1"),
-        SECURITY_ERROR.permissionDenied,
-      );
+      await expectCode(service.list("user-1"), SECURITY_ERROR.permissionDenied);
       expect(repository.list).not.toHaveBeenCalled();
     });
 

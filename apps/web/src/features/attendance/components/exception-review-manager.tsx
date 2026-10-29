@@ -5,7 +5,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
-import { useExceptionsList, useReviewMutations } from "../api/attendance-queries";
+import {
+  useExceptionsList,
+  useReviewMutations,
+} from "../api/attendance-queries";
 import { AttendanceRequestError } from "../api/attendance-gateway";
 import { formatDateTime } from "../lib/attendance-date";
 import type { AttendanceException } from "../lib/attendance-types";
@@ -21,12 +24,15 @@ export interface ExceptionReviewManagerProps {
   access: CurrentAccess;
 }
 
-export function ExceptionReviewManager({ access }: ExceptionReviewManagerProps) {
+export function ExceptionReviewManager({
+  access,
+}: ExceptionReviewManagerProps) {
   const exceptions = useExceptionsList(access, "PENDING");
   const mutations = useReviewMutations(access);
-  const [target, setTarget] = useState<
-    { exception: AttendanceException; decision: "APPROVED" | "REJECTED" } | null
-  >(null);
+  const [target, setTarget] = useState<{
+    exception: AttendanceException;
+    decision: "APPROVED" | "REJECTED";
+  } | null>(null);
 
   if (exceptions.isPending) return <p role="status">Loading exceptions…</p>;
   if (exceptions.isError) {
@@ -47,7 +53,9 @@ export function ExceptionReviewManager({ access }: ExceptionReviewManagerProps) 
   return (
     <div className="space-y-4">
       {(exceptions.data ?? []).length === 0 ? (
-        <p className="text-muted-foreground text-sm">No exceptions pending review.</p>
+        <p className="text-muted-foreground text-sm">
+          No exceptions pending review.
+        </p>
       ) : (
         <ul className="space-y-2">
           {(exceptions.data ?? []).map((exception) => (
@@ -56,7 +64,9 @@ export function ExceptionReviewManager({ access }: ExceptionReviewManagerProps) 
               className="flex items-center justify-between gap-4 rounded-xl border p-4"
             >
               <div>
-                <p className="font-medium">{exception.employeeName ?? "Former employee"}</p>
+                <p className="font-medium">
+                  {exception.employeeName ?? "Former employee"}
+                </p>
                 <p className="text-muted-foreground text-sm">
                   {TYPE_LABELS[exception.type] ?? exception.type}
                   {exception.requestedCheckInAt
@@ -67,7 +77,9 @@ export function ExceptionReviewManager({ access }: ExceptionReviewManagerProps) 
                     : ""}
                 </p>
                 {exception.description ? (
-                  <p className="text-muted-foreground text-sm">“{exception.description}”</p>
+                  <p className="text-muted-foreground text-sm">
+                    “{exception.description}”
+                  </p>
                 ) : null}
               </div>
               <div className="flex gap-2">
@@ -96,7 +108,10 @@ export function ExceptionReviewManager({ access }: ExceptionReviewManagerProps) 
           if (!open) setTarget(null);
         }}
         onDecide={(input) =>
-          mutations.decideException.mutateAsync({ id: target!.exception.id, ...input })
+          mutations.decideException.mutateAsync({
+            id: target!.exception.id,
+            ...input,
+          })
         }
         onDecided={() => undefined}
       />

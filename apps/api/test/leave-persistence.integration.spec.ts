@@ -36,7 +36,10 @@ describe("leave management persistence", () => {
   beforeAll(async () => {
     db = await createIsolatedDatabase();
     prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString: db.url }, { schema: db.schema }),
+      adapter: new PrismaPg(
+        { connectionString: db.url },
+        { schema: db.schema },
+      ),
     });
     const outbox = new OutboxWriterService(
       prisma as never,
@@ -44,7 +47,9 @@ describe("leave management persistence", () => {
     );
     repository = new LeaveRepository(prisma as never, outbox);
 
-    const department = await prisma.department.create({ data: { name: "Leave Dept" } });
+    const department = await prisma.department.create({
+      data: { name: "Leave Dept" },
+    });
     departmentId = department.id;
 
     const employee = await prisma.user.create({
@@ -69,7 +74,9 @@ describe("leave management persistence", () => {
     });
     managerId = manager.id;
 
-    const leaveType = await prisma.leaveType.create({ data: { name: "Annual Leave" } });
+    const leaveType = await prisma.leaveType.create({
+      data: { name: "Annual Leave" },
+    });
     leaveTypeId = leaveType.id;
   });
 
@@ -100,7 +107,11 @@ describe("leave management persistence", () => {
     });
     expect(ledgerCount).toBe(1);
 
-    const balance = await repository.computeBalance(employeeId, leaveTypeId, new Date("2026-06-01"));
+    const balance = await repository.computeBalance(
+      employeeId,
+      leaveTypeId,
+      new Date("2026-06-01"),
+    );
     expect(balance.totalRemaining).toBe(10);
   });
 
@@ -152,7 +163,9 @@ describe("leave management persistence", () => {
   });
 
   it("excludes a grant past its own expiresAt from balance and consumption", async () => {
-    const employee2 = await prisma.user.create({ data: { email: "leave-employee-2@attendance.test" } });
+    const employee2 = await prisma.user.create({
+      data: { email: "leave-employee-2@attendance.test" },
+    });
     await repository.createGrant({
       employeeId: employee2.id,
       leaveTypeId,
@@ -162,7 +175,11 @@ describe("leave management persistence", () => {
       createdById: managerId,
     });
 
-    const balance = await repository.computeBalance(employee2.id, leaveTypeId, new Date("2026-01-01"));
+    const balance = await repository.computeBalance(
+      employee2.id,
+      leaveTypeId,
+      new Date("2026-01-01"),
+    );
     expect(balance.totalRemaining).toBe(0);
 
     const request = await repository.createRequest({
@@ -184,7 +201,9 @@ describe("leave management persistence", () => {
   });
 
   it("detects an overlapping pending/approved request but not a withdrawn one", async () => {
-    const employee3 = await prisma.user.create({ data: { email: "leave-employee-3@attendance.test" } });
+    const employee3 = await prisma.user.create({
+      data: { email: "leave-employee-3@attendance.test" },
+    });
     const first = await repository.createRequest({
       employeeId: employee3.id,
       leaveTypeId,
@@ -213,7 +232,9 @@ describe("leave management persistence", () => {
   });
 
   it("hasApprovedLeaveOverlap only counts an actually-APPROVED request - the attendance integration point", async () => {
-    const employee3b = await prisma.user.create({ data: { email: "leave-employee-3b@attendance.test" } });
+    const employee3b = await prisma.user.create({
+      data: { email: "leave-employee-3b@attendance.test" },
+    });
     const pending = await repository.createRequest({
       employeeId: employee3b.id,
       leaveTypeId,
@@ -253,7 +274,9 @@ describe("leave management persistence", () => {
   });
 
   it("satisfies the review-consistency CHECK when deciding a request", async () => {
-    const employee4 = await prisma.user.create({ data: { email: "leave-employee-4@attendance.test" } });
+    const employee4 = await prisma.user.create({
+      data: { email: "leave-employee-4@attendance.test" },
+    });
     const request = await repository.createRequest({
       employeeId: employee4.id,
       leaveTypeId,
@@ -285,7 +308,9 @@ describe("leave management persistence", () => {
   });
 
   it("lists only APPROVED requests overlapping the given range for the calendar", async () => {
-    const employee5 = await prisma.user.create({ data: { email: "leave-employee-5@attendance.test" } });
+    const employee5 = await prisma.user.create({
+      data: { email: "leave-employee-5@attendance.test" },
+    });
     const approved = await repository.createRequest({
       employeeId: employee5.id,
       leaveTypeId,
@@ -293,7 +318,10 @@ describe("leave management persistence", () => {
       endDate: new Date("2026-08-12"),
       daysRequested: 3,
     });
-    await repository.decideRequest(approved.id, { status: LeaveRequestStatus.APPROVED, reviewedById: managerId });
+    await repository.decideRequest(approved.id, {
+      status: LeaveRequestStatus.APPROVED,
+      reviewedById: managerId,
+    });
 
     const pending = await repository.createRequest({
       employeeId: employee5.id,
@@ -314,7 +342,9 @@ describe("leave management persistence", () => {
 
   describe("daily expiry job support", () => {
     it("finds a past-due grant with an unconsumed remainder and excludes one with none", async () => {
-      const employee6 = await prisma.user.create({ data: { email: "leave-employee-6@attendance.test" } });
+      const employee6 = await prisma.user.create({
+        data: { email: "leave-employee-6@attendance.test" },
+      });
       // FIFO always drains the oldest grant first, so the fully-consumed
       // grant here must be the older of the two to actually end up at zero.
       const fullyConsumed = await repository.createGrant({
@@ -349,15 +379,21 @@ describe("leave management persistence", () => {
         asOf: new Date("2025-01-01"),
       });
 
-      const candidates = await repository.findExpiringGrants(new Date("2026-06-01"));
+      const candidates = await repository.findExpiringGrants(
+        new Date("2026-06-01"),
+      );
       const candidateIds = candidates.map((candidate) => candidate.id);
       expect(candidateIds).toContain(due.id);
       expect(candidateIds).not.toContain(fullyConsumed.id);
-      expect(candidates.find((candidate) => candidate.id === due.id)?.remaining).toBe(4);
+      expect(
+        candidates.find((candidate) => candidate.id === due.id)?.remaining,
+      ).toBe(4);
     });
 
     it("excludes a grant that has not yet reached its own expiresAt", async () => {
-      const employee7 = await prisma.user.create({ data: { email: "leave-employee-7@attendance.test" } });
+      const employee7 = await prisma.user.create({
+        data: { email: "leave-employee-7@attendance.test" },
+      });
       const notYetDue = await repository.createGrant({
         employeeId: employee7.id,
         leaveTypeId,
@@ -366,12 +402,18 @@ describe("leave management persistence", () => {
         expiresAt: new Date("2028-01-01T00:00:00Z"),
         createdById: managerId,
       });
-      const candidates = await repository.findExpiringGrants(new Date("2026-06-01"));
-      expect(candidates.map((candidate) => candidate.id)).not.toContain(notYetDue.id);
+      const candidates = await repository.findExpiringGrants(
+        new Date("2026-06-01"),
+      );
+      expect(candidates.map((candidate) => candidate.id)).not.toContain(
+        notYetDue.id,
+      );
     });
 
     it("expires a grant's remainder exactly once, idempotent on retry", async () => {
-      const employee8 = await prisma.user.create({ data: { email: "leave-employee-8@attendance.test" } });
+      const employee8 = await prisma.user.create({
+        data: { email: "leave-employee-8@attendance.test" },
+      });
       const grant = await repository.createGrant({
         employeeId: employee8.id,
         leaveTypeId,
@@ -402,8 +444,14 @@ describe("leave management persistence", () => {
       });
       expect(expiryEntries).toBe(1);
 
-      const balance = await repository.computeBalance(employee8.id, leaveTypeId, new Date("2027-01-01"));
-      const thisGrant = balance.grants.find((entry) => entry.grantId === grant.id);
+      const balance = await repository.computeBalance(
+        employee8.id,
+        leaveTypeId,
+        new Date("2027-01-01"),
+      );
+      const thisGrant = balance.grants.find(
+        (entry) => entry.grantId === grant.id,
+      );
       expect(thisGrant).toBeUndefined(); // excluded entirely once past its own expiresAt
     });
   });

@@ -7,4 +7,7 @@ export { AttendanceReportScreen } from "./components/attendance-report-screen";
 export { AttendanceSessionsScreen } from "./components/attendance-sessions-screen";
 export { AttendanceCalendarScreen } from "./components/attendance-calendar-screen";
 export { AttendanceNavigation } from "./components/attendance-navigation";
-export { attendanceAbilities, canEnterAttendance } from "./lib/attendance-access";
+export {
+  attendanceAbilities,
+  canEnterAttendance,
+} from "./lib/attendance-access";

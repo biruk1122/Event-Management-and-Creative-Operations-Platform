@@ -105,7 +105,9 @@ function clippedIsoDates(
   return dates;
 }
 
-function toOvertimeResponse(record: OvertimeApprovalRecord): OvertimeApprovalResponse {
+function toOvertimeResponse(
+  record: OvertimeApprovalRecord,
+): OvertimeApprovalResponse {
   return {
     id: record.id,
     attendanceSessionId: record.attendanceSessionId,
@@ -123,7 +125,9 @@ function toOvertimeResponse(record: OvertimeApprovalRecord): OvertimeApprovalRes
   };
 }
 
-function toExceptionResponse(record: ExceptionRecord): AttendanceExceptionResponse {
+function toExceptionResponse(
+  record: ExceptionRecord,
+): AttendanceExceptionResponse {
   return {
     id: record.id,
     attendanceSessionId: record.attendanceSessionId,
@@ -172,9 +176,11 @@ export class AttendanceReviewService {
     permissionKey: string,
     employeeDepartmentId: string | null,
   ): Promise<void> {
-    if (await this.hasGrant(actingUserId, permissionKey, "ORGANIZATION")) return;
+    if (await this.hasGrant(actingUserId, permissionKey, "ORGANIZATION"))
+      return;
     if (await this.hasGrant(actingUserId, permissionKey, "DEPARTMENT")) {
-      const departmentId = await this.repository.findUserDepartmentId(actingUserId);
+      const departmentId =
+        await this.repository.findUserDepartmentId(actingUserId);
       if (departmentId && departmentId === employeeDepartmentId) return;
     }
     throw permissionDenied();
@@ -188,7 +194,8 @@ export class AttendanceReviewService {
       return undefined;
     }
     if (await this.hasGrant(actingUserId, permissionKey, "DEPARTMENT")) {
-      const departmentId = await this.repository.findUserDepartmentId(actingUserId);
+      const departmentId =
+        await this.repository.findUserDepartmentId(actingUserId);
       if (departmentId) return departmentId;
     }
     throw permissionDenied();
@@ -222,7 +229,10 @@ export class AttendanceReviewService {
     actingUserId: string,
     status?: AttendanceOvertimeStatus,
   ): Promise<OvertimeApprovalResponse[]> {
-    const departmentId = await this.visibleDepartmentId(actingUserId, OVERTIME_PERMISSION);
+    const departmentId = await this.visibleDepartmentId(
+      actingUserId,
+      OVERTIME_PERMISSION,
+    );
     const records = await this.repository.listOvertime({
       ...(status ? { status } : {}),
       ...(departmentId ? { departmentId } : {}),
@@ -238,8 +248,13 @@ export class AttendanceReviewService {
   ): Promise<OvertimeApprovalResponse> {
     const overtime = await this.repository.findOvertimeById(id);
     if (!overtime) throw attendanceOvertimeNotFound();
-    if (overtime.employeeId === actingUserId) throw attendanceSelfApprovalForbidden();
-    await this.requireReview(actingUserId, OVERTIME_PERMISSION, overtime.employeeDepartmentId);
+    if (overtime.employeeId === actingUserId)
+      throw attendanceSelfApprovalForbidden();
+    await this.requireReview(
+      actingUserId,
+      OVERTIME_PERMISSION,
+      overtime.employeeDepartmentId,
+    );
     if (overtime.status !== AttendanceOvertimeStatus.PENDING) {
       throw attendanceOvertimeAlreadyDecided();
     }
@@ -250,12 +265,18 @@ export class AttendanceReviewService {
           ? AttendanceOvertimeStatus.APPROVED
           : AttendanceOvertimeStatus.REJECTED,
       decidedById: actingUserId,
-      ...(dto.decision === "APPROVED" ? { approvedMinutes: dto.approvedMinutes! } : {}),
-      ...(dto.decisionReason !== undefined ? { decisionReason: dto.decisionReason } : {}),
+      ...(dto.decision === "APPROVED"
+        ? { approvedMinutes: dto.approvedMinutes! }
+        : {}),
+      ...(dto.decisionReason !== undefined
+        ? { decisionReason: dto.decisionReason }
+        : {}),
     });
     await this.audit.record({
       action:
-        dto.decision === "APPROVED" ? "attendance.overtime.approved" : "attendance.overtime.rejected",
+        dto.decision === "APPROVED"
+          ? "attendance.overtime.approved"
+          : "attendance.overtime.rejected",
       actorKind: AuditActorKind.USER,
       actorUserId: actingUserId,
       requestId,
@@ -271,7 +292,10 @@ export class AttendanceReviewService {
     actingUserId: string,
     status?: AttendanceExceptionStatus,
   ): Promise<AttendanceExceptionResponse[]> {
-    const departmentId = await this.visibleDepartmentId(actingUserId, EXCEPTION_PERMISSION);
+    const departmentId = await this.visibleDepartmentId(
+      actingUserId,
+      EXCEPTION_PERMISSION,
+    );
     const records = await this.repository.listExceptions({
       ...(status ? { status } : {}),
       ...(departmentId ? { departmentId } : {}),
@@ -287,8 +311,13 @@ export class AttendanceReviewService {
   ): Promise<AttendanceExceptionResponse> {
     const exception = await this.repository.findExceptionById(id);
     if (!exception) throw attendanceExceptionNotFound();
-    if (exception.employeeId === actingUserId) throw attendanceSelfApprovalForbidden();
-    await this.requireReview(actingUserId, EXCEPTION_PERMISSION, exception.employeeDepartmentId);
+    if (exception.employeeId === actingUserId)
+      throw attendanceSelfApprovalForbidden();
+    await this.requireReview(
+      actingUserId,
+      EXCEPTION_PERMISSION,
+      exception.employeeDepartmentId,
+    );
     if (exception.status !== AttendanceExceptionStatus.PENDING) {
       throw attendanceExceptionAlreadyDecided();
     }
@@ -303,7 +332,9 @@ export class AttendanceReviewService {
     });
     await this.audit.record({
       action:
-        dto.decision === "APPROVED" ? "attendance.exception.approved" : "attendance.exception.rejected",
+        dto.decision === "APPROVED"
+          ? "attendance.exception.approved"
+          : "attendance.exception.rejected",
       actorKind: AuditActorKind.USER,
       actorUserId: actingUserId,
       requestId,
@@ -340,7 +371,10 @@ export class AttendanceReviewService {
     startDate: Date,
     endDate: Date,
   ): Promise<AttendanceSummaryResponse[]> {
-    const departmentId = await this.visibleDepartmentId(actingUserId, REPORTS_PERMISSION);
+    const departmentId = await this.visibleDepartmentId(
+      actingUserId,
+      REPORTS_PERMISSION,
+    );
     const scope = departmentId ? { departmentId } : {};
     const [minuteRows, leaveRequests, roster, presentDates, workingDays] =
       await Promise.all([
@@ -355,7 +389,8 @@ export class AttendanceReviewService {
       minuteRows.map((row) => [row.employeeId, row]),
     );
     const namesByEmployee = new Map<string, string | null>();
-    for (const employee of roster) namesByEmployee.set(employee.id, employee.name);
+    for (const employee of roster)
+      namesByEmployee.set(employee.id, employee.name);
     for (const row of minuteRows) {
       if (!namesByEmployee.has(row.employeeId)) {
         namesByEmployee.set(row.employeeId, row.employeeName);
@@ -366,7 +401,8 @@ export class AttendanceReviewService {
       if (!namesByEmployee.has(request.employeeId)) {
         namesByEmployee.set(request.employeeId, request.employeeName);
       }
-      const dates = leaveDatesByEmployee.get(request.employeeId) ?? new Set<string>();
+      const dates =
+        leaveDatesByEmployee.get(request.employeeId) ?? new Set<string>();
       for (const iso of clippedIsoDates(
         request.startDate,
         request.endDate,
@@ -380,39 +416,40 @@ export class AttendanceReviewService {
 
     const workingDates = [...workingDays.keys()];
 
-    const summaries: AttendanceSummaryResponse[] = [...namesByEmployee.keys()].map(
-      (employeeId) => {
-        const minuteRow = minutesByEmployee.get(employeeId);
-        const presentSet = presentDates.get(employeeId) ?? new Set<string>();
-        const leaveSet = leaveDatesByEmployee.get(employeeId) ?? new Set<string>();
+    const summaries: AttendanceSummaryResponse[] = [
+      ...namesByEmployee.keys(),
+    ].map((employeeId) => {
+      const minuteRow = minutesByEmployee.get(employeeId);
+      const presentSet = presentDates.get(employeeId) ?? new Set<string>();
+      const leaveSet =
+        leaveDatesByEmployee.get(employeeId) ?? new Set<string>();
 
-        let scheduledDays = 0;
-        let onLeaveDays = 0;
-        let presentDays = 0;
-        let absentDays = 0;
-        for (const iso of workingDates) {
-          scheduledDays += 1;
-          if (leaveSet.has(iso)) onLeaveDays += 1;
-          else if (presentSet.has(iso)) presentDays += 1;
-          else absentDays += 1;
-        }
+      let scheduledDays = 0;
+      let onLeaveDays = 0;
+      let presentDays = 0;
+      let absentDays = 0;
+      for (const iso of workingDates) {
+        scheduledDays += 1;
+        if (leaveSet.has(iso)) onLeaveDays += 1;
+        else if (presentSet.has(iso)) presentDays += 1;
+        else absentDays += 1;
+      }
 
-        return {
-          employeeId,
-          employeeName: namesByEmployee.get(employeeId) ?? null,
-          sessionsCount: minuteRow?.sessionsCount ?? 0,
-          actualMinutes: minuteRow?.actualMinutes ?? 0,
-          lateMinutes: minuteRow?.lateMinutes ?? 0,
-          earlyDepartureMinutes: minuteRow?.earlyDepartureMinutes ?? 0,
-          potentialOvertimeMinutes: minuteRow?.potentialOvertimeMinutes ?? 0,
-          approvedOvertimeMinutes: minuteRow?.approvedOvertimeMinutes ?? 0,
-          scheduledDays,
-          presentDays,
-          absentDays,
-          onLeaveDays,
-        };
-      },
-    );
+      return {
+        employeeId,
+        employeeName: namesByEmployee.get(employeeId) ?? null,
+        sessionsCount: minuteRow?.sessionsCount ?? 0,
+        actualMinutes: minuteRow?.actualMinutes ?? 0,
+        lateMinutes: minuteRow?.lateMinutes ?? 0,
+        earlyDepartureMinutes: minuteRow?.earlyDepartureMinutes ?? 0,
+        potentialOvertimeMinutes: minuteRow?.potentialOvertimeMinutes ?? 0,
+        approvedOvertimeMinutes: minuteRow?.approvedOvertimeMinutes ?? 0,
+        scheduledDays,
+        presentDays,
+        absentDays,
+        onLeaveDays,
+      };
+    });
     return summaries.sort((a, b) =>
       (a.employeeName ?? "").localeCompare(b.employeeName ?? ""),
     );
@@ -444,7 +481,8 @@ export class AttendanceReviewService {
       effectiveFrom: new Date(dto.effectiveFrom),
       createdById: actingUserId,
     });
-    if (result === "already_effective") throw attendanceWeekdayScheduleConflict();
+    if (result === "already_effective")
+      throw attendanceWeekdayScheduleConflict();
     await this.audit.record({
       action: "attendance.calendar.weekday_updated",
       actorKind: AuditActorKind.USER,
@@ -453,12 +491,18 @@ export class AttendanceReviewService {
       resourceType: "attendance_weekday_schedule",
       resourceId: `${dto.dayOfWeek}:${dto.effectiveFrom}`,
       outcome: AuditOutcome.SUCCEEDED,
-      metadata: { dayOfWeek: dto.dayOfWeek, type: dto.type, effectiveFrom: dto.effectiveFrom },
+      metadata: {
+        dayOfWeek: dto.dayOfWeek,
+        type: dto.type,
+        effectiveFrom: dto.effectiveFrom,
+      },
     });
     return toWeekdayScheduleResponse(result);
   }
 
-  async listHolidays(actingUserId: string): Promise<AttendanceHolidayResponse[]> {
+  async listHolidays(
+    actingUserId: string,
+  ): Promise<AttendanceHolidayResponse[]> {
     await this.requireHrOrSuperAdminAccess(actingUserId, CALENDAR_PERMISSION);
     const rows = await this.attendance.listHolidays();
     return rows.map(toHolidayResponse);

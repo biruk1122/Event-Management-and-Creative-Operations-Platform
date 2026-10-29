@@ -28,7 +28,10 @@ const FORM_ERRORS: Record<string, string> = {
 };
 
 export interface DecideOvertimeDialogProps {
-  item: { approval: OvertimeApproval; decision: "APPROVED" | "REJECTED" } | null;
+  item: {
+    approval: OvertimeApproval;
+    decision: "APPROVED" | "REJECTED";
+  } | null;
   onOpenChange: (open: boolean) => void;
   onDecide: (input: {
     decision: "APPROVED" | "REJECTED";
@@ -73,7 +76,11 @@ export function DecideOvertimeDialog({
     let minutes: number | undefined;
     if (item.decision === "APPROVED") {
       minutes = Number(approvedMinutes);
-      if (approvedMinutes.trim() === "" || Number.isNaN(minutes) || minutes < 0) {
+      if (
+        approvedMinutes.trim() === "" ||
+        Number.isNaN(minutes) ||
+        minutes < 0
+      ) {
         setFieldError("Enter the approved minutes.");
         return;
       }
@@ -101,7 +108,8 @@ export function DecideOvertimeDialog({
     setFormError(FORM_ERRORS[outcome.status] ?? FORM_ERRORS.unexpected!);
   }
 
-  const title = item?.decision === "APPROVED" ? "Approve overtime" : "Reject overtime";
+  const title =
+    item?.decision === "APPROVED" ? "Approve overtime" : "Reject overtime";
 
   return (
     <Dialog
@@ -156,15 +164,24 @@ export function DecideOvertimeDialog({
               onChange={(event) => setReason(event.target.value)}
             />
           </div>
-          {fieldError ? <p className="text-destructive text-sm">{fieldError}</p> : null}
+          {fieldError ? (
+            <p className="text-destructive text-sm">{fieldError}</p>
+          ) : null}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={close}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button
               type="submit"
-              variant={item?.decision === "REJECTED" ? "destructive" : "default"}
+              variant={
+                item?.decision === "REJECTED" ? "destructive" : "default"
+              }
               disabled={submitting}
               aria-busy={submitting}
             >

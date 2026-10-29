@@ -880,8 +880,13 @@ export class NotificationsService {
     const payload =
       event.payload as Partial<AttendanceOvertimeDecidedEventPayload> | null;
     if (!event.resourceId || !payload?.employeeId) return;
-    const overtime = await this.repository.getOvertimeApproval(event.resourceId);
-    if (!overtime || (overtime.status !== "APPROVED" && overtime.status !== "REJECTED")) {
+    const overtime = await this.repository.getOvertimeApproval(
+      event.resourceId,
+    );
+    if (
+      !overtime ||
+      (overtime.status !== "APPROVED" && overtime.status !== "REJECTED")
+    ) {
       return;
     }
     const sessionDate = overtime.sessionDate.toISOString().slice(0, 10);
@@ -906,14 +911,23 @@ export class NotificationsService {
     const payload =
       event.payload as Partial<AttendanceExceptionDecidedEventPayload> | null;
     if (!event.resourceId || !payload?.employeeId) return;
-    const exception = await this.repository.getAttendanceException(event.resourceId);
-    if (!exception || (exception.status !== "APPROVED" && exception.status !== "REJECTED")) {
+    const exception = await this.repository.getAttendanceException(
+      event.resourceId,
+    );
+    if (
+      !exception ||
+      (exception.status !== "APPROVED" && exception.status !== "REJECTED")
+    ) {
       return;
     }
     const content =
       exception.status === "APPROVED"
-        ? attendanceExceptionApprovedContent(exception.description ?? "Attendance exception")
-        : attendanceExceptionRejectedContent(exception.description ?? "Attendance exception");
+        ? attendanceExceptionApprovedContent(
+            exception.description ?? "Attendance exception",
+          )
+        : attendanceExceptionRejectedContent(
+            exception.description ?? "Attendance exception",
+          );
     await this.createAndPublish({
       recipientUserId: exception.employeeId,
       type: NotificationType.ATTENDANCE_EXCEPTION_DECIDED,
@@ -941,7 +955,9 @@ export class NotificationsService {
       request.employeeDepartmentId,
     );
     if (!managerId || managerId === request.employeeId) return;
-    const content = leaveRequestSubmittedContent(request.employeeName ?? "An employee");
+    const content = leaveRequestSubmittedContent(
+      request.employeeName ?? "An employee",
+    );
     await this.createAndPublish({
       recipientUserId: managerId,
       type: NotificationType.LEAVE_REQUEST_SUBMITTED,

@@ -35,5 +35,7 @@ export function AttendanceReportScreen() {
     );
   if (!attendanceAbilities(access.data).canReadReports)
     return <p role="alert">You do not have access to attendance reports.</p>;
-  return <AttendanceReportManager key={access.data.userId} access={access.data} />;
+  return (
+    <AttendanceReportManager key={access.data.userId} access={access.data} />
+  );
 }

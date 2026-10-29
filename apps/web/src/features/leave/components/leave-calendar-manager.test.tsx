@@ -65,7 +65,9 @@ describe("LeaveCalendarManager", () => {
     setup();
 
     expect(await screen.findByText("Ada Employee")).toBeInTheDocument();
-    expect(screen.getByText(/Annual leave · through Dec 26, 2026/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Annual leave · through Dec 26, 2026/),
+    ).toBeInTheDocument();
     expect(get).toHaveBeenCalledWith(
       "/api/v1/leave/calendar",
       expect.objectContaining({

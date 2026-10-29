@@ -28,7 +28,10 @@ describe("inclusiveDaySpan", () => {
 
   it("counts a 3-day range inclusively", () => {
     expect(
-      inclusiveDaySpan(new Date("2026-12-24T00:00:00Z"), new Date("2026-12-26T00:00:00Z")),
+      inclusiveDaySpan(
+        new Date("2026-12-24T00:00:00Z"),
+        new Date("2026-12-26T00:00:00Z"),
+      ),
     ).toBe(3);
   });
 });

@@ -10,7 +10,13 @@ import { MobileAttendanceService } from "./mobile-attendance.service.js";
 import { MobileAttendanceRepository } from "./infrastructure/mobile-attendance.repository.js";
 
 @Module({
-  imports: [AttendanceModule, AuditModule, AuthModule, PermissionsModule, LeaveModule],
+  imports: [
+    AttendanceModule,
+    AuditModule,
+    AuthModule,
+    PermissionsModule,
+    LeaveModule,
+  ],
   controllers: [MobileAttendanceController],
   providers: [MobileAttendanceRepository, MobileAttendanceService],
 })

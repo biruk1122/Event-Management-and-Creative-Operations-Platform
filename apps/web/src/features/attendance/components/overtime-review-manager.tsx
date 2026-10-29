@@ -18,11 +18,13 @@ export interface OvertimeReviewManagerProps {
 export function OvertimeReviewManager({ access }: OvertimeReviewManagerProps) {
   const overtime = useOvertimeList(access, "PENDING");
   const mutations = useReviewMutations(access);
-  const [target, setTarget] = useState<
-    { approval: OvertimeApproval; decision: "APPROVED" | "REJECTED" } | null
-  >(null);
+  const [target, setTarget] = useState<{
+    approval: OvertimeApproval;
+    decision: "APPROVED" | "REJECTED";
+  } | null>(null);
 
-  if (overtime.isPending) return <p role="status">Loading overtime requests…</p>;
+  if (overtime.isPending)
+    return <p role="status">Loading overtime requests…</p>;
   if (overtime.isError) {
     return (
       <div role="alert" className="space-y-2">
@@ -41,7 +43,9 @@ export function OvertimeReviewManager({ access }: OvertimeReviewManagerProps) {
   return (
     <div className="space-y-4">
       {(overtime.data ?? []).length === 0 ? (
-        <p className="text-muted-foreground text-sm">No overtime requests pending review.</p>
+        <p className="text-muted-foreground text-sm">
+          No overtime requests pending review.
+        </p>
       ) : (
         <ul className="space-y-2">
           {(overtime.data ?? []).map((approval) => (
@@ -50,9 +54,12 @@ export function OvertimeReviewManager({ access }: OvertimeReviewManagerProps) {
               className="flex items-center justify-between gap-4 rounded-xl border p-4"
             >
               <div>
-                <p className="font-medium">{approval.employeeName ?? "Former employee"}</p>
+                <p className="font-medium">
+                  {approval.employeeName ?? "Former employee"}
+                </p>
                 <p className="text-muted-foreground text-sm">
-                  {approval.sessionDate} · potential {formatMinutes(approval.potentialMinutes)}
+                  {approval.sessionDate} · potential{" "}
+                  {formatMinutes(approval.potentialMinutes)}
                 </p>
                 {approval.requestedReason ? (
                   <p className="text-muted-foreground text-sm">
@@ -85,7 +92,12 @@ export function OvertimeReviewManager({ access }: OvertimeReviewManagerProps) {
         onOpenChange={(open) => {
           if (!open) setTarget(null);
         }}
-        onDecide={(input) => mutations.decideOvertime.mutateAsync({ id: target!.approval.id, ...input })}
+        onDecide={(input) =>
+          mutations.decideOvertime.mutateAsync({
+            id: target!.approval.id,
+            ...input,
+          })
+        }
         onDecided={() => undefined}
       />
     </div>

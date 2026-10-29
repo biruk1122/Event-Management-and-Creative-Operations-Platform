@@ -34,7 +34,10 @@ describe("mobile attendance persistence", () => {
   beforeAll(async () => {
     db = await createIsolatedDatabase();
     prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString: db.url }, { schema: db.schema }),
+      adapter: new PrismaPg(
+        { connectionString: db.url },
+        { schema: db.schema },
+      ),
     });
     mobile = new MobileAttendanceRepository(prisma as never);
     attendance = new AttendanceRepository(prisma as never);
@@ -44,9 +47,15 @@ describe("mobile attendance persistence", () => {
     });
     employeeId = employee.id;
 
-    const workspace = await prisma.workspace.create({ data: { kind: "EVENT" } });
+    const workspace = await prisma.workspace.create({
+      data: { kind: "EVENT" },
+    });
     const event = await prisma.event.create({
-      data: { workspaceId: workspace.id, name: "Launch Night", eventType: "OTHER" },
+      data: {
+        workspaceId: workspace.id,
+        name: "Launch Night",
+        eventType: "OTHER",
+      },
     });
     const shift = await prisma.eventShift.create({
       data: {

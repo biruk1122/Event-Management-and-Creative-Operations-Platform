@@ -19,13 +19,19 @@ export function AttendanceNavigation() {
     items.push({ label: "My attendance", href: "/attendance" as Route });
   }
   if (abilities.canManageSchedule) {
-    items.push({ label: "Shift scheduling", href: "/attendance/shifts" as Route });
+    items.push({
+      label: "Shift scheduling",
+      href: "/attendance/shifts" as Route,
+    });
   }
   if (abilities.canReviewOvertime) {
     items.push({ label: "Overtime", href: "/attendance/overtime" as Route });
   }
   if (abilities.canReviewExceptions) {
-    items.push({ label: "Exceptions", href: "/attendance/exceptions" as Route });
+    items.push({
+      label: "Exceptions",
+      href: "/attendance/exceptions" as Route,
+    });
   }
   if (abilities.canManageKiosks) {
     items.push({ label: "Kiosks", href: "/attendance/kiosks" as Route });
@@ -40,14 +46,20 @@ export function AttendanceNavigation() {
     });
   }
   if (abilities.canManageCalendar) {
-    items.push({ label: "Work calendar", href: "/attendance/calendar" as Route });
+    items.push({
+      label: "Work calendar",
+      href: "/attendance/calendar" as Route,
+    });
   }
   if (items.length < 2) return null;
 
   return (
     <SectionNavigation
       label="Attendance sections"
-      items={items.map((item) => ({ ...item, current: pathname === item.href }))}
+      items={items.map((item) => ({
+        ...item,
+        current: pathname === item.href,
+      }))}
     />
   );
 }

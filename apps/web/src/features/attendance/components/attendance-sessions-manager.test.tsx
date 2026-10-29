@@ -25,7 +25,9 @@ const access: CurrentAccess = {
   grants: [{ permissionKey: "attendance.reports.read", scope: "ORGANIZATION" }],
 };
 
-function session(overrides: Partial<AttendanceSession> = {}): AttendanceSession {
+function session(
+  overrides: Partial<AttendanceSession> = {},
+): AttendanceSession {
   return {
     id: "session-1",
     employeeId: "employee-1",
@@ -128,7 +130,9 @@ describe("AttendanceSessionsManager", () => {
     await user.type(screen.getByLabelText("To"), "2000-01-01");
 
     expect(
-      await screen.findByText("The end date must be on or after the start date."),
+      await screen.findByText(
+        "The end date must be on or after the start date.",
+      ),
     ).toBeInTheDocument();
   });
 });

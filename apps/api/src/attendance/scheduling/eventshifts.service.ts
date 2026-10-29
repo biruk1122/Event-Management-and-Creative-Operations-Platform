@@ -57,7 +57,9 @@ function toResponse(record: EventShiftRecord): EventShiftResponse {
   };
 }
 
-function toChangeResponse(record: EventShiftChangeRecord): EventShiftChangeResponse {
+function toChangeResponse(
+  record: EventShiftChangeRecord,
+): EventShiftChangeResponse {
   return {
     id: record.id,
     changeType: record.changeType,
@@ -100,11 +102,24 @@ export class EventShiftsService {
     actingUserId: string,
     eventDepartmentId: string | null,
   ): Promise<void> {
-    if (await this.hasGrant(actingUserId, "attendance.schedule.manage", "ORGANIZATION")) {
+    if (
+      await this.hasGrant(
+        actingUserId,
+        "attendance.schedule.manage",
+        "ORGANIZATION",
+      )
+    ) {
       return;
     }
-    if (await this.hasGrant(actingUserId, "attendance.schedule.manage", "DEPARTMENT")) {
-      const departmentId = await this.repository.findUserDepartmentId(actingUserId);
+    if (
+      await this.hasGrant(
+        actingUserId,
+        "attendance.schedule.manage",
+        "DEPARTMENT",
+      )
+    ) {
+      const departmentId =
+        await this.repository.findUserDepartmentId(actingUserId);
       if (departmentId && departmentId === eventDepartmentId) return;
     }
     throw permissionDenied();
@@ -143,7 +158,9 @@ export class EventShiftsService {
     const plannedStartAt = new Date(dto.plannedStartAt);
     const plannedEndAt = new Date(dto.plannedEndAt);
     if (plannedEndAt <= plannedStartAt) {
-      throw attendanceInvalidSchedule("plannedEndAt must be after plannedStartAt.");
+      throw attendanceInvalidSchedule(
+        "plannedEndAt must be after plannedStartAt.",
+      );
     }
 
     const record = await this.repository.create(eventId, {
@@ -154,11 +171,15 @@ export class EventShiftsService {
       longitude: dto.longitude,
       createdById: actingUserId,
       ...(dto.label !== undefined ? { label: dto.label } : {}),
-      ...(dto.locationLabel !== undefined ? { locationLabel: dto.locationLabel } : {}),
+      ...(dto.locationLabel !== undefined
+        ? { locationLabel: dto.locationLabel }
+        : {}),
       ...(dto.geofenceRadiusMeters !== undefined
         ? { geofenceRadiusMeters: dto.geofenceRadiusMeters }
         : {}),
-      ...(dto.breakMinutes !== undefined ? { breakMinutes: dto.breakMinutes } : {}),
+      ...(dto.breakMinutes !== undefined
+        ? { breakMinutes: dto.breakMinutes }
+        : {}),
     });
     await this.audit.record({
       action: "attendance.shift.created",
@@ -173,7 +194,10 @@ export class EventShiftsService {
     return toResponse(record);
   }
 
-  async list(actingUserId: string, eventId: string): Promise<EventShiftResponse[]> {
+  async list(
+    actingUserId: string,
+    eventId: string,
+  ): Promise<EventShiftResponse[]> {
     const event = await this.requireEvent(eventId);
     await this.requireManage(actingUserId, event.departmentId);
     const records = await this.repository.listByEvent(eventId);
@@ -203,13 +227,17 @@ export class EventShiftsService {
 
     const record = await this.repository.updateMetadata(shiftId, {
       ...(dto.label !== undefined ? { label: dto.label } : {}),
-      ...(dto.locationLabel !== undefined ? { locationLabel: dto.locationLabel } : {}),
+      ...(dto.locationLabel !== undefined
+        ? { locationLabel: dto.locationLabel }
+        : {}),
       ...(dto.latitude !== undefined ? { latitude: dto.latitude } : {}),
       ...(dto.longitude !== undefined ? { longitude: dto.longitude } : {}),
       ...(dto.geofenceRadiusMeters !== undefined
         ? { geofenceRadiusMeters: dto.geofenceRadiusMeters }
         : {}),
-      ...(dto.breakMinutes !== undefined ? { breakMinutes: dto.breakMinutes } : {}),
+      ...(dto.breakMinutes !== undefined
+        ? { breakMinutes: dto.breakMinutes }
+        : {}),
     });
     return toResponse(record);
   }
@@ -240,9 +268,13 @@ export class EventShiftsService {
     const newStartAt = dto.plannedStartAt
       ? new Date(dto.plannedStartAt)
       : shift.plannedStartAt;
-    const newEndAt = dto.plannedEndAt ? new Date(dto.plannedEndAt) : shift.plannedEndAt;
+    const newEndAt = dto.plannedEndAt
+      ? new Date(dto.plannedEndAt)
+      : shift.plannedEndAt;
     if (newEndAt <= newStartAt) {
-      throw attendanceInvalidSchedule("plannedEndAt must be after plannedStartAt.");
+      throw attendanceInvalidSchedule(
+        "plannedEndAt must be after plannedStartAt.",
+      );
     }
 
     const changeType =
@@ -285,7 +317,10 @@ export class EventShiftsService {
     const shift = await this.requireShift(eventId, shiftId);
     await this.requireManage(actingUserId, event.departmentId);
 
-    if (shift.status === EventShiftStatus.CANCELLED || shift.status === EventShiftStatus.COMPLETED) {
+    if (
+      shift.status === EventShiftStatus.CANCELLED ||
+      shift.status === EventShiftStatus.COMPLETED
+    ) {
       throw attendanceShiftNotAvailable();
     }
 
@@ -401,7 +436,11 @@ export class EventShiftsService {
     await this.requireShift(eventId, shiftId);
     await this.requireManage(actingUserId, event.departmentId);
 
-    const result = await this.repository.unassign(shiftId, employeeId, actingUserId);
+    const result = await this.repository.unassign(
+      shiftId,
+      employeeId,
+      actingUserId,
+    );
     if (result === "not_found") throw attendanceAssignmentNotFound();
     await this.audit.record({
       action: "attendance.shift.assignment_removed",

@@ -6,9 +6,7 @@ export type KioskPunchResult = components["schemas"]["KioskPunchResponse"];
 
 /** Result of checking stored kiosk credentials still work. */
 export type ActivationCheckOutcome =
-  | { status: "valid" }
-  | { status: "invalid" }
-  | { status: "unexpected" };
+  { status: "valid" } | { status: "invalid" } | { status: "unexpected" };
 
 export type VerifyOutcome =
   | { status: "success"; result: KioskVerifyResult }

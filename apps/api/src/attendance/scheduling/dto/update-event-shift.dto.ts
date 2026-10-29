@@ -19,7 +19,12 @@ const NOT_BLANK = /\S/;
  * through `RescheduleEventShiftDto` so every time change leaves a reason
  * and a history row behind. */
 export class UpdateEventShiftDto {
-  @ApiPropertyOptional({ type: String, nullable: true, minLength: 1, maxLength: 200 })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    minLength: 1,
+    maxLength: 200,
+  })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
   @IsString()
@@ -28,7 +33,12 @@ export class UpdateEventShiftDto {
   @Matches(NOT_BLANK, { message: "label must not be blank" })
   label?: string | null;
 
-  @ApiPropertyOptional({ type: String, nullable: true, minLength: 1, maxLength: 200 })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    minLength: 1,
+    maxLength: 200,
+  })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
   @IsString()

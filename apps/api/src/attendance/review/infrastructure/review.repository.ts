@@ -20,7 +20,11 @@ function isUuid(value: string): boolean {
 }
 
 function personName(
-  person: { firstName: string | null; lastName: string | null; email: string } | null,
+  person: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null,
 ): string | null {
   if (!person) return null;
   const name = [person.firstName, person.lastName]
@@ -90,7 +94,12 @@ const OVERTIME_SELECT = {
       employeeId: true,
       sessionDate: true,
       employee: {
-        select: { departmentId: true, firstName: true, lastName: true, email: true },
+        select: {
+          departmentId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
       },
     },
   },
@@ -106,7 +115,11 @@ type RawOvertime = {
   decisionReason: string | null;
   decidedAt: Date | null;
   createdAt: Date;
-  decidedBy: { firstName: string | null; lastName: string | null; email: string } | null;
+  decidedBy: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
   session: {
     employeeId: string;
     sessionDate: Date;
@@ -150,7 +163,13 @@ const EXCEPTION_SELECT = {
   reviewedAt: true,
   createdAt: true,
   employee: {
-    select: { id: true, departmentId: true, firstName: true, lastName: true, email: true },
+    select: {
+      id: true,
+      departmentId: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+    },
   },
   reviewedBy: { select: { firstName: true, lastName: true, email: true } },
 } as const;
@@ -173,7 +192,11 @@ type RawException = {
     lastName: string | null;
     email: string;
   };
-  reviewedBy: { firstName: string | null; lastName: string | null; email: string } | null;
+  reviewedBy: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
 };
 
 function toExceptionRecord(raw: RawException): ExceptionRecord {
@@ -265,7 +288,9 @@ export class AttendanceReviewRepository {
       actorUserId: input.decidedById,
       resourceType: "attendance_overtime_approval",
       resourceId: id,
-      payload: { employeeId: record.employeeId } satisfies AttendanceOvertimeDecidedEventPayload,
+      payload: {
+        employeeId: record.employeeId,
+      } satisfies AttendanceOvertimeDecidedEventPayload,
       consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
     });
     return record;
@@ -323,7 +348,9 @@ export class AttendanceReviewRepository {
       actorUserId: input.reviewedById,
       resourceType: "attendance_exception",
       resourceId: id,
-      payload: { employeeId: record.employeeId } satisfies AttendanceExceptionDecidedEventPayload,
+      payload: {
+        employeeId: record.employeeId,
+      } satisfies AttendanceExceptionDecidedEventPayload,
       consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
     });
     return record;
@@ -381,7 +408,8 @@ export class AttendanceReviewRepository {
       existing.earlyDepartureMinutes += session.earlyDepartureMinutes;
       existing.potentialOvertimeMinutes += session.potentialOvertimeMinutes;
       if (session.overtime?.status === "APPROVED") {
-        existing.approvedOvertimeMinutes += session.overtime.approvedMinutes ?? 0;
+        existing.approvedOvertimeMinutes +=
+          session.overtime.approvedMinutes ?? 0;
       }
       byEmployee.set(session.employeeId, existing);
     }

@@ -17,7 +17,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-import type { CreateLeaveTypeOutcome, LeaveTypeFormValues } from "../lib/leave-outcome";
+import type {
+  CreateLeaveTypeOutcome,
+  LeaveTypeFormValues,
+} from "../lib/leave-outcome";
 import type { LeaveType } from "../lib/leave-types";
 
 const FORM_ERRORS: Record<string, string> = {
@@ -60,7 +63,10 @@ export function CreateLeaveTypeDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function set<K extends keyof LeaveTypeFormValues>(key: K, value: LeaveTypeFormValues[K]) {
+  function set<K extends keyof LeaveTypeFormValues>(
+    key: K,
+    value: LeaveTypeFormValues[K],
+  ) {
     setValues((current) => ({ ...current, [key]: value }));
   }
 
@@ -114,8 +120,8 @@ export function CreateLeaveTypeDialog({
         <DialogHeader>
           <DialogTitle>New leave type</DialogTitle>
           <DialogDescription>
-            Define a leave category employees can request against once HR
-            grants a balance for it.
+            Define a leave category employees can request against once HR grants
+            a balance for it.
           </DialogDescription>
         </DialogHeader>
 
@@ -156,7 +162,10 @@ export function CreateLeaveTypeDialog({
           </div>
 
           <div className="space-y-3">
-            <label htmlFor={isPaidId} className="flex items-center gap-2 text-sm">
+            <label
+              htmlFor={isPaidId}
+              className="flex items-center gap-2 text-sm"
+            >
               <Checkbox
                 id={isPaidId}
                 checked={values.isPaid}
@@ -179,19 +188,29 @@ export function CreateLeaveTypeDialog({
               />
               Requires supporting documentation
             </label>
-            <label htmlFor={requiresApprovalId} className="flex items-center gap-2 text-sm">
+            <label
+              htmlFor={requiresApprovalId}
+              className="flex items-center gap-2 text-sm"
+            >
               <Checkbox
                 id={requiresApprovalId}
                 checked={values.requiresApproval}
                 disabled={submitting}
-                onCheckedChange={(checked) => set("requiresApproval", checked === true)}
+                onCheckedChange={(checked) =>
+                  set("requiresApproval", checked === true)
+                }
               />
               Requires approval
             </label>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={close}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={submitting} aria-busy={submitting}>

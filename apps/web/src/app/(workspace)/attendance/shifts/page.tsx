@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { AttendanceNavigation, ShiftScheduleScreen } from "@/features/attendance";
+import {
+  AttendanceNavigation,
+  ShiftScheduleScreen,
+} from "@/features/attendance";
 import { WorkSurface } from "@/components/ui/work-surface";
 export const metadata: Metadata = { title: "Shift Scheduling" };
 export default function AttendanceShiftsPage() {

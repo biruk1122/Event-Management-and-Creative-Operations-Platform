@@ -10,7 +10,13 @@ import { EventShiftsService } from "./eventshifts.service.js";
 import { EventShiftsRepository } from "./infrastructure/eventshifts.repository.js";
 
 @Module({
-  imports: [AuditModule, AuthModule, PermissionsModule, LeaveModule, OutboxModule],
+  imports: [
+    AuditModule,
+    AuthModule,
+    PermissionsModule,
+    LeaveModule,
+    OutboxModule,
+  ],
   controllers: [EventShiftsController],
   providers: [EventShiftsRepository, EventShiftsService],
 })

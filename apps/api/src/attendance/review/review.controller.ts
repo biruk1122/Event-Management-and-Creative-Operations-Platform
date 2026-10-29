@@ -179,7 +179,8 @@ export class AttendanceReviewController {
   @ApiCreatedResponse({ type: AttendanceWeekdayScheduleResponse })
   @ApiConflictResponse({
     type: ProblemDetails,
-    description: "A change for this weekday is already effective from that date",
+    description:
+      "A change for this weekday is already effective from that date",
   })
   createWeekdaySchedule(
     @Req() req: RequestWithContext,

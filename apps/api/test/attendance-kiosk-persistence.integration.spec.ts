@@ -54,7 +54,10 @@ describe("attendance kiosk persistence", () => {
   beforeAll(async () => {
     db = await createIsolatedDatabase();
     prisma = new PrismaClient({
-      adapter: new PrismaPg({ connectionString: db.url }, { schema: db.schema }),
+      adapter: new PrismaPg(
+        { connectionString: db.url },
+        { schema: db.schema },
+      ),
     });
     kiosks = new KioskRepository(prisma as never);
     attendance = new AttendanceRepository(prisma as never);

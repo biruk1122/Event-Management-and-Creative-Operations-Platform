@@ -65,7 +65,10 @@ export function CreateShiftDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function set<K extends keyof ShiftFormValues>(key: K, value: ShiftFormValues[K]) {
+  function set<K extends keyof ShiftFormValues>(
+    key: K,
+    value: ShiftFormValues[K],
+  ) {
     setValues((current) => ({ ...current, [key]: value }));
   }
 
@@ -85,13 +88,22 @@ export function CreateShiftDialog({
     setFormError(null);
 
     const localErrors: Partial<Record<keyof ShiftFormValues, string>> = {};
-    if (values.plannedStartAt === "") localErrors.plannedStartAt = "Set a start time.";
-    if (values.plannedEndAt === "") localErrors.plannedEndAt = "Set an end time.";
-    if (values.timeZone.trim() === "") localErrors.timeZone = "Enter an IANA time zone.";
-    if (values.latitude.trim() === "" || Number.isNaN(Number(values.latitude))) {
+    if (values.plannedStartAt === "")
+      localErrors.plannedStartAt = "Set a start time.";
+    if (values.plannedEndAt === "")
+      localErrors.plannedEndAt = "Set an end time.";
+    if (values.timeZone.trim() === "")
+      localErrors.timeZone = "Enter an IANA time zone.";
+    if (
+      values.latitude.trim() === "" ||
+      Number.isNaN(Number(values.latitude))
+    ) {
       localErrors.latitude = "Enter a latitude.";
     }
-    if (values.longitude.trim() === "" || Number.isNaN(Number(values.longitude))) {
+    if (
+      values.longitude.trim() === "" ||
+      Number.isNaN(Number(values.longitude))
+    ) {
       localErrors.longitude = "Enter a longitude.";
     }
     if (Object.keys(localErrors).length > 0) {
@@ -172,7 +184,9 @@ export function CreateShiftDialog({
                 aria-invalid={Boolean(fieldErrors.plannedStartAt)}
               />
               {fieldErrors.plannedStartAt ? (
-                <p className="text-destructive text-sm">{fieldErrors.plannedStartAt}</p>
+                <p className="text-destructive text-sm">
+                  {fieldErrors.plannedStartAt}
+                </p>
               ) : null}
             </div>
             <div className="space-y-2">
@@ -186,7 +200,9 @@ export function CreateShiftDialog({
                 aria-invalid={Boolean(fieldErrors.plannedEndAt)}
               />
               {fieldErrors.plannedEndAt ? (
-                <p className="text-destructive text-sm">{fieldErrors.plannedEndAt}</p>
+                <p className="text-destructive text-sm">
+                  {fieldErrors.plannedEndAt}
+                </p>
               ) : null}
             </div>
           </div>
@@ -214,7 +230,9 @@ export function CreateShiftDialog({
                 aria-invalid={Boolean(fieldErrors.latitude)}
               />
               {fieldErrors.latitude ? (
-                <p className="text-destructive text-sm">{fieldErrors.latitude}</p>
+                <p className="text-destructive text-sm">
+                  {fieldErrors.latitude}
+                </p>
               ) : null}
             </div>
             <div className="space-y-2">
@@ -228,7 +246,9 @@ export function CreateShiftDialog({
                 aria-invalid={Boolean(fieldErrors.longitude)}
               />
               {fieldErrors.longitude ? (
-                <p className="text-destructive text-sm">{fieldErrors.longitude}</p>
+                <p className="text-destructive text-sm">
+                  {fieldErrors.longitude}
+                </p>
               ) : null}
             </div>
           </div>
@@ -241,7 +261,9 @@ export function CreateShiftDialog({
                 inputMode="numeric"
                 value={values.geofenceRadiusMeters}
                 disabled={submitting}
-                onChange={(event) => set("geofenceRadiusMeters", event.target.value)}
+                onChange={(event) =>
+                  set("geofenceRadiusMeters", event.target.value)
+                }
               />
             </div>
             <div className="space-y-2">
@@ -257,7 +279,12 @@ export function CreateShiftDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={close} disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={close}
+              disabled={submitting}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={submitting} aria-busy={submitting}>

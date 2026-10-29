@@ -21,7 +21,11 @@ import {
 } from "@/components/ui/select";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
-import { useEligibleEmployees, useShiftAssignments, useShiftMutations } from "../api/attendance-queries";
+import {
+  useEligibleEmployees,
+  useShiftAssignments,
+  useShiftMutations,
+} from "../api/attendance-queries";
 import type { EventShift } from "../lib/attendance-types";
 
 const FAILURE_MESSAGES: Record<string, string> = {
@@ -49,7 +53,11 @@ export function ShiftAssignmentDialog({
 }: ShiftAssignmentDialogProps) {
   const selectId = useId();
   const shiftId = shift?.id ?? null;
-  const assignments = useShiftAssignments(access, shift ? eventId : null, shiftId);
+  const assignments = useShiftAssignments(
+    access,
+    shift ? eventId : null,
+    shiftId,
+  );
   const eligible = useEligibleEmployees(access, departmentId);
   const mutations = useShiftMutations(access, eventId);
   const [selected, setSelected] = useState("");
@@ -64,7 +72,10 @@ export function ShiftAssignmentDialog({
   async function handleAssign() {
     if (!shiftId || !selected) return;
     setError(null);
-    const outcome = await mutations.assign.mutateAsync({ shiftId, employeeId: selected });
+    const outcome = await mutations.assign.mutateAsync({
+      shiftId,
+      employeeId: selected,
+    });
     if (outcome.status === "success") {
       setSelected("");
       return;
@@ -75,14 +86,23 @@ export function ShiftAssignmentDialog({
   async function handleUnassign(employeeId: string) {
     if (!shiftId) return;
     setError(null);
-    const outcome = await mutations.unassign.mutateAsync({ shiftId, employeeId });
+    const outcome = await mutations.unassign.mutateAsync({
+      shiftId,
+      employeeId,
+    });
     if (outcome.status !== "success") {
-      setError(FAILURE_MESSAGES[outcome.status] ?? FAILURE_MESSAGES.unexpected!);
+      setError(
+        FAILURE_MESSAGES[outcome.status] ?? FAILURE_MESSAGES.unexpected!,
+      );
     }
   }
 
-  const assignedIds = new Set((assignments.data ?? []).map((a) => a.employeeId));
-  const candidates = (eligible.data ?? []).filter((person) => !assignedIds.has(person.id));
+  const assignedIds = new Set(
+    (assignments.data ?? []).map((a) => a.employeeId),
+  );
+  const candidates = (eligible.data ?? []).filter(
+    (person) => !assignedIds.has(person.id),
+  );
   const busy = mutations.assign.isPending || mutations.unassign.isPending;
 
   return (
@@ -97,7 +117,9 @@ export function ShiftAssignmentDialog({
         <DialogHeader>
           <DialogTitle>Shift assignments</DialogTitle>
           <DialogDescription>
-            {shift ? `${shift.eventName}${shift.label ? ` · ${shift.label}` : ""}` : ""}
+            {shift
+              ? `${shift.eventName}${shift.label ? ` · ${shift.label}` : ""}`
+              : ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -110,7 +132,11 @@ export function ShiftAssignmentDialog({
         <div className="space-y-2">
           <Label htmlFor={selectId}>Assign an employee</Label>
           <div className="flex gap-2">
-            <Select value={selected} onValueChange={setSelected} disabled={busy}>
+            <Select
+              value={selected}
+              onValueChange={setSelected}
+              disabled={busy}
+            >
               <SelectTrigger id={selectId} className="flex-1">
                 <SelectValue placeholder="Choose an employee" />
               </SelectTrigger>
@@ -128,7 +154,10 @@ export function ShiftAssignmentDialog({
                 )}
               </SelectContent>
             </Select>
-            <Button disabled={!selected || busy} onClick={() => void handleAssign()}>
+            <Button
+              disabled={!selected || busy}
+              onClick={() => void handleAssign()}
+            >
               Assign
             </Button>
           </div>
@@ -140,7 +169,9 @@ export function ShiftAssignmentDialog({
               Loading assignments…
             </li>
           ) : (assignments.data ?? []).length === 0 ? (
-            <li className="text-muted-foreground text-sm">No one is assigned yet.</li>
+            <li className="text-muted-foreground text-sm">
+              No one is assigned yet.
+            </li>
           ) : (
             (assignments.data ?? []).map((assignment) => (
               <li

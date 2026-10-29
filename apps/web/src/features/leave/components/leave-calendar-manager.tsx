@@ -37,7 +37,8 @@ export function LeaveCalendarManager({ access }: LeaveCalendarManagerProps) {
   const [endDate, setEndDate] = useState(endOfMonth());
   const calendar = useLeaveCalendar(access, startDate, endDate);
 
-  const rangeInvalid = startDate !== "" && endDate !== "" && endDate < startDate;
+  const rangeInvalid =
+    startDate !== "" && endDate !== "" && endDate < startDate;
 
   const byDate = new Map<string, LeaveRequest[]>();
   for (const request of calendar.data ?? []) {
@@ -87,7 +88,9 @@ export function LeaveCalendarManager({ access }: LeaveCalendarManagerProps) {
           </Button>
         </div>
       ) : sortedDates.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No approved leave in this range.</p>
+        <p className="text-muted-foreground text-sm">
+          No approved leave in this range.
+        </p>
       ) : (
         <ul className="space-y-4">
           {sortedDates.map((date) => (
@@ -96,10 +99,13 @@ export function LeaveCalendarManager({ access }: LeaveCalendarManagerProps) {
               <ul className="mt-2 space-y-2">
                 {(byDate.get(date) ?? []).map((request) => (
                   <li key={request.id} className="rounded-xl border p-3">
-                    <p className="font-medium">{request.employeeName ?? "Former employee"}</p>
+                    <p className="font-medium">
+                      {request.employeeName ?? "Former employee"}
+                    </p>
                     <p className="text-muted-foreground text-sm">
-                      {request.leaveTypeName} · through {formatDate(request.endDate)} ·{" "}
-                      {request.daysRequested} day{request.daysRequested === 1 ? "" : "s"}
+                      {request.leaveTypeName} · through{" "}
+                      {formatDate(request.endDate)} · {request.daysRequested}{" "}
+                      day{request.daysRequested === 1 ? "" : "s"}
                     </p>
                   </li>
                 ))}

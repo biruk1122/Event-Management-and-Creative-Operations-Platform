@@ -627,10 +627,17 @@ export class NotificationsRepository {
   } | null> {
     const row = await this.db.attendanceOvertimeApproval.findUnique({
       where: { id },
-      select: { status: true, session: { select: { employeeId: true, sessionDate: true } } },
+      select: {
+        status: true,
+        session: { select: { employeeId: true, sessionDate: true } },
+      },
     });
     return row
-      ? { status: row.status, employeeId: row.session.employeeId, sessionDate: row.session.sessionDate }
+      ? {
+          status: row.status,
+          employeeId: row.session.employeeId,
+          sessionDate: row.session.sessionDate,
+        }
       : null;
   }
 
@@ -659,7 +666,12 @@ export class NotificationsRepository {
         employeeId: true,
         leaveType: { select: { name: true } },
         employee: {
-          select: { firstName: true, lastName: true, email: true, departmentId: true },
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            departmentId: true,
+          },
         },
       },
     });

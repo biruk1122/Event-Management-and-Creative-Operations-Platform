@@ -59,7 +59,9 @@ export class LeaveController {
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("leave.grant.manage")
-  @ApiOperation({ summary: "Grant leave balance to an employee (HR bookkeeping, manual)" })
+  @ApiOperation({
+    summary: "Grant leave balance to an employee (HR bookkeeping, manual)",
+  })
   @ApiCreatedResponse({ type: LeaveGrantResponse })
   grant(
     @Req() req: RequestWithContext,
@@ -86,7 +88,9 @@ export class LeaveController {
   @RequirePermissions("leave.read")
   @ApiQuery({ name: "employeeId", required: true, type: String })
   @ApiQuery({ name: "leaveTypeId", required: true, type: String })
-  @ApiOperation({ summary: "Current remaining, non-expired balance for one leave type" })
+  @ApiOperation({
+    summary: "Current remaining, non-expired balance for one leave type",
+  })
   @ApiOkResponse({ type: LeaveBalanceResponse })
   balance(
     @Req() req: RequestWithContext,
@@ -138,7 +142,9 @@ export class LeaveController {
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("leave.review")
-  @ApiOperation({ summary: "Approve, reject, or return a pending leave request" })
+  @ApiOperation({
+    summary: "Approve, reject, or return a pending leave request",
+  })
   @ApiOkResponse({ type: LeaveRequestResponse })
   @ApiNotFoundResponse({ type: ProblemDetails })
   decideRequest(
@@ -151,7 +157,10 @@ export class LeaveController {
 
   @Get("calendar")
   @RequirePermissions("leave.read")
-  @ApiOperation({ summary: "Approved leave within a date range, scoped to the caller's visibility" })
+  @ApiOperation({
+    summary:
+      "Approved leave within a date range, scoped to the caller's visibility",
+  })
   @ApiOkResponse({ type: [LeaveRequestResponse] })
   calendar(
     @Req() req: RequestWithContext,

@@ -34,6 +34,8 @@ export function LeaveTypesScreen() {
       </div>
     );
   if (!leaveAbilities(access.data).canManageTypes)
-    return <p role="alert">You do not have access to leave type configuration.</p>;
+    return (
+      <p role="alert">You do not have access to leave type configuration.</p>
+    );
   return <LeaveTypesManager key={access.data.userId} access={access.data} />;
 }
