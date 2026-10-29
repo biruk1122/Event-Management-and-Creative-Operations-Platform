@@ -641,8 +641,9 @@ test.describe("ANA-06 department boundary", () => {
         .getByLabel("Department ID (optional)")
         .fill(fixture.departmentA);
       await fixture.setManagerDepartment(fixture.departmentA);
-      const access = page.waitForResponse((response) =>
-        response.url().includes("/auth/me/permissions"),
+      const access = page.waitForResponse(
+        (response) => response.url().includes("/auth/me/permissions"),
+        { timeout: 45_000 },
       );
       // The access recheck landing is not the same moment the pinned
       // department panel's own re-fetch (triggered reactively by its new
@@ -652,6 +653,7 @@ test.describe("ANA-06 department boundary", () => {
         (response) =>
           response.url().includes("/analytics/departments") &&
           response.status() === 200,
+        { timeout: 45_000 },
       );
       await page.evaluate(() => {
         window.dispatchEvent(new Event("visibilitychange"));

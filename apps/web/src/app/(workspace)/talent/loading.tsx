@@ -1,7 +1,8 @@
 export default function Loading() {
   return (
-    <main className="@container mx-auto max-w-7xl px-5 py-5 sm:px-8">
-      <div className="bg-muted h-6 w-32 animate-pulse rounded" />
+    <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
+      <div className="bg-muted h-4 w-24 animate-pulse rounded" />
+      <div className="bg-muted mt-4 h-6 w-32 animate-pulse rounded" />
       <div className="bg-muted mt-2 h-4 w-80 animate-pulse rounded" />
 
       <div role="status" aria-label="Loading talent" className="mt-6 space-y-3">

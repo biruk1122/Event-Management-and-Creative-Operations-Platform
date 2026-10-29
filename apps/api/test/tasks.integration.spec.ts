@@ -1446,4 +1446,105 @@ describe("task assignment and collaboration API", () => {
     );
     expect(body<TaskBody>(parentAfterSubtaskComplete).progress).toBe(100);
   });
+
+  it("lets a Department Manager create and assign a task within their own department in one call", async () => {
+    const created = await as(departmentManager, "post", "/api/v1/tasks").send({
+      title: "Create-and-assign in one request",
+      description: "New task creation flow.",
+      type: "LOGISTICS",
+      departmentId,
+      assigneeId: member.id,
+      dueAt: "2026-12-01T00:00:00.000Z",
+    });
+    expect(created.status).toBe(201);
+    const task = body<TaskBody>(created);
+    expect(task.departmentId).toBe(departmentId);
+    expect(task.assignees.map((assignee) => assignee.id)).toEqual([member.id]);
+
+    // The create-then-assign flow reuses `addAssignee`'s existing outbox
+    // append, so `task.assigned` fires without any new notification code.
+    const outboxEvent = await prisma.outboxEvent.findFirst({
+      where: { name: "task.assigned", resourceId: task.id },
+    });
+    expect(outboxEvent).not.toBeNull();
+  });
+
+  it("rejects a Department Manager creating a task outside their own department", async () => {
+    const response = await as(departmentManager, "post", "/api/v1/tasks").send({
+      title: "Cross-department attempt",
+      departmentId: (
+        await prisma.department.findFirstOrThrow({
+          where: { name: "Marketing" },
+        })
+      ).id,
+    });
+    expect(response.status).toBe(403);
+    expect(body<{ code: string }>(response).code).toBe("PERMISSION_DENIED");
+  });
+
+  it("rejects assigning a task to a user outside the task's department, at creation and directly", async () => {
+    const createdWithOutsideAssignee = await as(
+      departmentManager,
+      "post",
+      "/api/v1/tasks",
+    ).send({
+      title: "Outside-department assignee at creation",
+      departmentId,
+      assigneeId: otherDepartmentManager.id,
+    });
+    expect(createdWithOutsideAssignee.status).toBe(400);
+    expect(body<{ code: string }>(createdWithOutsideAssignee).code).toBe(
+      "TASK_ASSIGNEE_OUTSIDE_DEPARTMENT",
+    );
+
+    const created = await as(departmentManager, "post", "/api/v1/tasks").send({
+      title: "Needs an assignee later",
+      departmentId,
+    });
+    expect(created.status).toBe(201);
+    const task = body<TaskBody>(created);
+
+    const directAssign = await as(
+      departmentManager,
+      "put",
+      `/api/v1/tasks/${task.id}/assignees/${otherDepartmentManager.id}`,
+    );
+    expect(directAssign.status).toBe(400);
+    expect(body<{ code: string }>(directAssign).code).toBe(
+      "TASK_ASSIGNEE_OUTSIDE_DEPARTMENT",
+    );
+  });
+
+  it("scopes the eligible-assignees picker to one department and keeps it out of reach for a plain member", async () => {
+    const ownDepartment = await as(
+      departmentManager,
+      "get",
+      `/api/v1/tasks/eligible-assignees?departmentId=${departmentId}`,
+    );
+    expect(ownDepartment.status).toBe(200);
+    const ids = body<{ items: Array<{ id: string }> }>(ownDepartment).items.map(
+      (item) => item.id,
+    );
+    expect(ids).toEqual(expect.arrayContaining([member.id, secondMember.id]));
+    expect(ids).not.toContain(otherDepartmentManager.id);
+
+    const otherDepartmentId = (
+      await prisma.department.findFirstOrThrow({
+        where: { name: "Marketing" },
+      })
+    ).id;
+    const crossDepartment = await as(
+      departmentManager,
+      "get",
+      `/api/v1/tasks/eligible-assignees?departmentId=${otherDepartmentId}`,
+    );
+    expect(crossDepartment.status).toBe(403);
+
+    const asMember = await as(
+      member,
+      "get",
+      `/api/v1/tasks/eligible-assignees?departmentId=${departmentId}`,
+    );
+    expect(asMember.status).toBe(403);
+  });
 });

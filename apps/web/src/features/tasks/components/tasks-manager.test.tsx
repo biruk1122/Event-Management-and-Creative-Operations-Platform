@@ -639,5 +639,4 @@ describe("TasksManager", () => {
       }),
     );
   });
-
 });

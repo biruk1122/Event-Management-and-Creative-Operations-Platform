@@ -1,7 +1,8 @@
 export default function Loading() {
   return (
-    <main className="@container mx-auto max-w-352 px-5 py-5 sm:px-8">
-      <div className="bg-muted h-8 w-36 animate-pulse rounded" />
+    <main className="@container mx-auto max-w-352 px-5 py-8 sm:px-8">
+      <div className="bg-muted h-4 w-24 animate-pulse rounded" />
+      <div className="bg-muted mt-4 h-8 w-36 animate-pulse rounded" />
       <div
         role="status"
         aria-label="Loading reports"

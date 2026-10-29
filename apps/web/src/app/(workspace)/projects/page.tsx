@@ -29,7 +29,10 @@ export default async function ProjectsPage() {
   );
 
   return (
-    <main className="@container mx-auto max-w-7xl px-5 py-5 sm:px-8">
+    <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
+      <Link href="/" className="text-sm underline underline-offset-4">
+        Back to home
+      </Link>
       <WorkSurface
         title="Projects"
         description={
@@ -46,12 +49,12 @@ export default async function ProjectsPage() {
             >
               View production projects
             </Link>
-            <div className="mt-4">
+            <div className="mt-6">
               <ProjectsScreen />
             </div>
           </>
         ) : (
-          <p role="alert" className="mt-4">
+          <p role="alert" className="mt-6">
             You do not have access to this area.
           </p>
         )}

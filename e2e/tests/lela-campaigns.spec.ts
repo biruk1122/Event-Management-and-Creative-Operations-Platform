@@ -36,6 +36,11 @@ for (const profile of [
     });
     try {
       const page = await context.newPage();
+      const hydrationErrors: string[] = [];
+      page.on("pageerror", (error) => {
+        if (/hydration|hydrating|#418/i.test(error.message))
+          hydrationErrors.push(error.message);
+      });
       await page.addInitScript(() => {
         const metrics = { lcp: 0, interactions: [] as number[] };
         Object.defineProperty(window, "campaignMetrics", { value: metrics });
@@ -94,6 +99,7 @@ for (const profile of [
         }),
         contentType: "application/json",
       });
+      expect(hydrationErrors).toEqual([]);
       expect(metrics.lcp).toBeGreaterThan(0);
       expect(metrics.lcp).toBeLessThanOrEqual(profile.lcp);
       expect(bound).toBeLessThanOrEqual(profile.interaction);

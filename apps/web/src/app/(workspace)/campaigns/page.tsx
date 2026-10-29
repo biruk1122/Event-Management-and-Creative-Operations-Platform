@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { WorkSurface } from "@/components/ui/work-surface";
 
 import { createServerApi } from "@/lib/api/server";
@@ -9,11 +10,9 @@ import { CampaignsScreen } from "@/features/campaigns";
 export const metadata: Metadata = { title: "Campaigns" };
 
 /**
- * Reading campaigns is gated by `campaign.read` at organization or
- * department scope - the same rule `CampaignsService` enforces (a
- * department-scoped caller, e.g. the Marketing Department Manager, sees
- * only their own department's campaigns). This server check is the first
- * gate; the client `CampaignsScreen` re-checks and keeps the grant fresh.
+ * Reading campaigns is gated by `campaign.read` at organization scope - the
+ * same rule `CampaignsService` enforces. This server check is the first gate;
+ * the client `CampaignsScreen` re-checks and keeps the grant fresh.
  */
 const READ_KEY = "campaign.read";
 
@@ -33,12 +32,14 @@ export default async function CampaignsPage({
   if (!data) throw new Error("We could not check your permissions. Try again.");
   const allowed = data.grants.some(
     (grant) =>
-      grant.permissionKey === READ_KEY &&
-      (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
+      grant.permissionKey === READ_KEY && grant.scope === "ORGANIZATION",
   );
 
   return (
-    <main className="@container mx-auto max-w-7xl px-5 py-5 sm:px-8">
+    <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
+      <Link href="/" className="text-sm underline underline-offset-4">
+        Back to home
+      </Link>
       <WorkSurface
         title="Campaigns"
         description={
@@ -52,7 +53,7 @@ export default async function CampaignsPage({
             <CampaignsScreen initialType={initialType} />
           </div>
         ) : (
-          <p role="alert" className="mt-4">
+          <p role="alert" className="mt-6">
             You do not have access to this area.
           </p>
         )}

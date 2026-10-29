@@ -23,7 +23,7 @@ export default async function ProductionProjectsPage() {
   );
 
   return (
-    <main className="@container mx-auto max-w-352 px-5 py-5 sm:px-8">
+    <main className="@container mx-auto max-w-352 px-5 py-8 sm:px-8">
       <nav aria-label="Breadcrumb" className="text-sm">
         <Link href="/projects" className="underline underline-offset-4">
           Projects

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 
 import { ReportsScreen } from "@/features/reports";
@@ -21,7 +22,10 @@ export default async function ReportsPage() {
   );
 
   return (
-    <main className="@container mx-auto max-w-352 space-y-6 px-4 py-4 sm:px-8 sm:py-5">
+    <main className="@container mx-auto max-w-352 space-y-6 px-4 py-6 sm:px-8 sm:py-8">
+      <Link href="/" className="text-sm underline underline-offset-4">
+        Back to home
+      </Link>
       <PageHeader
         title="Reports"
         description="Daily, weekly, and monthly work reports and review history."

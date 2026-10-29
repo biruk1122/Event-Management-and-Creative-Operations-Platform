@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
 import { DiscussScreen } from "@/features/discuss";
@@ -24,15 +25,27 @@ export default async function ChannelsPage({ params }: ChannelsPageProps) {
   );
 
   return (
-    <main className="@container mx-auto max-w-7xl px-5 py-5 sm:px-8">
-      <h1 className="sr-only">Channels</h1>
+    <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
+      <Link href="/" className="text-sm underline underline-offset-4">
+        Back to home
+      </Link>
+      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
+        Channels
+      </h1>
       {allowed ? (
-        <DiscussScreen
-          kind="channel"
-          initialConversationId={channelId?.[0] ?? null}
-        />
+        <>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Public and private channels for a workspace, department, or team.
+          </p>
+          <div className="mt-6">
+            <DiscussScreen
+              kind="channel"
+              initialConversationId={channelId?.[0] ?? null}
+            />
+          </div>
+        </>
       ) : (
-        <p role="alert" className="mt-4">
+        <p role="alert" className="mt-6">
           You do not have access to this area.
         </p>
       )}

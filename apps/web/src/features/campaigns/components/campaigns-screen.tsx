@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,22 @@ import type { CampaignType } from "../lib/campaigns-types";
 import { CampaignsManager } from "./campaigns-manager";
 
 const LOGIN_HREF = "/login?next=%2Fcampaigns";
+const subscribeToHydration = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
 export function CampaignsScreen({
   initialType = null,
 }: {
   initialType?: CampaignType | null;
 }) {
+  // The shell may fill the permissions cache before this boundary hydrates.
+  // Match the server snapshot before showing the verified client workspace.
+  const ready = useSyncExternalStore(
+    subscribeToHydration,
+    clientReady,
+    serverReady,
+  );
   const access = useCurrentAccess();
   const client = useQueryClient();
   const allowed = access.data ? canReadCampaigns(access.data) : false;
@@ -31,7 +41,7 @@ export function CampaignsScreen({
     }
   }, [access.data, access.isSuccess, allowed, client]);
 
-  if (access.isPending) {
+  if (!ready || access.isPending) {
     return <p role="status">Checking permissions…</p>;
   }
 

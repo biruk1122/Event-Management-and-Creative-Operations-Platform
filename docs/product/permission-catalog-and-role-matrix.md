@@ -351,6 +351,13 @@ Department Manager manages their own productions end to end, and the general Pro
 granted here (see its own module doc comment) - so this row gives a Department Manager full control
 over productions in their own department without ever reaching general projects.
 
+The `project.*` grants in this row are read by two different modules: the Production workspace
+(`ProductionsService`), which resolves them at department scope and is how the Production
+Department Manager manages their own productions end to end, and the general Projects module
+(`ProjectsService`), which always checks `project.*` at organization scope regardless of what is
+granted here (see its own module doc comment) - so this row gives a Department Manager full control
+over productions in their own department without ever reaching general projects.
+
 ### Team Member
 
 | Permission key                                  | Scope |

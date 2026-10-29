@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { renderToString } from "react-dom/server";
+import { hydrateRoot } from "react-dom/client";
 import {
   focusManager,
   QueryClient,
@@ -134,6 +135,42 @@ function dropdownForm(measureLabel: string) {
   return within(screen.getByRole("form", { name: `${measureLabel} filters` }));
 }
 describe("live analytics integration", () => {
+  it("hydrates the server checking state when the shell has already warmed access", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const element = (
+      <QueryClientProvider client={client}>
+        <AnalyticsScreen />
+      </QueryClientProvider>
+    );
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(element);
+    const heading = container.querySelector("h2");
+    document.body.append(container);
+    client.setQueryData(accessKey, reader);
+    const onRecoverableError = vi.fn();
+    let root: ReturnType<typeof hydrateRoot> | undefined;
+    try {
+      await act(async () => {
+        root = hydrateRoot(container, element, { onRecoverableError });
+      });
+      await within(container).findByRole("heading", {
+        name: "Task completion rate",
+      });
+      expect(onRecoverableError).not.toHaveBeenCalled();
+      expect(container.querySelector("h2")).toBe(heading);
+      expect(
+        state.get.mock.calls.filter(
+          ([path]) => path === "/api/v1/auth/me/permissions",
+        ),
+      ).toHaveLength(0);
+    } finally {
+      await act(async () => root?.unmount());
+      client.clear();
+      container.remove();
+    }
+  });
   it("server-renders useful public context while keeping controls and metrics permission-gated", () => {
     const client = new QueryClient();
     const html = renderToString(
@@ -385,7 +422,11 @@ describe("live analytics integration", () => {
           await client.invalidateQueries({ queryKey: accessKey });
         });
       }
-      await waitFor(() => expect(metricCalls()).toHaveLength(8));
+      // Focus reuses verified access for 30 seconds; explicit invalidation
+      // still rechecks permissions and refreshes the authorized measures.
+      await waitFor(() =>
+        expect(metricCalls()).toHaveLength(trigger === "focus" ? 4 : 8),
+      );
       await waitFor(() =>
         expect(screen.getByLabelText("Subject ID (optional)")).toHaveValue(
           subject,

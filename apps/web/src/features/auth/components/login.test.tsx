@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LoginResult } from "../api/auth-gateway";
@@ -29,6 +30,9 @@ vi.mock("../api/login-destination", () => ({ loginDestination: destination }));
 
 async function fillAndSubmit() {
   const user = userEvent.setup();
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled(),
+  );
   await user.type(await screen.findByLabelText("Email"), "manager@example.com");
   await user.type(screen.getByLabelText("Password"), "correct horse");
   await user.click(screen.getByRole("button", { name: "Sign in" }));
@@ -43,6 +47,14 @@ beforeEach(() => {
 });
 
 describe("Login", () => {
+  it("server-renders the labelled form while recovery awaits JavaScript", () => {
+    const html = renderToString(<Login />);
+    expect(html).toContain('aria-label="Sign in"');
+    expect(html).toContain('name="email"');
+    expect(html).toContain('name="password"');
+    expect(html).toContain("<noscript>");
+    expect(html).toContain("disabled");
+  });
   it("recovers expired access and preserves the validated return destination", async () => {
     csrf.mockReturnValue("csrf");
     recover.mockResolvedValue({ id: "actor" });
