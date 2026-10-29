@@ -89,6 +89,9 @@ test("expired session returns to login; UI sign-out and re-login remain usable",
   await submit(page);
   await expect(page).toHaveURL("/dashboard");
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Yes, sign out", exact: true })
+    .click();
   await expect(page).toHaveURL("/login");
   expect(
     (await page.request.get(`${apiBaseUrl}/api/v1/auth/me`)).status(),

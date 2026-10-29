@@ -19,7 +19,7 @@ interface AuthShellProps {
 
 /**
  * Server-rendered branding surrounds the existing interactive login form.
- * The decorative event-light composition is code-native, not an unlicensed photo.
+ * The decorative photo is `public/branding/login page.png`, a provided asset.
  */
 export function AuthShell({
   title,
@@ -36,7 +36,15 @@ export function AuthShell({
         fetchPriority="high"
       />
       <header className={styles.brand}>
-        <BrandLogo optimized className="w-36 p-2 sm:w-44" />
+        {/* eslint-disable-next-line @next/next/no-img-element -- matches
+            BrandLogo's own raw-<img>/<image> convention in this feature. */}
+        <img
+          src="/branding/lela%20mark.jpg"
+          alt="Lela Creative Management"
+          width={1078}
+          height={992}
+          className={styles.brandIcon ?? ""}
+        />
         <p className="text-muted-foreground text-sm">
           Event &amp; creative operations
         </p>
@@ -71,13 +79,11 @@ export function AuthShell({
           ))}
         </ul>
         <div className={styles.stage} aria-hidden="true">
-          <div className={styles.lights} />
-          <div className={styles.stageFrame} />
-          <div className={styles.crowd} />
+          <div className={styles.stageOverlay} />
           <p>
-            Better events.
+            It&apos;s not new,
             <br />
-            Bigger possibilities.
+            it&apos;s beyond.
           </p>
         </div>
       </section>
@@ -105,9 +111,6 @@ export function AuthShell({
             </div>
           ) : null}
         </div>
-        <p className="text-muted-foreground mt-6 text-center text-xs">
-          Lela Creative Management · Made for connected teams
-        </p>
       </section>
     </main>
   );

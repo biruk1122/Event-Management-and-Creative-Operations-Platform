@@ -58,9 +58,60 @@ export class AuthService {
   ): Promise<AuthenticatedUserView> {
     const email = input.email.trim().toLowerCase();
     const account = await this.repository.findAccountByEmail(email);
+    await this.verifyAccountPassword(request, account, input.password);
+    // `verifyAccountPassword` already throws for a null account, so this
+    // narrowing is always safe past that call.
+    const verified = account!;
 
+    const refreshToken = generateRefreshToken();
+    const session = await this.repository.createSession({
+      userId: verified.userId,
+      familyId: randomUUID(),
+      refreshTokenHash: hashRefreshToken(refreshToken),
+      expiresAt: this.refreshExpiry(),
+      ipAddress: request.ip ?? null,
+      userAgent: request.get("user-agent") ?? null,
+    });
+
+    await this.issueCookies(response, {
+      sessionId: session.id,
+      userId: verified.userId,
+      refreshToken,
+    });
+    this.audit.record(request, "auth.login.succeeded", {
+      outcome: "success",
+      actorUserId: verified.userId,
+    });
+
+    return {
+      id: verified.userId,
+      email: verified.email,
+      status: verified.status,
+    };
+  }
+
+  /**
+   * Shared credential verification: the exact lockout/attempt-tracking/
+   * password-check logic `login` uses, extracted so a second, deliberately
+   * session-less caller (the attendance kiosk's identity check) can reuse
+   * it without inventing a parallel, weaker verification path. Throws the
+   * same errors `login` always has; never issues a session or cookies.
+   */
+  async verifyAccountPassword(
+    request: Request,
+    account: {
+      userId: string;
+      email: string;
+      status: "ACTIVE" | "INACTIVE";
+      credentialId: string;
+      passwordHash: string;
+      failedAttemptCount: number;
+      lockedUntil: Date | null;
+    } | null,
+    password: string,
+  ): Promise<void> {
     if (!account) {
-      await this.passwordHasher.verify(DUMMY_HASH, input.password);
+      await this.passwordHasher.verify(DUMMY_HASH, password);
       this.audit.record(request, "auth.login.failed", {
         outcome: "failure",
         reason: "unknown_account",
@@ -79,7 +130,7 @@ export class AuthService {
 
     const passwordMatches = await this.passwordHasher.verify(
       account.passwordHash,
-      input.password,
+      password,
     );
 
     if (!passwordMatches) {
@@ -112,28 +163,6 @@ export class AuthService {
     if (account.failedAttemptCount > 0 || account.lockedUntil) {
       await this.repository.clearFailedAttempts(account.credentialId);
     }
-
-    const refreshToken = generateRefreshToken();
-    const session = await this.repository.createSession({
-      userId: account.userId,
-      familyId: randomUUID(),
-      refreshTokenHash: hashRefreshToken(refreshToken),
-      expiresAt: this.refreshExpiry(),
-      ipAddress: request.ip ?? null,
-      userAgent: request.get("user-agent") ?? null,
-    });
-
-    await this.issueCookies(response, {
-      sessionId: session.id,
-      userId: account.userId,
-      refreshToken,
-    });
-    this.audit.record(request, "auth.login.succeeded", {
-      outcome: "success",
-      actorUserId: account.userId,
-    });
-
-    return { id: account.userId, email: account.email, status: account.status };
   }
 
   async refresh(

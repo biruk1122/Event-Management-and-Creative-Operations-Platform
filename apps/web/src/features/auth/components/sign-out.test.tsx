@@ -29,6 +29,7 @@ describe("SignOut", () => {
     render(<SignOut />);
 
     await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await user.click(screen.getByRole("button", { name: "Yes, sign out" }));
 
     expect(mutateAsync).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
@@ -40,6 +41,7 @@ describe("SignOut", () => {
     render(<SignOut />);
 
     await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await user.click(screen.getByRole("button", { name: "Yes, sign out" }));
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/login"));
   });

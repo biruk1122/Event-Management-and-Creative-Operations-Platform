@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { AuthShell } from "./auth-shell";
 
 describe("Lela auth shell", () => {
-  it("preserves the official logo and real form without unsupported actions", () => {
+  it("shows the provided brand mark image in the header and the real form, without unsupported actions", () => {
     render(
       <AuthShell
         title="Welcome back"
@@ -22,13 +22,8 @@ describe("Lela auth shell", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("img", { name: "Lela Creative Management" }),
-    ).toHaveAttribute("viewBox", "22 387 785 503");
+    ).toHaveAttribute("src", "/branding/lela%20mark.jpg");
     expect(screen.getByRole("form", { name: "Sign in" })).toBeVisible();
-    expect(
-      screen
-        .getByRole("img", { name: "Lela Creative Management" })
-        .querySelector("image"),
-    ).toHaveAttribute("href", "/branding/lela-login-logo.webp");
     expect(
       screen.getByText("Need access? Contact your company administrator."),
     ).toBeVisible();

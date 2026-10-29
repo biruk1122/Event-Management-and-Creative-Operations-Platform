@@ -30,11 +30,15 @@ import { AuthRepository } from "./infrastructure/auth.repository.js";
   // and CsrfGuard, so every one of their constructor dependencies must be
   // exported too, not just the guard classes themselves. `PasswordHasher` is
   // exported for UsersModule, which sets an operator-chosen initial password.
+  // `AuthService` is exported for the attendance kiosk module, which reuses
+  // `verifyAccountPassword` (the same lockout/attempt-tracking logic `login`
+  // itself uses) rather than re-implementing a second, weaker check.
   exports: [
     AccessTokenGuard,
     AccessTokenService,
     AuthCookies,
     AuthRepository,
+    AuthService,
     CsrfGuard,
     PasswordHasher,
   ],
