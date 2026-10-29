@@ -34,20 +34,26 @@ import { ProblemDetails } from "../common/http/problem-details.js";
 import type { RequestWithContext } from "../common/http/request-with-context.js";
 import { RequirePermissions } from "../common/security/permissions.decorator.js";
 import { PermissionsGuard } from "../common/security/permissions.guard.js";
+import { CreateTaskChecklistItemDto } from "./dto/create-task-checklist-item.dto.js";
 import { CreateTaskCommentDto } from "./dto/create-task-comment.dto.js";
 import { CreateTaskDto } from "./dto/create-task.dto.js";
 import { ListEligibleAssigneesQueryDto } from "./dto/list-eligible-assignees-query.dto.js";
 import { ListTaskFeedQueryDto } from "./dto/list-task-feed-query.dto.js";
 import { ListTasksQueryDto } from "./dto/list-tasks-query.dto.js";
 import { ReviewTaskDto } from "./dto/review-task.dto.js";
+import { ToggleTaskChecklistItemDto } from "./dto/toggle-task-checklist-item.dto.js";
 import { TransitionTaskDto } from "./dto/transition-task.dto.js";
-import { UpdateTaskProgressDto } from "./dto/update-task-progress.dto.js";
+import {
+  ReorderTaskChecklistItemsDto,
+  UpdateTaskChecklistItemDto,
+} from "./dto/update-task-checklist-item.dto.js";
 import { UpdateTaskDto } from "./dto/update-task.dto.js";
 import {
   PaginatedTaskActivitiesResponse,
   PaginatedTaskCommentsResponse,
   PaginatedTaskReviewsResponse,
   PaginatedTasksResponse,
+  TaskChecklistItemResponse,
   TaskCommentResponse,
   TaskEligibleAssigneesResponse,
   TaskResponse,
@@ -249,19 +255,119 @@ export class TasksController {
     return this.tasks.submit(actingUserId(request), id, request.id);
   }
 
-  @Patch(":id/progress")
+  @Get(":id/checklist-items")
+  @RequirePermissions("task.read")
+  @ApiOperation({ summary: "List a task's own checklist items" })
+  @ApiOkResponse({ type: [TaskChecklistItemResponse] })
+  @ApiNotFoundResponse({ type: ProblemDetails, description: "Task not found" })
+  async listChecklistItems(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+  ): Promise<TaskChecklistItemResponse[]> {
+    return this.tasks.listChecklistItems(actingUserId(request), id);
+  }
+
+  @Post(":id/checklist-items")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("task.update")
+  @ApiOperation({ summary: "Add a checklist item (checkpoint) to a task" })
+  @ApiCreatedResponse({ type: TaskChecklistItemResponse })
+  @ApiNotFoundResponse({ type: ProblemDetails, description: "Task not found" })
+  async addChecklistItem(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: CreateTaskChecklistItemDto,
+  ): Promise<TaskChecklistItemResponse> {
+    return this.tasks.addChecklistItem(actingUserId(request), id, body);
+  }
+
+  @Patch(":id/checklist-items/:itemId")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("task.update")
+  @ApiOperation({ summary: "Edit a checklist item's description" })
+  @ApiOkResponse({ type: TaskChecklistItemResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Task or checklist item not found",
+  })
+  async updateChecklistItem(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Param("itemId") itemId: string,
+    @Body() body: UpdateTaskChecklistItemDto,
+  ): Promise<TaskChecklistItemResponse> {
+    return this.tasks.updateChecklistItem(
+      actingUserId(request),
+      id,
+      itemId,
+      body,
+    );
+  }
+
+  @Delete(":id/checklist-items/:itemId")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("task.update")
+  @ApiOperation({ summary: "Remove a checklist item from a task" })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Task or checklist item not found",
+  })
+  async removeChecklistItem(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Param("itemId") itemId: string,
+  ): Promise<void> {
+    await this.tasks.removeChecklistItem(actingUserId(request), id, itemId);
+  }
+
+  @Post(":id/checklist-items/reorder")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("task.update")
+  @ApiOperation({ summary: "Reorder a task's checklist items" })
+  @ApiOkResponse({ type: [TaskChecklistItemResponse] })
+  @ApiBadRequestResponse({
+    type: ProblemDetails,
+    description: "The id list did not exactly match the task's current items",
+  })
+  @ApiNotFoundResponse({ type: ProblemDetails, description: "Task not found" })
+  async reorderChecklistItems(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: ReorderTaskChecklistItemsDto,
+  ): Promise<TaskChecklistItemResponse[]> {
+    return this.tasks.reorderChecklistItems(actingUserId(request), id, body);
+  }
+
+  @Patch(":id/checklist-items/:itemId/completion")
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("task.update_progress")
-  @ApiOperation({ summary: "Set an assigned task's progress from 0 to 100" })
+  @ApiOperation({
+    summary: "Mark one of a task's own checklist items complete or incomplete",
+  })
   @ApiOkResponse({ type: TaskResponse })
-  @ApiNotFoundResponse({ type: ProblemDetails, description: "Task not found" })
-  async updateProgress(
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Task or checklist item not found",
+  })
+  async toggleChecklistItem(
     @Req() request: RequestWithContext,
     @Param("id") id: string,
-    @Body() body: UpdateTaskProgressDto,
+    @Param("itemId") itemId: string,
+    @Body() body: ToggleTaskChecklistItemDto,
   ): Promise<TaskResponse> {
-    return this.tasks.updateProgress(actingUserId(request), id, body.progress);
+    return this.tasks.toggleChecklistItem(
+      actingUserId(request),
+      id,
+      itemId,
+      body.completed,
+    );
   }
 
   @Post(":id/reviews")

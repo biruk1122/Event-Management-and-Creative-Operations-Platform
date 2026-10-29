@@ -17,7 +17,7 @@ interface TaskRow {
   description: string | null;
   priority: string;
   status: string;
-  progress: number;
+  progress: number | null;
   start_at: Date | null;
   due_at: Date | null;
   created_by_id: string | null;
@@ -143,7 +143,7 @@ describe("task assignment and collaboration schema", () => {
       department_id: null,
       priority: "MEDIUM",
       status: "TODO",
-      progress: 0,
+      progress: null,
       start_at: null,
       due_at: null,
       created_by_id: null,
@@ -187,6 +187,9 @@ describe("task assignment and collaboration schema", () => {
       });
       await expect(insertTask({ progress: 101 })).rejects.toMatchObject({
         code: PG_ERROR.checkViolation,
+      });
+      await expect(insertTask({ progress: null })).resolves.toMatchObject({
+        progress: null,
       });
       await expect(
         insertTask({
@@ -497,6 +500,72 @@ describe("task assignment and collaboration schema", () => {
     });
   });
 
+  describe("task checklist items", () => {
+    it("rejects a blank description", async () => {
+      const task = await insertTask();
+      await expect(
+        db.query(
+          `INSERT INTO task_checklist_items (task_id, description, position)
+           VALUES ($1, '   ', 0)`,
+          [task.id],
+        ),
+      ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+    });
+
+    it("requires completed and completed_at to agree", async () => {
+      const task = await insertTask();
+      await expect(
+        db.query(
+          `INSERT INTO task_checklist_items (task_id, description, position, completed)
+           VALUES ($1, 'Confirm venue permits', 0, true)`,
+          [task.id],
+        ),
+      ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+      await expect(
+        db.query(
+          `INSERT INTO task_checklist_items (task_id, description, position, completed, completed_at)
+           VALUES ($1, 'Confirm venue permits', 0, false, now())`,
+          [task.id],
+        ),
+      ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+    });
+
+    it("rejects a negative position", async () => {
+      const task = await insertTask();
+      await expect(
+        db.query(
+          `INSERT INTO task_checklist_items (task_id, description, position)
+           VALUES ($1, 'Confirm venue permits', -1)`,
+          [task.id],
+        ),
+      ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+    });
+
+    it("clears completed_by and created_by attribution when the user is removed", async () => {
+      const task = await insertTask();
+      const actorId = await insertUser();
+      const [item] = await db.query<{ id: string }>(
+        `INSERT INTO task_checklist_items (
+           task_id, description, position, completed, completed_by_id, completed_at, created_by_id
+         ) VALUES ($1, 'Confirm venue permits', 0, true, $2, now(), $2)
+         RETURNING id`,
+        [task.id, actorId],
+      );
+
+      await db.query(`DELETE FROM users WHERE id = $1`, [actorId]);
+
+      const [row] = await db.query<{
+        completed_by_id: string | null;
+        created_by_id: string | null;
+      }>(
+        `SELECT completed_by_id, created_by_id FROM task_checklist_items WHERE id = $1`,
+        [item!.id],
+      );
+      expect(row?.completed_by_id).toBeNull();
+      expect(row?.created_by_id).toBeNull();
+    });
+  });
+
   it("cascades task-owned rows and preserves attributed history where applicable", async () => {
     const task = await insertTask();
     const userId = await insertUser();
@@ -519,6 +588,11 @@ describe("task assignment and collaboration schema", () => {
        VALUES ($1, $2, 'UPDATED')`,
       [task.id, userId],
     );
+    await db.query(
+      `INSERT INTO task_checklist_items (task_id, description, position, created_by_id)
+       VALUES ($1, 'Confirm venue permits', 0, $2)`,
+      [task.id, userId],
+    );
 
     await db.query(`DELETE FROM tasks WHERE id = $1`, [task.id]);
 
@@ -527,6 +601,7 @@ describe("task assignment and collaboration schema", () => {
       "task_comments",
       "task_reviews",
       "task_activities",
+      "task_checklist_items",
     ]) {
       const [row] = await db.query<{ count: string }>(
         `SELECT count(*)::text AS count FROM ${table} WHERE task_id = $1`,
@@ -574,7 +649,7 @@ describe("task assignment and collaboration schema", () => {
       `SELECT indexname
        FROM pg_indexes
        WHERE schemaname = current_schema()
-         AND tablename IN ('tasks', 'task_assignments', 'task_comments', 'task_activities')`,
+         AND tablename IN ('tasks', 'task_assignments', 'task_comments', 'task_activities', 'task_checklist_items')`,
     );
     expect(indexes.map(({ indexname }) => indexname)).toEqual(
       expect.arrayContaining([
@@ -586,6 +661,7 @@ describe("task assignment and collaboration schema", () => {
         "task_assignments_user_id_assigned_at_idx",
         "task_comments_task_id_created_at_idx",
         "task_activities_task_id_occurred_at_idx",
+        "task_checklist_items_task_id_position_idx",
       ]),
     );
 

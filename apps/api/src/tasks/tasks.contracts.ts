@@ -27,6 +27,51 @@ export class TaskAssigneeResponse extends TaskPersonSummary {
   assignedAt!: string;
 }
 
+export class TaskChecklistItemResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty()
+  description!: string;
+
+  @ApiProperty()
+  completed!: boolean;
+
+  @ApiProperty()
+  position!: number;
+
+  @ApiProperty({ type: TaskPersonSummary, nullable: true })
+  completedBy!: TaskPersonSummary | null;
+
+  @ApiProperty({ type: String, format: "date-time", nullable: true })
+  completedAt!: string | null;
+
+  @ApiProperty({ type: TaskPersonSummary, nullable: true })
+  createdBy!: TaskPersonSummary | null;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+
+  @ApiProperty({ format: "date-time" })
+  updatedAt!: string;
+}
+
+/** Read-only, computed from the parent's current subtasks - never stored,
+ * and completing every subtask never auto-transitions the parent. */
+export class TaskSubtaskSummaryResponse {
+  @ApiProperty({ minimum: 0 })
+  total!: number;
+
+  @ApiProperty({ minimum: 0 })
+  completed!: number;
+
+  @ApiProperty({ minimum: 0 })
+  overdue!: number;
+
+  @ApiProperty({ minimum: 0 })
+  remaining!: number;
+}
+
 export class TaskResponse {
   @ApiProperty({ format: "uuid" })
   id!: string;
@@ -36,6 +81,15 @@ export class TaskResponse {
 
   @ApiProperty({ type: String, format: "uuid", nullable: true })
   departmentId!: string | null;
+
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description:
+      "The higher-level task this was broken down from, or null for a top-level task.",
+  })
+  parentTaskId!: string | null;
 
   @ApiProperty({ example: "Confirm venue permits" })
   title!: string;
@@ -52,8 +106,18 @@ export class TaskResponse {
   @ApiProperty({ enum: TaskStatus })
   status!: TaskStatus;
 
-  @ApiProperty({ minimum: 0, maximum: 100 })
-  progress!: number;
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    minimum: 0,
+    maximum: 100,
+    description:
+      "Server-computed from checklist items or, when subtasks exist, " +
+      "the mean of direct children's own progress (subtasks always win). " +
+      "Null means 'not tracked' - no checklist items and no subtasks. " +
+      "Never client-settable, and reaching 100 never implies review approval.",
+  })
+  progress!: number | null;
 
   @ApiProperty({ type: String, format: "date-time", nullable: true })
   startAt!: string | null;
@@ -64,6 +128,9 @@ export class TaskResponse {
   @ApiProperty({ type: [TaskAssigneeResponse] })
   assignees!: TaskAssigneeResponse[];
 
+  @ApiProperty({ type: [TaskChecklistItemResponse] })
+  checklistItems!: TaskChecklistItemResponse[];
+
   @ApiProperty({ type: TaskPersonSummary, nullable: true })
   createdBy!: TaskPersonSummary | null;
 
@@ -72,6 +139,14 @@ export class TaskResponse {
 
   @ApiProperty({ format: "date-time" })
   updatedAt!: string;
+
+  @ApiProperty({
+    type: TaskSubtaskSummaryResponse,
+    nullable: true,
+    description:
+      "Only populated on the single-task detail view, and only when this task has subtasks.",
+  })
+  subtaskSummary!: TaskSubtaskSummaryResponse | null;
 }
 
 export class PaginatedTasksResponse {

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
   type HttpException,
 } from "@nestjs/common";
@@ -17,6 +18,9 @@ export const TASK_ERROR = {
   reviewStateConflict: "TASK_REVIEW_STATE_CONFLICT",
   scheduleInvalid: "TASK_SCHEDULE_INVALID",
   concurrentChange: "TASK_CONCURRENT_CHANGE",
+  checklistItemNotFound: "TASK_CHECKLIST_ITEM_NOT_FOUND",
+  checklistReorderMismatch: "TASK_CHECKLIST_REORDER_MISMATCH",
+  checklistItemOwnershipDenied: "TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED",
 } as const;
 
 export function taskNotFound(): HttpException {
@@ -104,5 +108,30 @@ export function taskConcurrentChange(): HttpException {
     code: TASK_ERROR.concurrentChange,
     error: "Conflict",
     detail: "The task changed concurrently. Refresh it and try again.",
+  });
+}
+
+export function taskChecklistItemNotFound(): HttpException {
+  return new NotFoundException({
+    code: TASK_ERROR.checklistItemNotFound,
+    error: "Not Found",
+    detail: "No checklist item exists with that id on this task.",
+  });
+}
+
+export function taskChecklistReorderMismatch(): HttpException {
+  return new BadRequestException({
+    code: TASK_ERROR.checklistReorderMismatch,
+    error: "Bad Request",
+    detail:
+      "The reorder list must contain exactly this task's current checklist item ids.",
+  });
+}
+
+export function taskChecklistItemOwnershipDenied(): HttpException {
+  return new ForbiddenException({
+    code: TASK_ERROR.checklistItemOwnershipDenied,
+    error: "Forbidden",
+    detail: "Only the person who added this checkpoint may edit or remove it.",
   });
 }

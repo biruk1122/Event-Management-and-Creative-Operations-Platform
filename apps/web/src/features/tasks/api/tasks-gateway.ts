@@ -6,6 +6,7 @@ import { isProblemDetails } from "@/lib/api/problem-details";
 
 import type {
   Task,
+  TaskChecklistItem,
   TaskCollaborationPreview,
   TaskPerson,
   TaskPriority,
@@ -55,6 +56,14 @@ export interface ListTasksParams {
   priority?: TaskPriority | null;
   search?: string | null;
   workspaceId?: string | null;
+  departmentId?: string | null;
+  /** Restricts to the subtasks of one top-level task (Manager -> Team
+   * Member delegation); the server scopes this the same as any other read. */
+  parentTaskId?: string | null;
+  assigneeId?: string | null;
+  /** "Created by Me". */
+  createdById?: string | null;
+  overdue?: boolean | null;
   page?: number;
   pageSize?: number;
 }
@@ -64,7 +73,7 @@ type ListQuery = NonNullable<
 >;
 
 export async function listTasks(params: ListTasksParams, signal?: AbortSignal) {
-  const query: Record<string, string | number> = {
+  const query: Record<string, string | number | boolean> = {
     page: params.page ?? 1,
     pageSize: params.pageSize ?? 25,
   };
@@ -72,6 +81,11 @@ export async function listTasks(params: ListTasksParams, signal?: AbortSignal) {
   if (params.priority) query.priority = params.priority;
   if (params.search?.trim()) query.search = params.search.trim();
   if (params.workspaceId) query.workspaceId = params.workspaceId;
+  if (params.departmentId) query.departmentId = params.departmentId;
+  if (params.parentTaskId) query.parentTaskId = params.parentTaskId;
+  if (params.assigneeId) query.assigneeId = params.assigneeId;
+  if (params.createdById) query.createdById = params.createdById;
+  if (params.overdue) query.overdue = params.overdue;
 
   const { data, error, response } = await browserApi.GET("/api/v1/tasks", {
     params: { query: query as unknown as ListQuery },
@@ -159,12 +173,15 @@ export async function createTaskComment(id: string, content: string) {
   return data;
 }
 
-export async function updateTaskProgress(id: string, progress: number) {
-  const { data, error, response } = await browserApi.PATCH(
-    "/api/v1/tasks/{id}/progress",
+export async function addTaskChecklistItem(
+  id: string,
+  description: string,
+): Promise<TaskChecklistItem> {
+  const { data, error, response } = await browserApi.POST(
+    "/api/v1/tasks/{id}/checklist-items",
     {
       params: { path: { id } },
-      body: { progress },
+      body: { description },
       headers: headers(),
     },
   );
@@ -172,8 +189,80 @@ export async function updateTaskProgress(id: string, progress: number) {
     fail(
       response.status,
       error,
-      "Progress was not saved. Keep the value and try again.",
+      "The checkpoint was not added. Keep the text and try again.",
     );
+  return data;
+}
+
+export async function updateTaskChecklistItem(
+  id: string,
+  itemId: string,
+  description: string,
+): Promise<TaskChecklistItem> {
+  const { data, error, response } = await browserApi.PATCH(
+    "/api/v1/tasks/{id}/checklist-items/{itemId}",
+    {
+      params: { path: { id, itemId } },
+      body: { description },
+      headers: headers(),
+    },
+  );
+  if (!data)
+    fail(
+      response.status,
+      error,
+      "The checkpoint was not updated. Keep the text and try again.",
+    );
+  return data;
+}
+
+export async function removeTaskChecklistItem(
+  id: string,
+  itemId: string,
+): Promise<void> {
+  const { error, response } = await browserApi.DELETE(
+    "/api/v1/tasks/{id}/checklist-items/{itemId}",
+    {
+      params: { path: { id, itemId } },
+      headers: headers(),
+    },
+  );
+  if (!response.ok)
+    fail(response.status, error, "The checkpoint was not removed. Try again.");
+}
+
+export async function reorderTaskChecklistItems(
+  id: string,
+  orderedItemIds: string[],
+): Promise<TaskChecklistItem[]> {
+  const { data, error, response } = await browserApi.POST(
+    "/api/v1/tasks/{id}/checklist-items/reorder",
+    {
+      params: { path: { id } },
+      body: { orderedItemIds },
+      headers: headers(),
+    },
+  );
+  if (!data)
+    fail(response.status, error, "The reorder was not saved. Try again.");
+  return data;
+}
+
+export async function toggleTaskChecklistItem(
+  id: string,
+  itemId: string,
+  completed: boolean,
+): Promise<Task> {
+  const { data, error, response } = await browserApi.PATCH(
+    "/api/v1/tasks/{id}/checklist-items/{itemId}/completion",
+    {
+      params: { path: { id, itemId } },
+      body: { completed },
+      headers: headers(),
+    },
+  );
+  if (!data)
+    fail(response.status, error, "The checkpoint was not saved. Try again.");
   return data;
 }
 
@@ -289,6 +378,25 @@ export async function uploadTaskFile(id: string, file: File) {
   return finalized.data;
 }
 
+/** A short-lived, private signed URL for one attachment - the file is never
+ * served directly by this app's own origin. */
+export async function getTaskFileDownloadGrant(
+  id: string,
+  fileId: string,
+): Promise<{ url: string }> {
+  const { data, error, response } = await browserApi.GET(
+    "/api/v1/tasks/{taskId}/files/{fileId}/download",
+    { params: { path: { taskId: id, fileId } } },
+  );
+  if (!data)
+    fail(
+      response.status,
+      error,
+      "The file could not be downloaded. Try again.",
+    );
+  return data;
+}
+
 export async function addTaskAssignee(
   id: string,
   userId: string,
@@ -352,12 +460,22 @@ export interface CreateTaskParams {
   title: string;
   description: string;
   type: TaskType;
+  priority: TaskPriority;
   departmentId: string;
   assigneeId?: string;
   dueAt: string;
   /** Links the task to a connected workspace (e.g. a production's schedule)
    * in addition to its department - both may be set at once. */
   workspaceId?: string;
+  /** Breaks this down as a subtask of an existing task (Manager -> Team
+   * Member delegation). The server derives department/workspace from the
+   * parent and ignores this call's own `departmentId`/`workspaceId` when
+   * set - only the parent's own assignee (or an organization-scoped
+   * caller) may create one. */
+  parentTaskId?: string;
+  /** Checkpoints authored up front; added one at a time, in order, after
+   * the task itself is created (no checklist-item field on create). */
+  checklistItems?: readonly string[];
 }
 
 export async function createTask(params: CreateTaskParams): Promise<Task> {
@@ -366,16 +484,24 @@ export async function createTask(params: CreateTaskParams): Promise<Task> {
       title: params.title.trim(),
       description: params.description.trim(),
       type: params.type,
-      priority: "MEDIUM",
+      priority: params.priority,
       departmentId: params.departmentId,
       dueAt: params.dueAt,
       ...(params.assigneeId ? { assigneeId: params.assigneeId } : {}),
       ...(params.workspaceId ? { workspaceId: params.workspaceId } : {}),
+      ...(params.parentTaskId ? { parentTaskId: params.parentTaskId } : {}),
     },
     headers: headers(),
   });
   if (!data)
     fail(response.status, error, "The task could not be created. Try again.");
+  // Checklist items have no create-time field of their own - post them
+  // sequentially, in order, so `position` is deterministic (the same
+  // pattern this dialog already uses for sequential attachment uploads).
+  for (const description of params.checklistItems ?? []) {
+    const trimmed = description.trim();
+    if (trimmed) await addTaskChecklistItem(data.id, trimmed);
+  }
   return data;
 }
 

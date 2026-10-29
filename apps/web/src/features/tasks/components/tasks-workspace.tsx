@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Ban,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
+  Download,
+  Eye,
   LayoutGrid,
   List,
   MessageSquare,
@@ -18,14 +22,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogContent as BaseDialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
 import { WorkSurface } from "@/components/ui/work-surface";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import {
   Select,
   SelectContent,
@@ -34,6 +47,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { ChecklistSection } from "./checklist-section";
+import {
+  taskProgressSummary,
+  taskProgressTone,
+} from "../lib/task-progress-tone";
 import {
   KANBAN_STATUSES,
   TASK_STATUSES,
@@ -42,12 +60,15 @@ import {
   scheduleLabel,
   taskPriorityLabel,
   taskStatusLabel,
+  taskTypeLabel,
   type Task,
   type TaskCollaborationPreview,
+  type TaskPerson,
   type TaskPriority,
   type TaskStatus,
   type TaskWorkspaceData,
 } from "../lib/tasks-types";
+import { CreateTaskDialog, type CreateTaskValues } from "./create-task-dialog";
 
 type View = "list" | "board" | "calendar";
 
@@ -74,15 +95,56 @@ export interface TaskCollaborationActions {
     lastName: string | null;
   }[];
   canComment: boolean;
-  canUpdateProgress: boolean;
-  canTransition: boolean;
-  canSubmit: boolean;
-  canReview: boolean;
+  /** Per-task: whether the viewer may add or remove *new* checklist items
+   * on *this* task - only this task's own creator (or an organization
+   * -scoped actor) may, same creator-gating as `canManageAssignees`. An
+   * item's own ownership (below) narrows further: even a creator-gated
+   * editor may not move/remove an item someone else added. */
+  canEditChecklist: (task: Task) => boolean;
+  /** The current viewer's own id, so the checklist can tell "I added this
+   * one" from "someone else added this one" - only an item's own creator
+   * may remove it, not merely anyone who holds `task.update`. */
+  currentUserId: string;
+  /** True for an organization-scoped actor (Super Admin) - the fallback
+   * for a legacy checklist item with no recorded creator. */
+  canManageUnattributedChecklistItems: boolean;
+  /** These four are per-task, not a blanket role capability: the
+   * underlying grant is SELF-scoped to "I am this task's assignee," so a
+   * creator/manager who is not also the assignee must not see these
+   * controls as usable on a task they merely created. */
+  canToggleChecklist: (task: Task) => boolean;
+  canTransition: (task: Task) => boolean;
+  canSubmit: (task: Task) => boolean;
+  /** Per-task: only this task's own creator (or an organization-scoped
+   * actor) may record a review decision - prevents a Manager who is
+   * merely this task's assignee from approving/rejecting their own
+   * assigned work just because they hold `task.review` broadly. */
+  canReview: (task: Task) => boolean;
   canUpload: boolean;
+  /** Blanket: gates the "Add subtask" action and the subtask-creation
+   * dialog's own assignee picker, since a Manager manages assignment by
+   * creating subtasks regardless of who created the parent task. */
   canAssign: boolean;
+  /** Per-task: whether the viewer may add/remove assignees on *this*
+   * specific task. An organization-scoped actor always can; a
+   * department-scoped actor only when they are this task's own creator -
+   * a Manager who is merely its assignee manages assignment only through
+   * subtasks (`canAssign` above), not by editing who else works on a task
+   * someone else assigned to them. */
+  canManageAssignees: (task: Task) => boolean;
   assignmentDirectoryMessage?: string;
   addComment: (id: string, content: string) => Promise<unknown>;
-  updateProgress: (id: string, progress: number) => Promise<unknown>;
+  addChecklistItem: (id: string, description: string) => Promise<unknown>;
+  removeChecklistItem: (id: string, itemId: string) => Promise<unknown>;
+  reorderChecklistItems: (
+    id: string,
+    orderedItemIds: string[],
+  ) => Promise<unknown>;
+  toggleChecklistItem: (
+    id: string,
+    itemId: string,
+    completed: boolean,
+  ) => Promise<unknown>;
   transition: (id: string, status: TaskStatus) => Promise<unknown>;
   submit: (id: string) => Promise<unknown>;
   review: (
@@ -91,20 +153,71 @@ export interface TaskCollaborationActions {
     note: string,
   ) => Promise<unknown>;
   upload: (id: string, file: File) => Promise<unknown>;
+  /** A short-lived signed URL for one attachment - never served from this
+   * app's own origin. */
+  download: (id: string, fileId: string) => Promise<{ url: string }>;
   addAssignee: (id: string, userId: string) => Promise<unknown>;
   removeAssignee: (id: string, userId: string) => Promise<unknown>;
+  /** Manager -> Team Member delegation (a top-level task's own subtasks). */
+  listSubtasks: (parentTaskId: string, signal?: AbortSignal) => Promise<Task[]>;
+  createSubtask: (
+    parentTaskId: string,
+    values: CreateTaskValues,
+  ) => Promise<Task>;
+  loadEligibleAssignees: (
+    departmentId: string,
+    signal?: AbortSignal,
+  ) => Promise<TaskPerson[]>;
 }
 
+interface TaskActionTarget {
+  key: string;
+  label: string;
+  run: () => Promise<unknown>;
+}
+
+/** The compact "Actions" menu's contents: every lifecycle transition and
+ * the submit action this specific viewer may use on this specific task -
+ * review decisions stay their own section below, since they need a note
+ * field rather than a one-click menu item. */
+function taskActionTargetsFor(
+  task: Task,
+  collaboration: TaskCollaborationActions | undefined,
+): TaskActionTarget[] {
+  if (!collaboration) return [];
+  const targets: TaskActionTarget[] = [];
+  if (collaboration.canTransition(task)) {
+    for (const status of ASSIGNEE_TRANSITION_TARGETS[task.status]) {
+      targets.push({
+        key: `transition-${status}`,
+        label: `Move to ${taskStatusLabel(status)}`,
+        run: () => collaboration.transition(task.id, status),
+      });
+    }
+  }
+  if (collaboration.canSubmit(task) && task.status === "IN_PROGRESS") {
+    targets.push({
+      key: "submit",
+      label: "Submit for review",
+      run: () => collaboration.submit(task.id),
+    });
+  }
+  return targets;
+}
+
+// To do: neutral. In progress: active work. Under review: pending review.
+// Blocked: needs attention. Completed: success. Cancelled: muted, not an
+// error - distinct from Blocked, which does need attention.
 const STATUS_VARIANT: Record<
   TaskStatus,
-  "default" | "secondary" | "outline" | "destructive"
+  "secondary" | "default" | "information" | "warning" | "success" | "outline"
 > = {
   TODO: "secondary",
   IN_PROGRESS: "default",
-  UNDER_REVIEW: "outline",
-  BLOCKED: "destructive",
-  COMPLETED: "outline",
-  CANCELLED: "destructive",
+  UNDER_REVIEW: "information",
+  BLOCKED: "warning",
+  COMPLETED: "success",
+  CANCELLED: "outline",
 };
 
 const PRIORITY_VARIANT: Record<
@@ -133,24 +246,14 @@ function taskMatches(task: Task, query: string, status: TaskStatus | null) {
   );
 }
 
-function Progress({ value }: { value: number }) {
+function TaskProgressBar({ task }: { task: Task }) {
   return (
-    <div className="flex items-center gap-2">
-      <div
-        role="progressbar"
-        aria-label="Task progress"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={value}
-        className="bg-muted h-2 min-w-20 flex-1 overflow-hidden rounded-full"
-      >
-        <div
-          className="bg-primary h-full rounded-full"
-          style={{ width: `${value}%` }}
-        />
-      </div>
-      <span className="text-muted-foreground text-xs">{value}%</span>
-    </div>
+    <ProgressBar
+      percent={task.progress}
+      summary={taskProgressSummary(task.progress)}
+      tone={taskProgressTone(task)}
+      label="Task progress"
+    />
   );
 }
 
@@ -172,7 +275,7 @@ function TaskCard({ task, onSelect }: { task: Task; onSelect: () => void }) {
           {taskPriorityLabel(task.priority)}
         </Badge>
       </div>
-      <Progress value={task.progress} />
+      <TaskProgressBar task={task} />
       <div className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
         <span>{scheduleLabel(task)}</span>
         <span>{assigneeLabel(task)}</span>
@@ -196,16 +299,36 @@ function EmptyState({ filtered }: { filtered: boolean }) {
   );
 }
 
+/** True when this task can move directly to CANCELLED from its current
+ * status, mirroring the same targets `taskActionTargetsFor` already offers
+ * inside the detail dialog - the list row's Cancel action is a shortcut to
+ * the identical transition, not a separate capability. */
+function canCancelFromList(
+  task: Task,
+  collaboration: TaskCollaborationActions | undefined,
+): boolean {
+  return Boolean(
+    collaboration?.canTransition(task) &&
+      ASSIGNEE_TRANSITION_TARGETS[task.status].includes("CANCELLED"),
+  );
+}
+
 function ListView({
   tasks,
   onSelect,
   filtered,
+  page,
+  pageSize,
+  collaboration,
 }: {
   tasks: readonly Task[];
   onSelect: (task: Task) => void;
   filtered: boolean;
+  page: number;
+  pageSize: number;
+  collaboration?: TaskCollaborationActions;
 }) {
-  if (tasks.length === 0) return <EmptyState filtered={filtered} />;
+  const [cancelTarget, setCancelTarget] = useState<Task | null>(null);
   return (
     <>
       <div className="border-border hidden overflow-x-auto rounded-xl border sm:block">
@@ -213,26 +336,38 @@ function ListView({
           <thead className="text-muted-foreground border-border border-b text-xs">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
-                Task
+                No
               </th>
               <th scope="col" className="px-4 py-3 font-medium">
-                Status
+                Task Description
               </th>
               <th scope="col" className="px-4 py-3 font-medium">
-                Progress
+                Assigned People
               </th>
               <th scope="col" className="px-4 py-3 font-medium">
-                Due date
+                Due Date
               </th>
               <th scope="col" className="px-4 py-3 font-medium">
-                Assignees
+                Type
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Stage
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                File
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Action
               </th>
             </tr>
           </thead>
           <tbody className="divide-border divide-y">
-            {tasks.map((task) => (
+            {tasks.map((task, index) => (
               <tr key={task.id} className="hover:bg-muted/50">
-                <th scope="row" className="px-4 py-3 font-normal">
+                <td className="text-muted-foreground px-4 py-3">
+                  {(page - 1) * pageSize + index + 1}
+                </td>
+                <th scope="row" className="max-w-xs px-4 py-3 font-normal">
                   <button
                     type="button"
                     onClick={() => onSelect(task)}
@@ -240,20 +375,63 @@ function ListView({
                   >
                     {task.title}
                   </button>
+                  {task.description ? (
+                    <p
+                      className="text-muted-foreground mt-0.5 truncate text-xs"
+                      title={task.description}
+                    >
+                      {task.description}
+                    </p>
+                  ) : null}
                 </th>
-                <td className="px-4 py-3">
-                  <Badge variant={STATUS_VARIANT[task.status]}>
-                    {taskStatusLabel(task.status)}
-                  </Badge>
-                </td>
-                <td className="min-w-32 px-4 py-3">
-                  <Progress value={task.progress} />
+                <td className="text-muted-foreground px-4 py-3">
+                  {assigneeLabel(task)}
                 </td>
                 <td className="text-muted-foreground px-4 py-3">
                   {dateLabel(task.dueAt)}
                 </td>
                 <td className="text-muted-foreground px-4 py-3">
-                  {assigneeLabel(task)}
+                  {taskTypeLabel(task.type)}
+                </td>
+                <td className="px-4 py-3">
+                  <Badge variant={STATUS_VARIANT[task.status]}>
+                    {taskStatusLabel(task.status)}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Open attachments for ${task.title}`}
+                    onClick={() => onSelect(task)}
+                  >
+                    <Paperclip aria-hidden="true" className="size-3.5" />
+                  </Button>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Open ${task.title}`}
+                      onClick={() => onSelect(task)}
+                    >
+                      <Eye aria-hidden="true" className="size-3.5" />
+                    </Button>
+                    {canCancelFromList(task, collaboration) ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Cancel ${task.title}`}
+                        onClick={() => setCancelTarget(task)}
+                      >
+                        <Ban aria-hidden="true" className="size-3.5" />
+                      </Button>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -278,16 +456,95 @@ function ListView({
                 {scheduleLabel(task)}
               </span>
               <span className="text-muted-foreground mt-1 block text-xs">
-                {assigneeLabel(task)}
+                {assigneeLabel(task)} · {taskTypeLabel(task.type)}
               </span>
               <div className="mt-3">
-                <Progress value={task.progress} />
+                <TaskProgressBar task={task} />
               </div>
             </button>
           </li>
         ))}
       </ul>
+      {tasks.length === 0 ? <EmptyState filtered={filtered} /> : null}
+      <CancelTaskDialog
+        task={cancelTarget}
+        onOpenChange={(open) => {
+          if (!open) setCancelTarget(null);
+        }}
+        onCancel={(id) => collaboration!.transition(id, "CANCELLED")}
+        onCancelled={() => setCancelTarget(null)}
+      />
     </>
+  );
+}
+
+function CancelTaskDialog({
+  task,
+  onOpenChange,
+  onCancel,
+  onCancelled,
+}: {
+  task: Task | null;
+  onOpenChange: (open: boolean) => void;
+  onCancel: (id: string) => Promise<unknown>;
+  onCancelled: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function confirm() {
+    if (!task) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onCancel(task.id);
+      onCancelled();
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "We could not cancel that task. Try again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Dialog open={task !== null} onOpenChange={onOpenChange}>
+      <BaseDialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Cancel task?</DialogTitle>
+          <DialogDescription>
+            {task
+              ? `Move "${task.title}" to Cancelled? Its history stays on the task, and this can be undone from the task's own status controls.`
+              : null}
+          </DialogDescription>
+        </DialogHeader>
+        {error ? (
+          <p role="alert" className="text-destructive text-sm">
+            {error}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => onOpenChange(false)}
+          >
+            Keep task
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={busy}
+            aria-busy={busy}
+            onClick={() => void confirm()}
+          >
+            {busy ? "Cancelling…" : "Cancel task"}
+          </Button>
+        </DialogFooter>
+      </BaseDialogContent>
+    </Dialog>
   );
 }
 
@@ -388,17 +645,24 @@ function TaskDetailDialog({
   preview,
   onClose,
   collaboration,
+  onSelectTask,
 }: {
   preview: TaskCollaborationPreview | null;
   onClose: () => void;
   collaboration?: TaskCollaborationActions;
+  /** Re-targets this same dialog at a different task (used to open a
+   * subtask from the parent's own detail view). */
+  onSelectTask?: (task: Task) => void;
 }) {
   const [comment, setComment] = useState("");
-  const [progress, setProgress] = useState<string | null>(null);
   const [assigneeId, setAssigneeId] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(
+    null,
+  );
   const [actionError, setActionError] = useState<string | null>(null);
+  const [subtaskCreateOpen, setSubtaskCreateOpen] = useState(false);
   const selectedTask = preview?.task;
   const detail = useQuery({
     queryKey: collaboration?.detailKey(selectedTask?.id ?? "") ?? [
@@ -411,6 +675,19 @@ function TaskDetailDialog({
   });
   const resolvedPreview = collaboration ? (detail.data ?? null) : preview;
   const task = resolvedPreview?.task ?? selectedTask;
+  const taskActionTargets = task
+    ? taskActionTargetsFor(task, collaboration)
+    : [];
+  // Subtasks are a top-level task's own breakdown only - a subtask does not
+  // get a further level of subtasks (matches the 2-level delegation this
+  // hierarchy was designed for: Manager -> Team Member).
+  const isTopLevelTask = Boolean(task && task.parentTaskId === null);
+  const subtasks = useQuery({
+    queryKey: [...(collaboration?.detailKey(task?.id ?? "") ?? []), "subtasks"],
+    queryFn: ({ signal }) => collaboration!.listSubtasks(task!.id, signal),
+    enabled: Boolean(collaboration && task && isTopLevelTask),
+    retry: false,
+  });
 
   async function perform(action: () => Promise<unknown>) {
     setActionError(null);
@@ -426,6 +703,24 @@ function TaskDetailDialog({
     }
   }
 
+  async function handleDownload(fileId: string) {
+    if (!collaboration || !task) return;
+    setActionError(null);
+    setDownloadingFileId(fileId);
+    try {
+      const grant = await collaboration.download(task.id, fileId);
+      window.location.assign(grant.url);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "The file could not be downloaded. Try again.",
+      );
+    } finally {
+      setDownloadingFileId(null);
+    }
+  }
+
   return (
     <Dialog
       open={task !== undefined}
@@ -437,11 +732,44 @@ function TaskDetailDialog({
         {task ? (
           <>
             <DialogHeader>
-              <div className="flex flex-wrap items-center gap-2 pr-8">
-                <DialogTitle>{task.title}</DialogTitle>
-                <Badge variant={STATUS_VARIANT[task.status]}>
-                  {taskStatusLabel(task.status)}
-                </Badge>
+              <div className="flex flex-wrap items-center justify-between gap-2 pr-8">
+                <div className="flex flex-wrap items-center gap-2">
+                  <DialogTitle>{task.title}</DialogTitle>
+                  <Badge variant={STATUS_VARIANT[task.status]}>
+                    {taskStatusLabel(task.status)}
+                  </Badge>
+                  {task.status === "UNDER_REVIEW" ? (
+                    <Badge variant="information">Awaiting review</Badge>
+                  ) : null}
+                </div>
+                {taskActionTargets.length > 0 ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={detail.isFetching}
+                      >
+                        Actions
+                        <ChevronDown
+                          aria-hidden="true"
+                          data-icon="inline-end"
+                        />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {taskActionTargets.map((action) => (
+                        <DropdownMenuItem
+                          key={action.key}
+                          onSelect={() => void perform(action.run)}
+                        >
+                          {action.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
               </div>
               <DialogDescription>
                 {task.description ??
@@ -476,57 +804,49 @@ function TaskDetailDialog({
                 <AlertDescription>{actionError}</AlertDescription>
               </Alert>
             ) : null}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <section aria-labelledby="task-progress">
-                <h2 id="task-progress" className="text-sm font-medium">
-                  Progress
-                </h2>
-                <div className="mt-2">
-                  <Progress value={task.progress} />
-                </div>
-                {collaboration?.canUpdateProgress ? (
-                  <div className="mt-3 flex items-end gap-2">
-                    <div className="min-w-0 flex-1">
-                      <Label htmlFor="task-progress-value">
-                        Update progress
-                      </Label>
-                      <Input
-                        id="task-progress-value"
-                        className="mt-1"
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={progress ?? String(task.progress)}
-                        onChange={(event) => setProgress(event.target.value)}
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={detail.isFetching}
-                      onClick={() => {
-                        const value = Number(progress ?? String(task.progress));
-                        if (
-                          !Number.isInteger(value) ||
-                          value < 0 ||
-                          value > 100
-                        ) {
-                          setActionError(
-                            "Progress must be a whole number from 0 to 100.",
-                          );
-                          return;
-                        }
-                        void perform(() =>
-                          collaboration.updateProgress(task.id, value),
-                        );
-                      }}
-                    >
-                      Save
-                    </Button>
-                  </div>
-                ) : null}
-              </section>
-              <section aria-labelledby="task-schedule">
+            <div className="space-y-4">
+              <ChecklistSection
+                task={task}
+                items={task.checklistItems}
+                busy={detail.isFetching}
+                actions={{
+                  canEditItems: Boolean(collaboration?.canEditChecklist(task)),
+                  canToggleItems: Boolean(
+                    collaboration?.canToggleChecklist(task),
+                  ),
+                  currentUserId: collaboration?.currentUserId ?? "",
+                  canManageUnattributedItems: Boolean(
+                    collaboration?.canManageUnattributedChecklistItems,
+                  ),
+                  addItem: (description) =>
+                    perform(() =>
+                      collaboration!.addChecklistItem(task.id, description),
+                    ),
+                  removeItem: (itemId) =>
+                    perform(() =>
+                      collaboration!.removeChecklistItem(task.id, itemId),
+                    ),
+                  reorderItems: (orderedItemIds) =>
+                    perform(() =>
+                      collaboration!.reorderChecklistItems(
+                        task.id,
+                        orderedItemIds,
+                      ),
+                    ),
+                  toggleItem: (itemId, completed) =>
+                    perform(() =>
+                      collaboration!.toggleChecklistItem(
+                        task.id,
+                        itemId,
+                        completed,
+                      ),
+                    ),
+                }}
+              />
+              <section
+                aria-labelledby="task-schedule"
+                className="border-border border-t pt-4"
+              >
                 <h2 id="task-schedule" className="text-sm font-medium">
                   Schedule
                 </h2>
@@ -535,48 +855,7 @@ function TaskDetailDialog({
                 </p>
               </section>
             </div>
-            {collaboration?.canTransition ? (
-              <section
-                className="border-border border-t pt-4"
-                aria-labelledby="task-status-change"
-              >
-                <h2 id="task-status-change" className="text-sm font-medium">
-                  Status
-                </h2>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {ASSIGNEE_TRANSITION_TARGETS[task.status].map((status) => (
-                    <Button
-                      key={status}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={detail.isFetching}
-                      onClick={() =>
-                        void perform(() =>
-                          collaboration.transition(task.id, status),
-                        )
-                      }
-                    >
-                      Move to {taskStatusLabel(status)}
-                    </Button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-            {collaboration?.canSubmit && task.status === "IN_PROGRESS" ? (
-              <section className="border-border border-t pt-4">
-                <Button
-                  type="button"
-                  disabled={detail.isFetching}
-                  onClick={() =>
-                    void perform(() => collaboration.submit(task.id))
-                  }
-                >
-                  Submit for review
-                </Button>
-              </section>
-            ) : null}
-            {collaboration?.canReview && task.status === "UNDER_REVIEW" ? (
+            {collaboration?.canReview(task) && task.status === "UNDER_REVIEW" ? (
               <section
                 className="border-border space-y-2 border-t pt-4"
                 aria-labelledby="task-review-decision"
@@ -643,7 +922,7 @@ function TaskDetailDialog({
                       className="flex items-center justify-between gap-2"
                     >
                       <span>{personName(assignee)}</span>
-                      {collaboration?.canAssign ? (
+                      {collaboration?.canManageAssignees(task) ? (
                         <Button
                           type="button"
                           variant="ghost"
@@ -669,7 +948,7 @@ function TaskDetailDialog({
                   No one is assigned yet.
                 </p>
               )}
-              {collaboration?.canAssign ? (
+              {collaboration?.canManageAssignees(task) ? (
                 <div className="mt-3 flex flex-wrap items-end gap-2">
                   <div className="min-w-48 flex-1">
                     <Label htmlFor="task-assignee">Add assignee</Label>
@@ -716,6 +995,112 @@ function TaskDetailDialog({
                 </div>
               ) : null}
             </section>
+            {collaboration && isTopLevelTask ? (
+              <section
+                aria-labelledby="task-subtasks"
+                className="border-border border-t pt-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2
+                    id="task-subtasks"
+                    className="flex items-center gap-2 text-sm font-medium"
+                  >
+                    <CheckCircle2 aria-hidden="true" className="size-4" />
+                    Subtasks
+                  </h2>
+                  {collaboration.canAssign ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSubtaskCreateOpen(true)}
+                    >
+                      <Plus aria-hidden="true" data-icon="inline-start" />
+                      Add subtask
+                    </Button>
+                  ) : null}
+                </div>
+                {task.subtaskSummary ? (
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    {task.subtaskSummary.completed} of{" "}
+                    {task.subtaskSummary.total} complete
+                    {task.subtaskSummary.overdue > 0
+                      ? ` · ${task.subtaskSummary.overdue} overdue`
+                      : ""}
+                  </p>
+                ) : null}
+                {subtasks.isPending ? (
+                  <p
+                    role="status"
+                    className="text-muted-foreground mt-2 text-sm"
+                  >
+                    Loading subtasks…
+                  </p>
+                ) : subtasks.isError ? (
+                  <p className="text-destructive mt-2 text-sm">
+                    Subtasks could not be loaded.
+                  </p>
+                ) : (subtasks.data ?? []).length > 0 ? (
+                  <ul aria-label="Subtasks" className="mt-2 space-y-1 text-sm">
+                    {(subtasks.data ?? []).map((subtask) => (
+                      <li
+                        key={subtask.id}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <button
+                          type="button"
+                          className="focus-visible:ring-ring/50 rounded text-left underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:outline-none"
+                          onClick={() => onSelectTask?.(subtask)}
+                        >
+                          {subtask.title}
+                        </button>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span className="text-muted-foreground text-xs">
+                            {subtask.progress === null
+                              ? "Not tracked"
+                              : `${subtask.progress}%`}
+                          </span>
+                          <Badge variant={STATUS_VARIANT[subtask.status]}>
+                            {taskStatusLabel(subtask.status)}
+                          </Badge>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground mt-2 text-sm">
+                    No subtasks yet.
+                  </p>
+                )}
+                {collaboration.canAssign ? (
+                  <CreateTaskDialog
+                    open={subtaskCreateOpen}
+                    onOpenChange={setSubtaskCreateOpen}
+                    departments={
+                      task.departmentId
+                        ? [
+                            {
+                              id: task.departmentId,
+                              name: "This task's department",
+                            },
+                          ]
+                        : []
+                    }
+                    departmentLocked
+                    parentTaskId={task.id}
+                    loadEligibleAssignees={collaboration.loadEligibleAssignees}
+                    onCreate={(values) =>
+                      collaboration.createSubtask(task.id, values)
+                    }
+                    onUploadAttachment={collaboration.upload}
+                    onCreated={() => {
+                      void subtasks.refetch();
+                      void detail.refetch();
+                    }}
+                  />
+                ) : null}
+              </section>
+            ) : null}
             <section
               aria-labelledby="task-files"
               className="border-border border-t pt-4"
@@ -729,17 +1114,31 @@ function TaskDetailDialog({
               </h2>
               {resolvedPreview?.files.length ? (
                 <ul className="mt-2 divide-y rounded-lg border">
-                  {resolvedPreview.files.map((file) => (
+                  {resolvedPreview.files.map((attachedFile) => (
                     <li
-                      key={file.id}
+                      key={attachedFile.id}
                       className="flex items-center justify-between gap-3 p-3 text-sm"
                     >
-                      <span data-file-name className="min-w-0">
-                        {file.filename}
+                      <span data-file-name className="min-w-0 truncate">
+                        {attachedFile.filename}
                       </span>
-                      <Badge variant="outline">
-                        {file.state.toLocaleLowerCase()}
-                      </Badge>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <Badge variant="outline">
+                          {attachedFile.state.toLocaleLowerCase()}
+                        </Badge>
+                        {attachedFile.state === "available" ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Download ${attachedFile.filename}`}
+                            disabled={downloadingFileId === attachedFile.id}
+                            onClick={() => void handleDownload(attachedFile.id)}
+                          >
+                            <Download aria-hidden="true" />
+                          </Button>
+                        ) : null}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -922,6 +1321,15 @@ function TaskDetailDialog({
   );
 }
 
+export interface TaskWorkspaceFilters {
+  search: string;
+  status: TaskStatus | null;
+  assignedToMe: boolean;
+  createdByMe: boolean;
+  overdueOnly: boolean;
+  departmentId: string | null;
+}
+
 export function TaskWorkspace({
   data,
   tasks,
@@ -937,6 +1345,8 @@ export function TaskWorkspace({
   collaboration,
   canCreate = false,
   onOpenCreate,
+  canFilterByReview = false,
+  departments = [],
 }: {
   /** Static data remains available only for isolated component tests. */
   data?: TaskWorkspaceData;
@@ -949,18 +1359,24 @@ export function TaskWorkspace({
   fetching?: boolean;
   error?: string;
   onRetry?: () => void;
-  onFiltersChange?: (filters: {
-    search: string;
-    status: TaskStatus | null;
-  }) => void;
+  onFiltersChange?: (filters: TaskWorkspaceFilters) => void;
   onPageChange?: (page: number) => void;
   collaboration?: TaskCollaborationActions;
   canCreate?: boolean;
   onOpenCreate?: () => void;
+  /** Shows the "Awaiting Review" quick filter - only meaningful for a
+   * caller who holds `task.review` somewhere. */
+  canFilterByReview?: boolean;
+  /** Powers the "Department Tasks" filter; empty hides that control. */
+  departments?: readonly { id: string; name: string }[];
 }) {
   const [view, setView] = useState<View>("list");
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<TaskStatus | null>(null);
+  const [assignedToMe, setAssignedToMe] = useState(false);
+  const [createdByMe, setCreatedByMe] = useState(false);
+  const [overdueOnly, setOverdueOnly] = useState(false);
+  const [departmentId, setDepartmentId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Task | null>(null);
   const visibleTasks = useMemo(
     () =>
@@ -969,12 +1385,33 @@ export function TaskWorkspace({
       ),
     [tasks, data?.tasks, query, status],
   );
-  const filtered = query.trim() !== "" || status !== null;
+  const filtered =
+    query.trim() !== "" ||
+    status !== null ||
+    assignedToMe ||
+    createdByMe ||
+    overdueOnly ||
+    departmentId !== null;
   const select = (task: Task) => setSelected(task);
 
   useEffect(() => {
-    onFiltersChange?.({ search: query, status });
-  }, [onFiltersChange, query, status]);
+    onFiltersChange?.({
+      search: query,
+      status,
+      assignedToMe,
+      createdByMe,
+      overdueOnly,
+      departmentId,
+    });
+  }, [
+    onFiltersChange,
+    query,
+    status,
+    assignedToMe,
+    createdByMe,
+    overdueOnly,
+    departmentId,
+  ]);
 
   return (
     <WorkSurface>
@@ -1066,6 +1503,79 @@ export function TaskWorkspace({
               </div>
               <div
                 role="group"
+                aria-label="Quick task filters"
+                className="flex flex-wrap items-center gap-2"
+              >
+                <Button
+                  type="button"
+                  variant={assignedToMe ? "secondary" : "outline"}
+                  size="sm"
+                  aria-pressed={assignedToMe}
+                  onClick={() => setAssignedToMe((current) => !current)}
+                >
+                  My Tasks
+                </Button>
+                <Button
+                  type="button"
+                  variant={createdByMe ? "secondary" : "outline"}
+                  size="sm"
+                  aria-pressed={createdByMe}
+                  onClick={() => setCreatedByMe((current) => !current)}
+                >
+                  Created by Me
+                </Button>
+                {canFilterByReview ? (
+                  <Button
+                    type="button"
+                    variant={
+                      status === "UNDER_REVIEW" ? "secondary" : "outline"
+                    }
+                    size="sm"
+                    aria-pressed={status === "UNDER_REVIEW"}
+                    onClick={() =>
+                      setStatus((current) =>
+                        current === "UNDER_REVIEW" ? null : "UNDER_REVIEW",
+                      )
+                    }
+                  >
+                    Awaiting Review
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant={overdueOnly ? "secondary" : "outline"}
+                  size="sm"
+                  aria-pressed={overdueOnly}
+                  onClick={() => setOverdueOnly((current) => !current)}
+                >
+                  Overdue
+                </Button>
+                {departments.length > 0 ? (
+                  <Select
+                    value={departmentId ?? ALL}
+                    onValueChange={(value) =>
+                      setDepartmentId(value === ALL ? null : value)
+                    }
+                  >
+                    <SelectTrigger
+                      aria-label="Department Tasks"
+                      className="h-9 w-44"
+                    >
+                      <SelectValue placeholder="Department Tasks" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL}>All departments</SelectItem>
+                      {departments.map((department) => (
+                        <SelectItem key={department.id} value={department.id}>
+                          {department.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+              </div>
+              <div
+                role="group"
                 aria-label="Task view"
                 className="flex rounded-lg border p-1"
               >
@@ -1101,6 +1611,9 @@ export function TaskWorkspace({
                 tasks={visibleTasks}
                 onSelect={select}
                 filtered={filtered}
+                page={page ?? 1}
+                pageSize={pageSize ?? 25}
+                {...(collaboration ? { collaboration } : {})}
               />
             ) : null}
             {view === "board" ? (
@@ -1161,6 +1674,7 @@ export function TaskWorkspace({
             }
             onClose={() => setSelected(null)}
             collaboration={collaboration}
+            onSelectTask={select}
           />
         ) : (
           <TaskDetailDialog

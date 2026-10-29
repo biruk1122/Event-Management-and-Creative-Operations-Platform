@@ -47,6 +47,22 @@ export class ListTasksQueryDto {
   @IsUUID()
   assigneeId?: string;
 
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: 'Only tasks created by this user ("Created by Me").',
+  })
+  @IsOptional()
+  @IsUUID()
+  createdById?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Only subtasks created from this higher-level task.",
+  })
+  @IsOptional()
+  @IsUUID()
+  parentTaskId?: string;
+
   @ApiPropertyOptional({ maxLength: 200 })
   @IsOptional()
   @IsString()

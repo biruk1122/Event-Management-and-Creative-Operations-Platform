@@ -80,8 +80,14 @@ interface TaskBody {
   departmentId: string | null;
   title: string;
   status: string;
-  progress: number;
+  progress: number | null;
   assignees: Array<{ id: string }>;
+}
+
+interface TaskChecklistItemBody {
+  id: string;
+  description: string;
+  completed: boolean;
 }
 
 function body<T>(response: request.Response): T {
@@ -262,7 +268,7 @@ describe("task assignment and collaboration API", () => {
     expect(created).toMatchObject({
       departmentId,
       status: "TODO",
-      progress: 0,
+      progress: null,
       assignees: [],
     });
 
@@ -294,13 +300,47 @@ describe("task assignment and collaboration API", () => {
       expect.arrayContaining([expect.objectContaining({ id: created.id })]),
     );
 
+    // Progress is now checklist-derived: the Manager (task.update at
+    // DEPARTMENT scope) authors two checkpoints - a plain assignee cannot
+    // author items, only toggle them (asserted separately below) - then
+    // the task starts untracked, and toggling each moves the percentage
+    // 0 -> 50 -> 100 as the completed/total ratio changes.
+    const firstItem = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${created.id}/checklist-items`,
+    ).send({ description: "Confirm venue permits" });
+    expect(firstItem.status).toBe(201);
+    const firstItemId = body<TaskChecklistItemBody>(firstItem).id;
+
+    const secondItem = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${created.id}/checklist-items`,
+    ).send({ description: "Notify the venue contact" });
+    expect(secondItem.status).toBe(201);
+    const secondItemId = body<TaskChecklistItemBody>(secondItem).id;
+
+    // Two checklist items exist but neither is complete yet: 0%, not
+    // "not tracked" - that state is reserved for zero checklist items.
+    const untouched = await as(member, "get", `/api/v1/tasks/${created.id}`);
+    expect(body<TaskBody>(untouched).progress).toBe(0);
+
+    const halfway = await as(
+      member,
+      "patch",
+      `/api/v1/tasks/${created.id}/checklist-items/${firstItemId}/completion`,
+    ).send({ completed: true });
+    expect(halfway.status).toBe(200);
+    expect(body<TaskBody>(halfway).progress).toBe(50);
+
     const progress = await as(
       member,
       "patch",
-      `/api/v1/tasks/${created.id}/progress`,
-    ).send({ progress: 60 });
+      `/api/v1/tasks/${created.id}/checklist-items/${secondItemId}/completion`,
+    ).send({ completed: true });
     expect(progress.status).toBe(200);
-    expect(body<TaskBody>(progress).progress).toBe(60);
+    expect(body<TaskBody>(progress).progress).toBe(100);
 
     const started = await as(
       member,
@@ -361,6 +401,8 @@ describe("task assignment and collaboration API", () => {
       expect.arrayContaining([
         "CREATED",
         "ASSIGNEE_ADDED",
+        "CHECKLIST_ITEM_ADDED",
+        "CHECKLIST_ITEM_COMPLETED",
         "PROGRESS_UPDATED",
         "COMMENT_ADDED",
         "REVIEW_RECORDED",
@@ -593,6 +635,76 @@ describe("task assignment and collaboration API", () => {
       workspaceContext: workspaceId,
     });
     expect(typeof authorizationAudit?.requestId).toBe("string");
+  });
+
+  it("supports the Super Admin -> Department Manager self-report chain, and refuses the Manager's own self-review", async () => {
+    const createdResponse = await as(management, "post", "/api/v1/tasks").send({
+      title: "Quarterly marketing plan",
+      departmentId,
+      workspaceId,
+    });
+    expect(createdResponse.status).toBe(201);
+    const created = body<TaskBody>(createdResponse);
+
+    const assigned = await as(
+      management,
+      "put",
+      `/api/v1/tasks/${created.id}/assignees/${departmentManager.id}`,
+    );
+    expect(assigned.status).toBe(200);
+
+    // The assigned Department Manager - not an org-wide Super Admin grant -
+    // reports back on their own task: checklist, transition, submit.
+    const checklistItem = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${created.id}/checklist-items`,
+    ).send({ description: "Draft the quarterly plan" });
+    expect(checklistItem.status).toBe(201);
+    const checklistItemId = body<TaskChecklistItemBody>(checklistItem).id;
+
+    const progress = await as(
+      departmentManager,
+      "patch",
+      `/api/v1/tasks/${created.id}/checklist-items/${checklistItemId}/completion`,
+    ).send({ completed: true });
+    expect(progress.status).toBe(200);
+    expect(body<TaskBody>(progress).progress).toBe(100);
+
+    await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${created.id}/transition`,
+    )
+      .send({ status: "IN_PROGRESS" })
+      .expect(200);
+
+    const submitted = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${created.id}/submit`,
+    );
+    expect(submitted.status).toBe(200);
+    expect(body<TaskBody>(submitted).status).toBe("UNDER_REVIEW");
+
+    // The Manager cannot approve their own submission, even though they
+    // hold `task.review` for their own department - it must genuinely reach
+    // Super Admin.
+    const selfReview = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${created.id}/reviews`,
+    ).send({ outcome: "APPROVED" });
+    expect(selfReview.status).toBe(403);
+    expect(body<{ code: string }>(selfReview).code).toBe("PERMISSION_DENIED");
+
+    const approved = await as(
+      management,
+      "post",
+      `/api/v1/tasks/${created.id}/reviews`,
+    ).send({ outcome: "APPROVED" });
+    expect(approved.status).toBe(201);
+    expect(body<TaskBody>(approved).status).toBe("COMPLETED");
   });
 
   it("enforces validation, access, lifecycle, feed, and rollback boundaries", async () => {
@@ -917,5 +1029,421 @@ describe("task assignment and collaboration API", () => {
       `/api/v1/tasks/eligible-assignees?departmentId=${departmentId}`,
     );
     expect(asMember.status).toBe(403);
+  });
+
+  it("lets an assigned Department Member toggle checklist items but not author them", async () => {
+    const created = await as(departmentManager, "post", "/api/v1/tasks").send({
+      title: "Member checklist boundary",
+      departmentId,
+      assigneeId: member.id,
+    });
+    expect(created.status).toBe(201);
+    const task = body<TaskBody>(created);
+
+    const forbiddenAdd = await as(
+      member,
+      "post",
+      `/api/v1/tasks/${task.id}/checklist-items`,
+    ).send({ description: "Member-authored item" });
+    expect(forbiddenAdd.status).toBe(403);
+    expect(body<{ code: string }>(forbiddenAdd).code).toBe("PERMISSION_DENIED");
+
+    const added = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/checklist-items`,
+    ).send({ description: "Confirm venue permits" });
+    expect(added.status).toBe(201);
+    const itemId = body<TaskChecklistItemBody>(added).id;
+
+    const toggled = await as(
+      member,
+      "patch",
+      `/api/v1/tasks/${task.id}/checklist-items/${itemId}/completion`,
+    ).send({ completed: true });
+    expect(toggled.status).toBe(200);
+    expect(body<TaskBody>(toggled).progress).toBe(100);
+  });
+
+  it("refuses a creator-only Department Manager the assignee-only self-report actions on a task assigned to someone else", async () => {
+    const created = await as(departmentManager, "post", "/api/v1/tasks").send({
+      title: "Assigner is not the assignee",
+      departmentId,
+      assigneeId: member.id,
+    });
+    expect(created.status).toBe(201);
+    const task = body<TaskBody>(created);
+
+    const addedItem = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/checklist-items`,
+    ).send({ description: "Confirm venue permits" });
+    expect(addedItem.status).toBe(201);
+    const itemId = body<TaskChecklistItemBody>(addedItem).id;
+
+    // The Manager created and assigned this task but is not its assignee -
+    // SELF-scope visibility for these three actions now means "I am the
+    // assignee," not "I am the assignee or the creator," so all three are
+    // refused even though the Manager holds the underlying grant.
+    const deniedToggle = await as(
+      departmentManager,
+      "patch",
+      `/api/v1/tasks/${task.id}/checklist-items/${itemId}/completion`,
+    ).send({ completed: true });
+    expect(deniedToggle.status).toBe(403);
+    expect(body<{ code: string }>(deniedToggle).code).toBe("PERMISSION_DENIED");
+
+    const deniedTransition = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/transition`,
+    ).send({ status: "IN_PROGRESS" });
+    expect(deniedTransition.status).toBe(403);
+    expect(body<{ code: string }>(deniedTransition).code).toBe(
+      "PERMISSION_DENIED",
+    );
+
+    // The assignee can start the task and toggle its checklist normally.
+    await as(member, "post", `/api/v1/tasks/${task.id}/transition`)
+      .send({ status: "IN_PROGRESS" })
+      .expect(200);
+
+    const deniedSubmit = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/submit`,
+    );
+    expect(deniedSubmit.status).toBe(403);
+    expect(body<{ code: string }>(deniedSubmit).code).toBe("PERMISSION_DENIED");
+
+    await as(member, "post", `/api/v1/tasks/${task.id}/submit`).expect(200);
+  });
+
+  it("enforces checklist item ownership: only the creator may edit or remove it", async () => {
+    const created = await as(management, "post", "/api/v1/tasks").send({
+      title: "Ownership boundary",
+      departmentId,
+      assigneeId: departmentManager.id,
+    });
+    expect(created.status).toBe(201);
+    const task = body<TaskBody>(created);
+
+    // Super Admin authors a checklist item - only Super Admin (its own
+    // creator) may edit or remove it, even though the Department Manager
+    // also holds `task.update` for this department's tasks.
+    const superAdminItem = await as(
+      management,
+      "post",
+      `/api/v1/tasks/${task.id}/checklist-items`,
+    ).send({ description: "Confirm the venue contract" });
+    expect(superAdminItem.status).toBe(201);
+    const superAdminItemId = body<TaskChecklistItemBody>(superAdminItem).id;
+
+    const managerEditDenied = await as(
+      departmentManager,
+      "patch",
+      `/api/v1/tasks/${task.id}/checklist-items/${superAdminItemId}`,
+    ).send({ description: "Rewritten by the Manager" });
+    expect(managerEditDenied.status).toBe(403);
+    expect(body<{ code: string }>(managerEditDenied).code).toBe(
+      "TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED",
+    );
+
+    const managerDeleteDenied = await as(
+      departmentManager,
+      "delete",
+      `/api/v1/tasks/${task.id}/checklist-items/${superAdminItemId}`,
+    );
+    expect(managerDeleteDenied.status).toBe(403);
+    expect(body<{ code: string }>(managerDeleteDenied).code).toBe(
+      "TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED",
+    );
+
+    // The Manager (assignee here) can still complete/uncomplete the
+    // Super Admin's item - toggling is never ownership-gated.
+    const managerToggle = await as(
+      departmentManager,
+      "patch",
+      `/api/v1/tasks/${task.id}/checklist-items/${superAdminItemId}/completion`,
+    ).send({ completed: true });
+    expect(managerToggle.status).toBe(200);
+    const uncompleted = await as(
+      departmentManager,
+      "patch",
+      `/api/v1/tasks/${task.id}/checklist-items/${superAdminItemId}/completion`,
+    ).send({ completed: false });
+    expect(uncompleted.status).toBe(200);
+
+    // Super Admin, as the item's own creator, can edit and remove it.
+    const superAdminEdit = await as(
+      management,
+      "patch",
+      `/api/v1/tasks/${task.id}/checklist-items/${superAdminItemId}`,
+    ).send({ description: "Confirm the signed venue contract" });
+    expect(superAdminEdit.status).toBe(200);
+
+    // The Manager authors their own item on the same task - they own it,
+    // so they may edit and remove that one freely.
+    const managerItem = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/checklist-items`,
+    ).send({ description: "Draft the run sheet" });
+    expect(managerItem.status).toBe(201);
+    const managerItemId = body<TaskChecklistItemBody>(managerItem).id;
+
+    const managerEditsOwn = await as(
+      departmentManager,
+      "patch",
+      `/api/v1/tasks/${task.id}/checklist-items/${managerItemId}`,
+    ).send({ description: "Draft the final run sheet" });
+    expect(managerEditsOwn.status).toBe(200);
+
+    // Super Admin cannot delete the Manager's own item either - ownership
+    // is symmetric, not an admin override.
+    const superAdminDeleteOfManagerItemDenied = await as(
+      management,
+      "delete",
+      `/api/v1/tasks/${task.id}/checklist-items/${managerItemId}`,
+    );
+    expect(superAdminDeleteOfManagerItemDenied.status).toBe(403);
+    expect(
+      body<{ code: string }>(superAdminDeleteOfManagerItemDenied).code,
+    ).toBe("TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED");
+
+    const managerDeletesOwn = await as(
+      departmentManager,
+      "delete",
+      `/api/v1/tasks/${task.id}/checklist-items/${managerItemId}`,
+    );
+    expect(managerDeletesOwn.status).toBe(204);
+
+    // A client cannot smuggle a creator/owner id through the request body
+    // - the global ValidationPipe rejects any unknown property outright.
+    const injectedOwner = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/checklist-items`,
+    ).send({
+      description: "Trying to spoof ownership",
+      createdById: management.id,
+    });
+    expect(injectedOwner.status).toBe(400);
+
+    // Legacy data with no recorded creator (pre-dates ownership tracking,
+    // or its creator's account was deleted) falls back to organization
+    // scope only - never automatically opened up to the Manager.
+    const legacyItem = await prisma.taskChecklistItem.create({
+      data: { taskId: task.id, description: "Legacy checkpoint", position: 1 },
+      select: { id: true },
+    });
+    const managerDeniedOnLegacy = await as(
+      departmentManager,
+      "delete",
+      `/api/v1/tasks/${task.id}/checklist-items/${legacyItem.id}`,
+    );
+    expect(managerDeniedOnLegacy.status).toBe(403);
+    expect(body<{ code: string }>(managerDeniedOnLegacy).code).toBe(
+      "TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED",
+    );
+    const superAdminAllowedOnLegacy = await as(
+      management,
+      "delete",
+      `/api/v1/tasks/${task.id}/checklist-items/${legacyItem.id}`,
+    );
+    expect(superAdminAllowedOnLegacy.status).toBe(204);
+  });
+
+  it("lets the assigner (task creator) upload a file and both the assigner and the assignee see and download it", async () => {
+    const created = await as(departmentManager, "post", "/api/v1/tasks").send({
+      title: "Assigner-uploaded attachment",
+      departmentId,
+      assigneeId: member.id,
+    });
+    expect(created.status).toBe(201);
+    const task = body<TaskBody>(created);
+
+    // The assigner (creator), not the assignee, uploads the file.
+    const fileIntent = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/files/upload-intents`,
+    ).send({
+      filename: "brief.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 29,
+    });
+    expect(fileIntent.status).toBe(201);
+    const intentBody = body<{
+      id: string;
+      upload: { fields: Record<string, string> };
+    }>(fileIntent);
+    const intentId = intentBody.id;
+    const storageKey = intentBody.upload.fields.key;
+    if (!storageKey) throw new Error("task upload intent omitted its key");
+    const bytes = Buffer.from("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n");
+    storage.objects.set(storageKey, {
+      bytes,
+      mediaType: "application/pdf",
+      sizeBytes: bytes.byteLength,
+    });
+
+    const finalized = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/files/${intentId}/finalize`,
+    );
+    expect(finalized.status).toBe(200);
+    expect(body<{ id: string; state: string }>(finalized)).toMatchObject({
+      id: intentId,
+      state: "available",
+    });
+
+    // The assigner can see and download their own upload.
+    const assignerList = await as(
+      departmentManager,
+      "get",
+      `/api/v1/tasks/${task.id}/files`,
+    );
+    expect(assignerList.status).toBe(200);
+    expect(
+      body<{ items: Array<{ id: string }>; total: number }>(assignerList),
+    ).toMatchObject({ items: [expect.objectContaining({ id: intentId })], total: 1 });
+    const assignerDownload = await as(
+      departmentManager,
+      "get",
+      `/api/v1/tasks/${task.id}/files/${intentId}/download`,
+    );
+    expect(assignerDownload.status).toBe(200);
+    expect(body<{ url: string }>(assignerDownload).url).toBeTruthy();
+
+    // The assignee can also see and download what the assigner uploaded.
+    const assigneeList = await as(
+      member,
+      "get",
+      `/api/v1/tasks/${task.id}/files`,
+    );
+    expect(assigneeList.status).toBe(200);
+    expect(
+      body<{ items: Array<{ id: string }>; total: number }>(assigneeList),
+    ).toMatchObject({ items: [expect.objectContaining({ id: intentId })], total: 1 });
+    const assigneeDownload = await as(
+      member,
+      "get",
+      `/api/v1/tasks/${task.id}/files/${intentId}/download`,
+    );
+    expect(assigneeDownload.status).toBe(200);
+    expect(body<{ url: string }>(assigneeDownload).url).toBeTruthy();
+  });
+
+  it("rejects a checklist reorder whose id list does not match the task's current items", async () => {
+    const created = await as(departmentManager, "post", "/api/v1/tasks").send({
+      title: "Reorder mismatch",
+      departmentId,
+    });
+    expect(created.status).toBe(201);
+    const task = body<TaskBody>(created);
+
+    const added = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/checklist-items`,
+    ).send({ description: "Confirm venue permits" });
+    expect(added.status).toBe(201);
+
+    const mismatch = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${task.id}/checklist-items/reorder`,
+    ).send({ orderedItemIds: [randomUUID()] });
+    expect(mismatch.status).toBe(400);
+    expect(body<{ code: string }>(mismatch).code).toBe(
+      "TASK_CHECKLIST_REORDER_MISMATCH",
+    );
+  });
+
+  it("aggregates a parent's progress from its subtasks rather than its own checklist", async () => {
+    const parentResponse = await as(
+      departmentManager,
+      "post",
+      "/api/v1/tasks",
+    ).send({
+      title: "Campaign rollout",
+      departmentId,
+      assigneeId: departmentManager.id,
+    });
+    expect(parentResponse.status).toBe(201);
+    const parent = body<TaskBody>(parentResponse);
+
+    // The parent's own checklist is fully complete, but once it has
+    // subtasks the aggregation rule must prefer their progress instead.
+    const ownItem = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${parent.id}/checklist-items`,
+    ).send({ description: "Kick off planning" });
+    expect(ownItem.status).toBe(201);
+    const ownItemId = body<TaskChecklistItemBody>(ownItem).id;
+    await as(
+      departmentManager,
+      "patch",
+      `/api/v1/tasks/${parent.id}/checklist-items/${ownItemId}/completion`,
+    ).send({ completed: true });
+
+    const fullyChecked = await as(
+      departmentManager,
+      "get",
+      `/api/v1/tasks/${parent.id}`,
+    );
+    expect(body<TaskBody>(fullyChecked).progress).toBe(100);
+
+    const subtaskResponse = await as(
+      departmentManager,
+      "post",
+      "/api/v1/tasks",
+    ).send({
+      title: "Draft the social copy",
+      parentTaskId: parent.id,
+      // The subtask's own checklist toggle below needs an actual assignee
+      // now that SELF-scope for task.update_progress means "I am the
+      // assignee," not "I created this" - the Manager both created and
+      // is assigned here, matching the real self-report workflow.
+      assigneeId: departmentManager.id,
+    });
+    expect(subtaskResponse.status).toBe(201);
+    const subtask = body<TaskBody>(subtaskResponse);
+
+    // A brand-new subtask with no checklist of its own is untracked, which
+    // now overrides the parent's own (otherwise 100%) checklist.
+    const afterSubtask = await as(
+      departmentManager,
+      "get",
+      `/api/v1/tasks/${parent.id}`,
+    );
+    expect(body<TaskBody>(afterSubtask).progress).toBeNull();
+
+    const subtaskItem = await as(
+      departmentManager,
+      "post",
+      `/api/v1/tasks/${subtask.id}/checklist-items`,
+    ).send({ description: "Write the copy" });
+    expect(subtaskItem.status).toBe(201);
+    const subtaskItemId = body<TaskChecklistItemBody>(subtaskItem).id;
+
+    const subtaskToggled = await as(
+      departmentManager,
+      "patch",
+      `/api/v1/tasks/${subtask.id}/checklist-items/${subtaskItemId}/completion`,
+    ).send({ completed: true });
+    expect(subtaskToggled.status).toBe(200);
+    expect(body<TaskBody>(subtaskToggled).progress).toBe(100);
+
+    const parentAfterSubtaskComplete = await as(
+      departmentManager,
+      "get",
+      `/api/v1/tasks/${parent.id}`,
+    );
+    expect(body<TaskBody>(parentAfterSubtaskComplete).progress).toBe(100);
   });
 });

@@ -17,15 +17,17 @@ function makeTask(overrides: Partial<TaskRecord> = {}): TaskRecord {
     id: "task-1",
     workspaceId: null,
     departmentId: "department-1",
+    parentTaskId: null,
     title: "Permits",
     description: null,
     priority: "MEDIUM",
     type: "GENERAL",
     status: TaskStatus.TODO,
-    progress: 0,
+    progress: null,
     startAt: null,
     dueAt: null,
     assignees: [],
+    checklistItems: [],
     createdBy: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
@@ -63,6 +65,7 @@ describe("TasksService", () => {
       list: vi.fn().mockResolvedValue({ items: [], total: 0 }),
       findById: vi.fn().mockResolvedValue(makeTask()),
       findVisibleById: vi.fn().mockResolvedValue(makeTask()),
+      getSubtaskSummary: vi.fn().mockResolvedValue(null),
       workspaceExists: vi.fn().mockResolvedValue(true),
       departmentExists: vi.fn().mockResolvedValue(true),
       create: vi.fn().mockResolvedValue(makeTask()),
@@ -74,11 +77,45 @@ describe("TasksService", () => {
         .mockImplementation((_id: string, _from: TaskStatus, to: TaskStatus) =>
           Promise.resolve(makeTask({ status: to })),
         ),
-      setProgress: vi
-        .fn()
-        .mockImplementation((_id: string, _from: number, to: number) =>
-          Promise.resolve(makeTask({ progress: to })),
-        ),
+      listChecklistItems: vi.fn().mockResolvedValue([]),
+      createChecklistItem: vi.fn().mockResolvedValue({
+        id: "item-1",
+        taskId: "task-1",
+        description: "Confirm venue permits",
+        completed: false,
+        position: 0,
+        completedBy: null,
+        completedAt: null,
+        createdBy: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      }),
+      updateChecklistItem: vi.fn().mockResolvedValue({
+        id: "item-1",
+        taskId: "task-1",
+        description: "Updated",
+        completed: false,
+        position: 0,
+        completedBy: null,
+        completedAt: null,
+        createdBy: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      }),
+      removeChecklistItem: vi.fn().mockResolvedValue("removed"),
+      reorderChecklistItems: vi.fn().mockResolvedValue([]),
+      setChecklistItemCompletion: vi.fn().mockResolvedValue({
+        id: "item-1",
+        taskId: "task-1",
+        description: "Confirm venue permits",
+        completed: true,
+        position: 0,
+        completedBy: null,
+        completedAt: new Date("2026-01-01T00:00:00.000Z"),
+        createdBy: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      }),
       review: vi.fn().mockResolvedValue({
         task: makeTask({ status: TaskStatus.COMPLETED }),
         review: {},
@@ -241,6 +278,38 @@ describe("TasksService", () => {
     );
   });
 
+  it("forbids an assignee from reviewing their own submitted task", async () => {
+    // A Department Manager assigned their own task by Super Admin now holds
+    // `task.review` (their own department) alongside the new self-report
+    // grants - without this guard they could approve their own submission
+    // instead of it genuinely reaching Super Admin.
+    grantOnly(["task.review", "DEPARTMENT"]);
+    repository.findVisibleById!.mockResolvedValue(
+      makeTask({
+        status: TaskStatus.UNDER_REVIEW,
+        assignees: [
+          {
+            id: ACTOR,
+            email: "actor@example.com",
+            firstName: null,
+            lastName: null,
+            assignedAt: new Date(),
+          },
+        ],
+      }),
+    );
+    await expectCode(
+      service.review(
+        ACTOR,
+        "task-1",
+        { outcome: TaskReviewOutcome.APPROVED },
+        "request-1",
+      ),
+      "PERMISSION_DENIED",
+    );
+    expect(repository.review).not.toHaveBeenCalled();
+  });
+
   it("rejects an invalid create schedule before persistence", async () => {
     grantOnly(["task.create", "ORGANIZATION"]);
     await expectCode(
@@ -380,8 +449,8 @@ describe("TasksService", () => {
     );
   });
 
-  it("maps concurrent progress and status writes to stable conflicts", async () => {
-    grantOnly(["task.update_status", "SELF"], ["task.update_progress", "SELF"]);
+  it("maps concurrent status writes to a stable conflict", async () => {
+    grantOnly(["task.update_status", "SELF"]);
     repository.findVisibleById!.mockResolvedValue(
       makeTask({
         createdBy: {
@@ -397,11 +466,124 @@ describe("TasksService", () => {
       service.transition(ACTOR, "task-1", TaskStatus.IN_PROGRESS),
       "TASK_CONCURRENT_CHANGE",
     );
+  });
 
-    repository.setProgress!.mockResolvedValue("concurrent");
+  it("requires task.update to add a checklist item", async () => {
+    grantOnly(["task.read", "SELF"]);
+    repository.findVisibleById!.mockResolvedValue(null);
     await expectCode(
-      service.updateProgress(ACTOR, "task-1", 50),
+      service.addChecklistItem(ACTOR, "task-1", {
+        description: "Confirm venue permits",
+      }),
+      "PERMISSION_DENIED",
+    );
+    expect(repository.createChecklistItem).not.toHaveBeenCalled();
+
+    grantOnly(["task.update", "SELF"]);
+    repository.findVisibleById!.mockResolvedValue(
+      makeTask({
+        assignees: [
+          {
+            id: ACTOR,
+            email: "actor@example.com",
+            firstName: null,
+            lastName: null,
+            assignedAt: new Date(),
+          },
+        ],
+      }),
+    );
+    await service.addChecklistItem(ACTOR, "task-1", {
+      description: "Confirm venue permits",
+    });
+    expect(repository.createChecklistItem).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task-1",
+        description: "Confirm venue permits",
+        actorId: ACTOR,
+      }),
+    );
+  });
+
+  it("toggles a checklist item under task.update_progress and maps concurrent/not-found outcomes", async () => {
+    grantOnly(["task.update_progress", "SELF"]);
+    repository.findVisibleById!.mockResolvedValue(
+      makeTask({
+        assignees: [
+          {
+            id: ACTOR,
+            email: "actor@example.com",
+            firstName: null,
+            lastName: null,
+            assignedAt: new Date(),
+          },
+        ],
+      }),
+    );
+
+    repository.setChecklistItemCompletion!.mockResolvedValue("concurrent");
+    await expectCode(
+      service.toggleChecklistItem(ACTOR, "task-1", "item-1", true),
       "TASK_CONCURRENT_CHANGE",
+    );
+
+    repository.setChecklistItemCompletion!.mockResolvedValue("not_found");
+    await expectCode(
+      service.toggleChecklistItem(ACTOR, "task-1", "missing-item", true),
+      "TASK_CHECKLIST_ITEM_NOT_FOUND",
+    );
+  });
+
+  it("rejects a reorder list that does not exactly match the task's current items", async () => {
+    grantOnly(["task.update", "SELF"]);
+    repository.findVisibleById!.mockResolvedValue(
+      makeTask({
+        createdBy: {
+          id: ACTOR,
+          email: "actor@example.com",
+          firstName: null,
+          lastName: null,
+        },
+      }),
+    );
+    repository.reorderChecklistItems!.mockResolvedValue("mismatch");
+    await expectCode(
+      service.reorderChecklistItems(ACTOR, "task-1", {
+        orderedItemIds: ["item-1"],
+      }),
+      "TASK_CHECKLIST_REORDER_MISMATCH",
+    );
+  });
+
+  it("maps a repository ownership denial to TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED for both edit and remove", async () => {
+    grantOnly(["task.update", "DEPARTMENT"]);
+    repository.findVisibleById!.mockResolvedValue(makeTask());
+    repository.updateChecklistItem!.mockResolvedValue("ownership_denied");
+    await expectCode(
+      service.updateChecklistItem(ACTOR, "task-1", "item-1", {
+        description: "Rewritten",
+      }),
+      "TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED",
+    );
+    expect(repository.updateChecklistItem).toHaveBeenCalledWith(
+      expect.objectContaining({ actorIsOrganizationScoped: false }),
+    );
+
+    repository.removeChecklistItem!.mockResolvedValue("ownership_denied");
+    await expectCode(
+      service.removeChecklistItem(ACTOR, "task-1", "item-1"),
+      "TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED",
+    );
+  });
+
+  it("passes organization scope through to the repository's legacy-item fallback check", async () => {
+    grantOnly(["task.update", "ORGANIZATION"]);
+    repository.findVisibleById!.mockResolvedValue(makeTask());
+    await service.updateChecklistItem(ACTOR, "task-1", "item-1", {
+      description: "Edited",
+    });
+    expect(repository.updateChecklistItem).toHaveBeenCalledWith(
+      expect.objectContaining({ actorIsOrganizationScoped: true }),
     );
   });
 
@@ -509,6 +691,88 @@ describe("TasksService", () => {
       ACTOR,
       expect.anything(),
       "request-4",
+    );
+  });
+
+  it("lets a Department Manager who is the parent's own assignee create a subordinate task, inheriting its department", async () => {
+    grantOnly(["task.create", "DEPARTMENT"], ["task.read", "DEPARTMENT"]);
+    repository.findById!.mockResolvedValueOnce(
+      makeTask({
+        id: "parent-1",
+        departmentId: "department-1",
+        assignees: [
+          {
+            id: ACTOR,
+            email: "manager@example.com",
+            firstName: null,
+            lastName: null,
+            assignedAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+        ],
+      }),
+    );
+    await service.create(
+      ACTOR,
+      {
+        title: "Draft the social copy",
+        parentTaskId: "parent-1",
+        // A client-supplied department must never override the parent's own.
+        departmentId: "some-other-department",
+      },
+      "request-6",
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentTaskId: "parent-1",
+        departmentId: "department-1",
+      }),
+    );
+  });
+
+  it("rejects a peer Department Manager who is not the parent's own assignee from creating a subordinate task", async () => {
+    grantOnly(["task.create", "DEPARTMENT"], ["task.read", "DEPARTMENT"]);
+    repository.findById!.mockResolvedValueOnce(
+      makeTask({
+        id: "parent-1",
+        departmentId: "department-1",
+        assignees: [
+          {
+            id: "a-different-manager",
+            email: "other-manager@example.com",
+            firstName: null,
+            lastName: null,
+            assignedAt: new Date("2026-01-01T00:00:00.000Z"),
+          },
+        ],
+      }),
+    );
+    await expectCode(
+      service.create(
+        ACTOR,
+        { title: "Draft the social copy", parentTaskId: "parent-1" },
+        "request-7",
+      ),
+      "PERMISSION_DENIED",
+    );
+    expect(repository.create).not.toHaveBeenCalled();
+  });
+
+  it("lets an organization-scoped caller create a subordinate task under any parent regardless of its assignees", async () => {
+    grantOnly(["task.create", "ORGANIZATION"], ["task.read", "ORGANIZATION"]);
+    repository.findById!.mockResolvedValueOnce(
+      makeTask({
+        id: "parent-1",
+        departmentId: "department-1",
+        assignees: [],
+      }),
+    );
+    await service.create(
+      ACTOR,
+      { title: "Super Admin follow-up", parentTaskId: "parent-1" },
+      "request-8",
+    );
+    expect(repository.create).toHaveBeenCalledWith(
+      expect.objectContaining({ parentTaskId: "parent-1" }),
     );
   });
 

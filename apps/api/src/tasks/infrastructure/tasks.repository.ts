@@ -16,6 +16,7 @@ import { DatabaseService } from "../../database/database.service.js";
 import { AuditWriterService } from "../../audit/audit-writer.service.js";
 import type { SupportedAuditAction } from "../../audit/audit.types.js";
 import { OutboxWriterService } from "../../outbox/outbox-writer.service.js";
+import { computeTaskProgress } from "../tasks-progress.domain.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,19 +36,34 @@ export interface TaskAssigneeRecord extends TaskPersonRecord {
   assignedAt: Date;
 }
 
+export interface TaskChecklistItemRecord {
+  id: string;
+  taskId: string;
+  description: string;
+  completed: boolean;
+  position: number;
+  completedBy: TaskPersonRecord | null;
+  completedAt: Date | null;
+  createdBy: TaskPersonRecord | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface TaskRecord {
   id: string;
   workspaceId: string | null;
   departmentId: string | null;
+  parentTaskId: string | null;
   title: string;
   description: string | null;
   priority: TaskPriority;
   type: TaskType;
   status: TaskStatus;
-  progress: number;
+  progress: number | null;
   startAt: Date | null;
   dueAt: Date | null;
   assignees: TaskAssigneeRecord[];
+  checklistItems: TaskChecklistItemRecord[];
   createdBy: TaskPersonRecord | null;
   createdAt: Date;
   updatedAt: Date;
@@ -57,6 +73,12 @@ export interface TaskVisibility {
   organization: boolean;
   departmentId?: string;
   selfUserId?: string;
+  /** When true, SELF-scope visibility requires the actor to be an
+   * assignee specifically - not merely the task's creator. Used for the
+   * assignee-only self-report actions (status transition, checklist
+   * toggle, submit) so a Department Manager who only created and
+   * assigned a task cannot also act as if they were its assignee. */
+  selfAssigneeOnly?: boolean;
 }
 
 type MutationAccess = "visible" | "forbidden" | "not_found";
@@ -68,6 +90,8 @@ export interface ListTasksInput {
   workspaceId?: string;
   departmentId?: string;
   assigneeId?: string;
+  createdById?: string;
+  parentTaskId?: string;
   search?: string;
   scheduledFrom?: Date;
   scheduledTo?: Date;
@@ -80,6 +104,7 @@ export interface ListTasksInput {
 export interface CreateTaskInput {
   workspaceId?: string;
   departmentId?: string;
+  parentTaskId?: string;
   title: string;
   description?: string;
   priority?: TaskPriority;
@@ -87,6 +112,13 @@ export interface CreateTaskInput {
   startAt?: Date;
   dueAt?: Date;
   createdById: string;
+}
+
+export interface TaskSubtaskSummary {
+  total: number;
+  completed: number;
+  overdue: number;
+  remaining: number;
 }
 
 export interface UpdateTaskFields {
@@ -130,10 +162,24 @@ const PERSON_SELECT = {
   lastName: true,
 } as const;
 
+const CHECKLIST_SELECT = {
+  id: true,
+  taskId: true,
+  description: true,
+  completed: true,
+  position: true,
+  completedBy: { select: PERSON_SELECT },
+  completedAt: true,
+  createdBy: { select: PERSON_SELECT },
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
 const TASK_SELECT = {
   id: true,
   workspaceId: true,
   departmentId: true,
+  parentTaskId: true,
   title: true,
   description: true,
   priority: true,
@@ -144,6 +190,10 @@ const TASK_SELECT = {
   dueAt: true,
   assignments: {
     select: { assignedAt: true, user: { select: PERSON_SELECT } },
+  },
+  checklistItems: {
+    select: CHECKLIST_SELECT,
+    orderBy: { position: "asc" },
   },
   createdBy: { select: PERSON_SELECT },
   createdAt: true,
@@ -176,6 +226,9 @@ const ACTIVITY_SELECT = {
 } as const;
 
 type RawTask = Prisma.TaskGetPayload<{ select: typeof TASK_SELECT }>;
+type RawChecklistItem = Prisma.TaskChecklistItemGetPayload<{
+  select: typeof CHECKLIST_SELECT;
+}>;
 type RawComment = Prisma.TaskCommentGetPayload<{
   select: typeof COMMENT_SELECT;
 }>;
@@ -192,11 +245,27 @@ function byPerson(a: TaskPersonRecord, b: TaskPersonRecord): number {
   );
 }
 
+function toChecklistItemRecord(raw: RawChecklistItem): TaskChecklistItemRecord {
+  return {
+    id: raw.id,
+    taskId: raw.taskId,
+    description: raw.description,
+    completed: raw.completed,
+    position: raw.position,
+    completedBy: raw.completedBy,
+    completedAt: raw.completedAt,
+    createdBy: raw.createdBy,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
+}
+
 function toTaskRecord(raw: RawTask): TaskRecord {
   return {
     id: raw.id,
     workspaceId: raw.workspaceId,
     departmentId: raw.departmentId,
+    parentTaskId: raw.parentTaskId,
     title: raw.title,
     description: raw.description,
     priority: raw.priority,
@@ -211,6 +280,7 @@ function toTaskRecord(raw: RawTask): TaskRecord {
         assignedAt: assignment.assignedAt,
       }))
       .sort(byPerson),
+    checklistItems: raw.checklistItems.map(toChecklistItemRecord),
     createdBy: raw.createdBy,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
@@ -261,10 +331,12 @@ function visibleWhere(visibility: TaskVisibility): Prisma.TaskWhereInput {
     alternatives.push({ departmentId: visibility.departmentId });
   }
   if (visibility.selfUserId) {
-    alternatives.push(
-      { assignments: { some: { userId: visibility.selfUserId } } },
-      { createdById: visibility.selfUserId },
-    );
+    alternatives.push({
+      assignments: { some: { userId: visibility.selfUserId } },
+    });
+    if (!visibility.selfAssigneeOnly) {
+      alternatives.push({ createdById: visibility.selfUserId });
+    }
   }
   return alternatives.length ? { OR: alternatives } : { id: { in: [] } };
 }
@@ -347,9 +419,11 @@ export class TasksRepository {
       ...(input.priority ? { priority: input.priority } : {}),
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
       ...(input.departmentId ? { departmentId: input.departmentId } : {}),
+      ...(input.parentTaskId ? { parentTaskId: input.parentTaskId } : {}),
       ...(input.assigneeId
         ? { assignments: { some: { userId: input.assigneeId } } }
         : {}),
+      ...(input.createdById ? { createdById: input.createdById } : {}),
       ...(input.search
         ? {
             OR: [
@@ -387,6 +461,27 @@ export class TasksRepository {
     return task ? toTaskRecord(task) : null;
   }
 
+  /** For a parent task's detail view: are its subordinate tasks on track?
+   * Never auto-transitions the parent itself - purely informational. */
+  async getSubtaskSummary(taskId: string): Promise<TaskSubtaskSummary | null> {
+    if (!isUuid(taskId)) return null;
+    const [total, completed, overdue] = await Promise.all([
+      this.db.task.count({ where: { parentTaskId: taskId } }),
+      this.db.task.count({
+        where: { parentTaskId: taskId, status: TaskStatus.COMPLETED },
+      }),
+      this.db.task.count({
+        where: {
+          parentTaskId: taskId,
+          dueAt: { lt: new Date() },
+          status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
+        },
+      }),
+    ]);
+    if (total === 0) return null;
+    return { total, completed, overdue, remaining: total - completed };
+  }
+
   async findVisibleById(
     id: string,
     visibility: TaskVisibility,
@@ -413,6 +508,22 @@ export class TasksRepository {
       where: { AND: [{ id: taskId }, visibleWhere(visibility)] },
     });
     return visible === 1 ? "visible" : "forbidden";
+  }
+
+  /** Only a checklist item's own creator may edit or remove it - holding
+   * `task.update` grants the right to add items and toggle/reorder the
+   * list, not to rewrite or discard someone else's checkpoint. An item
+   * with no recorded creator (legacy data, or its creator's account was
+   * since deleted) falls back to organization-scoped actors only, never
+   * to a department-scoped Manager by default. */
+  private ownsChecklistItem(
+    item: { createdById: string | null },
+    actorId: string,
+    actorIsOrganizationScoped: boolean,
+  ): boolean {
+    if (item.createdById === actorId) return true;
+    if (item.createdById === null) return actorIsOrganizationScoped;
+    return false;
   }
 
   async workspaceExists(id: string): Promise<boolean> {
@@ -445,6 +556,7 @@ export class TasksRepository {
           createdById: input.createdById,
           ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
           ...(input.departmentId ? { departmentId: input.departmentId } : {}),
+          ...(input.parentTaskId ? { parentTaskId: input.parentTaskId } : {}),
           ...(input.description !== undefined
             ? { description: input.description }
             : {}),
@@ -466,6 +578,16 @@ export class TasksRepository {
           }),
         },
       });
+      if (input.parentTaskId) {
+        // The parent just gained a new child, which can change its own
+        // aggregated progress (decision #5) even though the parent itself
+        // was not directly edited.
+        await this.recomputeProgressCascade(
+          tx,
+          input.parentTaskId,
+          input.createdById,
+        );
+      }
       return toTaskRecord(task);
     });
   }
@@ -552,38 +674,354 @@ export class TasksRepository {
     });
   }
 
-  async setProgress(
-    id: string,
-    expected: number,
-    progress: number,
+  /** Recomputes and persists `progress` for exactly one task from its
+   * current checklist/children state, inside the caller's open
+   * transaction. Returns the new value so callers can decide whether to
+   * also write a PROGRESS_UPDATED activity row (only when it changed). */
+  private async recomputeAndPersistProgress(
+    tx: Prisma.TransactionClient,
+    taskId: string,
+  ): Promise<{ from: number | null; to: number | null }> {
+    const [checklistItems, children, current] = await Promise.all([
+      tx.taskChecklistItem.findMany({
+        where: { taskId },
+        select: { completed: true },
+      }),
+      tx.task.findMany({
+        where: { parentTaskId: taskId },
+        select: { progress: true },
+      }),
+      tx.task.findUnique({
+        where: { id: taskId },
+        select: { progress: true },
+      }),
+    ]);
+    const to = computeTaskProgress({
+      checklistItems,
+      directChildren: children,
+    });
+    const from = current?.progress ?? null;
+    if (from !== to) {
+      await tx.task.update({ where: { id: taskId }, data: { progress: to } });
+    }
+    return { from, to };
+  }
+
+  /** Recomputes `taskId` itself, then (one level only) its immediate
+   * parent if one exists, writing a PROGRESS_UPDATED activity row for
+   * whichever of the two actually changed. Never touches `status`. */
+  private async recomputeProgressCascade(
+    tx: Prisma.TransactionClient,
+    taskId: string,
     actorId: string,
-    visibility: TaskVisibility,
-  ): Promise<TaskRecord | "concurrent" | "forbidden" | null> {
-    if (!isUuid(id)) return null;
-    return this.db.$transaction(async (tx) => {
-      const access = await this.lockMutationAccess(tx, id, visibility);
-      if (access === "not_found") return null;
-      if (access === "forbidden") return "forbidden";
-      const changed = await tx.task.updateMany({
-        where: { id, progress: expected },
-        data: { progress },
+  ): Promise<void> {
+    const { from, to } = await this.recomputeAndPersistProgress(tx, taskId);
+    if (from !== to) {
+      await tx.taskActivity.create({
+        data: {
+          taskId,
+          actorId,
+          type: TaskActivityType.PROGRESS_UPDATED,
+          details: json({ from, to }),
+        },
       });
-      if (changed.count !== 1) return "concurrent";
-      if (expected !== progress) {
+    }
+    const self = await tx.task.findUnique({
+      where: { id: taskId },
+      select: { parentTaskId: true },
+    });
+    if (self?.parentTaskId) {
+      const parentChange = await this.recomputeAndPersistProgress(
+        tx,
+        self.parentTaskId,
+      );
+      if (parentChange.from !== parentChange.to) {
         await tx.taskActivity.create({
           data: {
-            taskId: id,
+            taskId: self.parentTaskId,
             actorId,
             type: TaskActivityType.PROGRESS_UPDATED,
-            details: json({ from: expected, to: progress }),
+            details: json({
+              from: parentChange.from,
+              to: parentChange.to,
+            }),
           },
         });
       }
-      const task = await tx.task.findUnique({
-        where: { id },
-        select: TASK_SELECT,
+    }
+  }
+
+  async listChecklistItems(taskId: string): Promise<TaskChecklistItemRecord[]> {
+    if (!isUuid(taskId)) return [];
+    const items = await this.db.taskChecklistItem.findMany({
+      where: { taskId },
+      select: CHECKLIST_SELECT,
+      orderBy: { position: "asc" },
+    });
+    return items.map(toChecklistItemRecord);
+  }
+
+  async createChecklistItem(input: {
+    taskId: string;
+    description: string;
+    actorId: string;
+    visibility: TaskVisibility;
+  }): Promise<TaskChecklistItemRecord | "forbidden" | null> {
+    if (!isUuid(input.taskId)) return null;
+    return this.db.$transaction(async (tx) => {
+      const access = await this.lockMutationAccess(
+        tx,
+        input.taskId,
+        input.visibility,
+      );
+      if (access === "not_found") return null;
+      if (access === "forbidden") return "forbidden";
+      const last = await tx.taskChecklistItem.findFirst({
+        where: { taskId: input.taskId },
+        orderBy: { position: "desc" },
+        select: { position: true },
       });
-      return task ? toTaskRecord(task) : null;
+      const item = await tx.taskChecklistItem.create({
+        data: {
+          taskId: input.taskId,
+          description: input.description,
+          position: (last?.position ?? -1) + 1,
+          createdById: input.actorId,
+        },
+        select: CHECKLIST_SELECT,
+      });
+      await tx.taskActivity.create({
+        data: {
+          taskId: input.taskId,
+          actorId: input.actorId,
+          type: TaskActivityType.CHECKLIST_ITEM_ADDED,
+          details: json({ itemId: item.id, description: item.description }),
+        },
+      });
+      await this.recomputeProgressCascade(tx, input.taskId, input.actorId);
+      return toChecklistItemRecord(item);
+    });
+  }
+
+  async updateChecklistItem(input: {
+    taskId: string;
+    itemId: string;
+    description: string;
+    actorId: string;
+    visibility: TaskVisibility;
+    /** Resolves the legacy/unattributed-item fallback: an item with no
+     * recorded creator (created before ownership was tracked, or whose
+     * creator account was deleted) is only editable/removable by an
+     * organization-scoped actor - never automatically opened up to a
+     * department-scoped Manager just because attribution is missing. */
+    actorIsOrganizationScoped: boolean;
+  }): Promise<
+    | TaskChecklistItemRecord
+    | "forbidden"
+    | "not_found"
+    | "ownership_denied"
+    | null
+  > {
+    if (!isUuid(input.taskId) || !isUuid(input.itemId)) return "not_found";
+    return this.db.$transaction(async (tx) => {
+      const access = await this.lockMutationAccess(
+        tx,
+        input.taskId,
+        input.visibility,
+      );
+      if (access === "not_found") return null;
+      if (access === "forbidden") return "forbidden";
+      const existing = await tx.taskChecklistItem.findFirst({
+        where: { id: input.itemId, taskId: input.taskId },
+        select: { createdById: true },
+      });
+      if (!existing) return "not_found";
+      if (
+        !this.ownsChecklistItem(
+          existing,
+          input.actorId,
+          input.actorIsOrganizationScoped,
+        )
+      ) {
+        return "ownership_denied";
+      }
+      const changed = await tx.taskChecklistItem.updateMany({
+        where: { id: input.itemId, taskId: input.taskId },
+        data: { description: input.description },
+      });
+      if (changed.count !== 1) return "not_found";
+      await tx.taskActivity.create({
+        data: {
+          taskId: input.taskId,
+          actorId: input.actorId,
+          type: TaskActivityType.CHECKLIST_ITEM_UPDATED,
+          details: json({
+            itemId: input.itemId,
+            description: input.description,
+          }),
+        },
+      });
+      const item = await tx.taskChecklistItem.findUnique({
+        where: { id: input.itemId },
+        select: CHECKLIST_SELECT,
+      });
+      return item ? toChecklistItemRecord(item) : null;
+    });
+  }
+
+  async removeChecklistItem(input: {
+    taskId: string;
+    itemId: string;
+    actorId: string;
+    visibility: TaskVisibility;
+    actorIsOrganizationScoped: boolean;
+  }): Promise<
+    "removed" | "forbidden" | "not_found" | "ownership_denied" | null
+  > {
+    if (!isUuid(input.taskId) || !isUuid(input.itemId)) return "not_found";
+    return this.db.$transaction(async (tx) => {
+      const access = await this.lockMutationAccess(
+        tx,
+        input.taskId,
+        input.visibility,
+      );
+      if (access === "not_found") return null;
+      if (access === "forbidden") return "forbidden";
+      const existing = await tx.taskChecklistItem.findFirst({
+        where: { id: input.itemId, taskId: input.taskId },
+        select: { createdById: true },
+      });
+      if (!existing) return "not_found";
+      if (
+        !this.ownsChecklistItem(
+          existing,
+          input.actorId,
+          input.actorIsOrganizationScoped,
+        )
+      ) {
+        return "ownership_denied";
+      }
+      const removed = await tx.taskChecklistItem.deleteMany({
+        where: { id: input.itemId, taskId: input.taskId },
+      });
+      if (removed.count !== 1) return "not_found";
+      await tx.taskActivity.create({
+        data: {
+          taskId: input.taskId,
+          actorId: input.actorId,
+          type: TaskActivityType.CHECKLIST_ITEM_REMOVED,
+          details: json({ itemId: input.itemId }),
+        },
+      });
+      await this.recomputeProgressCascade(tx, input.taskId, input.actorId);
+      return "removed";
+    });
+  }
+
+  async reorderChecklistItems(input: {
+    taskId: string;
+    orderedItemIds: string[];
+    actorId: string;
+    visibility: TaskVisibility;
+  }): Promise<TaskChecklistItemRecord[] | "forbidden" | "mismatch" | null> {
+    if (!isUuid(input.taskId)) return null;
+    return this.db.$transaction(async (tx) => {
+      const access = await this.lockMutationAccess(
+        tx,
+        input.taskId,
+        input.visibility,
+      );
+      if (access === "not_found") return null;
+      if (access === "forbidden") return "forbidden";
+      const current = await tx.taskChecklistItem.findMany({
+        where: { taskId: input.taskId },
+        select: { id: true },
+      });
+      const currentIds = new Set(current.map((item) => item.id));
+      const requestedIds = new Set(input.orderedItemIds);
+      if (
+        currentIds.size !== requestedIds.size ||
+        [...currentIds].some((id) => !requestedIds.has(id))
+      ) {
+        return "mismatch";
+      }
+      await Promise.all(
+        input.orderedItemIds.map((id, index) =>
+          tx.taskChecklistItem.updateMany({
+            where: { id, taskId: input.taskId },
+            data: { position: index },
+          }),
+        ),
+      );
+      await tx.taskActivity.create({
+        data: {
+          taskId: input.taskId,
+          actorId: input.actorId,
+          type: TaskActivityType.CHECKLIST_ITEM_REORDERED,
+          details: json({ orderedItemIds: input.orderedItemIds }),
+        },
+      });
+      const items = await tx.taskChecklistItem.findMany({
+        where: { taskId: input.taskId },
+        select: CHECKLIST_SELECT,
+        orderBy: { position: "asc" },
+      });
+      return items.map(toChecklistItemRecord);
+    });
+  }
+
+  async setChecklistItemCompletion(input: {
+    taskId: string;
+    itemId: string;
+    completed: boolean;
+    actorId: string;
+    visibility: TaskVisibility;
+  }): Promise<
+    TaskChecklistItemRecord | "forbidden" | "not_found" | "concurrent" | null
+  > {
+    if (!isUuid(input.taskId) || !isUuid(input.itemId)) return "not_found";
+    return this.db.$transaction(async (tx) => {
+      const access = await this.lockMutationAccess(
+        tx,
+        input.taskId,
+        input.visibility,
+      );
+      if (access === "not_found") return null;
+      if (access === "forbidden") return "forbidden";
+      const existing = await tx.taskChecklistItem.findFirst({
+        where: { id: input.itemId, taskId: input.taskId },
+        select: { completed: true },
+      });
+      if (!existing) return "not_found";
+      const changed = await tx.taskChecklistItem.updateMany({
+        where: {
+          id: input.itemId,
+          taskId: input.taskId,
+          completed: existing.completed,
+        },
+        data: {
+          completed: input.completed,
+          completedById: input.completed ? input.actorId : null,
+          completedAt: input.completed ? new Date() : null,
+        },
+      });
+      if (changed.count !== 1) return "concurrent";
+      await tx.taskActivity.create({
+        data: {
+          taskId: input.taskId,
+          actorId: input.actorId,
+          type: input.completed
+            ? TaskActivityType.CHECKLIST_ITEM_COMPLETED
+            : TaskActivityType.CHECKLIST_ITEM_REOPENED,
+          details: json({ itemId: input.itemId }),
+        },
+      });
+      await this.recomputeProgressCascade(tx, input.taskId, input.actorId);
+      const item = await tx.taskChecklistItem.findUnique({
+        where: { id: input.itemId },
+        select: CHECKLIST_SELECT,
+      });
+      return item ? toChecklistItemRecord(item) : null;
     });
   }
 

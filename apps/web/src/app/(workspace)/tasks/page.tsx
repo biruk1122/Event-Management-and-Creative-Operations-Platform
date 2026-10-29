@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { TasksScreen } from "@/features/tasks";
@@ -20,11 +19,8 @@ export default async function TasksPage() {
   );
 
   return (
-    <main className="@container mx-auto max-w-352 px-5 py-8 sm:px-8">
-      <Link href="/" className="text-sm underline underline-offset-4">
-        Back to home
-      </Link>
-      <div className="mt-6">
+    <main className="@container mx-auto max-w-352 px-5 py-5 sm:px-8">
+      <div>
         {allowed ? (
           <TasksScreen />
         ) : (
