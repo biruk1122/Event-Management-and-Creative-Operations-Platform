@@ -1,15 +1,316 @@
-.surface [data-entry-item] {
-  border-left: 3px solid var(--primary);
+.surface {
+  min-width: 0;
+}
+.pageHeader,
+.pageHeading {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.pageHeader {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 0.5rem 0 1rem;
+}
+.pageHeading {
+  min-width: 0;
+}
+.pageHeading h1 {
+  font-size: 1.75rem;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+.pageHeading p {
+  margin-top: 0.4rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+.headerIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  background: var(--accent);
+  color: var(--primary);
+}
+.headerIcon svg {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+.toolbar {
+  padding: 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.125rem;
+}
+.toolbarTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.rangeNavigation {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.rangeNavigation h2 {
+  overflow-wrap: anywhere;
+}
+.dateControls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.viewSwitch {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--muted);
+}
+.viewSwitch button {
+  flex: 1;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 0.875rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  border-radius: 0.75rem;
+  background: var(--muted);
+}
+.filterLabel {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.typeFilter {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 2rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.typeFilter > svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--primary);
 }
 
-.surface [data-entry-item][data-entry-type="PERSONAL"],
-.surface [data-entry-item][data-entry-type="REMINDER"] {
-  border-left-color: var(--muted-foreground);
+.surface .typeFilter [data-slot="checkbox"] {
+  min-height: 1.5rem;
+  height: 1.5rem;
+  width: 1.5rem;
+  min-width: 1.5rem;
+  border-radius: 0.25rem;
+}
+.typeFilter[data-calendar-type="TASK"] > svg,
+.typeFilter[data-calendar-type="PROJECT"] > svg {
+  color: var(--secondary-foreground);
+}
+.typeFilter[data-calendar-type="PERSONAL"] > svg,
+.typeFilter[data-calendar-type="REMINDER"] > svg {
+  color: var(--muted-foreground);
+}
+.timezone {
+  margin-top: 0.625rem;
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  text-align: right;
+}
+.monthViewport {
+  position: relative;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 1.125rem;
+  background: var(--card);
+  padding: 0.625rem;
+  outline-offset: 3px;
+}
+.monthViewport:focus-visible {
+  outline: 2px solid var(--ring);
+}
+.monthCanvas {
+  min-width: 49rem;
+}
+.weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-radius: 0.5rem 0.5rem 0 0;
+  background: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.weekdays > div {
+  padding: 0.625rem 0.75rem;
+}
+.monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-left: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+.monthCell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 7.5rem;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--border) 45%, transparent);
+}
+.monthCell[data-outside-month] {
+  background: color-mix(in srgb, var(--muted) 40%, var(--card));
+}
+.monthCell[data-today] {
+  background: color-mix(in srgb, var(--accent) 40%, var(--card));
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.surface .dayAdd {
+  min-height: 1.5rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--muted-foreground);
+}
+.surface .dayAdd svg {
+  width: 0.75rem;
+  height: 0.75rem;
 }
 
-.surface [data-entry-item][data-entry-type="TASK"],
-.surface [data-entry-item][data-entry-type="PROJECT"] {
+.surface [data-calendar-date] {
+  min-height: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+}
+
+.surface .monthCell [data-entry-item] {
+  min-height: 2rem;
+}
+
+.surface [data-calendar-more] {
+  min-height: 1.5rem;
+  font-size: 0.6875rem;
+}
+.entryChip {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  gap: 0.375rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border-left: 2px solid var(--primary);
+  text-align: left;
+  background: color-mix(in srgb, var(--accent) 55%, var(--card));
+  color: var(--foreground);
+  transition: background-color 0.15s;
+}
+.entryChip:hover {
+  background: var(--accent);
+}
+.entryChip:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}
+.entryChip[data-entry-type="TASK"],
+.entryChip[data-entry-type="PROJECT"] {
   border-left-color: var(--secondary-foreground);
+  background: var(--muted);
+}
+.entryChip[data-entry-type="PERSONAL"],
+.entryChip[data-entry-type="REMINDER"] {
+  border-left-color: var(--muted-foreground);
+  background: color-mix(in srgb, var(--muted) 65%, var(--card));
+}
+.entryIcon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.375rem;
+  color: var(--primary);
+  background: var(--card);
+}
+.entryIcon svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+.entryContent {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 0.125rem;
+}
+.entryTitle {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.entryTime {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.6875rem;
+  color: var(--muted-foreground);
+}
+.entryType {
+  font-size: 0.6875rem;
+  color: var(--primary);
+}
+.entryChip[data-compact] {
+  padding: 0.25rem 0.375rem;
+}
+.entryChip[data-compact] .entryTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.6875rem;
+}
+.entryChip[data-compact] .entryTime {
+  font-size: 0.625rem;
+  gap: 0;
+}
+.entryChip[data-compact] .entryIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+@media (max-width: 639px) {
+  .toolbar {
+    padding: 0.75rem;
+  }
+  .rangeNavigation {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .rangeNavigation h2 {
+    font-size: 0.875rem;
+  }
+  .viewSwitch {
+    width: 100%;
+  }
+  .filters {
+    gap: 0.25rem 0.75rem;
+  }
+  .timezone {
+    text-align: left;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

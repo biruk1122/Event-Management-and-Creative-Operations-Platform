@@ -345,7 +345,6 @@ test.describe("Event & Office Manager workspace — end to end", () => {
           type: "ONLINE",
           startAt: new Date(Date.now() + 3_600_000).toISOString(),
           endAt: new Date(Date.now() + 7_200_000).toISOString(),
-          onlineLink: "https://meet.example.com/eom-kickoff",
           agenda: "Review launch readiness and outstanding risks.",
         },
       },
