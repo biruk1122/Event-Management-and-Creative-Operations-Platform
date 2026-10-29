@@ -42,6 +42,7 @@ import {
 } from "./file-management.contracts.js";
 import { FileManagementService } from "./file-management.service.js";
 import { CreateUploadIntentDto } from "./dto/create-upload-intent.dto.js";
+import { DiscussService } from "../discuss/discuss.service.js";
 import { ListManagedFilesQueryDto } from "./dto/list-managed-files-query.dto.js";
 
 function actingUserId(request: RequestWithContext): string {
@@ -64,7 +65,10 @@ function actingUserId(request: RequestWithContext): string {
 @UseGuards(AccessTokenGuard, PermissionsGuard)
 @Controller("conversations/:conversationId")
 export class MessageFileManagementController {
-  constructor(private readonly files: FileManagementService) {}
+  constructor(
+    private readonly files: FileManagementService,
+    private readonly discuss: DiscussService,
+  ) {}
 
   @Post("files/upload-intents")
   @UseGuards(CsrfGuard)
@@ -122,12 +126,14 @@ export class MessageFileManagementController {
     @Param("messageId") messageId: string,
     @Param("fileId") fileId: string,
   ): Promise<ManagedFileResponse> {
-    return this.files.finalizeMessageUpload(
+    const result = await this.files.finalizeMessageUpload(
       actingUserId(request),
       conversationId,
       messageId,
       fileId,
     );
+    await this.discuss.invalidateConversation(conversationId);
+    return result;
   }
 
   @Get("messages/:messageId/files")

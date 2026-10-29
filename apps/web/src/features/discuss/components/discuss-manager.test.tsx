@@ -1,7 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+vi.mock("@/features/realtime", () => ({
+  useRealtimeConnection: () => ({ state: { status: "connected" } }),
+}));
 
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
@@ -208,7 +211,11 @@ describe("DiscussManager", () => {
       await screen.findByRole("button", { name: /Morgan Lead/ }),
     );
 
-    expect(await screen.findByText("Hello.")).toBeInTheDocument();
+    expect(
+      await within(screen.getByRole("list", { name: "Messages" })).findByText(
+        "Hello.",
+      ),
+    ).toBeInTheDocument();
     expect(get).toHaveBeenCalledWith(
       "/api/v1/conversations/{id}/messages",
       expect.objectContaining({
@@ -248,7 +255,9 @@ describe("DiscussManager", () => {
     await user.click(
       await screen.findByRole("button", { name: /Morgan Lead/ }),
     );
-    await screen.findByText("Hello.");
+    await within(
+      await screen.findByRole("list", { name: "Messages" }),
+    ).findByText("Hello.");
     await user.type(screen.getByLabelText("Message"), "New message.");
     await user.click(screen.getByRole("button", { name: "Send" }));
 

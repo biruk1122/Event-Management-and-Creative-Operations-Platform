@@ -110,6 +110,28 @@ describe("DiscussService", () => {
     service = new DiscussService(repository as never, permissions as never);
   });
 
+  it("invalidates only member rooms with an empty advisory payload", async () => {
+    const publish = vi.fn();
+    repository.findById!.mockResolvedValue(
+      makeConversation({
+        members: [{ id: "member-a" }, { id: "member-b" }] as never,
+      }),
+    );
+    const liveService = new DiscussService(
+      repository as never,
+      permissions as never,
+      { publish } as never,
+    );
+    await liveService.createMessage(ACTOR, "conversation-1", {
+      content: "Private message",
+      mentionedUserIds: [],
+    });
+    expect(publish.mock.calls).toEqual([
+      ["user:member-a", "discuss.invalidated", 1, {}],
+      ["user:member-b", "discuss.invalidated", 1, {}],
+    ]);
+  });
+
   function grantOnly(...allowed: [string, PermissionScope][]): void {
     permissions.hasGrant.mockImplementation((_userId, key, scope) =>
       Promise.resolve(allowed.some(([k, s]) => k === key && s === scope)),

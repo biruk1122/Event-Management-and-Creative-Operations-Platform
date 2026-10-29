@@ -30,7 +30,24 @@ export class ConversationMemberResponse extends DiscussPersonSummary {
   lastReadAt!: string | null;
 }
 
+export class ConversationMessagePreview {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty() content!: string;
+  @ApiProperty({ format: "date-time" }) createdAt!: string;
+  @ApiProperty({ type: String, format: "date-time", nullable: true })
+  deletedAt!: string | null;
+}
+
 export class ConversationResponse {
+  @ApiProperty({
+    type: ConversationMessagePreview,
+    nullable: true,
+    required: false,
+  })
+  lastMessage?: ConversationMessagePreview | null;
+
+  @ApiProperty({ type: Number, minimum: 0, required: false })
+  unreadCount?: number;
   @ApiProperty({ format: "uuid" })
   id!: string;
 
@@ -80,6 +97,8 @@ export class PaginatedConversationsResponse {
 }
 
 export class MessageResponse {
+  @ApiProperty({ type: Number, minimum: 0, required: false })
+  attachmentCount?: number;
   @ApiProperty({ format: "uuid" })
   id!: string;
 

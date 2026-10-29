@@ -1,7 +1,8 @@
 import type { ComponentProps } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
 
 import { MessageThread } from "./message-thread";
 import type { Conversation, Message } from "../lib/discuss-types";
@@ -50,7 +51,7 @@ const noop = vi.fn(() => Promise.resolve({ status: "unexpected" }) as never);
 function setup(props: Partial<ComponentProps<typeof MessageThread>> = {}) {
   const user = userEvent.setup();
   const onRetry = vi.fn();
-  render(
+  const rendered = render(
     <MessageThread
       conversation={CONVERSATION}
       messages={null}
@@ -64,10 +65,99 @@ function setup(props: Partial<ComponentProps<typeof MessageThread>> = {}) {
       {...props}
     />,
   );
-  return { user, onRetry };
+  return { user, onRetry, ...rendered };
 }
 
 describe("MessageThread", () => {
+  it("acknowledges a short conversation after leaving another thread scrolled up", () => {
+    const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const onReadLatest = vi.fn();
+    try {
+      const { rerender } = setup({
+        messages: [message({ id: "first" })],
+        onReadLatest,
+      });
+      const history = screen.getByRole("list", {
+        name: "Messages",
+      }).parentElement!;
+      Object.defineProperty(history, "scrollHeight", {
+        configurable: true,
+        value: 1000,
+      });
+      Object.defineProperty(history, "clientHeight", {
+        configurable: true,
+        value: 100,
+      });
+      history.scrollTop = 0;
+      fireEvent.scroll(history);
+      onReadLatest.mockClear();
+      Object.defineProperty(history, "scrollHeight", {
+        configurable: true,
+        value: 50,
+      });
+      rerender(
+        <MessageThread
+          conversation={{ ...CONVERSATION, id: "short-conversation" }}
+          messages={[
+            message({ id: "second", conversationId: "short-conversation" }),
+          ]}
+          error={null}
+          viewerId="author-1"
+          onRetry={vi.fn()}
+          onEdit={noop}
+          onDelete={noop}
+          onTogglePin={noop}
+          onReply={vi.fn()}
+          onReadLatest={onReadLatest}
+        />,
+      );
+      expect(onReadLatest).toHaveBeenCalledWith("second");
+    } finally {
+      focus.mockRestore();
+    }
+  });
+  it("only shows read checks up to the recipient's persisted cursor", () => {
+    const member = {
+      id: "recipient",
+      email: "reader@example.com",
+      firstName: null,
+      lastName: null,
+      joinedAt: now,
+      lastReadAt: "2030-01-01T00:00:00.000Z",
+      lastReadMessageId: "m1",
+    };
+    setup({
+      conversation: { ...CONVERSATION, type: "DIRECT", members: [member] },
+      messages: [
+        message({ id: "m2", content: "Not read" }),
+        message({ id: "m1", content: "Read this" }),
+      ],
+    });
+    const items = screen.getAllByRole("listitem");
+    expect(items[0]?.querySelector('[aria-label="Read"]')).not.toBeNull();
+    expect(items[1]?.querySelector('[aria-label="Sent"]')).not.toBeNull();
+  });
+  it("labels group receipts as a member count rather than everyone read", () => {
+    setup({
+      conversation: {
+        ...CONVERSATION,
+        members: [
+          {
+            id: "recipient",
+            email: "reader@example.com",
+            firstName: null,
+            lastName: null,
+            joinedAt: now,
+            lastReadAt: now,
+            lastReadMessageId: "m1",
+          },
+        ],
+      },
+      messages: [message({ id: "m1" })],
+    });
+    expect(screen.getByLabelText("Read by 1 member")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Read")).not.toBeInTheDocument();
+  });
   it("shows a loading state", () => {
     setup({ messages: null });
     expect(

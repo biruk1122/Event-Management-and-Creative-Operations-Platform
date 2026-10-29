@@ -290,6 +290,66 @@ describe("discuss (conversations, channels, and messages) API", () => {
     ).send({ messageId: message.id });
     expect(readCursor.status).toBe(200);
 
+    const second = await as(
+      member,
+      "post",
+      `/api/v1/conversations/${conversation.id}/messages`,
+    ).send({ content: "A newer unread message" });
+    expect(second.status).toBe(201);
+    const secondId = body<MessageBody>(second).id;
+    const summary = await as(
+      secondMember,
+      "get",
+      "/api/v1/conversations?type=DIRECT",
+    );
+    expect(summary.status).toBe(200);
+    expect(
+      body<{
+        items: Array<{
+          id: string;
+          unreadCount: number;
+          lastMessage: { id: string };
+        }>;
+      }>(summary).items.find((item) => item.id === conversation.id),
+    ).toMatchObject({ unreadCount: 1, lastMessage: { id: secondId } });
+    expect(
+      (
+        await as(
+          secondMember,
+          "put",
+          `/api/v1/conversations/${conversation.id}/read-cursor`,
+        ).send({ messageId: secondId })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await as(
+          secondMember,
+          "put",
+          `/api/v1/conversations/${conversation.id}/read-cursor`,
+        ).send({ messageId: message.id })
+      ).status,
+    ).toBe(200);
+    const storedCursor = await prisma.conversationMember.findUniqueOrThrow({
+      where: {
+        conversationId_userId: {
+          conversationId: conversation.id,
+          userId: secondMember.id,
+        },
+      },
+    });
+    expect(storedCursor.lastReadMessageId).toBe(secondId);
+    const readSummary = await as(
+      secondMember,
+      "get",
+      "/api/v1/conversations?type=DIRECT",
+    );
+    expect(
+      body<{ items: Array<{ id: string; unreadCount: number }> }>(
+        readSummary,
+      ).items.find((item) => item.id === conversation.id)?.unreadCount,
+    ).toBe(0);
+
     const pinned = await as(
       secondMember,
       "put",
@@ -341,6 +401,32 @@ describe("discuss (conversations, channels, and messages) API", () => {
       content: "",
       deletedAt: expect.any(String) as string,
     });
+  });
+
+  it("does not expose message previews for a discoverable channel to nonmembers", async () => {
+    const created = await as(
+      superAdmin,
+      "post",
+      "/api/v1/conversations/channels",
+    ).send({ name: "Preview privacy", visibility: "PUBLIC" });
+    expect(created.status).toBe(201);
+    const conversation = body<ConversationBody>(created);
+    const sent = await as(
+      superAdmin,
+      "post",
+      `/api/v1/conversations/${conversation.id}/messages`,
+    ).send({ content: "Member-only message preview" });
+    expect(sent.status).toBe(201);
+    const response = await as(
+      thirdMember,
+      "get",
+      "/api/v1/conversations?type=CHANNEL&search=Preview",
+    );
+    expect(response.status).toBe(200);
+    const summary = body<{
+      items: Array<{ id: string; lastMessage: unknown; unreadCount: number }>;
+    }>(response).items.find((item) => item.id === conversation.id);
+    expect(summary).toMatchObject({ lastMessage: null, unreadCount: 0 });
   });
 
   it("rejects a direct conversation without exactly one other member", async () => {

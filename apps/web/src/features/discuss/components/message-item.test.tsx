@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
 
 import { MessageItem } from "./message-item";
 import type {

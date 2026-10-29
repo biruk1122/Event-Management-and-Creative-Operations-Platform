@@ -1,4 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional, Logger } from "@nestjs/common";
+import { RealtimeService } from "../realtime/realtime.service.js";
 
 import {
   ConversationType,
@@ -48,7 +49,29 @@ export class DiscussService {
   constructor(
     private readonly repository: DiscussRepository,
     private readonly permissions: PermissionsService,
+    @Optional() private readonly realtime?: RealtimeService,
   ) {}
+
+  /** Advisory invalidation only: no message, file, or membership data is
+   * broadcast. Clients must reauthorize every read through REST. */
+  async invalidateConversation(conversationId: string): Promise<void> {
+    if (!this.realtime) return;
+    try {
+      const conversation = await this.repository.findById(conversationId);
+      for (const member of conversation?.members ?? []) {
+        this.realtime.publish(
+          `user:${member.id}`,
+          "discuss.invalidated",
+          1,
+          {},
+        );
+      }
+    } catch {
+      new Logger(DiscussService.name).warn(
+        "Discuss invalidation failed; clients reconcile on refresh.",
+      );
+    }
+  }
 
   private async hasGrant(
     actingUserId: string,
@@ -162,6 +185,7 @@ export class DiscussService {
   ): Promise<PaginatedConversationsResponse> {
     const access = await this.accessFor(actingUserId, "conversation.read");
     const { items, total } = await this.repository.list({
+      viewerId: actingUserId,
       access,
       ...(query.type ? { type: query.type } : {}),
       ...(query.search?.trim() ? { search: query.search.trim() } : {}),
@@ -361,6 +385,7 @@ export class DiscussService {
     });
     if (result === "not_member") throw conversationNotMember();
     if (result === "message_not_found") throw messageNotFound();
+    await this.invalidateConversation(conversationId);
   }
 
   async createMessage(
@@ -379,6 +404,7 @@ export class DiscussService {
     if (result === "not_member") throw conversationNotMember();
     if (result === "user_not_found") throw discussUserNotFound();
     if (result === "parent_not_found") throw messageParentNotFound();
+    await this.invalidateConversation(conversationId);
     return toMessageResponse(result);
   }
 
@@ -417,6 +443,7 @@ export class DiscussService {
     });
     if (result === "not_found") throw messageNotFound();
     if (result === "forbidden") throw permissionDenied();
+    await this.invalidateConversation(conversationId);
     return toMessageResponse(result);
   }
 
@@ -432,6 +459,7 @@ export class DiscussService {
     });
     if (result === "not_found") throw messageNotFound();
     if (result === "forbidden") throw permissionDenied();
+    await this.invalidateConversation(conversationId);
     return toMessageResponse(result);
   }
 
@@ -449,6 +477,7 @@ export class DiscussService {
     });
     if (result === "not_member") throw conversationNotMember();
     if (result === "not_found") throw messageNotFound();
+    await this.invalidateConversation(conversationId);
     return toMessageResponse(result);
   }
 
@@ -517,6 +546,12 @@ function toConversationResponse(
   record: ConversationRecord,
 ): ConversationResponse {
   return {
+    ...(record.lastMessage !== undefined
+      ? { lastMessage: record.lastMessage }
+      : {}),
+    ...(record.unreadCount !== undefined
+      ? { unreadCount: record.unreadCount }
+      : {}),
     id: record.id,
     type: record.type,
     name: record.name,
@@ -541,6 +576,9 @@ function toConversationResponse(
 
 function toMessageResponse(record: MessageRecord): MessageResponse {
   return {
+    ...(record.attachmentCount !== undefined
+      ? { attachmentCount: record.attachmentCount }
+      : {}),
     id: record.id,
     conversationId: record.conversationId,
     author: record.author,

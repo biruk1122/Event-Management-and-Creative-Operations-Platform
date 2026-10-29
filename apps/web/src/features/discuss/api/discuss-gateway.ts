@@ -156,6 +156,19 @@ export async function listMessages(
   return data;
 }
 
+export async function getConversation(id: string, signal?: AbortSignal) {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/conversations/{id}",
+    {
+      params: { path: { id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new DiscussRequestError(response.status);
+  return data;
+}
+
 export type ListAssignablePeople = typeof listAssignablePeople;
 
 export async function listAssignablePeople(signal?: AbortSignal) {
