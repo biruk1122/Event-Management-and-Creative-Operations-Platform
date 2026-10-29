@@ -41,7 +41,7 @@ export const meetingVenueInvalid = () =>
     details(
       "MEETING_VENUE_INVALID",
       "Bad Request",
-      "Physical meetings require only a location, online meetings require only an onlineLink, and hybrid meetings require both.",
+      "Physical and hybrid meetings require a location; online meetings must not have one.",
     ),
   );
 export const meetingOrganizerParticipant = () =>
@@ -98,5 +98,21 @@ export const meetingCancelled = () =>
       "MEETING_CANCELLED",
       "Conflict",
       "Minutes cannot be recorded for a cancelled meeting.",
+    ),
+  );
+export const meetingNotOnline = () =>
+  new ConflictException(
+    details(
+      "MEETING_NOT_ONLINE",
+      "Conflict",
+      "This meeting has no video room because it is a physical meeting.",
+    ),
+  );
+export const meetingVideoUnavailable = () =>
+  new ConflictException(
+    details(
+      "MEETING_VIDEO_UNAVAILABLE",
+      "Conflict",
+      "Video conferencing is not configured for this deployment.",
     ),
   );

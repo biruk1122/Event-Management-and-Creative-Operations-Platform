@@ -7,7 +7,6 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
-  IsUrl,
   IsUUID,
   Matches,
   MaxLength,
@@ -53,12 +52,6 @@ export class CreateMeetingDto {
   @MaxLength(500)
   @Matches(NOT_BLANK, { message: "location must not be blank" })
   location?: string;
-
-  @ApiPropertyOptional({ format: "uri", maxLength: 2000 })
-  @IsOptional()
-  @IsUrl({ require_protocol: true, protocols: ["https"] })
-  @MaxLength(2000)
-  onlineLink?: string;
 
   @ApiPropertyOptional({ format: "date-time" })
   @IsOptional()

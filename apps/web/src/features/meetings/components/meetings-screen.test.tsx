@@ -15,6 +15,9 @@ vi.mock("@/env/client", () => ({
     NEXT_PUBLIC_API_URL: "http://localhost:4000/api/v1",
   },
 }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 const noopConnect: ConnectRealtime = () => () => {};
 

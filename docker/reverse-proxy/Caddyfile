@@ -1,0 +1,23 @@
+{
+	email {$ACME_EMAIL}
+}
+
+# Lela's own application domain. PLACEHOLDER routing below - Lela's own
+# production Compose deployment does not exist yet (today there is only the
+# dev-only root compose.yaml); update the reverse_proxy targets once that
+# exists and exposes its web/api containers on this same `lela-edge`
+# network under known service names.
+{$LELA_DOMAIN} {
+	reverse_proxy lela-web:3000
+	reverse_proxy /api/* lela-api:4000
+}
+
+# Self-hosted Jitsi Meet (docker/jitsi/production/). The official web
+# image listens on container port 8000 for HTTP internally (not 80) -
+# confirmed from its own published docker-compose.yml, which maps
+# '${HTTP_PORT}:8000'. Caddy forwards WebSocket upgrade headers
+# automatically in reverse_proxy - no extra config needed for BOSH/Colibri
+# signaling.
+{$JITSI_DOMAIN} {
+	reverse_proxy jitsi-web:8000
+}

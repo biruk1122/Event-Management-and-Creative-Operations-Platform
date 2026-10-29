@@ -10,20 +10,15 @@ import { MeetingsSchedulerRepository } from "./infrastructure/meetings-scheduler
 import { MeetingsController } from "./meetings.controller.js";
 import { MeetingsSchedulerService } from "./meetings-scheduler.service.js";
 import { MeetingsService } from "./meetings.service.js";
-import { GoogleMeetConfig } from "./google-meet/google-meet.config.js";
-import { GoogleMeetRepository } from "./google-meet/google-meet.repository.js";
-import { GoogleCalendarAdapter } from "./google-meet/google-calendar.adapter.js";
-import { GoogleMeetService } from "./google-meet/google-meet.service.js";
-import { GoogleMeetController } from "./google-meet/google-meet.controller.js";
+import { JitsiConfig } from "./jitsi/jitsi.config.js";
+import { JitsiService } from "./jitsi/jitsi.service.js";
 
 @Module({
   imports: [AuthModule, OutboxModule, PermissionsModule, TasksModule],
-  controllers: [GoogleMeetController, MeetingsController],
+  controllers: [MeetingsController],
   providers: [
-    GoogleMeetConfig,
-    GoogleMeetRepository,
-    GoogleCalendarAdapter,
-    GoogleMeetService,
+    JitsiConfig,
+    JitsiService,
     MeetingsDashboardQuery,
     MeetingsRepository,
     MeetingsService,

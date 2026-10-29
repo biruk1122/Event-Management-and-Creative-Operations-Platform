@@ -64,7 +64,6 @@ async function createMeeting(
       startAt,
       endAt,
       location: "Studio A",
-      onlineLink: "https://meet.example.test/e2e",
       participantIds,
     },
   });
@@ -74,6 +73,75 @@ async function createMeeting(
 
 test.describe("Meeting participant responses — end to end", () => {
   test.use({ storageState: authStatePath("superAdmin") });
+
+  test("an organizer edits a completed meeting and removes it only after confirmation", async ({
+    page,
+  }) => {
+    const title = `Editable completed meeting ${randomUUID().slice(0, 8)}`;
+    const id = await createMeeting(page, title, []);
+    const headers = { "x-csrf-token": await csrfToken(page) };
+    expect(
+      (
+        await page.request.post(
+          `${apiBaseUrl}/api/v1/meetings/${id}/transition`,
+          { headers, data: { status: "COMPLETED" } },
+        )
+      ).ok(),
+    ).toBe(true);
+    await page.setViewportSize({ width: 360, height: 800 });
+    await page.goto(`/meetings?meetingId=${id}`);
+    await page
+      .getByRole("button", { name: "Edit meeting", exact: true })
+      .click();
+    const dialog = page.getByRole("dialog");
+    await dialog
+      .getByLabel("Meeting title", { exact: true })
+      .fill(`${title} revised`);
+    await dialog.getByRole("button", { name: "Save changes" }).click();
+    await expect(dialog).toBeHidden();
+    await page.reload();
+    await expect(
+      page.getByRole("heading", { name: `${title} revised`, exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText("Completed", { exact: true })).toBeVisible();
+    // Authorization must hold independently of the visible confirmation dialog.
+    expect(
+      (
+        await page.request.delete(`${apiBaseUrl}/api/v1/meetings/${id}`)
+      ).status(),
+    ).toBe(403);
+    await page
+      .getByRole("button", { name: "Remove meeting", exact: true })
+      .click();
+    await expect(
+      dialog.getByRole("button", { name: "Keep meeting" }),
+    ).toBeFocused();
+    expect(
+      await dialog.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+    await dialog.getByRole("button", { name: "Keep meeting" }).click();
+    expect(
+      (await page.request.get(`${apiBaseUrl}/api/v1/meetings/${id}`)).ok(),
+    ).toBe(true);
+    await page
+      .getByRole("button", { name: "Remove meeting", exact: true })
+      .click();
+    const deleted = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/v1/meetings/${id}`) &&
+        response.request().method() === "DELETE",
+    );
+    await dialog.getByRole("button", { name: "Yes, remove meeting" }).click();
+    expect((await deleted).status()).toBe(204);
+    await expect(
+      page.getByRole("heading", { name: `${title} revised`, exact: true }),
+    ).toBeHidden();
+    expect(
+      (await page.request.get(`${apiBaseUrl}/api/v1/meetings/${id}`)).status(),
+    ).toBe(404);
+  });
 
   test("an invited participant accepts a real meeting and reloads authoritative data", async ({
     page,

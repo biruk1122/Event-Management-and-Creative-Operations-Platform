@@ -1,0 +1,40 @@
+name: lela-edge
+
+# The single shared front door for both the Lela application stack and the
+# self-hosted Jitsi stack (docker/jitsi/) on one VPS. This is the ONLY thing
+# that binds host ports 80/443 - both other stacks' own HTTPS/Let's Encrypt
+# automation must stay disabled (see docker/jitsi/README.md). An independent
+# Compose project; never merged into either application's own compose file.
+#
+# Caddy is used over nginx+certbot for its built-in, zero-config ACME
+# automation - one less moving part to operate for two domains.
+
+services:
+  caddy:
+    image: caddy:2.9.1-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - LELA_DOMAIN=${LELA_DOMAIN:?set LELA_DOMAIN}
+      - JITSI_DOMAIN=${JITSI_DOMAIN:?set JITSI_DOMAIN}
+      - ACME_EMAIL=${ACME_EMAIL:?set a contact email for Let's Encrypt}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  # Shared with docker/jitsi/ (and, once Lela's own production compose
+  # exists, with it too) - create once, before starting either stack:
+  #   docker network create lela-edge
+  edge:
+    external: true
+    name: ${EDGE_NETWORK_NAME:-lela-edge}

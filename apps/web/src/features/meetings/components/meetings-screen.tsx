@@ -47,10 +47,7 @@ export function MeetingsScreen({ connect }: MeetingsScreenProps = {}) {
 
   return (
     <main className="@container mx-auto max-w-7xl p-4 sm:p-6">
-      <WorkSurface
-        title="Meetings"
-        description="Your schedule, and the meetings you've been invited to."
-      >
+      <WorkSurface>
         <MeetingsManager
           key={access.data.userId}
           access={access.data}
