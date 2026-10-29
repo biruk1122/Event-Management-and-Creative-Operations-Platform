@@ -316,10 +316,10 @@ function ShellFrame({
           {/* eslint-disable-next-line @next/next/no-img-element -- a
               provided raster asset, not an optimizable remote/local image. */}
           <img
-            src="/branding/lela-sidebar-logo.png"
+            src="/branding/lela-sidebar-logo.webp"
             alt=""
-            width={651}
-            height={833}
+            width={128}
+            height={164}
             className="shell-brand-mark"
           />
           <div className="shell-brand-text">

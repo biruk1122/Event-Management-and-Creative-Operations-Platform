@@ -104,7 +104,7 @@
     height: clamp(11rem, 32vh, 20rem);
     overflow: hidden;
     border-radius: 1.5rem;
-    background-image: url("/branding/login page.png");
+    background-image: url("/branding/login-page.webp");
     background-size: cover;
     background-position: center 70%;
     color: #fff;

@@ -19,7 +19,9 @@ interface AuthShellProps {
 
 /**
  * Server-rendered branding surrounds the existing interactive login form.
- * The decorative photo is `public/branding/login page.png`, a provided asset.
+ * The decorative photo is `public/branding/login-page.webp`, a resized/
+ * compressed encoding of the provided `login page.png` asset (see
+ * `scripts/optimize-lela-branding-assets.mjs`).
  */
 export function AuthShell({
   title,
