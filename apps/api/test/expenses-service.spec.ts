@@ -13,6 +13,7 @@ function makeExpense(overrides: Partial<ExpenseRecord> = {}): ExpenseRecord {
     id: "exp-1",
     eventId: "evt-1",
     productionId: null,
+    campaignId: null,
     departmentId: "dept-1",
     supplierId: null,
     category: "VENUE",
