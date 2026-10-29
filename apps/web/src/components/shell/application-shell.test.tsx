@@ -72,6 +72,11 @@ describe("application shell", () => {
     render(<ApplicationShell>{content}</ApplicationShell>);
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
+  it("leaves the kiosk device screen outside the shell", () => {
+    mocks.pathname = "/kiosk";
+    render(<ApplicationShell>{content}</ApplicationShell>);
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+  });
   it("mounts one sidebar, one header and the unchanged content", () => {
     render(<ApplicationShell>{content}</ApplicationShell>);
     const nav = screen.getByRole("navigation", {
@@ -92,7 +97,7 @@ describe("application shell", () => {
       screen.getByRole("link", { name: "Skip to main content" }),
     ).toHaveAttribute("href", "#shell-content");
   });
-  it.each(["fetching", "error", "pendingLogout"] as const)(
+  it.each(["error", "pendingLogout"] as const)(
     "hides cached destinations while %s",
     (flag) => {
       mocks[flag] = true;
@@ -107,6 +112,21 @@ describe("application shell", () => {
       ).not.toBeInTheDocument();
     },
   );
+  it("keeps verified navigation and the bell mounted during background permission checks", () => {
+    const { rerender } = render(<ApplicationShell>{content}</ApplicationShell>);
+    const bell = screen.getByRole("button", { name: "Open notifications" });
+    mocks.fetching = true;
+    rerender(<ApplicationShell>{content}</ApplicationShell>);
+    expect(screen.getByRole("button", { name: "Open notifications" })).toBe(
+      bell,
+    );
+    expect(
+      within(screen.getByRole("navigation", { name: "Primary" })).getByRole(
+        "link",
+        { name: "Tasks" },
+      ),
+    ).toBeVisible();
+  });
   it("rejects an access cache belonging to a different account", () => {
     mocks.userId = "previous-user";
     render(<ApplicationShell>{content}</ApplicationShell>);
@@ -178,6 +198,7 @@ describe("application shell", () => {
     const user = userEvent.setup();
     render(<ApplicationShell>{content}</ApplicationShell>);
     await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await user.click(screen.getByRole("button", { name: "Yes, sign out" }));
     expect(mocks.logout).toHaveBeenCalledOnce();
     expect(mocks.replace).toHaveBeenCalledWith("/login");
   });
@@ -186,9 +207,57 @@ describe("application shell", () => {
     const user = userEvent.setup();
     render(<ApplicationShell>{content}</ApplicationShell>);
     await user.click(screen.getByRole("button", { name: "Sign out" }));
+    await user.click(screen.getByRole("button", { name: "Yes, sign out" }));
     expect(screen.getByRole("alert")).toHaveTextContent(
       "could not be confirmed",
     );
     expect(mocks.replace).not.toHaveBeenCalled();
+  });
+  it("updates the breadcrumb when the current route changes", () => {
+    const { rerender } = render(<ApplicationShell>{content}</ApplicationShell>);
+    const breadcrumb = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(
+      within(breadcrumb).queryByRole("link", { name: "Workspace" }),
+    ).not.toBeInTheDocument();
+    expect(within(breadcrumb).getByText("Workspace")).toBeVisible();
+    expect(within(breadcrumb).getByText("Tasks")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    mocks.pathname = "/notifications";
+    rerender(<ApplicationShell>{content}</ApplicationShell>);
+    expect(within(breadcrumb).getByText("Notifications")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+  it("shows today's readable date and keeps account actions accessible", async () => {
+    const user = userEvent.setup();
+    render(<ApplicationShell>{content}</ApplicationShell>);
+    const today = new Intl.DateTimeFormat("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date());
+    expect(within(screen.getByRole("banner")).getByText(today).tagName).toBe(
+      "TIME",
+    );
+    expect(
+      within(screen.getByRole("banner")).getByRole("button", {
+        name: "Sign out",
+      }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Account settings" }));
+    expect(
+      within(
+        screen.getByRole("dialog", { name: "Account settings" }),
+      ).getByText("user@example.com"),
+    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeVisible();
+    await user.keyboard("{Escape}");
+    expect(
+      screen.getByRole("button", { name: "Account settings" }),
+    ).toHaveFocus();
   });
 });

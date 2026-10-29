@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -21,11 +20,8 @@ export default async function DashboardPage() {
   if (!data) throw new Error("We could not check your permissions. Try again.");
   const context = dashboardContext(data);
   return (
-    <main className="@container mx-auto w-full max-w-352 min-w-0 px-4 py-8 sm:px-8">
-      <Link href="/" className="text-sm underline underline-offset-4">
-        Back to home
-      </Link>
-      <h1 className="my-5 text-3xl font-semibold tracking-tight">
+    <main className="@container mx-auto w-full max-w-352 min-w-0 px-4 py-5 sm:px-8">
+      <h1 className="mb-5 text-3xl font-semibold tracking-tight">
         {context?.title ?? "Dashboard"}
       </h1>
       <p className="text-muted-foreground bg-card mb-6 rounded-xl border p-4 text-sm leading-relaxed">

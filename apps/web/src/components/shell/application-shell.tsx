@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -15,22 +16,35 @@ import {
   FolderKanban,
   Clapperboard,
   Megaphone,
+  Handshake,
+  Briefcase,
   Star,
   FileText,
   ChartNoAxesCombined,
   Users,
   Building2,
   UserRound,
+  IdCard,
+  Mail,
+  FolderOpen,
+  Share2,
   ShieldCheck,
   Layers3,
   PanelLeftClose,
   PanelLeftOpen,
   Menu,
   ArrowLeft,
+  ChevronRight,
+  LoaderCircle,
+  Fingerprint,
+  Plane,
 } from "lucide-react";
-import { BrandLogo } from "@/components/branding/brand-logo";
-import { BrandMark } from "@/components/branding/brand-mark";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -73,15 +87,64 @@ const icons = {
   projects: FolderKanban,
   production: Clapperboard,
   campaigns: Megaphone,
+  partners: Handshake,
+  marketingWorkspace: Briefcase,
   talent: Star,
   reports: FileText,
   analytics: ChartNoAxesCombined,
   teams: Users,
   departments: Building2,
   users: UserRound,
+  employees: IdCard,
+  letters: Mail,
+  documents: FolderOpen,
+  sharedWithMe: Share2,
   roles: ShieldCheck,
   workspaces: Layers3,
+  attendance: Fingerprint,
+  leave: Plane,
 };
+
+function NavigationProgress() {
+  const { pending } = useLinkStatus();
+  return pending ? (
+    <>
+      <LoaderCircle
+        aria-hidden="true"
+        className="ml-auto size-4 shrink-0 animate-spin"
+      />
+      <span role="status" className="sr-only">
+        Opening page…
+      </span>
+    </>
+  ) : null;
+}
+
+function HeaderDate() {
+  const [date, setDate] = useState<Date | null>(null);
+  useEffect(() => {
+    const update = () => setDate(new Date());
+    update();
+    const timer = window.setInterval(update, 60_000);
+    window.addEventListener("focus", update);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", update);
+    };
+  }, []);
+  if (!date) return null;
+  const dateTime = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return (
+    <time className="shell-header-date" dateTime={dateTime}>
+      {new Intl.DateTimeFormat("en-GB", { weekday: "long" }).format(date)},{" "}
+      {new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(date)}
+    </time>
+  );
+}
 
 function NavigationLinks({
   items,
@@ -115,7 +178,6 @@ function NavigationLinks({
             ) : null}
             <Link
               href={item.href}
-              prefetch={false}
               onClick={() => onNavigate?.()}
               aria-label={item.label}
               aria-current={selected ? "page" : undefined}
@@ -134,6 +196,7 @@ function NavigationLinks({
               >
                 {item.label}
               </span>
+              <NavigationProgress />
             </Link>
           </li>
         );
@@ -187,12 +250,14 @@ function ShellFrame({
   access,
   accountName,
   utility,
+  notifications,
   children,
   pathname,
 }: {
   access: CurrentAccess | null;
   accountName?: string | undefined;
   utility: ReactNode;
+  notifications: ReactNode;
   children: ReactNode;
   pathname: string;
 }) {
@@ -248,7 +313,15 @@ function ShellFrame({
       </a>
       <aside className="shell-sidebar">
         <div className="shell-brand">
-          <BrandMark className="shell-brand-mark" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- a
+              provided raster asset, not an optimizable remote/local image. */}
+          <img
+            src="/branding/lela-sidebar-logo.png"
+            alt=""
+            width={651}
+            height={833}
+            className="shell-brand-mark"
+          />
           <div className="shell-brand-text">
             <p className="shell-brand-wordmark">lela</p>
             <p className="shell-brand-caption">Creative management</p>
@@ -284,41 +357,61 @@ function ShellFrame({
       </aside>
       <div className="shell-workspace">
         <header className="shell-header">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="shell-header-logo">
-              <BrandLogo compact className="h-10 w-7" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-muted-foreground text-xs">
-                Lela Creative Management
-              </p>
-              <p className="font-semibold break-words">{title}</p>
-              {context ? (
-                <p className="text-primary text-xs break-words">
-                  {context.role} · {context.scope}
-                </p>
-              ) : null}
-            </div>
-          </div>
+          <nav aria-label="Breadcrumb" className="shell-breadcrumb">
+            <ol>
+              <li>
+                <span>Workspace</span>
+              </li>
+              <li aria-hidden="true">
+                <ChevronRight />
+              </li>
+              <li
+                className="shell-breadcrumb-current"
+                aria-current="page"
+                title={title}
+              >
+                {title === "Dashboard" ? "Overview" : title}
+              </li>
+            </ol>
+          </nav>
           <nav
             aria-label="Account and notifications"
-            className="flex shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-3"
+            className="shell-header-actions"
           >
-            {accountName ? (
-              <span
-                className="hidden max-w-40 truncate text-sm lg:inline"
-                title={accountName}
-              >
-                {accountName}
-              </span>
-            ) : null}
+            <HeaderDate />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="shell-account-trigger"
+                  aria-label="Account settings"
+                  title={accountName}
+                >
+                  {context?.role ?? accountName ?? "Account"}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" aria-label="Account settings">
+                {accountName ? (
+                  <p className="mb-3 text-sm font-medium break-words">
+                    {accountName}
+                  </p>
+                ) : null}
+                {context ? (
+                  <p className="text-muted-foreground mb-3 text-xs">
+                    {context.role} · {context.scope}
+                  </p>
+                ) : null}
+              </PopoverContent>
+            </Popover>
+            <ThemeToggle />
+            <div className="shell-header-notifications">{notifications}</div>
             {utility}
           </nav>
         </header>
         <div className="shell-route-toolbar">
           <div className="min-w-0">
             {nested ? (
-              <nav aria-label="Breadcrumb">
+              <nav aria-label="Back navigation">
                 <Link
                   href={active.href}
                   prefetch={false}
@@ -328,11 +421,7 @@ function ShellFrame({
                   Back to {active.label}
                 </Link>
               </nav>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                Your connected workspace
-              </p>
-            )}
+            ) : null}
           </div>
           <NavigationDrawer key={drawerKey} items={items} pathname={pathname} />
         </div>
@@ -364,7 +453,6 @@ function ShellFrame({
               <Link
                 key={item.href}
                 href={item.href}
-                prefetch={false}
                 aria-current={selected ? "page" : undefined}
                 className={cn(
                   "flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 text-xs font-medium",
@@ -373,6 +461,7 @@ function ShellFrame({
               >
                 <Icon aria-hidden="true" className="size-5" />
                 {item.label}
+                <NavigationProgress />
               </Link>
             );
           })}
@@ -402,7 +491,6 @@ function AuthorizedShell({
   const [signOutError, setSignOutError] = useState(false);
   const verified =
     !logout.isPending &&
-    !access.isFetching &&
     !access.isPaused &&
     !access.isError &&
     !account.isError &&
@@ -415,14 +503,15 @@ function AuthorizedShell({
       access={verified}
       pathname={pathname}
       accountName={verified ? account.data?.email : undefined}
+      notifications={
+        verified?.grants.some(
+          (g) => g.permissionKey === "notification.read",
+        ) ? (
+          <NotificationsBell access={verified} inline />
+        ) : null
+      }
       utility={
         <>
-          <ThemeToggle />
-          {verified?.grants.some(
-            (g) => g.permissionKey === "notification.read",
-          ) ? (
-            <NotificationsBell access={verified} inline />
-          ) : null}
           {account.data ? (
             <SignOutButton
               onSignOut={async () => {
@@ -476,9 +565,10 @@ function AuthorizedShell({
   );
 }
 
-/** One root shell; login remains outside the authenticated chrome. */
+/** One root shell; login and the kiosk device screen remain outside the
+ * authenticated chrome - the kiosk has no personal login of its own. */
 export function ApplicationShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  if (pathname === "/login") return children;
+  if (pathname === "/login" || pathname === "/kiosk") return children;
   return <AuthorizedShell pathname={pathname}>{children}</AuthorizedShell>;
 }

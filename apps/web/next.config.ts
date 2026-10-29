@@ -30,6 +30,18 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: monorepoRoot,
   transpilePackages: ["@event-platform/api-client", "@event-platform/shared"],
   typedRoutes: true,
+  // Dormant unless NEXT_PUBLIC_API_URL is pointed at this app's own origin
+  // (e.g. a dev tunnel) - in the default config the browser calls
+  // API_INTERNAL_URL's public counterpart directly and never reaches this
+  // server at /api/v1/*, so this rewrite is never hit.
+  async rewrites() {
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: `${environment.data.API_INTERNAL_URL}/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
