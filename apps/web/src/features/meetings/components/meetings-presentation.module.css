@@ -223,17 +223,15 @@
   font-size: 0.875rem;
 }
 .overview > div {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
+  position: relative;
   min-width: 0;
-}
-.overview > div > div {
-  min-width: 0;
+  padding-left: 1.875rem;
   overflow-wrap: anywhere;
 }
 .overview svg {
-  flex-shrink: 0;
+  position: absolute;
+  left: 0;
+  top: -0.1rem;
   width: 1.125rem;
   height: 1.125rem;
   color: var(--muted-foreground);
@@ -327,7 +325,10 @@
   }
   .overview > div + div {
     border-left: 1px solid var(--border);
-    padding-left: 1rem;
+    padding-left: 2.875rem;
+  }
+  .overview > div + div svg {
+    left: 1rem;
   }
 }
 @media (max-width: 639px) {

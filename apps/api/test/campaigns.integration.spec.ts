@@ -713,10 +713,14 @@ describe("campaign platform API", () => {
     it("lets exactly one of two racing transitions win and never reopens a cancelled campaign", async () => {
       for (let attempt = 0; attempt < 5; attempt += 1) {
         const created = await createCampaign();
+        // From PLANNED, ACTIVE then CANCELLED is a legal sequence, so racing
+        // those two can legitimately return [200, 200]. From ACTIVE, the two
+        // terminal moves are mutually exclusive: exactly one can win.
+        expect((await transition(created.id, "ACTIVE")).status).toBe(200);
 
         const responses = await Promise.all([
           transition(created.id, "CANCELLED"),
-          transition(created.id, "ACTIVE"),
+          transition(created.id, "COMPLETED"),
         ]);
 
         const statuses = responses.map((response) => response.status).sort();

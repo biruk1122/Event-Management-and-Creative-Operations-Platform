@@ -144,9 +144,16 @@ test.describe("Task assignment and collaboration — end to end", () => {
       await memberPage.goto("/tasks");
       await memberPage.getByRole("button", { name: title }).first().click();
       const memberDetail = memberPage.getByRole("dialog");
+      // The checkbox is controlled by server state, so it flips only after
+      // the toggle round-trip; `.check()` would require an immediate flip.
       await memberDetail
         .getByRole("checkbox", { name: `Mark "${checkpoint}" complete` })
-        .check();
+        .click();
+      await expect(
+        memberDetail.getByRole("checkbox", {
+          name: `Mark "${checkpoint}" incomplete`,
+        }),
+      ).toBeChecked();
       await expect(
         memberDetail.getByRole("progressbar", { name: "Task progress" }),
       ).toHaveAttribute("aria-valuenow", "100");

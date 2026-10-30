@@ -26,8 +26,8 @@ approved the proposed design anchors, peach `#EAB79F` and burgundy `#421C2B`, in
 of requiring source pixel sampling. These are approved design choices, not sampled
 values. See `docs/product/lela-visual-foundation.md` for the decision and ledger.
 
-`lela-sidebar-logo.webp` and `login-page.webp` are resized/compressed encodings
-of two provided raster assets (the sidebar brand mark and the login hero
+`lela-sidebar-logo.webp`, `login-page.webp` and `lela-mark.webp` are resized/compressed
+encodings of three provided raster assets (the sidebar brand mark and the login hero
 background photo) that were committed at their original, far larger resolution
 and tripped the `quality:budgets` CI gate (per-image and total public-image
 limits). The sidebar mark is displayed at 2rem (32px) wide
@@ -37,6 +37,10 @@ a cover-fit decorative background capped at a 34rem-wide panel
 (`auth-shell.module.css`'s `.hero`), so it is re-encoded as a lossy WebP at
 1200x600 - no alpha, photographic content. Run
 `node scripts/optimize-lela-branding-assets.mjs` to reproduce both from their
-original source files (`lela-sidebar-logo.png`, `login page.png` - no longer
+original source files (`lela-sidebar-logo.png`, `login page.png`, `lela mark.jpg` - no longer
 committed; keep a local copy of the originals if either needs to be
 re-derived at a different size).
+
+`lela-mark.webp` is the login header mark, displayed at 104px wide; the original
+990x992 JPEG was the login page's LCP element and delayed first paint on slow
+networks, so it is re-encoded at 224px (2x DPR) and preloaded by `auth-shell.tsx`.

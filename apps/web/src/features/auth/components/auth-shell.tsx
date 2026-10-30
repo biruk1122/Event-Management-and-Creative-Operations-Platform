@@ -34,17 +34,24 @@ export function AuthShell({
       <link
         rel="preload"
         as="image"
-        href="/branding/lela-login-logo.webp"
+        href="/branding/lela-mark.webp"
         fetchPriority="high"
+      />
+      <link
+        rel="preload"
+        as="image"
+        href="/branding/lela-login-logo.webp"
+        fetchPriority="low"
       />
       <header className={styles.brand}>
         {/* eslint-disable-next-line @next/next/no-img-element -- matches
             BrandLogo's own raw-<img>/<image> convention in this feature. */}
         <img
-          src="/branding/lela%20mark.jpg"
+          src="/branding/lela-mark.webp"
           alt="Lela Creative Management"
-          width={1078}
-          height={992}
+          width={224}
+          height={224}
+          fetchPriority="high"
           className={styles.brandIcon ?? ""}
         />
         <p className="text-muted-foreground text-sm">

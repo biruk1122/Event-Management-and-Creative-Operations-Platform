@@ -22,7 +22,7 @@ describe("Lela auth shell", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("img", { name: "Lela Creative Management" }),
-    ).toHaveAttribute("src", "/branding/lela%20mark.jpg");
+    ).toHaveAttribute("src", "/branding/lela-mark.webp");
     expect(screen.getByRole("form", { name: "Sign in" })).toBeVisible();
     expect(
       screen.getByText("Need access? Contact your company administrator."),

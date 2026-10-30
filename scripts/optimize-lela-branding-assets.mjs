@@ -47,3 +47,12 @@ await sharp("apps/web/public/branding/login page.png")
   .webp({ quality: 82 })
   .toFile("apps/web/public/branding/login-page.webp");
 console.log("Re-encoded the login hero photo as a resized, lossy WebP.");
+
+// Login header mark: displayed at 6.5rem (104px) wide in auth-shell.module.css's
+// .brandIcon; the 1078x992 JPEG was the login page's LCP element and cost far
+// more than its on-screen size justifies. 224px covers 2x DPR.
+await sharp("apps/web/public/branding/lela mark.jpg")
+  .resize({ width: 224 })
+  .webp({ quality: 88 })
+  .toFile("apps/web/public/branding/lela-mark.webp");
+console.log("Re-encoded the login header mark as a right-sized WebP.");

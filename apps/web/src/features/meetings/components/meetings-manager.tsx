@@ -648,48 +648,46 @@ function MeetingDetail({
       ) : null}
       <dl className={styles.overview}>
         <div>
-          <UserRound aria-hidden="true" />
-          <div>
-            <dt>Organizer</dt>
-            <dd>{personName(meeting.organizer)}</dd>
-            <dd className={styles.metaHint}>{meeting.organizer.email}</dd>
-          </div>
+          <dt>
+            <UserRound aria-hidden="true" />
+            Organizer
+          </dt>
+          <dd>{personName(meeting.organizer)}</dd>
+          <dd className={styles.metaHint}>{meeting.organizer.email}</dd>
         </div>
         <div>
-          <Video aria-hidden="true" />
-          <div>
-            <dt>Format</dt>
-            <dd>{MEETING_TYPE_LABELS[meeting.type]}</dd>
-            <dd className={styles.metaHint}>
-              {meeting.type === "PHYSICAL"
-                ? "Meet in person"
-                : "Video conference"}
-            </dd>
-          </div>
+          <dt>
+            <Video aria-hidden="true" />
+            Format
+          </dt>
+          <dd>{MEETING_TYPE_LABELS[meeting.type]}</dd>
+          <dd className={styles.metaHint}>
+            {meeting.type === "PHYSICAL"
+              ? "Meet in person"
+              : "Video conference"}
+          </dd>
         </div>
         <div>
-          <UsersRound aria-hidden="true" />
-          <div>
-            <dt>Participants</dt>
-            <dd>
-              {meeting.participants.length}{" "}
-              {meeting.participants.length === 1
-                ? "participant"
-                : "participants"}
-            </dd>
-            <dd>
-              <Button
-                variant="link"
-                className={styles.participantsLink}
-                aria-expanded={showParticipants}
-                aria-controls={participantsId}
-                onClick={() => setShowParticipants((value) => !value)}
-              >
-                {showParticipants ? "Hide participants" : "View participants"}
-                <ArrowRight aria-hidden="true" />
-              </Button>
-            </dd>
-          </div>
+          <dt>
+            <UsersRound aria-hidden="true" />
+            Participants
+          </dt>
+          <dd>
+            {meeting.participants.length}{" "}
+            {meeting.participants.length === 1 ? "participant" : "participants"}
+          </dd>
+          <dd>
+            <Button
+              variant="link"
+              className={styles.participantsLink}
+              aria-expanded={showParticipants}
+              aria-controls={participantsId}
+              onClick={() => setShowParticipants((value) => !value)}
+            >
+              {showParticipants ? "Hide participants" : "View participants"}
+              <ArrowRight aria-hidden="true" />
+            </Button>
+          </dd>
         </div>
       </dl>
       {canJoin ? (
