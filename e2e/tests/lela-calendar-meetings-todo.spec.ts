@@ -336,6 +336,9 @@ test.describe("Lela calendar, meetings and to-do presentation", () => {
       await expect(
         ownerPage.getByRole("heading", { name: meetingTitle, exact: true }),
       ).toBeVisible();
+      await ownerPage
+        .getByRole("button", { name: "View participants" })
+        .click();
       await expect(
         ownerPage.getByText("Pending", { exact: true }),
       ).toBeVisible();
