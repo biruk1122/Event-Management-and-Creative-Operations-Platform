@@ -366,9 +366,12 @@ test.describe("Event & Office Manager workspace — end to end", () => {
     ).toBeVisible();
 
     const minutesText = "Launch is on track; one risk flagged on staging.";
-    await homePage.getByLabel("Minutes").fill(minutesText);
-    await homePage.getByRole("button", { name: "Save minutes" }).click();
-    await expect(homePage.getByText("Minutes saved.")).toBeVisible();
+    await homePage.getByRole("button", { name: "Add meeting notes" }).click();
+    await homePage
+      .getByRole("textbox", { name: "Meeting notes" })
+      .fill(minutesText);
+    await homePage.getByRole("button", { name: "Save meeting notes" }).click();
+    await expect(homePage.getByText("Meeting notes saved.")).toBeVisible();
 
     await homePage.getByRole("button", { name: "Add action item" }).click();
     await homePage.getByLabel("Title").fill(actionItemTitle);

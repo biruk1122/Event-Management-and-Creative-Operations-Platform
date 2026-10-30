@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -203,24 +203,12 @@ export function CalendarManager({
 
   return (
     <div className={`${styles.surface} space-y-4`}>
-      <header className={styles.pageHeader}>
-        <div className={styles.pageHeading}>
-          <span className={styles.headerIcon}>
-            <CalendarDays aria-hidden="true" />
-          </span>
-          <div>
-            <h1>Calendar</h1>
-            <p>
-              Your events, tasks, project deadlines, and personal entries in one
-              place.
-            </p>
-          </div>
-        </div>
+      <div className="flex justify-end">
         <Button type="button" onClick={() => openCreate(anchor)}>
           <Plus aria-hidden="true" />
           Add entry
         </Button>
-      </header>
+      </div>
       {connection.state.status === "denied" ? (
         <p role="status" className="text-muted-foreground text-sm">
           Live updates are unavailable. Refresh to see changes made elsewhere.

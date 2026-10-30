@@ -103,7 +103,10 @@ test.describe("Meeting participant responses — end to end", () => {
     await expect(
       page.getByRole("heading", { name: `${title} revised`, exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("Completed", { exact: true })).toBeVisible();
+    // The status shows on both the list card and the detail badge.
+    await expect(
+      page.getByText("Completed", { exact: true }).first(),
+    ).toBeVisible();
     // Authorization must hold independently of the visible confirmation dialog.
     expect(
       (
@@ -172,6 +175,9 @@ test.describe("Meeting participant responses — end to end", () => {
         participantPage.getByRole("main").getByRole("status"),
       ).toHaveText(/marked accepted/i);
       await participantPage.reload();
+      await participantPage
+        .getByRole("button", { name: "View participants" })
+        .click();
       await expect(
         participantPage.getByText("Accepted", { exact: true }),
       ).toBeVisible();

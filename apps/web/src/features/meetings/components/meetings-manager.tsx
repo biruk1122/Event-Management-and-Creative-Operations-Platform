@@ -331,22 +331,13 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
 
   return (
     <div className={`${styles.surface} space-y-4`}>
-      <header className={styles.pageHeader}>
-        <div className={styles.pageHeading}>
-          <span className={styles.headerIcon}>
-            <CalendarDays aria-hidden="true" />
-          </span>
-          <div>
-            <h1>Meetings</h1>
-            <p>Your schedule, and the meetings you&apos;ve been invited to.</p>
-          </div>
-        </div>
-        {canCreate && !creating ? (
+      {canCreate && !creating ? (
+        <div className="flex justify-end">
           <Button data-meeting-create onClick={() => setCreating(true)}>
             <Plus aria-hidden="true" /> Create meeting
           </Button>
-        ) : null}
-      </header>
+        </div>
+      ) : null}
       {canCreate && creating ? (
         <CreateMeetingForm
           people={(people.data ?? []).filter(

@@ -9,7 +9,6 @@ import {
   List,
   Plus,
   Search,
-  SquareCheck,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -309,24 +308,12 @@ export function TodoManager({
 
   return (
     <div ref={surfaceRef} className={`${styles.surface} space-y-4`}>
-      <header className={styles.pageHeader}>
-        <div className={styles.pageHeading}>
-          <span className={styles.headerIcon}>
-            <SquareCheck aria-hidden="true" />
-          </span>
-          <div>
-            <h1>To-Do</h1>
-            <p>
-              Your personal planning items and reminders, separate from official
-              tasks.
-            </p>
-          </div>
-        </div>
+      <div className="flex justify-end">
         <Button onClick={openCreate}>
           <Plus aria-hidden="true" />
           Add to-do
         </Button>
-      </header>
+      </div>
       {connection.state.status === "denied" ? (
         <p role="status" className="text-muted-foreground text-sm">
           Live updates are unavailable. Refresh to see changes made elsewhere.

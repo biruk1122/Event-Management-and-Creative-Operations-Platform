@@ -241,6 +241,13 @@ jobs:
       # Avoid exhausting the production per-IP login ceiling during one test
       # run; application-level rate-limit behavior remains covered in API tests.
       AUTH_LOGIN_RATE_LIMIT_MAX: 10000
+      # Specs share storageState signed in once during setup, and many call
+      # the API directly with `page.request`, which never refreshes. With
+      # the workflow-wide 15m access token, every such call starts failing
+      # with 401 once the suite runs past 15 minutes (the suite now takes
+      # ~20+). The token lifetime is not under test here - refresh and
+      # expiry have their own dedicated specs and API tests.
+      AUTH_ACCESS_TOKEN_TTL: 4h
     services:
       postgres:
         image: postgres:18-bookworm
