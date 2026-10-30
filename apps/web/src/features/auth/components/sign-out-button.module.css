@@ -1,0 +1,184 @@
+.modal {
+  width: calc(100% - 2rem);
+  max-width: 29.75rem;
+  gap: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: 1.75rem;
+  border-color: color-mix(in oklab, var(--secondary) 40%, var(--card));
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--card) 92%, var(--secondary)),
+    var(--background)
+  );
+  color: var(--primary);
+  box-shadow: 0 20px 70px
+    color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+.modal::before,
+.modal::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  width: 21rem;
+  height: 17rem;
+  top: -10rem;
+  right: -6rem;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--secondary) 9%, transparent);
+  transform: rotate(30deg);
+}
+.modal::after {
+  width: 12rem;
+  right: -9rem;
+  top: -8rem;
+  height: 16rem;
+  background: color-mix(in oklab, var(--secondary) 12%, transparent);
+}
+.modal > [data-slot="dialog-close"] {
+  top: 1.375rem;
+  right: 1.375rem;
+  color: var(--muted-foreground);
+  opacity: 1;
+  z-index: 2;
+}
+.modal > [data-slot="dialog-close"] svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.body {
+  position: relative;
+  z-index: 1;
+  padding: 1.5rem 1.75rem 1.25rem;
+}
+.icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.375rem;
+  height: 4.375rem;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--primary) 6%, transparent);
+  margin-bottom: 0.625rem;
+}
+.icon > svg {
+  width: 2.125rem;
+  height: 2.125rem;
+}
+.rays {
+  position: absolute;
+  right: -0.625rem;
+  top: -0.25rem;
+  width: 1.25rem;
+  height: 1.5rem;
+  color: var(--ring);
+  opacity: 0.65;
+}
+.rays i {
+  position: absolute;
+  display: block;
+  width: 0.5rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+.rays i:nth-child(1) {
+  top: 0.125rem;
+  transform: rotate(-65deg);
+}
+.rays i:nth-child(2) {
+  top: 0.625rem;
+  left: 0.5rem;
+  transform: rotate(-35deg);
+}
+.rays i:nth-child(3) {
+  top: 1.125rem;
+  left: 0.75rem;
+  transform: rotate(-5deg);
+}
+.heading {
+  gap: 0.5rem;
+}
+.title {
+  font-size: 1.75rem;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+}
+.description {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+.session {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.125rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+.session svg {
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+  color: var(--ring);
+}
+.session span {
+  border-left: 1px solid color-mix(in oklab, var(--ring) 30%, transparent);
+  padding-left: 0.75rem;
+}
+.footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  margin: 0 1.25rem;
+  padding: 0.8125rem 0.25rem 1.5rem;
+  border-top: 1px solid color-mix(in oklab, var(--secondary) 30%, transparent);
+}
+.cancel,
+.confirm {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.875rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+}
+.cancel {
+  background: transparent;
+  color: var(--primary);
+  border-color: color-mix(in oklab, var(--ring) 55%, var(--card));
+}
+.confirm {
+  background: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--primary) 88%, var(--ring)),
+    var(--primary)
+  );
+  color: var(--primary-foreground);
+  box-shadow:
+    0 4px 9px color-mix(in oklab, var(--primary) 20%, transparent),
+    inset 0 1px 0
+      color-mix(in oklab, var(--primary-foreground) 15%, transparent);
+}
+.confirm:hover {
+  filter: brightness(1.08);
+}
+@media (max-width: 399px) {
+  .body {
+    padding: 1.5rem 1.25rem 1.25rem;
+  }
+  .title {
+    font-size: 1.5rem;
+  }
+  .footer {
+    flex-direction: column-reverse;
+  }
+}
+:global(.dark) .modal {
+  color: var(--foreground);
+}

@@ -115,9 +115,11 @@ test.describe("Direct messages and channels — end to end", () => {
       await startDialog.getByRole("button", { name: "Start" }).click();
 
       // It lands in the list, selected, with an empty thread.
-      const conversationButton = page.getByRole("button", {
-        name: ownEmail(manager.email),
-      });
+      const conversationButton = page
+        .getByRole("button", {
+          name: ownEmail(manager.email),
+        })
+        .first();
       await expect(conversationButton).toBeVisible();
       await expect(page.getByText("No messages yet. Say hello.")).toBeVisible();
 
@@ -151,7 +153,9 @@ test.describe("Direct messages and channels — end to end", () => {
       // Send a message through the composer.
       await page.getByLabel("Message", { exact: true }).fill(originalContent);
       await page.getByRole("button", { name: "Send" }).click();
-      await expect(page.getByText(originalContent)).toBeVisible();
+      await expect(
+        page.getByRole("list", { name: "Messages" }).getByText(originalContent),
+      ).toBeVisible();
 
       // A `page.request` read immediately after the UI shows the message can
       // occasionally observe the store a beat before this specific fetch
@@ -181,7 +185,9 @@ test.describe("Direct messages and channels — end to end", () => {
       const editForm = page.getByRole("form", { name: "Edit message" });
       await editForm.getByLabel("Message", { exact: true }).fill(editedContent);
       await editForm.getByRole("button", { name: "Save" }).click();
-      await expect(page.getByText(editedContent)).toBeVisible();
+      await expect(
+        page.getByRole("list", { name: "Messages" }).getByText(editedContent),
+      ).toBeVisible();
       await expect(page.getByText(originalContent)).toHaveCount(0);
 
       // Reply to it, then pin the reply.
@@ -194,7 +200,9 @@ test.describe("Direct messages and channels — end to end", () => {
       ).toBeVisible();
       await page.getByLabel("Message", { exact: true }).fill(replyContent);
       await page.getByRole("button", { name: "Send" }).click();
-      await expect(page.getByText(replyContent)).toBeVisible();
+      await expect(
+        page.getByRole("list", { name: "Messages" }).getByText(replyContent),
+      ).toBeVisible();
       await expect(
         page.getByText(`Replying to: ${editedContent}`).last(),
       ).toBeVisible();
@@ -241,7 +249,9 @@ test.describe("Direct messages and channels — end to end", () => {
       await expect(
         page.getByText(editedContent, { exact: true }),
       ).toBeVisible();
-      await expect(page.getByText(replyContent)).toBeVisible();
+      await expect(
+        page.getByRole("list", { name: "Messages" }).getByText(replyContent),
+      ).toBeVisible();
       await expect(
         page
           .getByRole("listitem")

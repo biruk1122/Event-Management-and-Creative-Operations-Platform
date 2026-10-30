@@ -39,6 +39,9 @@ interface NotificationRow {
   task_id: string | null;
   message_id: string | null;
   event_id: string | null;
+  partner_id: string | null;
+  letter_id: string | null;
+  document_id: string | null;
   created_at: Date;
   read_at: Date | null;
 }
@@ -106,6 +109,31 @@ describe("in-app notifications schema", () => {
     const [row] = await db.query<{ id: string }>(
       `INSERT INTO events (workspace_id, name, event_type) VALUES ($1, $2, 'OTHER') RETURNING id`,
       [workspaceId, unique("Notification Event")],
+    );
+    return row!.id;
+  }
+
+  async function insertPartner(): Promise<string> {
+    const [row] = await db.query<{ id: string }>(
+      `INSERT INTO partners (organization_name, category) VALUES ($1, 'Media') RETURNING id`,
+      [unique("Notification Partner")],
+    );
+    return row!.id;
+  }
+
+  async function insertLetter(): Promise<string> {
+    const [row] = await db.query<{ id: string }>(
+      `INSERT INTO letters (reference_number, direction, category, date, subject, from_party)
+       VALUES ($1, 'INCOMING', 'CAST', '2026-01-01', 'Subject', 'Sender Co.') RETURNING id`,
+      [unique("LELA-CAST-2026")],
+    );
+    return row!.id;
+  }
+
+  async function insertDocument(): Promise<string> {
+    const [row] = await db.query<{ id: string }>(
+      `INSERT INTO documents (display_name, document_type) VALUES ($1, 'OTHER') RETURNING id`,
+      [unique("Notification Document")],
     );
     return row!.id;
   }
@@ -336,10 +364,13 @@ describe("in-app notifications schema", () => {
       expect(notification.created_at).toBeInstanceOf(Date);
     });
 
-    it("accepts a task, a message, or an event as the sole target", async () => {
+    it("accepts a task, a message, an event, a partner, a letter, or a document as the sole target", async () => {
       const taskId = await insertTask();
       const messageId = await insertMessage();
       const eventId = await insertEvent();
+      const partnerId = await insertPartner();
+      const letterId = await insertLetter();
+      const documentId = await insertDocument();
 
       const taskNotification = await insertNotification({ task_id: taskId });
       const messageNotification = await insertNotification({
@@ -350,17 +381,40 @@ describe("in-app notifications schema", () => {
         type: "EVENT_REMINDER",
         event_id: eventId,
       });
+      const partnerNotification = await insertNotification({
+        type: "PARTNER_FOLLOW_UP_DUE",
+        partner_id: partnerId,
+      });
+      const letterNotification = await insertNotification({
+        type: "LETTER_SHARED",
+        letter_id: letterId,
+      });
+      const documentNotification = await insertNotification({
+        type: "DOCUMENT_SHARED",
+        document_id: documentId,
+      });
 
       expect(taskNotification.task_id).toBe(taskId);
       expect(messageNotification.message_id).toBe(messageId);
       expect(eventNotification.event_id).toBe(eventId);
+      expect(partnerNotification.partner_id).toBe(partnerId);
+      expect(letterNotification.letter_id).toBe(letterId);
+      expect(documentNotification.document_id).toBe(documentId);
     });
 
     it("rejects more than one target set at once", async () => {
       const taskId = await insertTask();
       const messageId = await insertMessage();
+      const partnerId = await insertPartner();
       await expect(
         insertNotification({ task_id: taskId, message_id: messageId }),
+      ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+      await expect(
+        insertNotification({ task_id: taskId, partner_id: partnerId }),
+      ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+      const letterId = await insertLetter();
+      await expect(
+        insertNotification({ task_id: taskId, letter_id: letterId }),
       ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
     });
 
@@ -434,6 +488,18 @@ describe("in-app notifications schema", () => {
       await expect(
         insertNotification({ type: "EVENT_REMINDER", event_id: MISSING }),
       ).rejects.toMatchObject({ code: PG_ERROR.foreignKeyViolation });
+      await expect(
+        insertNotification({
+          type: "PARTNER_FOLLOW_UP_DUE",
+          partner_id: MISSING,
+        }),
+      ).rejects.toMatchObject({ code: PG_ERROR.foreignKeyViolation });
+      await expect(
+        insertNotification({ type: "LETTER_SHARED", letter_id: MISSING }),
+      ).rejects.toMatchObject({ code: PG_ERROR.foreignKeyViolation });
+      await expect(
+        insertNotification({ type: "DOCUMENT_SHARED", document_id: MISSING }),
+      ).rejects.toMatchObject({ code: PG_ERROR.foreignKeyViolation });
     });
 
     it("cascades delete when the recipient is removed", async () => {
@@ -467,6 +533,42 @@ describe("in-app notifications schema", () => {
       expect(
         await db.query(`SELECT 1 FROM notifications WHERE id = $1`, [
           messageNotification.id,
+        ]),
+      ).toEqual([]);
+
+      const partnerId = await insertPartner();
+      const partnerNotification = await insertNotification({
+        type: "PARTNER_FOLLOW_UP_DUE",
+        partner_id: partnerId,
+      });
+      await db.query(`DELETE FROM partners WHERE id = $1`, [partnerId]);
+      expect(
+        await db.query(`SELECT 1 FROM notifications WHERE id = $1`, [
+          partnerNotification.id,
+        ]),
+      ).toEqual([]);
+
+      const letterId = await insertLetter();
+      const letterNotification = await insertNotification({
+        type: "LETTER_SHARED",
+        letter_id: letterId,
+      });
+      await db.query(`DELETE FROM letters WHERE id = $1`, [letterId]);
+      expect(
+        await db.query(`SELECT 1 FROM notifications WHERE id = $1`, [
+          letterNotification.id,
+        ]),
+      ).toEqual([]);
+
+      const documentId = await insertDocument();
+      const documentNotification = await insertNotification({
+        type: "DOCUMENT_SHARED",
+        document_id: documentId,
+      });
+      await db.query(`DELETE FROM documents WHERE id = $1`, [documentId]);
+      expect(
+        await db.query(`SELECT 1 FROM notifications WHERE id = $1`, [
+          documentNotification.id,
         ]),
       ).toEqual([]);
     });
@@ -512,12 +614,37 @@ describe("in-app notifications schema", () => {
       expect(preference.type).toBe("EVENT_REMINDER");
     });
 
+    it("mutes PARTNER_FOLLOW_UP_DUE", async () => {
+      const preference = await insertPreference({
+        type: "PARTNER_FOLLOW_UP_DUE",
+      });
+      expect(preference.type).toBe("PARTNER_FOLLOW_UP_DUE");
+    });
+
+    it("mutes LETTER_SHARED and DOCUMENT_SHARED, the newest mutable types", async () => {
+      const letterPreference = await insertPreference({
+        type: "LETTER_SHARED",
+      });
+      expect(letterPreference.type).toBe("LETTER_SHARED");
+
+      const documentPreference = await insertPreference({
+        type: "DOCUMENT_SHARED",
+      });
+      expect(documentPreference.type).toBe("DOCUMENT_SHARED");
+    });
+
     it.each([
       "TASK_ASSIGNED",
       "TASK_APPROVED",
       "TASK_REJECTED",
       "MESSAGE_MENTION",
       "MEETING_INVITATION",
+      "ATTENDANCE_SHIFT_ASSIGNED",
+      "ATTENDANCE_SHIFT_SCHEDULE_CHANGED",
+      "ATTENDANCE_OVERTIME_DECIDED",
+      "ATTENDANCE_EXCEPTION_DECIDED",
+      "LEAVE_REQUEST_SUBMITTED",
+      "LEAVE_REQUEST_DECIDED",
     ])("rejects muting the non-mutable type %s", async (type) => {
       await expect(insertPreference({ type })).rejects.toMatchObject({
         code: PG_ERROR.checkViolation,

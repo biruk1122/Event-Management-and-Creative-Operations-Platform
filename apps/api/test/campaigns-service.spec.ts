@@ -22,6 +22,7 @@ function makeCampaign(overrides: Partial<CampaignRecord> = {}): CampaignRecord {
     startAt: null,
     endAt: null,
     eventId: null,
+    departmentId: null,
     productName: null,
     budgetAmount: null,
     budgetCurrency: null,
@@ -70,6 +71,8 @@ describe("CampaignsService", () => {
   let repository: {
     list: ReturnType<typeof vi.fn>;
     findById: ReturnType<typeof vi.fn>;
+    findUserDepartmentId: ReturnType<typeof vi.fn>;
+    departmentExists: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     updateStatus: ReturnType<typeof vi.fn>;
@@ -100,6 +103,8 @@ describe("CampaignsService", () => {
     repository = {
       list: vi.fn().mockResolvedValue({ items: [], total: 0 }),
       findById: vi.fn().mockResolvedValue(makeCampaign()),
+      findUserDepartmentId: vi.fn().mockResolvedValue(null),
+      departmentExists: vi.fn().mockResolvedValue(true),
       create: vi.fn().mockResolvedValue(makeCampaign()),
       update: vi.fn().mockResolvedValue(makeCampaign()),
       updateStatus: vi.fn().mockResolvedValue(makeCampaign()),
@@ -196,19 +201,24 @@ describe("CampaignsService", () => {
       await expectCode(call(service), "PERMISSION_DENIED");
     });
 
-    it.each([
-      ["campaign.read", "DEPARTMENT"],
-      ["campaign.read", "SELF"],
-    ] as const)(
-      "read is denied for a %s grant at %s scope",
-      async (key, scope) => {
-        grantOnly([key, scope]);
-        await expectCode(
-          service.list(ACTOR, { page: 1, pageSize: 25 }),
-          "PERMISSION_DENIED",
-        );
-      },
-    );
+    it("read is denied for a campaign.read grant at SELF scope", async () => {
+      grantOnly(["campaign.read", "SELF"]);
+      await expectCode(
+        service.list(ACTOR, { page: 1, pageSize: 25 }),
+        "PERMISSION_DENIED",
+      );
+    });
+
+    it("a campaign.read grant at DEPARTMENT scope lists only the actor's own department", async () => {
+      grantOnly(["campaign.read", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue("department-1");
+      await service.list(ACTOR, { page: 1, pageSize: 25 });
+      expect(repository.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visibility: { organization: false, departmentId: "department-1" },
+        }),
+      );
+    });
 
     it("each write path checks its own key", async () => {
       const table: [string, () => Promise<unknown>][] = [
@@ -271,10 +281,21 @@ describe("CampaignsService", () => {
       );
     });
 
-    it("404s an unknown campaign before evaluating any grant", async () => {
+    it("404s an unknown campaign for an organization-scoped caller, but never reveals existence to a caller with no grant", async () => {
       repository.findById.mockResolvedValue(null);
+      // No grant at all: an absent id and an out-of-scope id must look the
+      // same, so ids cannot be used to probe campaigns outside scope - the
+      // same idiom TasksService's own `authorize()` already documents.
       grantOnly();
+      await expectCode(service.get(ACTOR, "nope"), "PERMISSION_DENIED");
+      await expectCode(
+        service.createActivity(ACTOR, "nope", { name: "x" }),
+        "PERMISSION_DENIED",
+      );
+
+      grantOnly(["campaign.read", "ORGANIZATION"]);
       await expectCode(service.get(ACTOR, "nope"), "CAMPAIGN_NOT_FOUND");
+      grantOnly(["campaign.activity.manage", "ORGANIZATION"]);
       await expectCode(
         service.createActivity(ACTOR, "nope", { name: "x" }),
         "CAMPAIGN_NOT_FOUND",
@@ -300,6 +321,28 @@ describe("CampaignsService", () => {
         audience: "Everyone",
         productName: "Widget",
       });
+    });
+
+    it("forces a department-scoped caller's own department on create, ignoring any client-supplied one", async () => {
+      grantOnly(["campaign.create", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue("department-1");
+      await service.create(ACTOR, {
+        name: "Local push",
+        campaignType: "MARKETING",
+        departmentId: "some-other-department",
+      });
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ departmentId: "department-1" }),
+      );
+    });
+
+    it("denies create for a caller with neither organization nor department scope", async () => {
+      grantOnly();
+      await expectCode(
+        service.create(ACTOR, { name: "x", campaignType: "MARKETING" }),
+        "PERMISSION_DENIED",
+      );
+      expect(repository.create).not.toHaveBeenCalled();
     });
 
     it("rejects an end before the start on create and never writes", async () => {
@@ -602,6 +645,7 @@ describe("CampaignsService", () => {
       });
 
       expect(repository.list).toHaveBeenCalledWith({
+        visibility: { organization: true },
         status: "ACTIVE",
         campaignType: "PROMOTION",
         search: "launch",

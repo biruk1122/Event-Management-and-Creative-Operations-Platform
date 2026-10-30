@@ -16,7 +16,7 @@ describe("department RBAC catalog migration", () => {
     await db?.drop();
   });
 
-  it("creates the four approved departments with the requested casing", async () => {
+  it("creates the approved platform departments with the requested casing", async () => {
     const rows = await db.query<{ name: string }>(
       "SELECT name FROM departments ORDER BY name",
     );

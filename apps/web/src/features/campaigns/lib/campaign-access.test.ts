@@ -19,9 +19,9 @@ describe("campaign access", () => {
       expect(canReadCampaigns(access(["campaign.read"]))).toBe(true);
     });
 
-    it("rejects a department-scoped reader", () => {
+    it("accepts a department-scoped reader (e.g. the Marketing Manager)", () => {
       expect(canReadCampaigns(access(["campaign.read", "DEPARTMENT"]))).toBe(
-        false,
+        true,
       );
     });
 
@@ -75,13 +75,25 @@ describe("campaign access", () => {
       ).toMatchObject({ canReadBudget: false, canUpdateBudget: true });
     });
 
-    it("ignores a grant held at any scope other than organization", () => {
+    it("honors a department-scoped grant for every key except delete", () => {
       const abilities = campaignAbilities(
         access(
           ["campaign.create", "DEPARTMENT"],
-          ["campaign.update", "TEAM"],
-          ["campaign.delete", "SELF"],
+          ["campaign.update", "DEPARTMENT"],
+          ["campaign.delete", "DEPARTMENT"],
         ),
+      );
+
+      expect(abilities.canCreate).toBe(true);
+      expect(abilities.canUpdate).toBe(true);
+      // campaign.delete stays organization-only - no DEPARTMENT-scope grant
+      // for it exists in the role catalog.
+      expect(abilities.canDelete).toBe(false);
+    });
+
+    it("ignores a grant held at a scope the catalog never issues it at", () => {
+      const abilities = campaignAbilities(
+        access(["campaign.update", "TEAM"], ["campaign.delete", "SELF"]),
       );
 
       expect(Object.values(abilities).every((granted) => !granted)).toBe(true);

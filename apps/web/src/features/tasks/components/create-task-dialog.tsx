@@ -25,11 +25,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import {
+  TASK_PRIORITY_LABELS,
   TASK_TYPES,
   personName,
   taskTypeLabel,
   type Task,
   type TaskPerson,
+  type TaskPriority,
   type TaskType,
 } from "../lib/tasks-types";
 
@@ -42,11 +44,22 @@ export interface CreateTaskValues {
   title: string;
   description: string;
   type: TaskType;
+  priority: TaskPriority;
   departmentId: string;
   assigneeId: string;
   dueAt: string;
   workspaceId?: string;
+  parentTaskId?: string;
+  /** Checkpoints authored up front; posted one at a time after creation. */
+  checklistItems: string[];
 }
+
+const TASK_PRIORITIES: readonly TaskPriority[] = [
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "URGENT",
+];
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -60,6 +73,11 @@ interface CreateTaskDialogProps {
    * workspace (e.g. a production's schedule) - silent context, not a field
    * the user picks. */
   workspaceId?: string;
+  /** When set, this dialog creates a subtask of that task instead of a
+   * top-level one: the department field is locked to the parent's own
+   * department (the server ignores any other value here regardless), and
+   * the title/copy switch to "subtask" wording. */
+  parentTaskId?: string;
   loadEligibleAssignees: (
     departmentId: string,
     signal?: AbortSignal,
@@ -88,9 +106,11 @@ function emptyValues(defaultDepartmentId: string): CreateTaskValues {
     title: "",
     description: "",
     type: "GENERAL",
+    priority: "MEDIUM",
     departmentId: defaultDepartmentId,
     assigneeId: "",
     dueAt: "",
+    checklistItems: [],
   };
 }
 
@@ -100,6 +120,7 @@ export function CreateTaskDialog({
   departments,
   departmentLocked,
   workspaceId,
+  parentTaskId,
   loadEligibleAssignees,
   onCreate,
   onUploadAttachment,
@@ -109,9 +130,11 @@ export function CreateTaskDialog({
   const departmentId = useId();
   const assigneeId = useId();
   const typeId = useId();
+  const priorityId = useId();
   const descriptionId = useId();
   const dueAtId = useId();
   const fileId = useId();
+  const checklistId = useId();
 
   const defaultDepartmentId =
     departmentLocked && departments[0] ? departments[0].id : "";
@@ -119,6 +142,7 @@ export function CreateTaskDialog({
     emptyValues(defaultDepartmentId),
   );
   const [files, setFiles] = useState<File[]>([]);
+  const [checklistDraft, setChecklistDraft] = useState("");
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof CreateTaskValues, string>>
   >({});
@@ -139,9 +163,27 @@ export function CreateTaskDialog({
   function reset() {
     setValues(emptyValues(defaultDepartmentId));
     setFiles([]);
+    setChecklistDraft("");
     setFieldErrors({});
     setFormError(null);
     setAttachmentWarning(null);
+  }
+
+  function addChecklistDraftItem() {
+    const trimmed = checklistDraft.trim();
+    if (!trimmed) return;
+    setValues((current) => ({
+      ...current,
+      checklistItems: [...current.checklistItems, trimmed],
+    }));
+    setChecklistDraft("");
+  }
+
+  function removeChecklistDraftItem(index: number) {
+    setValues((current) => ({
+      ...current,
+      checklistItems: current.checklistItems.filter((_, i) => i !== index),
+    }));
   }
 
   function close() {
@@ -217,6 +259,7 @@ export function CreateTaskDialog({
         ...values,
         dueAt: new Date(`${values.dueAt}T00:00:00.000Z`).toISOString(),
         ...(workspaceId ? { workspaceId } : {}),
+        ...(parentTaskId ? { parentTaskId } : {}),
       });
       if (files.length > 0) {
         const failed: string[] = [];
@@ -258,10 +301,11 @@ export function CreateTaskDialog({
     >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>New task</DialogTitle>
+          <DialogTitle>{parentTaskId ? "New subtask" : "New task"}</DialogTitle>
           <DialogDescription>
-            Create and assign a task to an eligible member of the chosen
-            department.
+            {parentTaskId
+              ? "Break this down into a subtask for an eligible member of the same department."
+              : "Create and assign a task to an eligible member of the chosen department."}
           </DialogDescription>
         </DialogHeader>
 
@@ -394,7 +438,7 @@ export function CreateTaskDialog({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor={typeId}>
                 Task type <span aria-hidden="true">*</span>
@@ -416,6 +460,31 @@ export function CreateTaskDialog({
                   {TASK_TYPES.map((type) => (
                     <SelectItem key={type} value={type}>
                       {taskTypeLabel(type)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={priorityId}>Priority</Label>
+              <Select
+                value={values.priority}
+                disabled={submitting}
+                onValueChange={(value) =>
+                  setValues((current) => ({
+                    ...current,
+                    priority: value as TaskPriority,
+                  }))
+                }
+              >
+                <SelectTrigger id={priorityId}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TASK_PRIORITIES.map((priority) => (
+                    <SelectItem key={priority} value={priority}>
+                      {TASK_PRIORITY_LABELS[priority]}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -505,6 +574,55 @@ export function CreateTaskDialog({
             ) : null}
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor={checklistId}>Checkpoints (optional)</Label>
+            {values.checklistItems.length > 0 ? (
+              <ul className="divide-border mb-2 divide-y rounded-lg border">
+                {values.checklistItems.map((description, index) => (
+                  <li
+                    key={`${description}-${index}`}
+                    className="flex items-center justify-between gap-3 p-2 text-sm"
+                  >
+                    <span className="min-w-0 truncate">{description}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={submitting}
+                      onClick={() => removeChecklistDraftItem(index)}
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="flex items-end gap-2">
+              <Input
+                id={checklistId}
+                value={checklistDraft}
+                disabled={submitting}
+                placeholder="Add a checkpoint"
+                onChange={(event) => setChecklistDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addChecklistDraftItem();
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={submitting || !checklistDraft.trim()}
+                onClick={addChecklistDraftItem}
+              >
+                Add checkpoint
+              </Button>
+            </div>
+          </div>
+
           <DialogFooter>
             <Button
               type="button"
@@ -515,7 +633,11 @@ export function CreateTaskDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={submitting} aria-busy={submitting}>
-              {submitting ? "Creating…" : "Create task"}
+              {submitting
+                ? "Creating…"
+                : parentTaskId
+                  ? "Create subtask"
+                  : "Create task"}
             </Button>
           </DialogFooter>
         </form>

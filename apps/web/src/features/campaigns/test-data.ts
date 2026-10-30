@@ -49,6 +49,7 @@ export function makeCampaign(overrides: Partial<Campaign> = {}): Campaign {
     startAt: null,
     endAt: null,
     eventId: null,
+    departmentId: null,
     productName: null,
     progress: { completedActivities: 0, totalActivities: 0, percent: null },
     manager: null,

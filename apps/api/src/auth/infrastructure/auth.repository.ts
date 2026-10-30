@@ -80,6 +80,39 @@ export class AuthRepository {
     };
   }
 
+  async findAccountByUserId(userId: string): Promise<AccountRecord | null> {
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        status: true,
+        credential: {
+          select: {
+            id: true,
+            passwordHash: true,
+            failedAttemptCount: true,
+            lockedUntil: true,
+          },
+        },
+      },
+    });
+
+    if (!user?.credential) {
+      return null;
+    }
+
+    return {
+      userId: user.id,
+      email: user.email,
+      status: user.status,
+      credentialId: user.credential.id,
+      passwordHash: user.credential.passwordHash,
+      failedAttemptCount: user.credential.failedAttemptCount,
+      lockedUntil: user.credential.lockedUntil,
+    };
+  }
+
   async findUserById(id: string): Promise<UserRecord | null> {
     return this.db.user.findUnique({
       where: { id },

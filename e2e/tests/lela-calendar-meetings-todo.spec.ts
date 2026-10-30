@@ -238,7 +238,6 @@ test.describe("Lela calendar, meetings and to-do presentation", () => {
             type: "ONLINE",
             startAt: new Date(Date.now() + 86_400_000).toISOString(),
             endAt: new Date(Date.now() + 90_000_000).toISOString(),
-            onlineLink: "https://meet.example.test/ui10",
             participantIds: [owner.id],
           },
         },
@@ -337,6 +336,9 @@ test.describe("Lela calendar, meetings and to-do presentation", () => {
       await expect(
         ownerPage.getByRole("heading", { name: meetingTitle, exact: true }),
       ).toBeVisible();
+      await ownerPage
+        .getByRole("button", { name: "View participants" })
+        .click();
       await expect(
         ownerPage.getByText("Pending", { exact: true }),
       ).toBeVisible();

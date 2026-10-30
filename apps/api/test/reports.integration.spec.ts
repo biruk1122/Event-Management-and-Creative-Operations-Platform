@@ -320,6 +320,18 @@ describe("report API", () => {
         where: { action: "report.submitted", resourceId: report.id },
       }),
     ).toBe(2);
+    // Submission and review both notify (ADR 0001 §1): each durably appends
+    // its own outbox event rather than relying on the audit trail alone.
+    expect(
+      await prisma.outboxEvent.count({
+        where: { name: "report.submitted", resourceId: report.id },
+      }),
+    ).toBe(2);
+    expect(
+      await prisma.outboxEvent.count({
+        where: { name: "report.reviewed", resourceId: report.id },
+      }),
+    ).toBe(2);
     const duplicate = await as(member, "post", "/api/v1/reports").send({
       type: "DAILY",
       title: "Duplicate",

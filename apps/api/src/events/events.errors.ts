@@ -12,6 +12,7 @@ export const EVENT_ERROR = {
   eventTeamNotAssigned: "EVENT_TEAM_NOT_ASSIGNED",
   eventInvalidTransition: "EVENT_INVALID_TRANSITION",
   eventScheduleInvalid: "EVENT_SCHEDULE_INVALID",
+  eventReminderInvalid: "EVENT_REMINDER_INVALID",
   eventBudgetIncomplete: "EVENT_BUDGET_INCOMPLETE",
   eventHasManagedFiles: "EVENT_HAS_MANAGED_FILES",
   /** The same code the user, department, team, and workspace surfaces use. */
@@ -66,6 +67,15 @@ export function eventScheduleInvalid(): HttpException {
     code: EVENT_ERROR.eventScheduleInvalid,
     error: "Bad Request",
     detail: "The event end must be at or after its start.",
+  });
+}
+
+export function eventReminderInvalid(): HttpException {
+  return new BadRequestException({
+    code: EVENT_ERROR.eventReminderInvalid,
+    error: "Bad Request",
+    detail:
+      "A reminder requires the event to have a start time set, and may not be later than it.",
   });
 }
 

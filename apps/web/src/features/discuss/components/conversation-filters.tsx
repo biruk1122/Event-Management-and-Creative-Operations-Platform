@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { Search } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,17 +17,21 @@ export function ConversationFilters({
 }: ConversationFiltersProps) {
   const searchId = useId();
   return (
-    <div className="flex-1 space-y-1">
+    <div className="relative flex-1">
+      <Search
+        aria-hidden="true"
+        className="text-muted-foreground pointer-events-none absolute top-3 left-3 size-4"
+      />
       <Label htmlFor={searchId} className="sr-only">
         Search
       </Label>
       <Input
         id={searchId}
         type="search"
-        placeholder="Search"
+        placeholder="Search conversations…"
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
-        className="max-w-xs"
+        className="bg-muted/50 rounded-xl pl-9"
       />
     </div>
   );

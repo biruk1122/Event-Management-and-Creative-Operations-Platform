@@ -204,7 +204,7 @@ describe("NotificationsNavigation", () => {
     await user.click(screen.getByRole("button", { name: "Try again" }));
     expect(await screen.findByText("You were assigned a task")).toBeVisible();
   });
-  it("links a meeting notification to the existing Meetings page and marks it read on click", async () => {
+  it("links a meeting notification to its deep link and marks it read on click", async () => {
     get.mockImplementation((path: string) => {
       if (path === "/api/v1/auth/me/permissions") {
         return Promise.resolve({
@@ -246,7 +246,7 @@ describe("NotificationsNavigation", () => {
     const link = await screen.findByRole("link", {
       name: /You were invited to a meeting/,
     });
-    expect(link).toHaveAttribute("href", "/meetings");
+    expect(link).toHaveAttribute("href", "/meetings?meetingId=meeting-1");
     await user.click(link);
     await waitFor(() =>
       expect(put).toHaveBeenCalledWith(

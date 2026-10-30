@@ -36,8 +36,6 @@ export class MeetingResponse {
   @ApiProperty({ format: "date-time" }) startAt!: string;
   @ApiProperty({ format: "date-time" }) endAt!: string;
   @ApiProperty({ type: String, nullable: true }) location!: string | null;
-  @ApiProperty({ type: String, format: "uri", nullable: true }) onlineLink!:
-    string | null;
   @ApiProperty({ type: String, format: "date-time", nullable: true })
   reminderAt!: string | null;
   @ApiProperty({
@@ -83,4 +81,24 @@ export class MeetingAvailabilityResponse {
   @ApiProperty({ format: "date-time" }) endAt!: string;
   @ApiProperty({ type: [UserAvailabilityResponse] })
   users!: UserAvailabilityResponse[];
+}
+
+export class MeetingJitsiSessionResponse {
+  @ApiProperty({
+    description: "The self-hosted Jitsi deployment's public domain.",
+  })
+  domain!: string;
+  @ApiProperty() roomName!: string;
+  @ApiProperty() displayName!: string;
+  @ApiProperty({
+    description:
+      "UI hint only in this MVP - no JWT/server-enforced moderator role yet.",
+  })
+  moderator!: boolean;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Reserved for the optional future JWT auth scheme.",
+  })
+  jwt!: string | null;
 }

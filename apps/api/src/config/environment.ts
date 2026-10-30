@@ -61,6 +61,7 @@ const environmentSchema = z.object({
   // Storage credentials are server-only. The defaults are deliberately the
   // local MinIO development service; production must supply real values.
   FILE_STORAGE_ENDPOINT: z.url().default("http://localhost:9000"),
+  FILE_STORAGE_PUBLIC_ENDPOINT: z.url().optional(),
   FILE_STORAGE_REGION: z.string().min(1).default("us-east-1"),
   FILE_STORAGE_BUCKET: z
     .string()
@@ -73,39 +74,18 @@ const environmentSchema = z.object({
   // unavailable scanner rejects finalization safely until an approved
   // production scanner adapter is configured.
   FILE_SCANNER_MODE: z.enum(["test", "unavailable"]).default("test"),
-  GOOGLE_MEET_ENABLED: booleanFromString.default(false),
-  GOOGLE_MEET_ACTIVATION_REVIEW: z.string().default(""),
-  GOOGLE_MEET_OPERATOR: z.string().default(""),
-  GOOGLE_MEET_CLIENT_ID: z.string().default(""),
-  GOOGLE_MEET_CLIENT_SECRET: z.string().default(""),
-  GOOGLE_MEET_CALLBACK_URL: z.string().default(""),
-  GOOGLE_MEET_RETURN_URL: z.string().default(""),
-  GOOGLE_MEET_KEY_ID: z.string().default(""),
-  GOOGLE_MEET_KEYS: z.string().default(""),
-  GOOGLE_MEET_USER_MINUTE_CAP: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(10)
-    .default(10),
-  GOOGLE_MEET_USER_DAY_CAP: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(100)
-    .default(100),
-  GOOGLE_MEET_PROJECT_MINUTE_CAP: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(60)
-    .default(60),
-  GOOGLE_MEET_PROJECT_DAY_CAP: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(1000)
-    .default(1000),
+  // Self-hosted Jitsi Meet (API-only). Off until a Jitsi domain is
+  // configured. See docs/development/jitsi-integration.md. The domain is
+  // never a NEXT_PUBLIC_* value - the frontend learns it from the live
+  // jitsi-session response, not a build-time var.
+  JITSI_ENABLED: booleanFromString.default(false),
+  JITSI_DOMAIN: z.string().default(""),
+  // Reserved for an optional future JWT/moderator scheme
+  // (prosody-plugin-jitsi-meet-tokens) - disabled until a self-hosted Jitsi
+  // server actually exists to validate tokens against.
+  JITSI_JWT_ENABLED: booleanFromString.default(false),
+  JITSI_APP_ID: z.string().default(""),
+  JITSI_APP_SECRET: z.string().default(""),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;

@@ -104,4 +104,15 @@ export class CreateCampaignDto {
   @IsOptional()
   @IsUUID()
   managerId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "The owning department (e.g. Marketing). Only honored for an " +
+      "organization-scoped caller - a department-scoped caller's own " +
+      "department is always used instead, regardless of this value.",
+  })
+  @IsOptional()
+  @IsUUID()
+  departmentId?: string;
 }

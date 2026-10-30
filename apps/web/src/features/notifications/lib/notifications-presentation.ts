@@ -1,10 +1,17 @@
 import {
   AlarmClock,
   Bell,
+  CalendarCheck,
   CalendarClock,
   ClipboardCheck,
+  Clock,
+  FileText,
+  FolderOpen,
+  Handshake,
   ListChecks,
+  Mail,
   MessageCircle,
+  Plane,
   Receipt,
   Ticket,
   TriangleAlert,
@@ -73,6 +80,14 @@ export function notificationAppearance(type: NotificationType) {
         action: "View report",
         description: "Before a report is due",
       };
+    case "REPORT_SUBMITTED":
+    case "REPORT_REVIEWED":
+      return {
+        icon: FileText,
+        tone: "teal",
+        action: "View report",
+        description: "Updates about your reports",
+      };
     case "EXPENSE_SUBMITTED":
     case "EXPENSE_REVIEWED":
       return {
@@ -80,6 +95,70 @@ export function notificationAppearance(type: NotificationType) {
         tone: "green",
         action: "View expense",
         description: "Updates about your expenses",
+      };
+    case "PARTNER_FOLLOW_UP_DUE":
+      return {
+        icon: Handshake,
+        tone: "peach",
+        action: "View partner",
+        description: "When a partner relationship needs a follow-up",
+      };
+    case "LETTER_SHARED":
+      return {
+        icon: Mail,
+        tone: "teal",
+        action: "View letter",
+        description: "When a letter is shared with you",
+      };
+    case "DOCUMENT_SHARED":
+      return {
+        icon: FolderOpen,
+        tone: "teal",
+        action: "View document",
+        description: "When a document is shared with you",
+      };
+    case "ATTENDANCE_SHIFT_ASSIGNED":
+      return {
+        icon: CalendarCheck,
+        tone: "teal",
+        action: "View shift",
+        description: "When you're assigned to an event shift",
+      };
+    case "ATTENDANCE_SHIFT_SCHEDULE_CHANGED":
+      return {
+        icon: CalendarClock,
+        tone: "gold",
+        action: "View shift",
+        description: "When an assigned shift is rescheduled or cancelled",
+      };
+    case "ATTENDANCE_OVERTIME_DECIDED":
+      return {
+        icon: Clock,
+        tone: "peach",
+        action: "View attendance",
+        description: "When your potential overtime is approved or rejected",
+      };
+    case "ATTENDANCE_EXCEPTION_DECIDED":
+      return {
+        icon: TriangleAlert,
+        tone: "rose",
+        action: "View attendance",
+        description: "When a flagged attendance exception is decided",
+      };
+    case "LEAVE_REQUEST_SUBMITTED":
+      return {
+        icon: Plane,
+        tone: "gold",
+        action: "Review leave request",
+        description: "When a direct report submits a leave request",
+      };
+    case "LEAVE_REQUEST_DECIDED":
+      return {
+        icon: Plane,
+        tone: "green",
+        action: "View leave request",
+        description:
+          "When your leave request is approved, rejected, or returned",
       };
     default:
       return {

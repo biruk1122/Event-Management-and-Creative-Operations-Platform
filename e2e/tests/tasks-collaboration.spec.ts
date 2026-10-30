@@ -124,6 +124,14 @@ test.describe("Task assignment and collaboration — end to end", () => {
         detail.getByText(assigneeName, { exact: true }),
       ).toBeVisible();
 
+      // Checklist items are authored by whoever holds `task.update` (the
+      // creator/manager side) - the assignee below only has
+      // `task.update_progress` and can toggle it, not add it.
+      const checkpoint = "Draft the brief";
+      await detail.getByLabel("New checkpoint description").fill(checkpoint);
+      await detail.getByRole("button", { name: "Add checkpoint" }).click();
+      await expect(detail.getByText(checkpoint, { exact: true })).toBeVisible();
+
       const memberPage = await browser.newPage();
       await signInThroughUi(memberPage, {
         key: "tasks-collaborator",
@@ -136,10 +144,19 @@ test.describe("Task assignment and collaboration — end to end", () => {
       await memberPage.goto("/tasks");
       await memberPage.getByRole("button", { name: title }).first().click();
       const memberDetail = memberPage.getByRole("dialog");
-      await memberDetail.getByLabel("Update progress").fill("60");
+      // The checkbox is controlled by server state, so it flips only after
+      // the toggle round-trip; `.check()` would require an immediate flip.
       await memberDetail
-        .getByRole("button", { name: "Save", exact: true })
+        .getByRole("checkbox", { name: `Mark "${checkpoint}" complete` })
         .click();
+      await expect(
+        memberDetail.getByRole("checkbox", {
+          name: `Mark "${checkpoint}" incomplete`,
+        }),
+      ).toBeChecked();
+      await expect(
+        memberDetail.getByRole("progressbar", { name: "Task progress" }),
+      ).toHaveAttribute("aria-valuenow", "100");
       await memberDetail.getByLabel("Add comment").fill(comment);
       await memberDetail.getByRole("button", { name: "Add comment" }).click();
       await expect(
@@ -169,14 +186,19 @@ test.describe("Task assignment and collaboration — end to end", () => {
         memberDetail.getByText(filename, { exact: true }),
       ).toBeVisible();
 
-      await memberDetail
-        .getByRole("button", { name: "Move to In progress" })
+      // Status transitions and submit live in the compact "Actions" menu,
+      // not as a flat row of buttons - its trigger is in the dialog, but
+      // Radix portals the open menu's items out to the document body.
+      await memberDetail.getByRole("button", { name: "Actions" }).click();
+      await memberPage
+        .getByRole("menuitem", { name: "Move to In progress" })
         .click();
+      await memberDetail.getByRole("button", { name: "Actions" }).click();
       await expect(
-        memberDetail.getByRole("button", { name: "Submit for review" }),
+        memberPage.getByRole("menuitem", { name: "Submit for review" }),
       ).toBeVisible();
-      await memberDetail
-        .getByRole("button", { name: "Submit for review" })
+      await memberPage
+        .getByRole("menuitem", { name: "Submit for review" })
         .click();
       await memberPage.close();
       await page.reload();
@@ -203,15 +225,16 @@ test.describe("Task assignment and collaboration — end to end", () => {
         `${apiBaseUrl}/api/v1/tasks/${taskId}`,
       );
       expect(task.ok()).toBe(true);
+      // One checklist item, completed: checklist-derived progress is 100%.
       expect(
         (await task.json()) as { status: string; progress: number },
-      ).toMatchObject({ status: "COMPLETED", progress: 60 });
+      ).toMatchObject({ status: "COMPLETED", progress: 100 });
       const stored = await queryInSchema<{ status: string; progress: number }>(
         runDatabaseUrl(),
         "SELECT status, progress FROM tasks WHERE id = $1",
         [taskId],
       );
-      expect(stored).toEqual([{ status: "COMPLETED", progress: 60 }]);
+      expect(stored).toEqual([{ status: "COMPLETED", progress: 100 }]);
     });
   });
 
@@ -288,19 +311,19 @@ test.describe("Task assignment and collaboration — end to end", () => {
         );
         expect(read.status()).toBe(403);
         const denied = await disposablePage.request.patch(
-          `${apiBaseUrl}/api/v1/tasks/${taskId}/progress`,
+          `${apiBaseUrl}/api/v1/tasks/${taskId}/checklist-items/${randomUUID()}/completion`,
           {
             headers: { "x-csrf-token": await csrfToken(disposablePage) },
-            data: { progress: 99 },
+            data: { completed: true },
           },
         );
         expect(denied.status()).toBe(403);
-        const unchanged = await queryInSchema<{ progress: number }>(
+        const unchanged = await queryInSchema<{ progress: number | null }>(
           runDatabaseUrl(),
           "SELECT progress FROM tasks WHERE id = $1",
           [taskId],
         );
-        expect(unchanged).toEqual([{ progress: 0 }]);
+        expect(unchanged).toEqual([{ progress: null }]);
       } finally {
         await disposablePage?.close();
         await owner.dispose();

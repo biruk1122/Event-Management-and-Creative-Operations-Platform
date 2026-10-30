@@ -72,6 +72,27 @@ Keys are grouped by resource. Every key traces to one or more SRS abilities; see
 | `audit.read`                 | Read the security and governance audit log.                      |
 | `activity.read`              | Read cross-module activity history beyond the acting user's own. |
 
+### Employee management (EMP-01)
+
+| Key                      | Operation                                                       |
+| ------------------------ | --------------------------------------------------------------- |
+| `employee.read`          | View employee profiles (HR-only data linked to a user account). |
+| `employee.create`        | Register an employee profile, linking or creating a user.       |
+| `employee.update`        | Update an employee profile's HR fields.                         |
+| `employee.status.update` | Change an employee profile's employment status.                 |
+
+An employee profile is HR-only data attached 1:1 to an existing `User`; it never duplicates the
+user's own role, department, or login/account status. These four keys are granted to Super Admin
+(organization scope) and, generically, to the Department Manager role at department scope - but
+`EmployeesService` only honors the department-scope grant when the acting manager's own department
+is HR & Executive Officer, in which case it resolves to organization-wide employee visibility (an
+HR Manager manages employee records across every department, not only their own). Every other
+Department Manager holds the same grant row but it never resolves to anything. This is a
+service-layer check, not a new role and not a per-department branch in this catalog - "HR &
+Executive Officer" stays a department, never a role (see PC-08). Compensation fields on an employee
+profile are read-gated to the same two groups and are never exposed through `user.read`/
+`profile.read`/`directory.read` or any notification/log surface.
+
 ### Profile and personal surface
 
 | Key                         | Operation                                                                 |
@@ -188,24 +209,24 @@ to that department's own grant, never to another department's (EOM-01).
 
 ### Tasks and collaboration
 
-| Key                      | Operation                                                                 |
-| ------------------------ | ------------------------------------------------------------------------- |
-| `task.create`            | Create a task.                                                            |
-| `task.read`              | View a task.                                                              |
-| `task.update`            | Update task fields other than lifecycle state and progress.               |
-| `task.assign`            | Add or remove assigned users on a task.                                   |
-| `task.update_status`     | Change a task's lifecycle state within an assignee's allowed transitions. |
-| `task.update_progress`   | Update a task's progress percentage.                                      |
-| `task.submit`            | Move an assigned task to Under Review.                                    |
-| `task.review`            | Record Approved or Changes Requested while a task is Under Review.        |
-| `task.comment.create`    | Add a comment to a task.                                                  |
-| `task.attachment.create` | Attach a managed file to a task.                                          |
-| `message.send`           | Send a direct, group, or channel message.                                 |
-| `conversation.create`    | Start a direct or group conversation.                                     |
-| `conversation.read`      | Read a conversation the user is a member of.                              |
-| `channel.create`         | Create a channel, including event, project, and department channels.      |
-| `channel.manage`         | Manage a channel's membership and settings.                               |
-| `channel.participate`    | Join and post in a channel the user is authorized to access.              |
+| Key                      | Operation                                                                                                                                                                                            |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `task.create`            | Create a task.                                                                                                                                                                                       |
+| `task.read`              | View a task.                                                                                                                                                                                         |
+| `task.update`            | Update task fields, including authoring/editing/removing/reordering a task's own checklist items, other than lifecycle state and progress.                                                           |
+| `task.assign`            | Add or remove assigned users on a task.                                                                                                                                                              |
+| `task.update_status`     | Change a task's lifecycle state within an assignee's allowed transitions.                                                                                                                            |
+| `task.update_progress`   | Toggle a task's own checklist items complete/incomplete. Progress is a server-computed percentage (checklist ratio, or the mean of subtasks' own progress when any exist) and is never set directly. |
+| `task.submit`            | Move an assigned task to Under Review.                                                                                                                                                               |
+| `task.review`            | Record Approved or Changes Requested while a task is Under Review.                                                                                                                                   |
+| `task.comment.create`    | Add a comment to a task.                                                                                                                                                                             |
+| `task.attachment.create` | Attach a managed file to a task.                                                                                                                                                                     |
+| `message.send`           | Send a direct, group, or channel message.                                                                                                                                                            |
+| `conversation.create`    | Start a direct or group conversation.                                                                                                                                                                |
+| `conversation.read`      | Read a conversation the user is a member of.                                                                                                                                                         |
+| `channel.create`         | Create a channel, including event, project, and department channels.                                                                                                                                 |
+| `channel.manage`         | Manage a channel's membership and settings.                                                                                                                                                          |
+| `channel.participate`    | Join and post in a channel the user is authorized to access.                                                                                                                                         |
 
 ### Meetings, calendar, and personal work
 
@@ -306,6 +327,7 @@ whether Department Managers may also review reports is part of EVE-30 open decis
 | `event.budget.read`, `event.budget.update`                                                        | department |
 | `expense.create`, `expense.read`, `expense.update`, `expense.submit`, `expense.attachment.create` | department |
 | `supplier.create`, `supplier.read`, `supplier.update`                                             | department |
+| `employee.read`, `employee.create`, `employee.update`, `employee.status.update`                   | department |
 | `meeting.create`, `meeting.read`, `meeting.update`                                                | department |
 | `channel.create`, `channel.manage`                                                                | department |
 | `calendar.read`                                                                                   | department |
@@ -317,7 +339,17 @@ whether Department Managers may also review reports is part of EVE-30 open decis
 behavior is open in [PC-01](#open-authorization-decisions). PC-04's open question of whether a
 Department Manager may read budgets for their department's work is now resolved for events: they
 hold `event.budget.read`/`event.budget.update` at department scope (EOM-01). `expense.approve` is
-not in this row by design - see the Expenses catalog entry above.
+not in this row by design - see the Expenses catalog entry above. The `employee.*` grants resolve
+to real access only for the HR & Executive Officer department's own manager, per the Employee
+management catalog entry above - every other Department Manager holds the row but it never
+resolves to anything.
+
+The `project.*` grants in this row are read by two different modules: the Production workspace
+(`ProductionsService`), which resolves them at department scope and is how the Production
+Department Manager manages their own productions end to end, and the general Projects module
+(`ProjectsService`), which always checks `project.*` at organization scope regardless of what is
+granted here (see its own module doc comment) - so this row gives a Department Manager full control
+over productions in their own department without ever reaching general projects.
 
 The `project.*` grants in this row are read by two different modules: the Production workspace
 (`ProductionsService`), which resolves them at department scope and is how the Production

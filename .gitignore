@@ -22,6 +22,10 @@ e2e/.runs/
 .env
 .env.*
 !.env.example
+.mcp.json
+
+# Local git worktrees
+.worktrees/
 
 # Logs
 *.log
@@ -32,6 +36,11 @@ pnpm-debug.log*
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Vendored third-party Jitsi deployment clones (see docker/jitsi/*/README.md)
+# - not our code, never committed; each developer/operator clones their own.
+docker/jitsi/local/docker-jitsi-meet/
+docker/jitsi/production/docker-jitsi-meet/
 
 # Generated sources
 apps/api/src/generated/

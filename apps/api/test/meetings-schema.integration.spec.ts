@@ -36,7 +36,6 @@ describe("meetings schema", () => {
       organizer_id: organizerId,
       start_at: "2026-11-10T10:00:00.000Z",
       end_at: "2026-11-10T11:00:00.000Z",
-      online_link: "https://meet.example.test/room",
       ...values,
     };
     const keys = Object.keys(base);
@@ -103,9 +102,9 @@ describe("meetings schema", () => {
   });
 
   it("enforces meeting modality, schedule, reminder, and organizer invariants", async () => {
-    await expect(
-      meeting({ type: "PHYSICAL", online_link: null }),
-    ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
+    await expect(meeting({ type: "PHYSICAL" })).rejects.toMatchObject({
+      code: PG_ERROR.checkViolation,
+    });
     await expect(
       meeting({ end_at: "2026-11-10T09:00:00.000Z" }),
     ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });

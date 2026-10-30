@@ -12,6 +12,7 @@ export const PLATFORM_DEPARTMENTS = [
   "Marketing",
   "Promotion",
   "Manager / Event & Office Manager",
+  "HR & Executive Officer",
 ] as const;
 
 /** Legacy row names remain readable during the staged, non-destructive migration. */
@@ -39,6 +40,29 @@ export function supportedDepartment(name: string): boolean {
 export interface DepartmentAccessContext {
   role: PlatformRole | null;
   department: { id: string; name: string; active: boolean } | null;
+}
+
+/** The one department name this helper (and every HR-only feature) checks against. */
+export const HR_EXECUTIVE_OFFICER_DEPARTMENT = "HR & Executive Officer";
+
+/**
+ * Whether the caller is specifically the manager of the HR & Executive
+ * Officer department - the shared, service-layer-only boundary Employee
+ * Management and Letters/Documents both enforce. The RBAC catalog has no
+ * per-department branching, so `letter.*`/`document.*`/`employee.*` keys are
+ * granted generically to every Department Manager; this check is what makes
+ * that grant resolve to real access for exactly one department and stay
+ * inert for every other one. It does not include Super Admin - callers
+ * combine it with their own organization-scope grant check for that case.
+ */
+export function isHrExecutiveOfficerManager(
+  context: DepartmentAccessContext,
+): boolean {
+  return (
+    context.role === "DEPARTMENT_MANAGER" &&
+    context.department?.active === true &&
+    context.department.name === HR_EXECUTIVE_OFFICER_DEPARTMENT
+  );
 }
 
 interface Grant {

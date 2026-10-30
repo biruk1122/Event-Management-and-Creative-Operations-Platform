@@ -1,24 +1,13 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
+import { CalendarEntryIcon } from "./calendar-entry-icon";
+import styles from "./calendar-presentation.module.css";
 
 import { formatTime } from "../lib/calendar-date";
 import {
   CALENDAR_ENTRY_TYPE_LABELS,
   type CalendarEntry,
 } from "../lib/calendar-types";
-
-const TYPE_VARIANT: Record<
-  CalendarEntry["type"],
-  "default" | "secondary" | "outline"
-> = {
-  EVENT: "default",
-  TASK: "secondary",
-  MEETING: "default",
-  PROJECT: "secondary",
-  PERSONAL: "outline",
-  REMINDER: "outline",
-};
 
 export interface EntryChipProps {
   entry: CalendarEntry;
@@ -28,29 +17,27 @@ export interface EntryChipProps {
 }
 
 export function EntryChip({ entry, onSelect, compact }: EntryChipProps) {
+  const time = `${formatTime(new Date(entry.startAt))}${entry.endAt ? ` – ${formatTime(new Date(entry.endAt))}` : ""}`;
   return (
     <button
       type="button"
       data-entry-item
       data-entry-type={entry.type}
+      data-compact={compact || undefined}
+      title={`${entry.title}, ${CALENDAR_ENTRY_TYPE_LABELS[entry.type]}, ${time}`}
       onClick={() => onSelect(entry)}
-      className={`hover:bg-muted focus-visible:ring-ring flex w-full min-w-0 gap-1.5 rounded-md px-1.5 py-1 text-left text-xs focus-visible:ring-2 focus-visible:outline-none ${compact ? "flex-col items-start" : "flex-wrap items-center"}`}
+      className={styles.entryChip}
     >
-      <span
-        className={
-          compact
-            ? "w-full truncate font-medium"
-            : "max-w-full min-w-0 font-medium [overflow-wrap:anywhere]"
-        }
-      >
-        {entry.title}
+      <span className={styles.entryIcon}>
+        <CalendarEntryIcon type={entry.type} />
       </span>
-      <span className="flex max-w-full flex-wrap items-center gap-1.5">
-        <Badge variant={TYPE_VARIANT[entry.type]} className="shrink-0">
-          {CALENDAR_ENTRY_TYPE_LABELS[entry.type]}
-        </Badge>
-        <span className={compact ? undefined : "text-muted-foreground"}>
-          {formatTime(new Date(entry.startAt))}
+      <span className={styles.entryContent}>
+        <span className={styles.entryTitle}>{entry.title}</span>
+        <span className={styles.entryTime}>
+          <span className={compact ? "sr-only" : styles.entryType}>
+            {CALENDAR_ENTRY_TYPE_LABELS[entry.type]}{" "}
+          </span>
+          {time}
         </span>
       </span>
     </button>

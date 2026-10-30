@@ -83,6 +83,14 @@ export class EventResponse {
   })
   endAt!: string | null;
 
+  @ApiProperty({
+    type: String,
+    format: "date-time",
+    nullable: true,
+    description: "UTC reminder instant, never after the start.",
+  })
+  reminderAt!: string | null;
+
   @ApiProperty({ type: String, nullable: true, example: "Grand Hall" })
   location!: string | null;
 

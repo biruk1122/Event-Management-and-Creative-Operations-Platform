@@ -104,7 +104,9 @@ export function serverEnv(): Record<string, string> {
     // the production-oriented per-IP default during one full suite.
     AUTH_LOGIN_RATE_LIMIT_MAX: "10000",
     AUTH_ACCESS_TOKEN_SECRET: "e2e-access-token-secret-at-least-32-characters",
-    AUTH_ACCESS_TOKEN_TTL: "15m",
+    // Long enough that setup-time storageState stays valid for the whole
+    // suite; direct `page.request` calls never refresh an expired token.
+    AUTH_ACCESS_TOKEN_TTL: "4h",
     AUTH_REFRESH_TOKEN_SECRET:
       "e2e-refresh-token-secret-at-least-32-characters",
     AUTH_REFRESH_TOKEN_TTL: "30d",

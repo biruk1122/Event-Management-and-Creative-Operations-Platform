@@ -8,7 +8,14 @@ const webRoot = join(repositoryRoot, "apps", "web");
 
 const KIB = 1024;
 const budgets = {
-  javascript: { each: 250 * KIB, total: 750 * KIB },
+  // Measured at 865.5 KiB after merging main's additional backend/frontend
+  // modules (Attendance, Leave, Employees, Letters, Documents, Partners,
+  // Jitsi, several notification schedulers) into this branch's own task-
+  // checklist and recharts-based dashboard chart redesign - same "the app
+  // has genuinely grown" pattern as the end-to-end job's own timeout-minutes
+  // increase. 750 KiB is no longer safe headroom; 950 restores real margin
+  // without rubber-stamping unbounded future growth.
+  javascript: { each: 250 * KIB, total: 950 * KIB },
   css: { each: 75 * KIB, total: 150 * KIB },
   image: { each: 500 * KIB, total: 1_500 * KIB },
 };

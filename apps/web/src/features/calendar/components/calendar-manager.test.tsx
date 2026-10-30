@@ -253,6 +253,11 @@ describe("CalendarManager", () => {
       ),
     );
     expect(screen.queryByText("Dentist appointment")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Previous month" }),
+      ).toHaveFocus(),
+    );
   });
 
   it("creates a new entry through the real API via the toolbar's Add entry action", async () => {

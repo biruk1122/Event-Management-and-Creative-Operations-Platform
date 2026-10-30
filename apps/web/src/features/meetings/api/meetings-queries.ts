@@ -5,6 +5,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
+import type { InfiniteData } from "@tanstack/react-query";
 
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
@@ -41,6 +42,70 @@ export function useMeetingMutations(access: CurrentAccess) {
   const client = useQueryClient();
   const keys = meetingsKeys(access);
   return {
+    remove: useMutation({
+      mutationFn: gateway.removeMeeting,
+      onSuccess: async (_, id) => {
+        // A selected deep-linked meeting can have an active detail observer.
+        // Clear its data without re-fetching the now-deleted resource.
+        client.setQueryData([...keys.all, "detail", id], null);
+        client.setQueriesData<InfiniteData<gateway.MeetingsPage>>(
+          { queryKey: keys.list },
+          (data) =>
+            data
+              ? {
+                  ...data,
+                  pages: data.pages.map((page) => ({
+                    ...page,
+                    total: Math.max(0, page.total - 1),
+                    items: page.items.filter((item) => item.id !== id),
+                  })),
+                }
+              : data,
+        );
+        await Promise.all([
+          client.invalidateQueries({ queryKey: ["calendar", access.userId] }),
+          client.invalidateQueries({
+            queryKey: ["notifications", access.userId],
+          }),
+        ]);
+      },
+      onSettled: () => client.invalidateQueries({ queryKey: keys.list }),
+    }),
+    update: useMutation({
+      mutationFn: ({
+        id,
+        input,
+      }: {
+        id: string;
+        input: gateway.UpdateMeetingInput;
+      }) => gateway.updateMeeting(id, input),
+      onSuccess: async (meeting) => {
+        client.setQueryData([...keys.all, "detail", meeting.id], meeting);
+        client.setQueriesData<InfiniteData<gateway.MeetingsPage>>(
+          { queryKey: keys.list },
+          (data) =>
+            data
+              ? {
+                  ...data,
+                  pages: data.pages.map((page) => ({
+                    ...page,
+                    items: page.items.map((item) =>
+                      item.id === meeting.id ? meeting : item,
+                    ),
+                  })),
+                }
+              : data,
+        );
+        await client.invalidateQueries({
+          queryKey: ["calendar", access.userId],
+        });
+      },
+      onSettled: () => client.invalidateQueries({ queryKey: keys.all }),
+    }),
+    create: useMutation({
+      mutationFn: gateway.createMeeting,
+      onSuccess: () => client.invalidateQueries({ queryKey: keys.all }),
+    }),
     respond: useMutation({
       mutationFn: ({
         id,
@@ -66,6 +131,16 @@ export function useMeetingMutations(access: CurrentAccess) {
         id: string;
         input: gateway.CreateActionItemInput;
       }) => gateway.createMeetingActionItem(id, input),
+    }),
+    transition: useMutation({
+      mutationFn: ({
+        id,
+        status,
+      }: {
+        id: string;
+        status: "COMPLETED" | "CANCELLED";
+      }) => gateway.transitionMeeting(id, status),
+      onSettled: () => client.invalidateQueries({ queryKey: keys.all }),
     }),
   };
 }

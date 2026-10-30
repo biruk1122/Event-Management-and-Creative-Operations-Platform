@@ -5,6 +5,94 @@ import { readCsrfToken } from "@/lib/api/csrf";
 
 export type Meeting = components["schemas"]["MeetingResponse"];
 export type MeetingsPage = components["schemas"]["PaginatedMeetingsResponse"];
+export type CreateMeetingInput = components["schemas"]["CreateMeetingDto"];
+export type UpdateMeetingInput = components["schemas"]["UpdateMeetingDto"];
+
+export async function removeMeeting(id: string): Promise<void> {
+  const { response } = await browserApi.DELETE("/api/v1/meetings/{id}", {
+    params: { path: { id } },
+    headers: headers(),
+  });
+  if (!response.ok) throw new MeetingsRequestError(response.status);
+}
+
+export async function updateMeeting(
+  id: string,
+  input: UpdateMeetingInput,
+): Promise<Meeting> {
+  const { data, response } = await browserApi.PATCH("/api/v1/meetings/{id}", {
+    params: { path: { id } },
+    body: input,
+    headers: headers(),
+  });
+  if (!data) {
+    if (response.status === 400)
+      throw new Error("Check the meeting dates and location, then try again.");
+    if (response.status === 409)
+      throw new Error(
+        "This meeting was cancelled and can no longer be edited. Refresh the list.",
+      );
+    throw new MeetingsRequestError(response.status);
+  }
+  return data;
+}
+
+export interface AssignableMeetingPerson {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
+/** The full user directory, for the create-meeting participant picker.
+ * Requires `user.read` at ORGANIZATION scope (Super Admin only, per the
+ * permission catalog) - a Department Manager cannot browse it, same
+ * constraint productions' own "Add member" picker already has. The caller
+ * gates on that grant and shows an explanatory message instead when it's
+ * absent, rather than calling this and handling a 403. */
+export async function listAssignablePeople(
+  signal?: AbortSignal,
+): Promise<AssignableMeetingPerson[]> {
+  const { data } = await browserApi.GET("/api/v1/users", {
+    params: { query: { pageSize: 100 } as never },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return (data?.items ?? []).map((user) => ({
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  }));
+}
+
+export async function getMeeting(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Meeting> {
+  const { data, response } = await browserApi.GET("/api/v1/meetings/{id}", {
+    params: { path: { id } },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  if (!data) throw new MeetingsRequestError(response.status);
+  return data;
+}
+
+export async function createMeeting(
+  input: CreateMeetingInput,
+): Promise<Meeting> {
+  const { data, response } = await browserApi.POST("/api/v1/meetings", {
+    body: input,
+    headers: headers(),
+  });
+  if (!data) {
+    if (response.status === 400)
+      throw new Error("Check the meeting dates and venue, then try again.");
+    throw new MeetingsRequestError(response.status);
+  }
+  return data;
+}
 /** An invitee's own answer - deliberately not named `MeetingResponse` to
  * avoid shadowing the schema's own type of that name (the full meeting
  * object `PUT /meetings/{id}/response` and `GET /meetings` both return). */
@@ -85,6 +173,25 @@ export async function setMeetingMinutes(
     {
       params: { path: { id: meetingId } },
       body: { minutes },
+      headers: headers(),
+    },
+  );
+  if (!data) throw new MeetingsRequestError(response.status);
+  return data;
+}
+
+/** Completes or cancels a scheduled meeting, as its organizer - used by the
+ * in-app Jitsi room's organizer-only "End meeting for everyone" control
+ * (a Lela-side state change, not a Jitsi moderation action). */
+export async function transitionMeeting(
+  meetingId: string,
+  status: "COMPLETED" | "CANCELLED",
+): Promise<Meeting> {
+  const { data, response } = await browserApi.POST(
+    "/api/v1/meetings/{id}/transition",
+    {
+      params: { path: { id: meetingId } },
+      body: { status },
       headers: headers(),
     },
   );

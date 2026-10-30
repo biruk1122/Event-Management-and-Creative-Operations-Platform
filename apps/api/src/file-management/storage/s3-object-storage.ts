@@ -29,6 +29,7 @@ function contentDisposition(filename: string): string {
 @Injectable()
 export class S3ObjectStorage implements ObjectStorage {
   private readonly client: S3Client;
+  private readonly signingClient: S3Client;
 
   constructor(@Inject(ENVIRONMENT) private readonly environment: Environment) {
     this.client = new S3Client({
@@ -40,6 +41,17 @@ export class S3ObjectStorage implements ObjectStorage {
       forcePathStyle: environment.FILE_STORAGE_FORCE_PATH_STYLE,
       region: environment.FILE_STORAGE_REGION,
     });
+    this.signingClient = environment.FILE_STORAGE_PUBLIC_ENDPOINT
+      ? new S3Client({
+          credentials: {
+            accessKeyId: environment.FILE_STORAGE_ACCESS_KEY,
+            secretAccessKey: environment.FILE_STORAGE_SECRET_KEY,
+          },
+          endpoint: environment.FILE_STORAGE_PUBLIC_ENDPOINT,
+          forcePathStyle: environment.FILE_STORAGE_FORCE_PATH_STYLE,
+          region: environment.FILE_STORAGE_REGION,
+        })
+      : this.client;
   }
 
   async createUploadGrant(input: {
@@ -47,7 +59,7 @@ export class S3ObjectStorage implements ObjectStorage {
     mediaType: string;
     sizeBytes: number;
   }): Promise<UploadGrant> {
-    const grant = await createPresignedPost(this.client, {
+    const grant = await createPresignedPost(this.signingClient, {
       Bucket: this.environment.FILE_STORAGE_BUCKET,
       Conditions: [
         ["eq", "$Content-Type", input.mediaType],
@@ -112,7 +124,7 @@ export class S3ObjectStorage implements ObjectStorage {
     mediaType: string;
   }): Promise<DownloadGrant> {
     const url = await getSignedUrl(
-      this.client,
+      this.signingClient,
       new GetObjectCommand({
         Bucket: this.environment.FILE_STORAGE_BUCKET,
         Key: input.key,

@@ -30,6 +30,13 @@ export interface ConversationMemberRecord extends PersonRecord {
 }
 
 export interface ConversationRecord {
+  lastMessage?: {
+    id: string;
+    content: string;
+    createdAt: string;
+    deletedAt: string | null;
+  } | null;
+  unreadCount?: number;
   id: string;
   type: ConversationType;
   name: string | null;
@@ -44,6 +51,7 @@ export interface ConversationRecord {
 }
 
 export interface MessageRecord {
+  attachmentCount?: number;
   id: string;
   conversationId: string;
   author: PersonRecord | null;
@@ -104,6 +112,7 @@ const CONVERSATION_SELECT = {
 } as const;
 
 const MESSAGE_SELECT = {
+  _count: { select: { attachments: true } },
   id: true,
   conversationId: true,
   author: { select: PERSON_SELECT },
@@ -155,6 +164,7 @@ function toConversationRecord(raw: RawConversation): ConversationRecord {
 
 function toMessageRecord(raw: RawMessage): MessageRecord {
   return {
+    attachmentCount: raw._count.attachments,
     id: raw.id,
     conversationId: raw.conversationId,
     author: raw.author,
@@ -264,6 +274,7 @@ export class DiscussRepository {
   }
 
   async list(input: {
+    viewerId?: string;
     access: ConversationAccess;
     type?: ConversationType;
     search?: string;
@@ -274,7 +285,44 @@ export class DiscussRepository {
       AND: [visibleWhere(input.access)],
       ...(input.type ? { type: input.type } : {}),
       ...(input.search
-        ? { name: { contains: input.search, mode: "insensitive" } }
+        ? {
+            OR: [
+              { name: { contains: input.search, mode: "insensitive" } },
+              {
+                members: {
+                  some: {
+                    user: {
+                      AND: input.search
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .map((term) => ({
+                          OR: [
+                            {
+                              firstName: {
+                                contains: term,
+                                mode: "insensitive" as const,
+                              },
+                            },
+                            {
+                              lastName: {
+                                contains: term,
+                                mode: "insensitive" as const,
+                              },
+                            },
+                            {
+                              email: {
+                                contains: term,
+                                mode: "insensitive" as const,
+                              },
+                            },
+                          ],
+                        })),
+                    },
+                  },
+                },
+              },
+            ],
+          }
         : {}),
     };
     const [items, total] = await Promise.all([
@@ -287,7 +335,42 @@ export class DiscussRepository {
       }),
       this.db.conversation.count({ where }),
     ]);
-    return { items: items.map(toConversationRecord), total };
+    const summaries =
+      input.viewerId && items.length
+        ? await this.db.$queryRaw<
+            Array<{
+              id: string;
+              lastMessage: {
+                id: string;
+                content: string;
+                createdAt: string;
+                deletedAt: string | null;
+              } | null;
+              unreadCount: number;
+            }>
+          >(Prisma.sql`
+      SELECT c.id,
+        (SELECT json_build_object('id', m.id, 'content', CASE WHEN m.deleted_at IS NULL THEN LEFT(m.content, 160) ELSE '' END, 'createdAt', m.created_at, 'deletedAt', m.deleted_at)
+          FROM messages m WHERE m.conversation_id=c.id AND member.user_id IS NOT NULL
+          ORDER BY m.created_at DESC, m.id DESC LIMIT 1) AS "lastMessage",
+        (SELECT COUNT(*)::int FROM messages m
+          LEFT JOIN messages cursor ON cursor.id=member.last_read_message_id
+          WHERE m.conversation_id=c.id AND member.user_id IS NOT NULL
+            AND m.author_id IS DISTINCT FROM ${input.viewerId}::uuid AND m.deleted_at IS NULL
+            AND (cursor.id IS NULL OR (m.created_at,m.id)>(cursor.created_at,cursor.id))) AS "unreadCount"
+      FROM conversations c
+      LEFT JOIN conversation_members member ON member.conversation_id=c.id AND member.user_id=${input.viewerId}::uuid
+          WHERE c.id IN (${Prisma.join(items.map((item) => Prisma.sql`${item.id}::uuid`))})
+    `)
+        : [];
+    const byId = new Map(summaries.map((item) => [item.id, item]));
+    return {
+      items: items.map((item) => ({
+        ...toConversationRecord(item),
+        ...byId.get(item.id),
+      })),
+      total,
+    };
   }
 
   async findById(id: string): Promise<ConversationRecord | null> {
@@ -424,8 +507,13 @@ export class DiscussRepository {
     userId: string;
     messageId: string;
   }): Promise<"ok" | "not_member" | "message_not_found"> {
+    if (!isUuid(input.conversationId) || !isUuid(input.userId))
+      return "not_member";
     if (!isUuid(input.messageId)) return "message_not_found";
     return this.db.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT conversation_id FROM conversation_members WHERE conversation_id = ${input.conversationId}::uuid AND user_id = ${input.userId}::uuid FOR UPDATE`,
+      );
       const member = await tx.conversationMember.findUnique({
         where: {
           conversationId_userId: {
@@ -441,15 +529,21 @@ export class DiscussRepository {
         select: { id: true },
       });
       if (!message) return "message_not_found";
-      await tx.conversationMember.update({
-        where: {
-          conversationId_userId: {
-            conversationId: input.conversationId,
-            userId: input.userId,
-          },
-        },
-        data: { lastReadMessageId: input.messageId, lastReadAt: new Date() },
-      });
+      // Compare database timestamps at full precision; an older tab may never
+      // move a cursor backwards or mark newer, unseen messages as read.
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE conversation_members AS member
+        SET last_read_message_id = target.id, last_read_at = NOW()
+        FROM messages AS target
+        WHERE member.conversation_id = ${input.conversationId}::uuid
+          AND member.user_id = ${input.userId}::uuid
+          AND target.id = ${input.messageId}::uuid
+          AND (member.last_read_message_id IS NULL OR EXISTS (
+            SELECT 1 FROM messages AS previous
+            WHERE previous.id = member.last_read_message_id
+              AND (previous.created_at, previous.id) < (target.created_at, target.id)
+          ))
+      `);
       return "ok";
     });
   }
@@ -513,6 +607,10 @@ export class DiscussRepository {
         resourceId: message.id,
         payload: { conversationId: input.conversationId },
         consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
+      });
+      await tx.conversation.update({
+        where: { id: input.conversationId },
+        data: { updatedAt: message.createdAt },
       });
       return toMessageRecord(message);
     });

@@ -21,6 +21,10 @@ const ITEMS: readonly NotificationItem[] = [
     eventId: null,
     meetingId: null,
     expenseId: null,
+    reportId: null,
+    partnerId: null,
+    letterId: null,
+    documentId: null,
   },
   {
     id: "notification-2",
@@ -34,6 +38,10 @@ const ITEMS: readonly NotificationItem[] = [
     eventId: null,
     meetingId: null,
     expenseId: null,
+    reportId: null,
+    partnerId: null,
+    letterId: null,
+    documentId: null,
   },
   {
     id: "notification-3",
@@ -47,6 +55,10 @@ const ITEMS: readonly NotificationItem[] = [
     eventId: null,
     meetingId: null,
     expenseId: null,
+    reportId: null,
+    partnerId: null,
+    letterId: null,
+    documentId: null,
   },
   {
     id: "notification-4",
@@ -60,6 +72,10 @@ const ITEMS: readonly NotificationItem[] = [
     eventId: null,
     meetingId: "meeting-1",
     expenseId: null,
+    reportId: null,
+    partnerId: null,
+    letterId: null,
+    documentId: null,
   },
 ];
 
@@ -179,7 +195,7 @@ describe("NotificationsCenter", () => {
     expect(props.onMarkRead).toHaveBeenCalledWith("notification-1");
   });
 
-  it("links a meeting notification to the existing Meetings page and marks it read on click", async () => {
+  it("links a meeting notification to its deep link and marks it read on click", async () => {
     const user = userEvent.setup();
     const props = baseProps();
     render(<NotificationsCenter {...props} />);
@@ -187,7 +203,7 @@ describe("NotificationsCenter", () => {
     const link = screen.getByRole("link", {
       name: /You were invited to a meeting/,
     });
-    expect(link).toHaveAttribute("href", "/meetings");
+    expect(link).toHaveAttribute("href", "/meetings?meetingId=meeting-1");
     await user.click(link);
     expect(props.onMarkRead).toHaveBeenCalledWith("notification-4");
   });

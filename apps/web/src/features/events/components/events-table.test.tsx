@@ -16,6 +16,7 @@ function makeEvent(
     description: null,
     status: "PLANNING",
     startAt: null,
+    reminderAt: null,
     endAt: null,
     location: null,
     organizerName: null,

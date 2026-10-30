@@ -269,7 +269,7 @@ describe("seeding the permission catalog and role matrix", () => {
       where: { name: "Department Member" },
       include: { rolePermissions: true },
     });
-    expect(teamMember.rolePermissions).toHaveLength(11);
+    expect(teamMember.rolePermissions).toHaveLength(13);
     expect(
       teamMember.rolePermissions.some(
         (grant) =>

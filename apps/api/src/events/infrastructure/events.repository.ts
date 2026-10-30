@@ -36,6 +36,7 @@ export interface EventRecord {
   status: EventStatus;
   startAt: Date | null;
   endAt: Date | null;
+  reminderAt: Date | null;
   location: string | null;
   organizerName: string | null;
   departmentId: string | null;
@@ -75,6 +76,7 @@ export interface CreateEventInput {
   description?: string;
   startAt?: Date;
   endAt?: Date;
+  reminderAt?: Date;
   location?: string;
   organizerName?: string;
   managerId?: string;
@@ -95,6 +97,7 @@ export interface UpdateEventFields {
   description?: string | null;
   startAt?: Date | null;
   endAt?: Date | null;
+  reminderAt?: Date | null;
   location?: string | null;
   organizerName?: string | null;
 }
@@ -140,6 +143,7 @@ const EVENT_SELECT = {
   status: true,
   startAt: true,
   endAt: true,
+  reminderAt: true,
   location: true,
   organizerName: true,
   departmentId: true,
@@ -181,6 +185,7 @@ function toRecord(raw: RawEvent): EventRecord {
     status: raw.status,
     startAt: raw.startAt,
     endAt: raw.endAt,
+    reminderAt: raw.reminderAt,
     location: raw.location,
     organizerName: raw.organizerName,
     departmentId: raw.departmentId,
@@ -218,6 +223,7 @@ function updateData(fields: UpdateEventFields): Prisma.EventUpdateInput {
   if (fields.description !== undefined) data.description = fields.description;
   if (fields.startAt !== undefined) data.startAt = fields.startAt;
   if (fields.endAt !== undefined) data.endAt = fields.endAt;
+  if (fields.reminderAt !== undefined) data.reminderAt = fields.reminderAt;
   if (fields.location !== undefined) data.location = fields.location;
   if (fields.organizerName !== undefined) {
     data.organizerName = fields.organizerName;
@@ -357,6 +363,9 @@ export class EventsRepository {
               : {}),
             ...(input.startAt !== undefined ? { startAt: input.startAt } : {}),
             ...(input.endAt !== undefined ? { endAt: input.endAt } : {}),
+            ...(input.reminderAt !== undefined
+              ? { reminderAt: input.reminderAt }
+              : {}),
             ...(input.location !== undefined
               ? { location: input.location }
               : {}),

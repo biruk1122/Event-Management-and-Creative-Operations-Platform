@@ -34,7 +34,8 @@ export class ListConversationsQueryDto {
   type?: ConversationType;
 
   @ApiPropertyOptional({
-    description: "Case-insensitive substring match on channel name.",
+    description:
+      "Case-insensitive substring match on channel name or participant name/email.",
   })
   @IsOptional()
   @IsString()

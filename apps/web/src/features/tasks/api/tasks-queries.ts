@@ -47,9 +47,36 @@ export function useTaskMutations(access: CurrentAccess) {
         gateway.createTaskComment(id, content),
       onSettled: reconcile,
     }),
-    progress: useMutation({
-      mutationFn: ({ id, progress }: { id: string; progress: number }) =>
-        gateway.updateTaskProgress(id, progress),
+    addChecklistItem: useMutation({
+      mutationFn: ({ id, description }: { id: string; description: string }) =>
+        gateway.addTaskChecklistItem(id, description),
+      onSettled: reconcile,
+    }),
+    removeChecklistItem: useMutation({
+      mutationFn: ({ id, itemId }: { id: string; itemId: string }) =>
+        gateway.removeTaskChecklistItem(id, itemId),
+      onSettled: reconcile,
+    }),
+    reorderChecklistItems: useMutation({
+      mutationFn: ({
+        id,
+        orderedItemIds,
+      }: {
+        id: string;
+        orderedItemIds: string[];
+      }) => gateway.reorderTaskChecklistItems(id, orderedItemIds),
+      onSettled: reconcile,
+    }),
+    toggleChecklistItem: useMutation({
+      mutationFn: ({
+        id,
+        itemId,
+        completed,
+      }: {
+        id: string;
+        itemId: string;
+        completed: boolean;
+      }) => gateway.toggleTaskChecklistItem(id, itemId, completed),
       onSettled: reconcile,
     }),
     transition: useMutation({

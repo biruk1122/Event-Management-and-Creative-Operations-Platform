@@ -45,6 +45,7 @@ export interface CampaignRecord {
   startAt: Date | null;
   endAt: Date | null;
   eventId: string | null;
+  departmentId: string | null;
   productName: string | null;
   budgetAmount: string | null;
   budgetCurrency: string | null;
@@ -69,10 +70,17 @@ export interface CampaignActivityRecord {
   updatedAt: Date;
 }
 
+export interface CampaignVisibility {
+  organization: boolean;
+  departmentId?: string;
+}
+
 export interface ListCampaignsInput {
+  visibility?: CampaignVisibility;
   status?: CampaignStatus;
   campaignType?: CampaignType;
   eventId?: string;
+  departmentId?: string;
   managerId?: string;
   search?: string;
   startingAfter?: Date;
@@ -89,6 +97,7 @@ export interface CreateCampaignInput {
   startAt?: Date;
   endAt?: Date;
   eventId?: string;
+  departmentId?: string;
   productName?: string;
   managerId?: string;
   createdById: string;
@@ -170,6 +179,7 @@ const CAMPAIGN_SELECT = {
   startAt: true,
   endAt: true,
   eventId: true,
+  departmentId: true,
   productName: true,
   budgetAmount: true,
   budgetCurrency: true,
@@ -200,6 +210,15 @@ const ACTIVITY_SELECT = {
   createdAt: true,
   updatedAt: true,
 } as const;
+
+function visibleWhere(
+  visibility: CampaignVisibility | undefined,
+): Prisma.CampaignWhereInput {
+  if (!visibility || visibility.organization) return {};
+  return visibility.departmentId
+    ? { departmentId: visibility.departmentId }
+    : { id: { in: [] } };
+}
 
 function byName(a: CampaignTeamRecord, b: CampaignTeamRecord): number {
   return a.name.localeCompare(b.name);
@@ -253,6 +272,7 @@ function toRecord(
     startAt: raw.startAt,
     endAt: raw.endAt,
     eventId: raw.eventId,
+    departmentId: raw.departmentId,
     productName: raw.productName,
     budgetAmount:
       raw.budgetAmount === null ? null : raw.budgetAmount.toFixed(2),
@@ -363,9 +383,11 @@ export class CampaignsRepository {
         : undefined;
 
     const where: Prisma.CampaignWhereInput = {
+      AND: [visibleWhere(input.visibility)],
       ...(input.status ? { status: input.status } : {}),
       ...(input.campaignType ? { campaignType: input.campaignType } : {}),
       ...(input.eventId ? { eventId: input.eventId } : {}),
+      ...(input.departmentId ? { departmentId: input.departmentId } : {}),
       ...(input.managerId ? { workspace: { managerId: input.managerId } } : {}),
       ...(input.search
         ? { name: { contains: input.search, mode: "insensitive" } }
@@ -417,6 +439,20 @@ export class CampaignsRepository {
     return event !== null;
   }
 
+  async findUserDepartmentId(userId: string): Promise<string | null> {
+    if (!isUuid(userId)) return null;
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: { departmentId: true },
+    });
+    return user?.departmentId ?? null;
+  }
+
+  async departmentExists(id: string): Promise<boolean> {
+    if (!isUuid(id)) return false;
+    return (await this.db.department.count({ where: { id } })) === 1;
+  }
+
   /**
    * Creates the connected workspace (`kind = CAMPAIGN`) and the campaign
    * together in one transaction - the pairing CAM-01 assigned to this slice.
@@ -455,6 +491,7 @@ export class CampaignsRepository {
             ...(input.startAt !== undefined ? { startAt: input.startAt } : {}),
             ...(input.endAt !== undefined ? { endAt: input.endAt } : {}),
             ...(input.eventId ? { eventId: input.eventId } : {}),
+            ...(input.departmentId ? { departmentId: input.departmentId } : {}),
             ...(input.productName !== undefined
               ? { productName: input.productName }
               : {}),

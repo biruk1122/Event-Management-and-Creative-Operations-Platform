@@ -33,6 +33,10 @@ const item: NotificationItem = {
   eventId: null,
   meetingId: null,
   expenseId: null,
+  reportId: null,
+  partnerId: null,
+  letterId: null,
+  documentId: null,
 };
 function setup() {
   const client = new QueryClient();

@@ -25,6 +25,7 @@ import {
   meetingCancelled,
   meetingInvalidTransition,
   meetingNotFound,
+  meetingNotOnline,
   meetingNotScheduled,
   meetingOrganizerParticipant,
   meetingParticipantAlreadyInvited,
@@ -36,6 +37,8 @@ import {
   meetingWorkspaceNotFound,
 } from "./meetings.errors.js";
 import { canTransitionMeeting } from "./meetings.lifecycle.js";
+import { JitsiService } from "./jitsi/jitsi.service.js";
+import type { MeetingJitsiSessionResponse } from "./meetings.contracts.js";
 import {
   MeetingsRepository,
   type MeetingRecord,
@@ -49,6 +52,7 @@ export class MeetingsService {
     private readonly repository: MeetingsRepository,
     private readonly permissions: PermissionsService,
     private readonly tasks: TasksService,
+    private readonly jitsi: JitsiService,
   ) {}
 
   private hasGrant(
@@ -168,7 +172,7 @@ export class MeetingsService {
     const endAt = new Date(dto.endAt);
     const reminderAt = dto.reminderAt ? new Date(dto.reminderAt) : undefined;
     assertSchedule(startAt, endAt, reminderAt ?? null);
-    assertVenue(dto.type, dto.location, dto.onlineLink);
+    assertVenue(dto.type, dto.location);
     const meeting = await this.repository.create({
       title: dto.title.trim(),
       ...(dto.description !== undefined
@@ -180,7 +184,6 @@ export class MeetingsService {
       startAt,
       endAt,
       ...(dto.location ? { location: dto.location.trim() } : {}),
-      ...(dto.onlineLink ? { onlineLink: dto.onlineLink } : {}),
       ...(reminderAt ? { reminderAt } : {}),
       ...(dto.agenda !== undefined ? { agenda: dto.agenda.trim() } : {}),
       participantIds: dto.participantIds,
@@ -197,7 +200,7 @@ export class MeetingsService {
     const meeting = await this.repository.findById(id);
     if (!meeting) throw meetingNotFound();
     await this.requireOrganizerUpdateGrant(userId, meeting);
-    if (meeting.status !== MeetingStatus.SCHEDULED) throw meetingNotScheduled();
+    if (meeting.status === MeetingStatus.CANCELLED) throw meetingCancelled();
     const startAt = dto.startAt ? new Date(dto.startAt) : meeting.startAt;
     const endAt = dto.endAt ? new Date(dto.endAt) : meeting.endAt;
     const reminderAt =
@@ -208,9 +211,8 @@ export class MeetingsService {
           : new Date(dto.reminderAt);
     const type = dto.type ?? meeting.type;
     const location = cleanNullable(dto.location, meeting.location);
-    const onlineLink = cleanNullable(dto.onlineLink, meeting.onlineLink);
     assertSchedule(startAt, endAt, reminderAt);
-    assertVenue(type, location, onlineLink);
+    assertVenue(type, location);
     const fields: UpdateMeetingFields = {
       ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
       ...(dto.description !== undefined
@@ -220,7 +222,6 @@ export class MeetingsService {
       ...(dto.startAt !== undefined ? { startAt } : {}),
       ...(dto.endAt !== undefined ? { endAt } : {}),
       ...(dto.location !== undefined ? { location } : {}),
-      ...(dto.onlineLink !== undefined ? { onlineLink } : {}),
       ...(dto.reminderAt !== undefined ? { reminderAt } : {}),
       ...(dto.agenda !== undefined
         ? { agenda: cleanNullable(dto.agenda, null) }
@@ -229,12 +230,20 @@ export class MeetingsService {
     const result = await this.repository.update(id, userId, fields);
     if (result === "not_found") throw meetingNotFound();
     if (result === "forbidden") throw permissionDenied();
-    if (result === "not_scheduled") throw meetingNotScheduled();
+    if (result === "cancelled") throw meetingCancelled();
     return toMeetingResponse(result);
   }
 
-  /** Minutes are recorded once a meeting has happened (EOM-01); unlike
-   * `update()`, this is allowed for a SCHEDULED or COMPLETED meeting. */
+  async remove(userId: string, id: string): Promise<void> {
+    const meeting = await this.repository.findById(id);
+    if (!meeting) throw meetingNotFound();
+    await this.requireOrganizerUpdateGrant(userId, meeting);
+    const result = await this.repository.remove(id, userId);
+    if (result === "not_found") throw meetingNotFound();
+    if (result === "forbidden") throw permissionDenied();
+  }
+
+  /** Minutes can be recorded for SCHEDULED or COMPLETED meetings. */
   async setMinutes(
     userId: string,
     id: string,
@@ -312,6 +321,44 @@ export class MeetingsService {
       response: result.response,
       respondedAt: result.respondedAt.toISOString(),
     };
+  }
+
+  /** Authorization for Jitsi room-join info is deliberately stricter than
+   * `meeting.read`'s own DEPARTMENT/ORGANIZATION reach: holding a broad read
+   * grant lets a caller *see* a meeting without being invited to it, but
+   * must not be enough to reveal room-join information - only the organizer
+   * or an actual invited participant unlocks it. The room name itself isn't
+   * treated as a secret (see JitsiService); this check is the real
+   * authorization boundary. */
+  async getJitsiSession(
+    userId: string,
+    id: string,
+  ): Promise<MeetingJitsiSessionResponse> {
+    const organization = await this.hasGrant(
+      userId,
+      "meeting.read",
+      "ORGANIZATION",
+    );
+    const department = await this.hasGrant(
+      userId,
+      "meeting.read",
+      "DEPARTMENT",
+    );
+    const self = await this.hasGrant(userId, "meeting.read", "SELF");
+    if (!organization && !department && !self) throw permissionDenied();
+    const meeting = await this.repository.findById(id);
+    if (!meeting) throw meetingNotFound();
+    if (meeting.type === MeetingType.PHYSICAL) throw meetingNotOnline();
+    const isOrganizer = meeting.organizer.id === userId;
+    const participant = meeting.participants.find(
+      (candidate) => candidate.id === userId,
+    );
+    if (!isOrganizer && !participant) throw permissionDenied();
+    return this.jitsi.buildSession(meeting, {
+      userId,
+      isOrganizer,
+      participant,
+    });
   }
 
   async transition(
@@ -437,17 +484,12 @@ function assertSchedule(
     throw meetingScheduleInvalid();
 }
 
-function assertVenue(
-  type: MeetingType,
-  location?: string | null,
-  onlineLink?: string | null,
-): void {
+function assertVenue(type: MeetingType, location?: string | null): void {
   const hasLocation = Boolean(location?.trim());
-  const hasLink = Boolean(onlineLink?.trim());
   if (
-    (type === MeetingType.PHYSICAL && (!hasLocation || hasLink)) ||
-    (type === MeetingType.ONLINE && (hasLocation || !hasLink)) ||
-    (type === MeetingType.HYBRID && (!hasLocation || !hasLink))
+    (type === MeetingType.PHYSICAL && !hasLocation) ||
+    (type === MeetingType.ONLINE && hasLocation) ||
+    (type === MeetingType.HYBRID && !hasLocation)
   ) {
     throw meetingVenueInvalid();
   }
@@ -465,7 +507,6 @@ function toMeetingResponse(meeting: MeetingRecord): MeetingResponse {
     startAt: meeting.startAt.toISOString(),
     endAt: meeting.endAt.toISOString(),
     location: meeting.location,
-    onlineLink: meeting.onlineLink,
     reminderAt: meeting.reminderAt?.toISOString() ?? null,
     agenda: meeting.agenda,
     minutes: meeting.minutes,

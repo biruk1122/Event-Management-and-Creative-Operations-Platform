@@ -30,7 +30,6 @@ function makeMeeting(overrides: Partial<MeetingRecord> = {}): MeetingRecord {
     startAt: new Date("2030-01-01T10:00:00.000Z"),
     endAt: new Date("2030-01-01T11:00:00.000Z"),
     location: null,
-    onlineLink: "https://meet.example.test/stand-up",
     reminderAt: new Date("2030-01-01T09:45:00.000Z"),
     agenda: null,
     minutes: null,
@@ -67,6 +66,7 @@ describe("MeetingsService", () => {
     >;
   };
   let tasks: Record<string, ReturnType<typeof vi.fn>>;
+  let jitsi: Record<string, ReturnType<typeof vi.fn>>;
   let service: MeetingsService;
 
   beforeEach(() => {
@@ -81,6 +81,7 @@ describe("MeetingsService", () => {
       findVisibleById: vi.fn().mockResolvedValue(makeMeeting()),
       create: vi.fn().mockResolvedValue(makeMeeting()),
       update: vi.fn().mockResolvedValue(makeMeeting()),
+      remove: vi.fn().mockResolvedValue("removed"),
       addParticipant: vi.fn().mockResolvedValue(makeMeeting()),
       removeParticipant: vi.fn().mockResolvedValue(makeMeeting()),
       respond: vi.fn().mockResolvedValue({
@@ -101,10 +102,20 @@ describe("MeetingsService", () => {
       create: vi.fn().mockResolvedValue({ id: "task-1" }),
       addAssignee: vi.fn().mockResolvedValue({ id: "task-1" }),
     };
+    jitsi = {
+      buildSession: vi.fn().mockReturnValue({
+        domain: "meet.example.test",
+        roomName: "lela-meeting-1",
+        displayName: "Orla Organizer",
+        moderator: true,
+        jwt: null,
+      }),
+    };
     service = new MeetingsService(
       repository as never,
       permissions as never,
       tasks as never,
+      jitsi as never,
     );
   });
 
@@ -164,7 +175,6 @@ describe("MeetingsService", () => {
       {
         title: " Online briefing ",
         type: MeetingType.ONLINE,
-        onlineLink: "https://meet.example.test/briefing",
         startAt: "2030-01-01T10:00:00.000Z",
         endAt: "2030-01-01T11:00:00.000Z",
         participantIds: [PARTICIPANT],
@@ -207,6 +217,64 @@ describe("MeetingsService", () => {
       "PERMISSION_DENIED",
     );
     expect(repository.update).not.toHaveBeenCalled();
+  });
+
+  describe("meeting editing and removal", () => {
+    it("allows an organizer to edit a completed meeting", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      const completed = makeMeeting({
+        status: MeetingStatus.COMPLETED,
+        title: "Corrected title",
+      });
+      repository.findById!.mockResolvedValue(completed);
+      repository.update!.mockResolvedValue(completed);
+      await expect(
+        service.update(ACTOR, completed.id, { title: "Corrected title" }),
+      ).resolves.toMatchObject({
+        title: "Corrected title",
+        status: "COMPLETED",
+      });
+    });
+    it("keeps cancelled meetings immutable", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({ status: MeetingStatus.CANCELLED }),
+      );
+      await expectCode(
+        service.update(ACTOR, "meeting-1", { title: "No" }),
+        "MEETING_CANCELLED",
+      );
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+    it.each([
+      MeetingStatus.SCHEDULED,
+      MeetingStatus.COMPLETED,
+      MeetingStatus.CANCELLED,
+    ])("allows an organizer to remove a %s meeting", async (status) => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(makeMeeting({ status }));
+      await expect(service.remove(ACTOR, "meeting-1")).resolves.toBeUndefined();
+      expect(repository.remove).toHaveBeenCalledWith("meeting-1", ACTOR);
+    });
+    it("rejects deletion by a different organizer despite broad permissions", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({
+          organizer: { ...makeMeeting().organizer, id: PARTICIPANT },
+        }),
+      );
+      await expectCode(service.remove(ACTOR, "meeting-1"), "PERMISSION_DENIED");
+      expect(repository.remove).not.toHaveBeenCalled();
+    });
+    it("rejects deletion without an update grant", async () => {
+      await expectCode(service.remove(ACTOR, "meeting-1"), "PERMISSION_DENIED");
+      expect(repository.remove).not.toHaveBeenCalled();
+    });
+    it("returns not found when a meeting disappears before the delete commits", async () => {
+      grantOnly(["meeting.update", "ORGANIZATION"]);
+      repository.remove!.mockResolvedValue("not_found");
+      await expectCode(service.remove(ACTOR, "meeting-1"), "MEETING_NOT_FOUND");
+    });
   });
 
   describe("setMinutes", () => {
@@ -315,6 +383,76 @@ describe("MeetingsService", () => {
         "task-1",
         PARTICIPANT,
         "request-1",
+      );
+    });
+  });
+
+  describe("getJitsiSession", () => {
+    it("builds a session for the organizer", async () => {
+      grantOnly(["meeting.read", "ORGANIZATION"]);
+      await expect(
+        service.getJitsiSession(ACTOR, "meeting-1"),
+      ).resolves.toMatchObject({ domain: "meet.example.test" });
+      expect(jitsi.buildSession).toHaveBeenCalledWith(
+        makeMeeting(),
+        expect.objectContaining({ userId: ACTOR, isOrganizer: true }),
+      );
+    });
+
+    it("builds a session for an invited participant", async () => {
+      grantOnly(["meeting.read", "SELF"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({
+          participants: [
+            {
+              id: PARTICIPANT,
+              email: "participant@example.test",
+              firstName: "Pat",
+              lastName: "Participant",
+              response: MeetingParticipantResponse.ACCEPTED,
+              respondedAt: new Date("2030-01-01T08:00:00.000Z"),
+              invitedAt: new Date("2029-12-01T00:00:00.000Z"),
+            },
+          ],
+        }),
+      );
+      await service.getJitsiSession(PARTICIPANT, "meeting-1");
+      expect(jitsi.buildSession).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          userId: PARTICIPANT,
+          isOrganizer: false,
+        }),
+      );
+    });
+
+    it("denies a reader who is neither the organizer nor an invited participant", async () => {
+      grantOnly(["meeting.read", "ORGANIZATION"]);
+      await expectCode(
+        service.getJitsiSession(PARTICIPANT, "meeting-1"),
+        "PERMISSION_DENIED",
+      );
+      expect(jitsi.buildSession).not.toHaveBeenCalled();
+    });
+
+    it("rejects a physical meeting", async () => {
+      grantOnly(["meeting.read", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(
+        makeMeeting({ type: MeetingType.PHYSICAL, location: "Office" }),
+      );
+      await expectCode(
+        service.getJitsiSession(ACTOR, "meeting-1"),
+        "MEETING_NOT_ONLINE",
+      );
+      expect(jitsi.buildSession).not.toHaveBeenCalled();
+    });
+
+    it("reports a missing meeting", async () => {
+      grantOnly(["meeting.read", "ORGANIZATION"]);
+      repository.findById!.mockResolvedValue(null);
+      await expectCode(
+        service.getJitsiSession(ACTOR, "missing"),
+        "MEETING_NOT_FOUND",
       );
     });
   });

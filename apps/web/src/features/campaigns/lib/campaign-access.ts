@@ -1,22 +1,27 @@
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
 /**
- * Campaign authorization mirrors `CampaignsService`: every route is a known
- * `kind = CAMPAIGN`, so it names the exact `campaign.*` key and checks it at
- * ORGANIZATION scope. A department-scoped `campaign.read` grant does not reach
- * this surface, matching WSP-02.
+ * Campaign authorization mirrors `CampaignsService`: an organization-scoped
+ * caller (Super Admin) reaches every `campaign.*` key; a department-scoped
+ * caller (e.g. the Marketing Department Manager) reaches every key except
+ * `campaign.delete`, which stays organization-only by design (no
+ * `DEPARTMENT`-scope grant exists for it in the role catalog).
  */
 type Grant = CurrentAccess["grants"][number];
 
-function holdsOrg(grants: readonly Grant[], key: string): boolean {
+function holdsAny(
+  grants: readonly Grant[],
+  key: string,
+  scopes: readonly Grant["scope"][] = ["ORGANIZATION", "DEPARTMENT"],
+): boolean {
   return grants.some(
-    (grant) => grant.permissionKey === key && grant.scope === "ORGANIZATION",
+    (grant) => grant.permissionKey === key && scopes.includes(grant.scope),
   );
 }
 
 /** Whether the caller may read campaigns at all. */
 export function canReadCampaigns(access: CurrentAccess): boolean {
-  return holdsOrg(access.grants, "campaign.read");
+  return holdsAny(access.grants, "campaign.read");
 }
 
 export interface CampaignAbilities {
@@ -35,9 +40,9 @@ export interface CampaignAbilities {
   canDelete: boolean;
 }
 
-/** The caller's abilities across the campaign surface, at organization scope. */
+/** The caller's abilities across the campaign surface. */
 export function campaignAbilities(access: CurrentAccess): CampaignAbilities {
-  const can = (key: string) => holdsOrg(access.grants, key);
+  const can = (key: string) => holdsAny(access.grants, key);
   return {
     canCreate: can("campaign.create"),
     canUpdate: can("campaign.update"),
@@ -46,6 +51,8 @@ export function campaignAbilities(access: CurrentAccess): CampaignAbilities {
     canReadBudget: can("campaign.budget.read"),
     canUpdateBudget: can("campaign.budget.update"),
     canManageActivities: can("campaign.activity.manage"),
-    canDelete: can("campaign.delete"),
+    // Deleting a campaign stays organization-only - there is no
+    // DEPARTMENT-scope grant for it in the role catalog.
+    canDelete: holdsAny(access.grants, "campaign.delete", ["ORGANIZATION"]),
   };
 }

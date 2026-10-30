@@ -53,6 +53,7 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
     description: "Opening night.",
     status: "PLANNING",
     startAt: null,
+    reminderAt: null,
     endAt: null,
     location: "Grand Hall",
     organizerName: "Arts Council",

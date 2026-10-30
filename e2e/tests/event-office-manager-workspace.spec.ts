@@ -345,7 +345,6 @@ test.describe("Event & Office Manager workspace — end to end", () => {
           type: "ONLINE",
           startAt: new Date(Date.now() + 3_600_000).toISOString(),
           endAt: new Date(Date.now() + 7_200_000).toISOString(),
-          onlineLink: "https://meet.example.com/eom-kickoff",
           agenda: "Review launch readiness and outstanding risks.",
         },
       },
@@ -367,9 +366,12 @@ test.describe("Event & Office Manager workspace — end to end", () => {
     ).toBeVisible();
 
     const minutesText = "Launch is on track; one risk flagged on staging.";
-    await homePage.getByLabel("Minutes").fill(minutesText);
-    await homePage.getByRole("button", { name: "Save minutes" }).click();
-    await expect(homePage.getByText("Minutes saved.")).toBeVisible();
+    await homePage.getByRole("button", { name: "Add meeting notes" }).click();
+    await homePage
+      .getByRole("textbox", { name: "Meeting notes" })
+      .fill(minutesText);
+    await homePage.getByRole("button", { name: "Save meeting notes" }).click();
+    await expect(homePage.getByText("Meeting notes saved.")).toBeVisible();
 
     await homePage.getByRole("button", { name: "Add action item" }).click();
     await homePage.getByLabel("Title").fill(actionItemTitle);

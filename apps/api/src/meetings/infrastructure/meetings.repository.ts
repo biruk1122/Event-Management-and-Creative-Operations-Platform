@@ -11,7 +11,6 @@ import {
 } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
 import { OutboxWriterService } from "../../outbox/outbox-writer.service.js";
-import { queueGoogleMeetChange } from "../google-meet/google-meet-queue.js";
 import type { MeetingParticipantInvitedEventPayload } from "../../outbox/outbox.types.js";
 
 const UUID_PATTERN =
@@ -45,7 +44,6 @@ export interface MeetingRecord {
   startAt: Date;
   endAt: Date;
   location: string | null;
-  onlineLink: string | null;
   reminderAt: Date | null;
   /** Plain text, set by the organizer; action items are real `Task` rows via
    * `sourceMeetingId`, not stored here (EOM-01). */
@@ -83,7 +81,6 @@ export interface CreateMeetingInput {
   startAt: Date;
   endAt: Date;
   location?: string;
-  onlineLink?: string;
   reminderAt?: Date;
   agenda?: string;
   participantIds: string[];
@@ -97,7 +94,6 @@ export interface UpdateMeetingFields {
   startAt?: Date;
   endAt?: Date;
   location?: string | null;
-  onlineLink?: string | null;
   reminderAt?: Date | null;
   agenda?: string | null;
   minutes?: string | null;
@@ -121,7 +117,6 @@ const MEETING_SELECT = {
   startAt: true,
   endAt: true,
   location: true,
-  onlineLink: true,
   reminderAt: true,
   agenda: true,
   minutes: true,
@@ -191,7 +186,6 @@ function updateData(fields: UpdateMeetingFields): Prisma.MeetingUpdateInput {
   if (fields.startAt !== undefined) data.startAt = fields.startAt;
   if (fields.endAt !== undefined) data.endAt = fields.endAt;
   if (fields.location !== undefined) data.location = fields.location;
-  if (fields.onlineLink !== undefined) data.onlineLink = fields.onlineLink;
   if (fields.reminderAt !== undefined) data.reminderAt = fields.reminderAt;
   if (fields.agenda !== undefined) data.agenda = fields.agenda;
   if (fields.minutes !== undefined) data.minutes = fields.minutes;
@@ -353,9 +347,6 @@ export class MeetingsRepository {
           startAt: input.startAt,
           endAt: input.endAt,
           ...(input.location !== undefined ? { location: input.location } : {}),
-          ...(input.onlineLink !== undefined
-            ? { onlineLink: input.onlineLink }
-            : {}),
           ...(input.reminderAt !== undefined
             ? { reminderAt: input.reminderAt }
             : {}),
@@ -403,7 +394,7 @@ export class MeetingsRepository {
     id: string,
     organizerId: string,
     fields: UpdateMeetingFields,
-  ): Promise<MeetingRecord | "not_found" | "forbidden" | "not_scheduled"> {
+  ): Promise<MeetingRecord | "not_found" | "forbidden" | "cancelled"> {
     return this.db.$transaction(async (tx) => {
       if (!(await lockMeeting(tx, id))) return "not_found";
       const current = await tx.meeting.findUnique({
@@ -412,7 +403,7 @@ export class MeetingsRepository {
       });
       if (!current) return "not_found";
       if (current.organizerId !== organizerId) return "forbidden";
-      if (current.status !== MeetingStatus.SCHEDULED) return "not_scheduled";
+      if (current.status === MeetingStatus.CANCELLED) return "cancelled";
       const updated = await tx.meeting.update({
         where: { id },
         data: updateData(fields),
@@ -429,12 +420,30 @@ export class MeetingsRepository {
           ...(fields.endAt !== undefined ? { endAt: fields.endAt } : {}),
         },
       });
-      await queueGoogleMeetChange(tx, updated);
       return toRecord(updated);
     });
   }
 
-  /** Minutes are recorded once a meeting has happened - unlike `update()`,
+  /** Deleting a meeting also removes its invitations and calendar projections.
+   * The existing sourceMeetingId SET NULL relation preserves action-item tasks. */
+  async remove(
+    id: string,
+    organizerId: string,
+  ): Promise<"removed" | "not_found" | "forbidden"> {
+    return this.db.$transaction(async (tx) => {
+      if (!(await lockMeeting(tx, id))) return "not_found";
+      const current = await tx.meeting.findUnique({
+        where: { id },
+        select: { organizerId: true },
+      });
+      if (!current) return "not_found";
+      if (current.organizerId !== organizerId) return "forbidden";
+      await tx.meeting.delete({ where: { id } });
+      return "removed";
+    });
+  }
+
+  /** Minutes are recorded once a meeting has happened;
    * this is allowed for a SCHEDULED or COMPLETED meeting, only blocked once
    * CANCELLED (EOM-01: agenda/minutes are plain text, action items are real
    * `Task` rows via `sourceMeetingId`). */
@@ -626,7 +635,6 @@ export class MeetingsRepository {
       if (status === MeetingStatus.CANCELLED) {
         await tx.calendarEntry.deleteMany({ where: { meetingId: id } });
       }
-      await queueGoogleMeetChange(tx, updated);
       return toRecord(updated);
     });
   }

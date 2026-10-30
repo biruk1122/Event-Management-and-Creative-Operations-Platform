@@ -57,6 +57,15 @@ export class CreateEventDto {
   @IsISO8601({ strict: true })
   endAt?: string;
 
+  @ApiPropertyOptional({
+    format: "date-time",
+    description:
+      "UTC reminder instant. Requires startAt to be set and may not be later than it.",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  reminderAt?: string;
+
   @ApiPropertyOptional({ example: "Grand Hall", minLength: 1, maxLength: 200 })
   @IsOptional()
   @IsString()

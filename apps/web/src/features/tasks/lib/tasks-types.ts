@@ -8,6 +8,10 @@ export type TaskPerson = components["schemas"]["TaskPersonSummary"];
 export type TaskComment = components["schemas"]["TaskCommentResponse"];
 export type TaskActivity = components["schemas"]["TaskActivityResponse"];
 export type TaskReview = components["schemas"]["TaskReviewResponse"];
+export type TaskChecklistItem =
+  components["schemas"]["TaskChecklistItemResponse"];
+export type TaskSubtaskSummary =
+  components["schemas"]["TaskSubtaskSummaryResponse"];
 export type ManagedFile = components["schemas"]["ManagedFileResponse"];
 
 export const TASK_STATUSES: readonly TaskStatus[] = [

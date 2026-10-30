@@ -20,6 +20,7 @@ import {
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiSecurity,
@@ -46,6 +47,7 @@ import { UpdateMeetingDto } from "./dto/update-meeting.dto.js";
 import {
   MeetingAcknowledgementResponse,
   MeetingAvailabilityResponse,
+  MeetingJitsiSessionResponse,
   MeetingResponse,
   PaginatedMeetingsResponse,
 } from "./meetings.contracts.js";
@@ -144,11 +146,35 @@ export class MeetingsController {
     return this.meetings.get(actingUserId(request), id);
   }
 
+  @Get(":id/jitsi-session")
+  @RequirePermissions("meeting.read")
+  @ApiOperation({
+    summary: "Get this meeting's self-hosted Jitsi room-join information",
+  })
+  @ApiOkResponse({ type: MeetingJitsiSessionResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Meeting not found",
+  })
+  @ApiConflictResponse({
+    type: ProblemDetails,
+    description:
+      "The meeting is physical and has no video room, or video conferencing is not configured",
+  })
+  getJitsiSession(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+  ): Promise<MeetingJitsiSessionResponse> {
+    return this.meetings.getJitsiSession(actingUserId(request), id);
+  }
+
   @Patch(":id")
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
   @RequirePermissions("meeting.update")
-  @ApiOperation({ summary: "Update a scheduled meeting as its organizer" })
+  @ApiOperation({
+    summary: "Update a scheduled or completed meeting as its organizer",
+  })
   @ApiOkResponse({ type: MeetingResponse })
   @ApiNotFoundResponse({
     type: ProblemDetails,
@@ -156,7 +182,7 @@ export class MeetingsController {
   })
   @ApiConflictResponse({
     type: ProblemDetails,
-    description: "Meeting is no longer scheduled",
+    description: "Meeting is cancelled",
   })
   update(
     @Req() request: RequestWithContext,
@@ -164,6 +190,26 @@ export class MeetingsController {
     @Body() body: UpdateMeetingDto,
   ): Promise<MeetingResponse> {
     return this.meetings.update(actingUserId(request), id, body);
+  }
+
+  @Delete(":id")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("meeting.update")
+  @ApiOperation({
+    summary: "Delete a meeting as its organizer, retaining action-item tasks",
+  })
+  @ApiNoContentResponse({ description: "Meeting removed" })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Meeting not found",
+  })
+  remove(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+  ): Promise<void> {
+    return this.meetings.remove(actingUserId(request), id);
   }
 
   @Put(":id/minutes")

@@ -18,6 +18,7 @@ import {
   eventHasManagedFiles,
   eventInvalidTransition,
   eventNotFound,
+  eventReminderInvalid,
   eventScheduleInvalid,
   eventTeamNotAssigned,
   eventTeamNotFound,
@@ -158,7 +159,9 @@ export class EventsService {
 
     const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
     const endAt = dto.endAt ? new Date(dto.endAt) : undefined;
+    const reminderAt = dto.reminderAt ? new Date(dto.reminderAt) : undefined;
     assertScheduleOrdered(startAt ?? null, endAt ?? null);
+    assertReminderBeforeStart(reminderAt ?? null, startAt ?? null);
 
     const result = await this.repository.create({
       name: dto.name.trim(),
@@ -169,6 +172,7 @@ export class EventsService {
         : {}),
       ...(startAt ? { startAt } : {}),
       ...(endAt ? { endAt } : {}),
+      ...(reminderAt ? { reminderAt } : {}),
       ...(dto.location !== undefined ? { location: dto.location.trim() } : {}),
       ...(dto.organizerName !== undefined
         ? { organizerName: dto.organizerName.trim() }
@@ -197,7 +201,9 @@ export class EventsService {
 
     const nextStart = resolveInstant(dto.startAt, event.startAt);
     const nextEnd = resolveInstant(dto.endAt, event.endAt);
+    const nextReminder = resolveInstant(dto.reminderAt, event.reminderAt);
     assertScheduleOrdered(nextStart, nextEnd);
+    assertReminderBeforeStart(nextReminder, nextStart);
 
     const result = await this.repository.update(id, {
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
@@ -213,6 +219,12 @@ export class EventsService {
         : {}),
       ...(dto.endAt !== undefined
         ? { endAt: dto.endAt === null ? null : new Date(dto.endAt) }
+        : {}),
+      ...(dto.reminderAt !== undefined
+        ? {
+            reminderAt:
+              dto.reminderAt === null ? null : new Date(dto.reminderAt),
+          }
         : {}),
       ...(dto.location !== undefined
         ? { location: dto.location === null ? null : dto.location.trim() }
@@ -400,6 +412,17 @@ function assertScheduleOrdered(startAt: Date | null, endAt: Date | null): void {
   }
 }
 
+/** A reminder is meaningless without a start time, and can never be later
+ * than it - mirrors `meetings.service.ts`'s own reminder/start check. */
+function assertReminderBeforeStart(
+  reminderAt: Date | null,
+  startAt: Date | null,
+): void {
+  if (reminderAt && (!startAt || reminderAt.getTime() > startAt.getTime())) {
+    throw eventReminderInvalid();
+  }
+}
+
 function toEventResponse(record: EventRecord): EventResponse {
   return {
     id: record.id,
@@ -410,6 +433,7 @@ function toEventResponse(record: EventRecord): EventResponse {
     status: record.status,
     startAt: record.startAt ? record.startAt.toISOString() : null,
     endAt: record.endAt ? record.endAt.toISOString() : null,
+    reminderAt: record.reminderAt ? record.reminderAt.toISOString() : null,
     location: record.location,
     organizerName: record.organizerName,
     departmentId: record.departmentId,

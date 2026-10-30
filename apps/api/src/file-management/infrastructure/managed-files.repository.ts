@@ -21,6 +21,8 @@ export interface ManagedFileRecord {
   intentConversationId: string | null;
   intentExpenseId: string | null;
   intentReportId: string | null;
+  intentLetterId: string | null;
+  intentDocumentId: string | null;
   availableAt: Date | null;
   createdAt: Date;
 }
@@ -40,6 +42,8 @@ const FILE_SELECT = {
   intentConversationId: true,
   intentExpenseId: true,
   intentReportId: true,
+  intentLetterId: true,
+  intentDocumentId: true,
   availableAt: true,
   createdAt: true,
 } as const;
@@ -67,6 +71,8 @@ export class ManagedFilesRepository {
           intentConversationId?: never;
           intentExpenseId?: never;
           intentReportId?: never;
+          intentLetterId?: never;
+          intentDocumentId?: never;
         }
       | {
           intentTaskId: string;
@@ -74,6 +80,8 @@ export class ManagedFilesRepository {
           intentConversationId?: never;
           intentExpenseId?: never;
           intentReportId?: never;
+          intentLetterId?: never;
+          intentDocumentId?: never;
         }
       | {
           intentConversationId: string;
@@ -81,6 +89,8 @@ export class ManagedFilesRepository {
           intentTaskId?: never;
           intentExpenseId?: never;
           intentReportId?: never;
+          intentLetterId?: never;
+          intentDocumentId?: never;
         }
       | {
           intentExpenseId: string;
@@ -88,6 +98,8 @@ export class ManagedFilesRepository {
           intentTaskId?: never;
           intentConversationId?: never;
           intentReportId?: never;
+          intentLetterId?: never;
+          intentDocumentId?: never;
         }
       | {
           intentReportId: string;
@@ -95,6 +107,26 @@ export class ManagedFilesRepository {
           intentTaskId?: never;
           intentConversationId?: never;
           intentExpenseId?: never;
+          intentLetterId?: never;
+          intentDocumentId?: never;
+        }
+      | {
+          intentLetterId: string;
+          intentWorkspaceId?: never;
+          intentTaskId?: never;
+          intentConversationId?: never;
+          intentExpenseId?: never;
+          intentReportId?: never;
+          intentDocumentId?: never;
+        }
+      | {
+          intentDocumentId: string;
+          intentWorkspaceId?: never;
+          intentTaskId?: never;
+          intentConversationId?: never;
+          intentExpenseId?: never;
+          intentReportId?: never;
+          intentLetterId?: never;
         }
     ),
   ): Promise<ManagedFileRecord> {
@@ -116,6 +148,12 @@ export class ManagedFilesRepository {
           : {}),
         ...(input.intentReportId
           ? { intentReportId: input.intentReportId }
+          : {}),
+        ...(input.intentLetterId
+          ? { intentLetterId: input.intentLetterId }
+          : {}),
+        ...(input.intentDocumentId
+          ? { intentDocumentId: input.intentDocumentId }
           : {}),
         originalFilename: input.originalFilename,
         storageKey: input.storageKey,
@@ -185,6 +223,36 @@ export class ManagedFilesRepository {
       where: {
         id,
         intentReportId: reportId,
+        state: ManagedFileState.PENDING,
+      },
+      select: FILE_SELECT,
+    });
+  }
+
+  async findPendingForLetter(
+    id: string,
+    letterId: string,
+  ): Promise<ManagedFileRecord | null> {
+    if (!isUuid(id) || !isUuid(letterId)) return null;
+    return this.db.managedFile.findFirst({
+      where: {
+        id,
+        intentLetterId: letterId,
+        state: ManagedFileState.PENDING,
+      },
+      select: FILE_SELECT,
+    });
+  }
+
+  async findPendingForDocument(
+    id: string,
+    documentId: string,
+  ): Promise<ManagedFileRecord | null> {
+    if (!isUuid(id) || !isUuid(documentId)) return null;
+    return this.db.managedFile.findFirst({
+      where: {
+        id,
+        intentDocumentId: documentId,
         state: ManagedFileState.PENDING,
       },
       select: FILE_SELECT,
@@ -423,6 +491,96 @@ export class ManagedFilesRepository {
         id: input.fileId,
         intentExpiresAt: { lte: input.finalizedAt },
         intentReportId: input.reportId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        cleanupAfter: input.cleanupAfter,
+        state: ManagedFileState.UNAVAILABLE,
+        unavailableAt: input.finalizedAt,
+      },
+    });
+    return expired.count === 1 ? "expired" : "conflict";
+  }
+
+  async makeAvailableForLetter(
+    tx: Prisma.TransactionClient,
+    input: {
+      cleanupAfter: Date;
+      fileId: string;
+      finalizedAt: Date;
+      letterId: string;
+      verifiedMediaType: string;
+      verifiedSizeBytes: number;
+    },
+  ): Promise<"available" | "conflict" | "expired"> {
+    if (!isUuid(input.fileId) || !isUuid(input.letterId)) return "conflict";
+    const updated = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { gt: input.finalizedAt },
+        intentLetterId: input.letterId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        availableAt: input.finalizedAt,
+        state: ManagedFileState.AVAILABLE,
+        uploadedAt: input.finalizedAt,
+        verifiedMediaType: input.verifiedMediaType,
+        verifiedSizeBytes: input.verifiedSizeBytes,
+      },
+    });
+    if (updated.count === 1) return "available";
+
+    const expired = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { lte: input.finalizedAt },
+        intentLetterId: input.letterId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        cleanupAfter: input.cleanupAfter,
+        state: ManagedFileState.UNAVAILABLE,
+        unavailableAt: input.finalizedAt,
+      },
+    });
+    return expired.count === 1 ? "expired" : "conflict";
+  }
+
+  async makeAvailableForDocument(
+    tx: Prisma.TransactionClient,
+    input: {
+      cleanupAfter: Date;
+      fileId: string;
+      finalizedAt: Date;
+      documentId: string;
+      verifiedMediaType: string;
+      verifiedSizeBytes: number;
+    },
+  ): Promise<"available" | "conflict" | "expired"> {
+    if (!isUuid(input.fileId) || !isUuid(input.documentId)) return "conflict";
+    const updated = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { gt: input.finalizedAt },
+        intentDocumentId: input.documentId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        availableAt: input.finalizedAt,
+        state: ManagedFileState.AVAILABLE,
+        uploadedAt: input.finalizedAt,
+        verifiedMediaType: input.verifiedMediaType,
+        verifiedSizeBytes: input.verifiedSizeBytes,
+      },
+    });
+    if (updated.count === 1) return "available";
+
+    const expired = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { lte: input.finalizedAt },
+        intentDocumentId: input.documentId,
         state: ManagedFileState.PENDING,
       },
       data: {

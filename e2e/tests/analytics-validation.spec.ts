@@ -592,7 +592,7 @@ test.describe("ANA-06 department boundary", () => {
   test("own department, denied subjects, no department and membership changes stay scoped", async ({
     page,
   }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(120_000);
     // Department performance is a permanently pinned panel for a department
     // manager (not dropdown-selectable), and it has no URL-driven subject
     // filter - its own "Department ID (optional)" field drives that instead.
@@ -636,13 +636,15 @@ test.describe("ANA-06 department boundary", () => {
       await expect(
         page.getByRole("rowheader", { name: fixture.departmentA }),
       ).toHaveCount(0);
-      // Same grants, changed department: the next permission poll must apply
-      // the new scope. A focus event inside the fresh 30-second window reuses
-      // verified access instead of forcing another request.
+      // Same grants, changed department: focus recheck must not resurrect A.
       await panel
         .getByLabel("Department ID (optional)")
         .fill(fixture.departmentA);
       await fixture.setManagerDepartment(fixture.departmentA);
+      // Window focus only revalidates permissions once they are stale
+      // (staleTime 30s); there is deliberately no background poll. Wait out
+      // the stale window so the focus recheck below is a real refetch.
+      await page.waitForTimeout(31_000);
       const access = page.waitForResponse(
         (response) => response.url().includes("/auth/me/permissions"),
         { timeout: 45_000 },

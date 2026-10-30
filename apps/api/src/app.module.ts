@@ -6,6 +6,11 @@ import { AnalyticsModule } from "./analytics/analytics.module.js";
 import { DashboardsModule } from "./dashboards/dashboards.module.js";
 import { LoggerModule } from "nestjs-pino";
 
+import { AttendanceModule } from "./attendance/attendance.module.js";
+import { KioskModule } from "./attendance/kiosk/kiosk.module.js";
+import { MobileAttendanceModule } from "./attendance/mobile/mobile-attendance.module.js";
+import { EventShiftsModule } from "./attendance/scheduling/eventshifts.module.js";
+import { AttendanceReviewModule } from "./attendance/review/review.module.js";
 import { AuthModule } from "./auth/auth.module.js";
 import { CalendarModule } from "./calendar/calendar.module.js";
 import { CampaignsModule } from "./campaigns/campaigns.module.js";
@@ -14,13 +19,18 @@ import { EnvironmentModule } from "./config/environment.module.js";
 import { DatabaseModule } from "./database/database.module.js";
 import { DepartmentsModule } from "./departments/departments.module.js";
 import { DiscussModule } from "./discuss/discuss.module.js";
+import { DocumentsModule } from "./documents/documents.module.js";
+import { EmployeesModule } from "./employees/employees.module.js";
 import { EventsModule } from "./events/events.module.js";
 import { ExpensesModule } from "./expenses/expenses.module.js";
 import { FileManagementModule } from "./file-management/file-management.module.js";
 import { HealthModule } from "./health/health.module.js";
+import { LettersModule } from "./letters/letters.module.js";
+import { LeaveModule } from "./leave/leave.module.js";
 import { MeetingsModule } from "./meetings/meetings.module.js";
 import { MarketingModule } from "./marketing/marketing.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
+import { PartnersModule } from "./partners/partners.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
 import { PromotionModule } from "./promotion/promotion.module.js";
 import { ProductionLocationsModule } from "./production-locations/production-locations.module.js";
@@ -28,6 +38,8 @@ import { ProductionsModule } from "./productions/productions.module.js";
 import { RbacModule } from "./rbac/rbac.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
 import { ReportsModule } from "./reports/reports.module.js";
+import { SharedRecordsModule } from "./shared-records/shared-records.module.js";
+import { SharingModule } from "./sharing/sharing.module.js";
 import { SuppliersModule } from "./suppliers/suppliers.module.js";
 import { TeamsModule } from "./teams/teams.module.js";
 import { TalentModule } from "./talent/talent.module.js";
@@ -75,10 +87,19 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     DatabaseModule,
     HealthModule,
     AuthModule,
+    AttendanceModule,
+    KioskModule,
+    MobileAttendanceModule,
+    EventShiftsModule,
+    AttendanceReviewModule,
+    LeaveModule,
     MeetingsModule,
     CalendarModule,
     RbacModule,
     UsersModule,
+    EmployeesModule,
+    DocumentsModule,
+    LettersModule,
     DepartmentsModule,
     TeamsModule,
     TasksModule,
@@ -92,11 +113,14 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     ProductionLocationsModule,
     CampaignsModule,
     MarketingModule,
+    PartnersModule,
     PromotionModule,
     DiscussModule,
     FileManagementModule,
     RealtimeModule,
     ReportsModule,
+    SharedRecordsModule,
+    SharingModule,
     NotificationsModule,
     TodoModule,
   ],

@@ -71,12 +71,93 @@ describe("meeting persistence", () => {
       organizerId,
       startAt: new Date("2030-01-01T10:00:00.000Z"),
       endAt: new Date("2030-01-01T11:00:00.000Z"),
-      onlineLink: "https://meet.example.test/room",
       participantIds: input.participantIds ?? [],
       ...(input.reminderAt ? { reminderAt: input.reminderAt } : {}),
       correlationId: `test-${counter}`,
     });
   }
+
+  it("edits completed meeting details and all calendar projections without reopening it", async () => {
+    const meeting = await create({ participantIds: [await user()] });
+    await repository.transition(meeting.id, meeting.organizer.id, "COMPLETED");
+    const updated = await repository.update(meeting.id, meeting.organizer.id, {
+      title: "Corrected completed meeting",
+    });
+    expect(updated).toMatchObject({
+      title: "Corrected completed meeting",
+      status: MeetingStatus.COMPLETED,
+    });
+    const entries = await prisma.calendarEntry.findMany({
+      where: { meetingId: meeting.id },
+    });
+    expect(entries).toHaveLength(2);
+    expect(
+      entries.every((entry) => entry.title === "Corrected completed meeting"),
+    ).toBe(true);
+    const cancelled = await create();
+    await repository.transition(
+      cancelled.id,
+      cancelled.organizer.id,
+      "CANCELLED",
+    );
+    expect(
+      await repository.update(cancelled.id, cancelled.organizer.id, {
+        title: "No",
+      }),
+    ).toBe("cancelled");
+  });
+
+  it("deletes only the organizer's meeting, cascades calendar/invitation data and preserves action-item tasks", async () => {
+    const invitee = await user();
+    const meeting = await create({ participantIds: [invitee] });
+    const department = await prisma.department.create({
+      data: { name: `Meeting action items ${++counter}` },
+    });
+    const task = await prisma.task.create({
+      data: {
+        title: "Keep this action item",
+        sourceMeetingId: meeting.id,
+        departmentId: department.id,
+      },
+    });
+    const invitation = await prisma.outboxEvent.findFirstOrThrow({
+      where: { resourceId: meeting.id },
+    });
+    await prisma.notification.create({
+      data: {
+        recipientUserId: invitee,
+        type: "MEETING_INVITATION",
+        sourceEventId: invitation.id,
+        occurrenceKey: invitation.id,
+        title: "Meeting invitation",
+        body: "You are invited.",
+        meetingId: meeting.id,
+      },
+    });
+    expect(await repository.remove(meeting.id, invitee)).toBe("forbidden");
+    expect(await prisma.meeting.count({ where: { id: meeting.id } })).toBe(1);
+    expect(await repository.remove(meeting.id, meeting.organizer.id)).toBe(
+      "removed",
+    );
+    expect(await prisma.meeting.count({ where: { id: meeting.id } })).toBe(0);
+    expect(
+      await prisma.meetingParticipant.count({
+        where: { meetingId: meeting.id },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.calendarEntry.count({ where: { meetingId: meeting.id } }),
+    ).toBe(0);
+    expect(
+      await prisma.notification.count({ where: { meetingId: meeting.id } }),
+    ).toBe(0);
+    expect(
+      await prisma.task.findUnique({ where: { id: task.id } }),
+    ).toMatchObject({ title: "Keep this action item", sourceMeetingId: null });
+    expect(await repository.remove(meeting.id, meeting.organizer.id)).toBe(
+      "not_found",
+    );
+  });
 
   it("commits a meeting, participant/calendar projections, and invitation outbox deliveries together", async () => {
     const participants = [await user(), await user()];
@@ -119,7 +200,6 @@ describe("meeting persistence", () => {
         organizerId,
         startAt: new Date("2030-02-01T10:00:00.000Z"),
         endAt: new Date("2030-02-01T11:00:00.000Z"),
-        onlineLink: "https://meet.example.test/rollback",
         participantIds: [MISSING_UUID],
         correlationId: "rollback",
       }),

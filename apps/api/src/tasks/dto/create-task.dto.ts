@@ -52,6 +52,18 @@ export class CreateTaskDto {
 
   @ApiPropertyOptional({
     format: "uuid",
+    description:
+      "The higher-level task this is broken down from. When set, the " +
+      "subtask inherits its parent's workspace/department rather than " +
+      "`workspaceId`/`departmentId` above, and only the parent's own " +
+      "assignee (or an organization-scoped caller) may create it.",
+  })
+  @IsOptional()
+  @IsUUID()
+  parentTaskId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
     description: "A user to assign immediately on creation.",
   })
   @IsOptional()

@@ -27,6 +27,10 @@ function makeNotification(
     eventId: null,
     meetingId: null,
     expenseId: null,
+    reportId: null,
+    partnerId: null,
+    letterId: null,
+    documentId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     readAt: null,
     ...overrides,
@@ -96,6 +100,64 @@ describe("NotificationsService", () => {
       }),
       getConversationMemberIds: vi.fn().mockResolvedValue([]),
       getMessageMentionUserIds: vi.fn().mockResolvedValue([]),
+      getReport: vi.fn().mockResolvedValue({
+        title: "Daily report",
+        authorId: "author-1",
+        departmentId: null,
+        status: "DRAFT",
+      }),
+      getReportReviewerIds: vi.fn().mockResolvedValue([]),
+      getTodo: vi.fn().mockResolvedValue({
+        title: "Confirm venue permits",
+        userId: "owner-1",
+        status: "NOT_STARTED",
+      }),
+      getEvent: vi.fn().mockResolvedValue({
+        name: "Autumn Product Launch",
+        status: "PLANNING",
+      }),
+      getEventReminderRecipientIds: vi.fn().mockResolvedValue([]),
+      getPartner: vi.fn().mockResolvedValue({
+        organizationName: "Northbridge Media",
+        ownerId: "owner-1",
+        status: "PROSPECTIVE",
+      }),
+      getShare: vi.fn().mockResolvedValue({
+        recipientId: "recipient-1",
+        allEmployees: false,
+        revokedAt: null,
+      }),
+      getLetter: vi.fn().mockResolvedValue({
+        referenceNumber: "LELA-CAST-2026-001",
+      }),
+      getDocument: vi.fn().mockResolvedValue({
+        displayName: "Vendor contract",
+      }),
+      listActiveUserIds: vi.fn().mockResolvedValue([]),
+      getEventShift: vi.fn().mockResolvedValue({
+        eventName: "Launch Night",
+        status: "CONFIRMED",
+      }),
+      hasActiveShiftAssignment: vi.fn().mockResolvedValue(true),
+      getShiftAssignedEmployeeIds: vi.fn().mockResolvedValue([]),
+      getOvertimeApproval: vi.fn().mockResolvedValue({
+        status: "APPROVED",
+        employeeId: "employee-1",
+        sessionDate: new Date("2026-11-01T00:00:00Z"),
+      }),
+      getAttendanceException: vi.fn().mockResolvedValue({
+        status: "APPROVED",
+        employeeId: "employee-1",
+        description: "Recorded 500m away",
+      }),
+      getLeaveRequest: vi.fn().mockResolvedValue({
+        status: "PENDING",
+        employeeId: "employee-1",
+        employeeName: "Employee One",
+        employeeDepartmentId: "dept-1",
+        leaveTypeName: "Annual",
+      }),
+      getDepartmentManagerId: vi.fn().mockResolvedValue("manager-1"),
     };
     permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
     realtime = { publish: vi.fn() };
@@ -188,12 +250,12 @@ describe("NotificationsService", () => {
     );
   });
 
-  it("lists only the seven mutable types with the caller's mute state", async () => {
+  it("lists only the mutable types with the caller's mute state", async () => {
     repository.listMutedTypes!.mockResolvedValue([
       NotificationType.NEW_MESSAGE,
     ]);
     const result = await service.listPreferences(ACTOR);
-    expect(result.items).toHaveLength(7);
+    expect(result.items).toHaveLength(10);
     expect(result.items).toEqual(
       expect.arrayContaining([
         { type: NotificationType.NEW_MESSAGE, muted: true },
@@ -616,8 +678,772 @@ describe("NotificationsService", () => {
     });
   });
 
+  describe("processEvent: report.submitted", () => {
+    it("notifies every resolved reviewer except the submitting author", async () => {
+      repository.getReportReviewerIds!.mockResolvedValue([
+        "reviewer-1",
+        "reviewer-2",
+        "actor-1",
+      ]);
+      await service.processEvent(
+        makeEvent({
+          name: "report.submitted",
+          resourceType: "report",
+          resourceId: "report-1",
+          actorUserId: "actor-1",
+        }),
+      );
+      expect(repository.getReportReviewerIds).toHaveBeenCalledWith(null);
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(2);
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "reviewer-1",
+          type: NotificationType.REPORT_SUBMITTED,
+          reportId: "report-1",
+        }),
+      );
+      expect(
+        (repository.createIfAbsent!.mock.calls as [CreateNotificationInput][])
+          .map(([input]) => input.recipientUserId)
+          .includes("actor-1"),
+      ).toBe(false);
+    });
+
+    it("does nothing when the report no longer exists", async () => {
+      repository.getReport!.mockResolvedValue(null);
+      await service.processEvent(
+        makeEvent({
+          name: "report.submitted",
+          resourceType: "report",
+          resourceId: "report-1",
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: report.reviewed", () => {
+    it("notifies the author with REPORT_REVIEWED on a REVIEWED outcome", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "report.reviewed",
+          resourceType: "report",
+          resourceId: "report-1",
+          actorUserId: "reviewer-1",
+          payload: { outcome: "REVIEWED" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "author-1",
+          type: NotificationType.REPORT_REVIEWED,
+          reportId: "report-1",
+        }),
+      );
+    });
+
+    it("still uses REPORT_REVIEWED, distinct content, for CHANGES_REQUESTED", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "report.reviewed",
+          resourceType: "report",
+          resourceId: "report-1",
+          payload: { outcome: "CHANGES_REQUESTED" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: NotificationType.REPORT_REVIEWED,
+          title: "Changes requested on your report",
+        }),
+      );
+    });
+
+    it("never notifies a reviewer about their own report", async () => {
+      repository.getReport!.mockResolvedValue({
+        title: "Daily report",
+        authorId: "reviewer-1",
+        departmentId: null,
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "report.reviewed",
+          resourceType: "report",
+          resourceId: "report-1",
+          actorUserId: "reviewer-1",
+          payload: { outcome: "REVIEWED" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: todo.reminder", () => {
+    it("notifies the todo's owner using the scheduler's own occurrence key", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "todo.reminder",
+          actorKind: OutboxActorKind.SYSTEM,
+          actorUserId: null,
+          resourceType: "todo",
+          resourceId: "todo-1",
+          payload: {
+            occurrenceKey: "todo-1:2030-01-01T09:45:00.000Z:todo.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "owner-1",
+          type: NotificationType.TODO_REMINDER,
+          occurrenceKey: "todo-1:2030-01-01T09:45:00.000Z:todo.reminder:v1",
+        }),
+      );
+    });
+
+    it("skips a reminder for a todo already marked completed", async () => {
+      repository.getTodo!.mockResolvedValue({
+        title: "Confirm venue permits",
+        userId: "owner-1",
+        status: "COMPLETED",
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "todo.reminder",
+          resourceType: "todo",
+          resourceId: "todo-1",
+          payload: {
+            occurrenceKey: "todo-1:2030-01-01T09:45:00.000Z:todo.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("respects a muted TODO_REMINDER preference", async () => {
+      repository.isMuted!.mockResolvedValue(true);
+      await service.processEvent(
+        makeEvent({
+          name: "todo.reminder",
+          resourceType: "todo",
+          resourceId: "todo-1",
+          payload: {
+            occurrenceKey: "todo-1:2030-01-01T09:45:00.000Z:todo.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the payload has no occurrenceKey or the todo no longer exists", async () => {
+      await service.processEvent(
+        makeEvent({ name: "todo.reminder", resourceType: "todo", payload: {} }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+
+      repository.getTodo!.mockResolvedValue(null);
+      await service.processEvent(
+        makeEvent({
+          name: "todo.reminder",
+          resourceType: "todo",
+          resourceId: "todo-1",
+          payload: {
+            occurrenceKey: "todo-1:2030-01-01T09:45:00.000Z:todo.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: event.reminder", () => {
+    it("notifies every resolved recipient using the scheduler's own occurrence key", async () => {
+      repository.getEventReminderRecipientIds!.mockResolvedValue([
+        "creator-1",
+        "manager-1",
+      ]);
+      await service.processEvent(
+        makeEvent({
+          name: "event.reminder",
+          actorKind: OutboxActorKind.SYSTEM,
+          actorUserId: null,
+          resourceType: "event",
+          resourceId: "event-1",
+          payload: {
+            occurrenceKey: "event-1:2030-01-01T09:45:00.000Z:event.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(2);
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "creator-1",
+          type: NotificationType.EVENT_REMINDER,
+          eventId: "event-1",
+        }),
+      );
+    });
+
+    it("suppresses delayed event reminders once the event is terminal", async () => {
+      repository.getEvent!.mockResolvedValue({
+        name: "Autumn Product Launch",
+        status: "CANCELLED",
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "event.reminder",
+          resourceType: "event",
+          resourceId: "event-1",
+          payload: {
+            occurrenceKey: "event-1:2030-01-01T09:45:00.000Z:event.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("respects each recipient's own EVENT_REMINDER mute preference", async () => {
+      repository.getEventReminderRecipientIds!.mockResolvedValue([
+        "creator-1",
+        "manager-1",
+      ]);
+      repository.isMuted!.mockImplementation(
+        (userId: string) => userId === "manager-1",
+      );
+      await service.processEvent(
+        makeEvent({
+          name: "event.reminder",
+          resourceType: "event",
+          resourceId: "event-1",
+          payload: {
+            occurrenceKey: "event-1:2030-01-01T09:45:00.000Z:event.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(1);
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserId: "creator-1" }),
+      );
+    });
+  });
+
+  describe("processEvent: report.reminder", () => {
+    it("notifies the report's author using the scheduler's own occurrence key", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "report.reminder",
+          actorKind: OutboxActorKind.SYSTEM,
+          actorUserId: null,
+          resourceType: "report",
+          resourceId: "report-1",
+          payload: {
+            occurrenceKey:
+              "report-1:2030-01-01T00:00:00.000Z:report.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "author-1",
+          type: NotificationType.REPORT_REMINDER,
+          reportId: "report-1",
+        }),
+      );
+    });
+
+    it("skips a report that was submitted between claim and delivery", async () => {
+      repository.getReport!.mockResolvedValue({
+        title: "Daily report",
+        authorId: "author-1",
+        departmentId: null,
+        status: "SUBMITTED",
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "report.reminder",
+          resourceType: "report",
+          resourceId: "report-1",
+          payload: {
+            occurrenceKey:
+              "report-1:2030-01-01T00:00:00.000Z:report.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("still reminds a report in CHANGES_REQUESTED", async () => {
+      repository.getReport!.mockResolvedValue({
+        title: "Daily report",
+        authorId: "author-1",
+        departmentId: null,
+        status: "CHANGES_REQUESTED",
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "report.reminder",
+          resourceType: "report",
+          resourceId: "report-1",
+          payload: {
+            occurrenceKey:
+              "report-1:2030-01-01T00:00:00.000Z:report.reminder:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ type: NotificationType.REPORT_REMINDER }),
+      );
+    });
+  });
+
+  describe("processEvent: partner.follow_up_due", () => {
+    it("notifies the partner's owner using the scheduler's own occurrence key", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "partner.follow_up_due",
+          actorKind: OutboxActorKind.SYSTEM,
+          actorUserId: null,
+          resourceType: "partner",
+          resourceId: "partner-1",
+          payload: {
+            occurrenceKey:
+              "partner-1:2030-01-01T09:45:00.000Z:partner.follow_up_due:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "owner-1",
+          type: NotificationType.PARTNER_FOLLOW_UP_DUE,
+          partnerId: "partner-1",
+        }),
+      );
+    });
+
+    it("does nothing when the partner has no owner", async () => {
+      repository.getPartner!.mockResolvedValue({
+        organizationName: "Northbridge Media",
+        ownerId: null,
+        status: "PROSPECTIVE",
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "partner.follow_up_due",
+          resourceType: "partner",
+          resourceId: "partner-1",
+          payload: {
+            occurrenceKey:
+              "partner-1:2030-01-01T09:45:00.000Z:partner.follow_up_due:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("skips a relationship already Declined or Completed", async () => {
+      repository.getPartner!.mockResolvedValue({
+        organizationName: "Northbridge Media",
+        ownerId: "owner-1",
+        status: "DECLINED",
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "partner.follow_up_due",
+          resourceType: "partner",
+          resourceId: "partner-1",
+          payload: {
+            occurrenceKey:
+              "partner-1:2030-01-01T09:45:00.000Z:partner.follow_up_due:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: letter.shared", () => {
+    it("notifies a direct recipient, re-loaded from the share rather than the payload", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "letter.shared",
+          resourceType: "letter",
+          resourceId: "letter-1",
+          payload: { shareId: "share-1" },
+        }),
+      );
+      expect(repository.getShare).toHaveBeenCalledWith("share-1");
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "recipient-1",
+          type: NotificationType.LETTER_SHARED,
+          letterId: "letter-1",
+        }),
+      );
+    });
+
+    it("does nothing when the share has already been revoked", async () => {
+      repository.getShare!.mockResolvedValue({
+        recipientId: "recipient-1",
+        allEmployees: false,
+        revokedAt: new Date("2026-01-02T00:00:00.000Z"),
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "letter.shared",
+          resourceType: "letter",
+          resourceId: "letter-1",
+          payload: { shareId: "share-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("skips the actor when they share with themselves", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "letter.shared",
+          actorUserId: "recipient-1",
+          resourceType: "letter",
+          resourceId: "letter-1",
+          payload: { shareId: "share-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("respects a mute on LETTER_SHARED", async () => {
+      repository.isMuted!.mockResolvedValue(true);
+      await service.processEvent(
+        makeEvent({
+          name: "letter.shared",
+          resourceType: "letter",
+          resourceId: "letter-1",
+          payload: { shareId: "share-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("pages through every active employee for an all-employees share", async () => {
+      repository.getShare!.mockResolvedValue({
+        recipientId: null,
+        allEmployees: true,
+        revokedAt: null,
+      });
+      repository
+        .listActiveUserIds!.mockResolvedValueOnce(["user-1", "user-2"])
+        .mockResolvedValueOnce([]);
+      await service.processEvent(
+        makeEvent({
+          name: "letter.shared",
+          resourceType: "letter",
+          resourceId: "letter-1",
+          payload: { shareId: "share-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(2);
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserId: "user-1" }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserId: "user-2" }),
+      );
+    });
+  });
+
+  describe("processEvent: document.shared", () => {
+    it("notifies a direct recipient using the document's display name", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "document.shared",
+          resourceType: "document",
+          resourceId: "document-1",
+          payload: { shareId: "share-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "recipient-1",
+          type: NotificationType.DOCUMENT_SHARED,
+          documentId: "document-1",
+          body: "Vendor contract",
+        }),
+      );
+    });
+  });
+
   it("succeeds without creating a notification for an event name it does not understand", async () => {
     await service.processEvent(makeEvent({ name: "unknown.event" }));
     expect(repository.createIfAbsent).not.toHaveBeenCalled();
+  });
+
+  describe("processEvent: attendance.shift.assigned", () => {
+    it("notifies the assigned employee using the shift's event name", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.shift.assigned",
+          resourceType: "event_shift",
+          resourceId: "shift-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "employee-1",
+          type: NotificationType.ATTENDANCE_SHIFT_ASSIGNED,
+          body: "Launch Night",
+        }),
+      );
+    });
+
+    it("skips an assignment that no longer exists by the time it's delivered", async () => {
+      repository.hasActiveShiftAssignment!.mockResolvedValue(false);
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.shift.assigned",
+          resourceType: "event_shift",
+          resourceId: "shift-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("skips an inactive employee", async () => {
+      repository.isUserActive!.mockResolvedValue(false);
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.shift.assigned",
+          resourceType: "event_shift",
+          resourceId: "shift-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: attendance.shift.schedule_changed", () => {
+    it("notifies every employee currently assigned to the shift, excluding the actor", async () => {
+      repository.getShiftAssignedEmployeeIds!.mockResolvedValue([
+        "employee-1",
+        "employee-2",
+        ACTOR,
+      ]);
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.shift.schedule_changed",
+          resourceType: "event_shift",
+          resourceId: "shift-1",
+          payload: { changeType: "RESCHEDULE" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(2);
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "employee-1",
+          type: NotificationType.ATTENDANCE_SHIFT_SCHEDULE_CHANGED,
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserId: "employee-2" }),
+      );
+    });
+
+    it("does nothing when the shift no longer exists", async () => {
+      repository.getEventShift!.mockResolvedValue(null);
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.shift.schedule_changed",
+          resourceType: "event_shift",
+          resourceId: "shift-1",
+          payload: { changeType: "CANCELLATION" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: attendance.overtime.decided", () => {
+    it("notifies the employee when overtime is approved", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.overtime.decided",
+          resourceType: "attendance_overtime_approval",
+          resourceId: "overtime-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "employee-1",
+          type: NotificationType.ATTENDANCE_OVERTIME_DECIDED,
+          title: "Overtime approved",
+        }),
+      );
+    });
+
+    it("notifies the employee when overtime is rejected", async () => {
+      repository.getOvertimeApproval!.mockResolvedValue({
+        status: "REJECTED",
+        employeeId: "employee-1",
+        sessionDate: new Date("2026-11-01T00:00:00Z"),
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.overtime.decided",
+          resourceType: "attendance_overtime_approval",
+          resourceId: "overtime-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Overtime rejected" }),
+      );
+    });
+
+    it("skips an overtime review that is still pending", async () => {
+      repository.getOvertimeApproval!.mockResolvedValue({
+        status: "PENDING",
+        employeeId: "employee-1",
+        sessionDate: new Date("2026-11-01T00:00:00Z"),
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.overtime.decided",
+          resourceType: "attendance_overtime_approval",
+          resourceId: "overtime-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: attendance.exception.decided", () => {
+    it("notifies the employee when an exception is approved", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.exception.decided",
+          resourceType: "attendance_exception",
+          resourceId: "exception-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "employee-1",
+          type: NotificationType.ATTENDANCE_EXCEPTION_DECIDED,
+        }),
+      );
+    });
+
+    it("skips an exception that is still pending", async () => {
+      repository.getAttendanceException!.mockResolvedValue({
+        status: "PENDING",
+        employeeId: "employee-1",
+        description: null,
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "attendance.exception.decided",
+          resourceType: "attendance_exception",
+          resourceId: "exception-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: leave.request.submitted", () => {
+    it("notifies the employee's department manager", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "leave.request.submitted",
+          resourceType: "leave_request",
+          resourceId: "request-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "manager-1",
+          type: NotificationType.LEAVE_REQUEST_SUBMITTED,
+          body: "Employee One",
+        }),
+      );
+    });
+
+    it("does nothing when the employee's department has no manager", async () => {
+      repository.getDepartmentManagerId!.mockResolvedValue(null);
+      await service.processEvent(
+        makeEvent({
+          name: "leave.request.submitted",
+          resourceType: "leave_request",
+          resourceId: "request-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("skips a request already decided by the time it's delivered", async () => {
+      repository.getLeaveRequest!.mockResolvedValue({
+        status: "APPROVED",
+        employeeId: "employee-1",
+        employeeName: "Employee One",
+        employeeDepartmentId: "dept-1",
+        leaveTypeName: "Annual",
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "leave.request.submitted",
+          resourceType: "leave_request",
+          resourceId: "request-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: leave.request.decided", () => {
+    it("notifies the employee when their request is approved", async () => {
+      repository.getLeaveRequest!.mockResolvedValue({
+        status: "APPROVED",
+        employeeId: "employee-1",
+        employeeName: "Employee One",
+        employeeDepartmentId: "dept-1",
+        leaveTypeName: "Annual",
+      });
+      await service.processEvent(
+        makeEvent({
+          name: "leave.request.decided",
+          resourceType: "leave_request",
+          resourceId: "request-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipientUserId: "employee-1",
+          type: NotificationType.LEAVE_REQUEST_DECIDED,
+          title: "Leave request approved",
+        }),
+      );
+    });
+
+    it("skips a request still pending", async () => {
+      await service.processEvent(
+        makeEvent({
+          name: "leave.request.decided",
+          resourceType: "leave_request",
+          resourceId: "request-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
   });
 });

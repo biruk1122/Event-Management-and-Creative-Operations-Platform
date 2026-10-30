@@ -4,7 +4,6 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
-  IsUrl,
   Matches,
   MaxLength,
   MinLength,
@@ -56,18 +55,6 @@ export class UpdateMeetingDto {
   @MaxLength(500)
   @Matches(NOT_BLANK, { message: "location must not be blank" })
   location?: string | null;
-
-  @ApiPropertyOptional({
-    type: String,
-    format: "uri",
-    nullable: true,
-    maxLength: 2000,
-  })
-  @IsOptional()
-  @ValidateIf((_, value) => value !== null)
-  @IsUrl({ require_protocol: true, protocols: ["https"] })
-  @MaxLength(2000)
-  onlineLink?: string | null;
 
   @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
   @IsOptional()

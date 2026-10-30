@@ -383,6 +383,183 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   { key: "supplier.create", description: "Create a supplier directory entry." },
   { key: "supplier.read", description: "View a supplier directory entry." },
   { key: "supplier.update", description: "Update a supplier directory entry." },
+
+  // Sponsorships and partnerships (Marketing Department Workspace)
+  {
+    key: "partner.create",
+    description: "Create a sponsor, media, or partner relationship record.",
+  },
+  {
+    key: "partner.read",
+    description: "View a partner relationship record.",
+  },
+  {
+    key: "partner.update",
+    description:
+      "Update a partner relationship's fields, stage, and follow-up date.",
+  },
+  {
+    key: "partner.activity.create",
+    description:
+      "Log a discussion note or communication-history entry on a partner relationship.",
+  },
+
+  // Employee management (EMP-01). Held by Super Admin and, through the
+  // Department Manager role, resolved to organization-wide visibility only
+  // when the acting manager's own department is HR & Executive Officer - a
+  // bespoke check in `EmployeesService`, not a new role or a per-department
+  // branch in this catalog (see `EmployeesService.requireEmployeeAccess`).
+  {
+    key: "employee.read",
+    description: "View employee profiles (HR-only data linked to a user).",
+  },
+  {
+    key: "employee.create",
+    description: "Register an employee profile, linking or creating a user.",
+  },
+  {
+    key: "employee.update",
+    description: "Update an employee profile's HR fields.",
+  },
+  {
+    key: "employee.status.update",
+    description: "Change an employee profile's employment status.",
+  },
+
+  // Administration: Letters and Documents. Held by Super Admin and, through
+  // the Department Manager role, resolved to organization-wide visibility
+  // only when the acting manager's own department is HR & Executive
+  // Officer - the same bespoke `isHrExecutiveOfficerManager` check Employee
+  // Management uses, not a new role or a per-department branch here.
+  // `*.delete` is deliberately never granted below organization scope (no
+  // DEPARTMENT-scope grant for it exists at all), the same "sensitive,
+  // Super-Admin-only" idiom as `expense.approve`/`campaign.delete`.
+  {
+    key: "letter.read",
+    description: "View incoming/outgoing correspondence and its attachments.",
+  },
+  {
+    key: "letter.create",
+    description: "Register a letter; the reference number is server-assigned.",
+  },
+  {
+    key: "letter.update",
+    description: "Edit a letter's fields. The reference number never changes.",
+  },
+  {
+    key: "letter.delete",
+    description: "Remove a letter. Super Admin only.",
+  },
+  {
+    key: "letter.share",
+    description: "Share a letter with an employee or with all employees.",
+  },
+  {
+    key: "document.read",
+    description: "View the document repository.",
+  },
+  {
+    key: "document.create",
+    description: "Upload a document, or register one from a letter attachment.",
+  },
+  {
+    key: "document.update",
+    description: "Rename a document or change its type.",
+  },
+  {
+    key: "document.delete",
+    description: "Remove a document. Super Admin only.",
+  },
+  {
+    key: "document.share",
+    description: "Share a document with an employee or with all employees.",
+  },
+
+  // Any authenticated active employee may read records explicitly shared
+  // with them (directly, or via an active all-employees grant) - this is a
+  // wholly separate authorization path from `letter.*`/`document.*` above
+  // and never widens into the full management lists or operations.
+  {
+    key: "share.read",
+    description:
+      "Read letters and documents shared with the caller, directly or with all employees.",
+  },
+
+  // Attendance and Leave (ATT-01/ATT-02). `attendance.schedule.manage`,
+  // `attendance.overtime.review`, `attendance.exception.review`,
+  // `attendance.reports.read`, `leave.review`, and `leave.grant.manage` are
+  // granted flatly to every Department Manager (DEPARTMENT scope) - the
+  // same shape as every other bespoke-boundary module in this catalog.
+  // `AttendanceAccessPolicy` resolves the precise reach at the service
+  // layer: Super Admin reaches every employee (ORGANIZATION catch-all); the
+  // HR & Executive Officer department's own manager also reaches every
+  // employee, by department name, mirroring `isHrExecutiveOfficerManager`;
+  // every other Department Manager reaches only their own department's
+  // employees/shifts. Kiosk registration and leave-type policy are never
+  // delegated to a Department Manager at all - Super Admin only.
+  {
+    key: "attendance.punch",
+    description:
+      "Check in or out for an assigned event shift via the mobile workflow.",
+  },
+  {
+    key: "attendance.read",
+    description: "View the caller's own attendance sessions and history.",
+  },
+  {
+    key: "attendance.exception.create",
+    description: "Raise a correction request for the caller's own attendance.",
+  },
+  {
+    key: "attendance.schedule.manage",
+    description:
+      "Create and change event shifts and their employee assignments.",
+  },
+  {
+    key: "attendance.overtime.review",
+    description:
+      "Approve or reject potential overtime on an attendance session.",
+  },
+  {
+    key: "attendance.exception.review",
+    description:
+      "Approve or reject an attendance exception or correction request.",
+  },
+  {
+    key: "attendance.reports.read",
+    description:
+      "View attendance dashboards and reports beyond the caller's own record.",
+  },
+  {
+    key: "attendance.calendar.manage",
+    description:
+      "Configure the weekly work schedule and holiday calendar. Super Admin and the HR & Executive Officer department's manager only.",
+  },
+  {
+    key: "attendance.kiosk.manage",
+    description:
+      "Register or revoke an office attendance kiosk. Super Admin only.",
+  },
+  {
+    key: "leave.request.create",
+    description: "Submit, withdraw, or amend the caller's own leave requests.",
+  },
+  {
+    key: "leave.read",
+    description: "View the caller's own leave balance, grants, and requests.",
+  },
+  {
+    key: "leave.review",
+    description: "Approve, reject, or return a leave request for changes.",
+  },
+  {
+    key: "leave.grant.manage",
+    description: "Grant or adjust an employee's leave balance.",
+  },
+  {
+    key: "leave.type.manage",
+    description: "Configure leave types and their policy. Super Admin only.",
+  },
 ] as const;
 
 /**
@@ -397,6 +574,7 @@ export const BASELINE_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "profile.read", scope: "SELF" },
   { permissionKey: "profile.update", scope: "SELF" },
   { permissionKey: "directory.read", scope: "ORGANIZATION" },
+  { permissionKey: "share.read", scope: "SELF" },
   { permissionKey: "dashboard.read", scope: "SELF" },
   { permissionKey: "notification.read", scope: "SELF" },
   { permissionKey: "calendar.read", scope: "SELF" },
@@ -412,6 +590,11 @@ export const BASELINE_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "conversation.create", scope: "SELF" },
   { permissionKey: "conversation.read", scope: "SELF" },
   { permissionKey: "channel.participate", scope: "SELF" },
+  { permissionKey: "attendance.punch", scope: "SELF" },
+  { permissionKey: "attendance.read", scope: "SELF" },
+  { permissionKey: "attendance.exception.create", scope: "SELF" },
+  { permissionKey: "leave.request.create", scope: "SELF" },
+  { permissionKey: "leave.read", scope: "SELF" },
 ];
 
 /**
@@ -445,6 +628,18 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   // a task but never attach a file to it - the create-task form's attachment
   // step needs the same department-scoped grant Super Admin already holds.
   { permissionKey: "task.attachment.create", scope: "DEPARTMENT" },
+  // The full two-tier workflow requires every assignee tier to be able to
+  // self-report, not just Department Member: Super Admin assigns a task to
+  // a Department Manager, who must update its progress/status and submit it
+  // back (to Super Admin, via the ORGANIZATION-scope `task.review` grant
+  // already held there) - the same SELF-scope grants `TEAM_MEMBER_GRANTS`
+  // already holds for the Member -> Manager tier. `TasksService.review()`
+  // refuses self-review, so a Manager can never approve their own
+  // submission - it genuinely has to reach Super Admin (or, for a task
+  // under a different department, that department's own manager).
+  { permissionKey: "task.update_status", scope: "SELF" },
+  { permissionKey: "task.update_progress", scope: "SELF" },
+  { permissionKey: "task.submit", scope: "SELF" },
   { permissionKey: "event.read", scope: "DEPARTMENT" },
   // Event & office management (EOM-01): the Event & Office Manager department
   // additionally manages its own events end to end, not just reads them.
@@ -472,7 +667,47 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "project.transition_status", scope: "DEPARTMENT" },
   { permissionKey: "production.budget.read", scope: "DEPARTMENT" },
   { permissionKey: "production.budget.update", scope: "DEPARTMENT" },
+  // Marketing department management: a Marketing Department Manager plans
+  // and executes campaigns end to end for their own department, mirroring
+  // the Event & Office Manager's and Production Manager's own department
+  // grants above. `campaign.delete` is deliberately withheld, matching how
+  // supplier/partner records are status-managed rather than hard-deleted.
   { permissionKey: "campaign.read", scope: "DEPARTMENT" },
+  { permissionKey: "campaign.create", scope: "DEPARTMENT" },
+  { permissionKey: "campaign.update", scope: "DEPARTMENT" },
+  { permissionKey: "campaign.assign", scope: "DEPARTMENT" },
+  { permissionKey: "campaign.transition_status", scope: "DEPARTMENT" },
+  { permissionKey: "campaign.activity.manage", scope: "DEPARTMENT" },
+  { permissionKey: "campaign.budget.read", scope: "DEPARTMENT" },
+  { permissionKey: "campaign.budget.update", scope: "DEPARTMENT" },
+  // Sponsorships and partnerships (Marketing Department Workspace).
+  { permissionKey: "partner.create", scope: "DEPARTMENT" },
+  { permissionKey: "partner.read", scope: "DEPARTMENT" },
+  { permissionKey: "partner.update", scope: "DEPARTMENT" },
+  { permissionKey: "partner.activity.create", scope: "DEPARTMENT" },
+  // Employee management (EMP-01). Granted generically here so a RolePermission
+  // row exists for every Department Manager; `EmployeesService` is the real
+  // boundary and only honors this grant when the acting manager's own
+  // department is HR & Executive Officer, treating it as org-wide visibility
+  // in that one case - every other Department Manager holds this grant but
+  // it never resolves to anything, by that same service-layer check.
+  { permissionKey: "employee.read", scope: "DEPARTMENT" },
+  { permissionKey: "employee.create", scope: "DEPARTMENT" },
+  { permissionKey: "employee.update", scope: "DEPARTMENT" },
+  { permissionKey: "employee.status.update", scope: "DEPARTMENT" },
+  // Administration: Letters and Documents - the identical generic-grant,
+  // service-layer-enforced boundary as the employee.* grants just above.
+  // `letter.delete`/`document.delete` are deliberately absent here: no
+  // DEPARTMENT-scope grant for them exists anywhere, so only Super Admin's
+  // organization-scope catch-all ever reaches them.
+  { permissionKey: "letter.read", scope: "DEPARTMENT" },
+  { permissionKey: "letter.create", scope: "DEPARTMENT" },
+  { permissionKey: "letter.update", scope: "DEPARTMENT" },
+  { permissionKey: "letter.share", scope: "DEPARTMENT" },
+  { permissionKey: "document.read", scope: "DEPARTMENT" },
+  { permissionKey: "document.create", scope: "DEPARTMENT" },
+  { permissionKey: "document.update", scope: "DEPARTMENT" },
+  { permissionKey: "document.share", scope: "DEPARTMENT" },
   { permissionKey: "meeting.create", scope: "DEPARTMENT" },
   { permissionKey: "meeting.read", scope: "DEPARTMENT" },
   { permissionKey: "meeting.update", scope: "DEPARTMENT" },
@@ -498,6 +733,28 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "supplier.create", scope: "DEPARTMENT" },
   { permissionKey: "supplier.read", scope: "DEPARTMENT" },
   { permissionKey: "supplier.update", scope: "DEPARTMENT" },
+  // Attendance and Leave (ATT-01/ATT-02). Granted flatly to every
+  // Department Manager, like every other bespoke-boundary module above -
+  // `AttendanceAccessPolicy` is what actually resolves a given manager's
+  // real reach (their own department, or every department for the HR &
+  // Executive Officer department's own manager) at the service layer.
+  { permissionKey: "attendance.schedule.manage", scope: "DEPARTMENT" },
+  { permissionKey: "attendance.overtime.review", scope: "DEPARTMENT" },
+  { permissionKey: "attendance.exception.review", scope: "DEPARTMENT" },
+  { permissionKey: "attendance.reports.read", scope: "DEPARTMENT" },
+  // Flat grant like the others above - `AttendanceReviewService.requireHrOrSuperAdminAccess`
+  // narrows it to just the HR & Executive Officer department's own manager,
+  // the same boundary already used for `attendance.reports.read`'s detailed
+  // sessions view.
+  { permissionKey: "attendance.calendar.manage", scope: "DEPARTMENT" },
+  // `leave.read` is required alongside `leave.review`/`leave.grant.manage`:
+  // the `GET /leave/requests|grants|balance|calendar` routes gate on
+  // `leave.read` at the transport boundary (`PermissionsGuard`), before the
+  // service's own department/organization visibility-widening logic ever
+  // runs. Without it a Department Manager cannot reach that logic at all.
+  { permissionKey: "leave.read", scope: "DEPARTMENT" },
+  { permissionKey: "leave.review", scope: "DEPARTMENT" },
+  { permissionKey: "leave.grant.manage", scope: "DEPARTMENT" },
 ];
 
 const TEAM_MEMBER_GRANTS: readonly GrantDefinition[] = [
@@ -512,6 +769,11 @@ const TEAM_MEMBER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "report.read", scope: "SELF" },
   { permissionKey: "report.attachment.create", scope: "SELF" },
   { permissionKey: "meeting.read", scope: "SELF" },
+  // A team member may view and contribute to a partnership relationship
+  // they are the assigned owner of, but not create, edit its core fields,
+  // or browse the department's full commercial/sponsor directory.
+  { permissionKey: "partner.read", scope: "SELF" },
+  { permissionKey: "partner.activity.create", scope: "SELF" },
 ];
 
 /**

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -202,6 +203,12 @@ export function CalendarManager({
 
   return (
     <div className={`${styles.surface} space-y-4`}>
+      <div className="flex justify-end">
+        <Button type="button" onClick={() => openCreate(anchor)}>
+          <Plus aria-hidden="true" />
+          Add entry
+        </Button>
+      </div>
       {connection.state.status === "denied" ? (
         <p role="status" className="text-muted-foreground text-sm">
           Live updates are unavailable. Refresh to see changes made elsewhere.
@@ -219,7 +226,6 @@ export function CalendarManager({
         onChangeView={setView}
         onNavigate={navigate}
         onToggleType={toggleType}
-        onCreate={() => openCreate(anchor)}
       />
 
       {view === "month" ? (

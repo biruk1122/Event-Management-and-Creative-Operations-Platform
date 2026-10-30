@@ -2,8 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowRight,
+  LayoutGrid,
+  Lightbulb,
+  List,
+  Plus,
+  Search,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   accessKey,
   type CurrentAccess,
@@ -29,7 +45,22 @@ import {
 import { todoKeys, useTodoMutations, useTodos } from "../api/todo-queries";
 import { todayDateOnly } from "../lib/todo-date";
 import type { DeleteTodoOutcome } from "../lib/todo-outcome";
-import type { TodoItem, TodoSmartView } from "../lib/todo-types";
+import {
+  TODO_PRIORITIES,
+  TODO_PRIORITY_LABELS,
+  TODO_SMART_VIEWS,
+  type TodoItem,
+  type TodoPriority,
+  type TodoSmartView,
+} from "../lib/todo-types";
+
+type TodoSort = "DUE_DATE" | "PRIORITY" | "TITLE";
+const PRIORITY_ORDER: Record<TodoPriority, number> = {
+  URGENT: 0,
+  HIGH: 1,
+  MEDIUM: 2,
+  LOW: 3,
+};
 
 function isImportant(item: TodoItem): boolean {
   return item.priority === "HIGH" || item.priority === "URGENT";
@@ -81,6 +112,11 @@ export function TodoManager({
   const keys = todoKeys(access);
 
   const [view, setView] = useState<TodoSmartView>("MY_DAY");
+  const [search, setSearch] = useState("");
+  const [priority, setPriority] = useState<TodoPriority | "ALL">("ALL");
+  const [sort, setSort] = useState<TodoSort>("DUE_DATE");
+  const [layout, setLayout] = useState<"list" | "grid">("list");
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<TodoItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   // TodoDialog's own form state only initializes once per mount; bumping
@@ -109,6 +145,32 @@ export function TodoManager({
 
   const feed = useTodos(access);
   const mutations = useTodoMutations(access);
+  const surfaceRef = useRef<HTMLDivElement>(null);
+  const toggleFocusRef = useRef<{ id: string; source: Element } | null>(null);
+  useEffect(() => {
+    const pending = toggleFocusRef.current;
+    if (!pending || mutations.toggleStatus.isPending) return;
+    toggleFocusRef.current = null;
+    // Moving between due-date groups remounts the row. Restore its toggle
+    // only when focus was lost, leaving deliberate keyboard navigation alone.
+    if (
+      document.activeElement !== document.body &&
+      document.activeElement !== pending.source
+    )
+      return;
+    const toggles = Array.from(
+      surfaceRef.current?.querySelectorAll<HTMLButtonElement>(
+        "button[data-todo-toggle-id]",
+      ) ?? [],
+    );
+    const target =
+      toggles.find((button) => button.dataset.todoToggleId === pending.id) ??
+      toggles[0] ??
+      surfaceRef.current?.querySelector<HTMLButtonElement>(
+        '[data-work-toolbar] button[aria-pressed="true"]',
+      );
+    target?.focus();
+  }, [feed.data, mutations.toggleStatus.isPending]);
 
   useEffect(() => {
     if (
@@ -144,11 +206,33 @@ export function TodoManager({
   );
 
   const items = useMemo(() => feed.data ?? [], [feed.data]);
+  const counts = Object.fromEntries(
+    TODO_SMART_VIEWS.map((candidate) => [
+      candidate,
+      items.filter((item) => matchesView(item, candidate, today)).length,
+    ]),
+  ) as Record<TodoSmartView, number>;
+  const openCount = items.filter((item) => item.status !== "COMPLETED").length;
+  const dueTodayCount = items.filter(
+    (item) => item.status !== "COMPLETED" && item.dueDate === today,
+  ).length;
   const visibleItems = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase();
     return items
       .filter((item) => matchesView(item, view, today))
+      .filter((item) => priority === "ALL" || item.priority === priority)
+      .filter(
+        (item) =>
+          !term ||
+          `${item.title} ${item.description ?? ""}`
+            .toLocaleLowerCase()
+            .includes(term),
+      )
       .slice()
       .sort((a, b) => {
+        if (sort === "TITLE") return a.title.localeCompare(b.title);
+        if (sort === "PRIORITY" && a.priority !== b.priority)
+          return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
         // Items without a due date sort last, in this list's own view.
         if (a.dueDate === null && b.dueDate === null) return 0;
         if (a.dueDate === null) return 1;
@@ -156,7 +240,7 @@ export function TodoManager({
         if (a.dueDate !== b.dueDate) return a.dueDate.localeCompare(b.dueDate);
         return (a.dueTime ?? "").localeCompare(b.dueTime ?? "");
       });
-  }, [items, view, today]);
+  }, [items, view, today, search, priority, sort]);
 
   function openCreate() {
     setEditingItem(null);
@@ -171,9 +255,25 @@ export function TodoManager({
   }
 
   function toggleStatus(item: TodoItem) {
+    const source = document.activeElement;
+    if (
+      source instanceof HTMLElement &&
+      source.dataset.todoToggleId === item.id
+    ) {
+      toggleFocusRef.current = { id: item.id, source };
+    }
+    setStatusError(null);
     const nextStatus =
       item.status === "COMPLETED" ? "NOT_STARTED" : "COMPLETED";
-    mutations.toggleStatus.mutate({ id: item.id, status: nextStatus });
+    mutations.toggleStatus.mutate(
+      { id: item.id, status: nextStatus },
+      {
+        onSuccess: (outcome) => {
+          if (outcome.status !== "success")
+            setStatusError("We could not update this to-do. Please try again.");
+        },
+      },
+    );
   }
 
   async function submitTodo(values: TodoFormValues): Promise<TodoFormOutcome> {
@@ -207,7 +307,13 @@ export function TodoManager({
   }
 
   return (
-    <div className={`${styles.surface} space-y-4`}>
+    <div ref={surfaceRef} className={`${styles.surface} space-y-4`}>
+      <div className="flex justify-end">
+        <Button onClick={openCreate}>
+          <Plus aria-hidden="true" />
+          Add to-do
+        </Button>
+      </div>
       {connection.state.status === "denied" ? (
         <p role="status" className="text-muted-foreground text-sm">
           Live updates are unavailable. Refresh to see changes made elsewhere.
@@ -218,13 +324,113 @@ export function TodoManager({
         </p>
       ) : null}
 
-      <TodoToolbar view={view} onChangeView={setView} onCreate={openCreate} />
-      <TodoList
-        items={visibleItems}
-        view={view}
-        onSelect={openEdit}
-        onToggleStatus={toggleStatus}
-      />
+      <TodoToolbar view={view} onChangeView={setView} counts={counts} />
+      <section className={styles.content} aria-label="Your to-dos">
+        <div className={styles.controls}>
+          <div className={styles.search}>
+            <Search aria-hidden="true" />
+            <Input
+              aria-label="Search to-dos"
+              placeholder="Search your to-dos…"
+              maxLength={500}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <div className={styles.filters}>
+            <Select
+              value={sort}
+              onValueChange={(value) => setSort(value as TodoSort)}
+            >
+              <SelectTrigger aria-label="Sort to-dos">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="DUE_DATE">Sort by: Due date</SelectItem>
+                <SelectItem value="PRIORITY">Sort by: Priority</SelectItem>
+                <SelectItem value="TITLE">Sort by: Title</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={priority}
+              onValueChange={(value) =>
+                setPriority(value as TodoPriority | "ALL")
+              }
+            >
+              <SelectTrigger aria-label="Filter by priority">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All priorities</SelectItem>
+                {TODO_PRIORITIES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {TODO_PRIORITY_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div
+              className={styles.layoutSwitch}
+              role="group"
+              aria-label="To-do layout"
+            >
+              <Button
+                size="icon"
+                variant={layout === "list" ? "default" : "ghost"}
+                aria-label="List layout"
+                aria-pressed={layout === "list"}
+                onClick={() => setLayout("list")}
+              >
+                <List aria-hidden="true" />
+              </Button>
+              <Button
+                size="icon"
+                variant={layout === "grid" ? "default" : "ghost"}
+                aria-label="Grid layout"
+                aria-pressed={layout === "grid"}
+                onClick={() => setLayout("grid")}
+              >
+                <LayoutGrid aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        </div>
+        {statusError ? <p role="alert">{statusError}</p> : null}
+        <TodoList
+          items={visibleItems}
+          view={view}
+          onSelect={openEdit}
+          onToggleStatus={toggleStatus}
+          today={today}
+          layout={layout}
+          filtered={search.trim() !== "" || priority !== "ALL"}
+          statusBusy={mutations.toggleStatus.isPending}
+          relatedLabel={(item) =>
+            projectOptions.find((option) => option.id === item.relatedProjectId)
+              ?.name ??
+            eventOptions.find((option) => option.id === item.relatedEventId)
+              ?.name
+          }
+        />
+        <footer className={styles.summary}>
+          <p>
+            <Lightbulb aria-hidden="true" />
+            You have {openCount} open to-dos.{" "}
+            <strong>{dueTodayCount} due today.</strong>
+          </p>
+          <Button
+            variant="link"
+            onClick={() => {
+              setView("ALL");
+              setSearch("");
+              setPriority("ALL");
+            }}
+          >
+            View all to-dos
+            <ArrowRight aria-hidden="true" />
+          </Button>
+        </footer>
+      </section>
       <TodoDialog
         key={dialogInstanceKey}
         open={dialogOpen}

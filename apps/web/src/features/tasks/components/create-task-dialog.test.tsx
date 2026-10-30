@@ -31,15 +31,18 @@ function createdTask(): Task {
     id: "task-new",
     workspaceId: null,
     departmentId: "dept-1",
+    parentTaskId: null,
+    subtaskSummary: null,
     title: "Confirm venue",
     description: "Check the contract.",
     priority: "MEDIUM",
     type: "LOGISTICS",
     status: "TODO",
-    progress: 0,
+    progress: null,
     startAt: null,
     dueAt: "2026-12-01T00:00:00.000Z",
     assignees: [],
+    checklistItems: [],
     createdBy: null,
     createdAt: "2026-11-01T00:00:00.000Z",
     updatedAt: "2026-11-01T00:00:00.000Z",
@@ -178,5 +181,72 @@ describe("CreateTaskDialog", () => {
   it("locks the department selector for a Department Manager", () => {
     renderDialog({ departmentLocked: true });
     expect(screen.getByRole("combobox", { name: "Department" })).toBeDisabled();
+  });
+
+  it("defaults priority to Medium and submits a different chosen value", async () => {
+    const user = userEvent.setup();
+    const onCreate = vi.fn(() => Promise.resolve(createdTask()));
+    renderDialog({ onCreate });
+
+    await user.type(screen.getByLabelText("Task name *"), "Confirm venue");
+    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Event Management" }),
+    );
+    await user.click(screen.getByRole("combobox", { name: "Assigned person" }));
+    await user.click(await screen.findByRole("option", { name: "Maya Chen" }));
+    await user.type(
+      screen.getByLabelText("Description *"),
+      "Check the contract.",
+    );
+    await user.type(screen.getByLabelText("Target date *"), "2026-12-01");
+
+    await user.click(screen.getByRole("combobox", { name: "Priority" }));
+    await user.click(await screen.findByRole("option", { name: "Urgent" }));
+
+    await user.click(screen.getByRole("button", { name: "Create task" }));
+
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ priority: "URGENT" }),
+      ),
+    );
+  });
+
+  it("adds checkpoints and submits them in order after the task is created", async () => {
+    const user = userEvent.setup();
+    const onCreate = vi.fn(() => Promise.resolve(createdTask()));
+    renderDialog({ onCreate });
+
+    await user.type(screen.getByLabelText("Task name *"), "Confirm venue");
+    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Event Management" }),
+    );
+    await user.click(screen.getByRole("combobox", { name: "Assigned person" }));
+    await user.click(await screen.findByRole("option", { name: "Maya Chen" }));
+    await user.type(
+      screen.getByLabelText("Description *"),
+      "Check the contract.",
+    );
+    await user.type(screen.getByLabelText("Target date *"), "2026-12-01");
+
+    const checklistInput = screen.getByLabelText("Checkpoints (optional)");
+    await user.type(checklistInput, "Confirm venue permits");
+    await user.click(screen.getByRole("button", { name: "Add checkpoint" }));
+    expect(await screen.findByText("Confirm venue permits")).toBeVisible();
+    await user.type(checklistInput, "Notify the venue contact");
+    await user.click(screen.getByRole("button", { name: "Add checkpoint" }));
+    expect(await screen.findByText("Notify the venue contact")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Create task" }));
+
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          checklistItems: ["Confirm venue permits", "Notify the venue contact"],
+        }),
+      ),
+    );
   });
 });
