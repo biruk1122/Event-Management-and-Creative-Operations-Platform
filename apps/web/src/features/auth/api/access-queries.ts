@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { components } from "@event-platform/api-client";
 import { browserApi } from "@/lib/api/browser";
+import { hydrationSafe, useHydrated } from "@/lib/hydration-safe-query";
 
 export type CurrentAccess = components["schemas"]["CurrentAccessResponse"];
 export const accessKey = ["auth", "access"] as const;
@@ -20,7 +21,8 @@ export function canManageRoles(
 }
 
 export function useCurrentAccess() {
-  return useQuery({
+  const hydrated = useHydrated();
+  const result = useQuery({
     queryKey: accessKey,
     queryFn: async ({ signal }): Promise<CurrentAccess | null> => {
       const { data, response } = await browserApi.GET(
@@ -37,4 +39,5 @@ export function useCurrentAccess() {
     refetchOnWindowFocus: true,
     retry: false,
   });
+  return hydrationSafe(result, hydrated);
 }

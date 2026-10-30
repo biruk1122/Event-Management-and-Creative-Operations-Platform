@@ -10,6 +10,7 @@ import {
   logout,
 } from "./auth-gateway";
 import type { LoginValues } from "../lib/login-schema";
+import { hydrationSafe, useHydrated } from "@/lib/hydration-safe-query";
 
 export const authKeys = {
   currentUser: ["auth", "current-user"] as const,
@@ -17,11 +18,13 @@ export const authKeys = {
 
 /** The signed-in account, or null when there is no valid session. */
 export function useCurrentUser() {
-  return useQuery<AuthUser | null>({
+  const hydrated = useHydrated();
+  const result = useQuery<AuthUser | null>({
     queryKey: authKeys.currentUser,
     queryFn: fetchCurrentUser,
     staleTime: 60_000,
   });
+  return hydrationSafe(result, hydrated);
 }
 
 /** Sign in and seed the session cache from the response on success. */
