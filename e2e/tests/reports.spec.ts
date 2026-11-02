@@ -47,7 +47,10 @@ async function csrfToken(page: Page): Promise<string> {
 
 async function createReportUser(
   admin: Page,
-  roleName: "Department Member" | "Super Admin" = "Department Member",
+  roleName:
+    | "Department Manager"
+    | "Department Member"
+    | "Super Admin" = "Department Member",
   departmentId?: string,
 ) {
   const suffix = randomUUID().slice(0, 8);
