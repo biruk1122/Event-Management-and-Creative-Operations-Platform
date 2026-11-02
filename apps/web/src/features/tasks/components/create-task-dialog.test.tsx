@@ -36,6 +36,7 @@ function createdTask(): Task {
     relatedEvent: null,
     relatedCampaign: null,
     reviewerUnresolved: null,
+    parentTask: null,
     subtaskSummary: null,
     reportTo: null,
     reportToPinned: false,
