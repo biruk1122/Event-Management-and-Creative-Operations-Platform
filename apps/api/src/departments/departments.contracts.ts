@@ -49,6 +49,14 @@ export class DepartmentResponse {
   manager!: DepartmentManagerSummary | null;
 
   @ApiProperty({
+    type: DepartmentManagerSummary,
+    nullable: true,
+    description:
+      "The Admin Super Admin designated to receive this department's reports. Null until designated; the server never picks one on its own.",
+  })
+  reportingAdmin!: DepartmentManagerSummary | null;
+
+  @ApiProperty({
     example: 12,
     description: "How many active or inactive users are assigned here.",
   })

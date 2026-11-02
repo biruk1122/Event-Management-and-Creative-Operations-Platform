@@ -31,6 +31,10 @@ function makeReport(overrides: Partial<ReportRecord> = {}): ReportRecord {
     submittedAt: null,
     reviewedAt: null,
     reviewerId: null,
+    reportToId: null,
+    reportTo: null,
+    author: null,
+    sources: [],
     workspaces: [],
     reviews: [],
     createdAt: new Date("2026-10-01T00:00:00.000Z"),
@@ -41,7 +45,10 @@ function makeReport(overrides: Partial<ReportRecord> = {}): ReportRecord {
 
 describe("ReportsService.get - EOM-01 post-event facts", () => {
   let repo: Record<string, ReturnType<typeof vi.fn>>;
-  let permissions: { getEffectiveGrants: ReturnType<typeof vi.fn> };
+  let permissions: {
+    getAccessContext?: ReturnType<typeof vi.fn>;
+    getEffectiveGrants: ReturnType<typeof vi.fn>;
+  };
   let eventFacts: { forWorkspace: ReturnType<typeof vi.fn> };
   let expenseFacts: { forWorkspace: ReturnType<typeof vi.fn> };
   let service: ReportsService;
@@ -161,7 +168,10 @@ async function expectCode(promise: Promise<unknown>, code: string) {
 
 describe("ReportsService - optional Under Review step (EOM-01)", () => {
   let repo: Record<string, ReturnType<typeof vi.fn>>;
-  let permissions: { getEffectiveGrants: ReturnType<typeof vi.fn> };
+  let permissions: {
+    getAccessContext?: ReturnType<typeof vi.fn>;
+    getEffectiveGrants: ReturnType<typeof vi.fn>;
+  };
   let service: ReportsService;
 
   beforeEach(() => {
@@ -178,6 +188,9 @@ describe("ReportsService - optional Under Review step (EOM-01)", () => {
       review: vi.fn().mockResolvedValue(makeReport({ status: "REVIEWED" })),
     };
     permissions = {
+      getAccessContext: vi
+        .fn()
+        .mockResolvedValue({ role: "SUPER_ADMIN", department: null }),
       getEffectiveGrants: vi
         .fn()
         .mockResolvedValue([
@@ -268,7 +281,10 @@ describe("ReportsService - optional Under Review step (EOM-01)", () => {
 
 describe("ReportsService - description field and attachments", () => {
   let repo: Record<string, ReturnType<typeof vi.fn>>;
-  let permissions: { getEffectiveGrants: ReturnType<typeof vi.fn> };
+  let permissions: {
+    getAccessContext?: ReturnType<typeof vi.fn>;
+    getEffectiveGrants: ReturnType<typeof vi.fn>;
+  };
   let service: ReportsService;
 
   function grantOnly(key: string, scope: string): void {

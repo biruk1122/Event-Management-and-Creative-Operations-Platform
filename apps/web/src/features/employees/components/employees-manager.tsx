@@ -83,8 +83,11 @@ export function EmployeesManager({ access }: { access: CurrentAccess }) {
   });
 
   const rolesQuery = useQuery({
-    queryKey: [...keys.all, "assignable-roles"],
-    queryFn: ({ signal }) => listAssignableEmployeeRoles(signal),
+    queryKey: [...keys.all, "assignable-roles", access.role],
+    queryFn: ({ signal }) =>
+      listAssignableEmployeeRoles(signal, {
+        includeAdmin: access.role === "SUPER_ADMIN",
+      }),
     enabled: canCreate,
     retry: false,
     staleTime: 60_000,

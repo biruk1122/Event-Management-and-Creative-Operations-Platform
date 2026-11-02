@@ -28,6 +28,10 @@ interface ReportDraftFormProps {
   warning?: string | null | undefined;
   busy?: boolean;
   canAttach?: boolean;
+  /** Admin only: reviewed manager reports that can be folded into this one. */
+  consolidation?:
+    | { reports: readonly { id: string; title: string; authorName: string }[] }
+    | undefined;
   onCancel: () => void;
   onSave: (values: CreateReport, files: readonly File[]) => void;
 }
@@ -40,6 +44,7 @@ export function ReportDraftForm({
   warning,
   busy = false,
   canAttach = false,
+  consolidation,
   onCancel,
   onSave,
 }: ReportDraftFormProps) {
@@ -48,6 +53,9 @@ export function ReportDraftForm({
   const [type, setType] = useState<ReportType>(initial?.type ?? "DAILY");
   const [workspaceIds, setWorkspaceIds] = useState<string[]>(
     initial?.workspaceIds ?? [],
+  );
+  const [sourceReportIds, setSourceReportIds] = useState<string[]>(
+    initial?.sources.map((source) => source.id) ?? [],
   );
   const [files, setFiles] = useState<File[]>([]);
   const [attachmentWarning, setAttachmentWarning] = useState<string | null>(
@@ -84,6 +92,7 @@ export function ReportDraftForm({
         periodStart: String(form.get("periodStart") ?? ""),
         periodEnd: String(form.get("periodEnd") ?? ""),
         workspaceIds,
+        ...(consolidation ? { sourceReportIds } : {}),
         ...sections,
       },
       files,
@@ -118,6 +127,43 @@ export function ReportDraftForm({
       aria-label="Report draft"
       aria-busy={busy}
     >
+      {consolidation ? (
+        <fieldset className="bg-muted/40 space-y-2 rounded-xl border p-4 sm:p-5">
+          <legend className="px-2 text-sm font-semibold">
+            Consolidate department reports
+          </legend>
+          {consolidation.reports.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No reviewed Department Manager reports are available to
+              consolidate yet.
+            </p>
+          ) : (
+            consolidation.reports.map((report) => (
+              <label key={report.id} className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sourceReportIds.includes(report.id)}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setSourceReportIds((current) =>
+                      event.target.checked
+                        ? [...current, report.id]
+                        : current.filter((id) => id !== report.id),
+                    )
+                  }
+                />
+                <span>
+                  {report.title}
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {report.authorName}
+                  </span>
+                </span>
+              </label>
+            ))
+          )}
+        </fieldset>
+      ) : null}
       <fieldset className="bg-muted/40 grid gap-4 rounded-xl border p-4 sm:grid-cols-2 sm:p-5">
         <legend className="px-2 text-sm font-semibold">Report details</legend>
         <div className="space-y-2 sm:col-span-2">

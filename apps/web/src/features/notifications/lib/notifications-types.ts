@@ -35,4 +35,7 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   ATTENDANCE_EXCEPTION_DECIDED: "Attendance exception decided",
   LEAVE_REQUEST_SUBMITTED: "Leave request submitted",
   LEAVE_REQUEST_DECIDED: "Leave request decided",
+  TASK_SUBMITTED: "Work submitted for your review",
+  TASK_REPORT_TO_ASSIGNED: "You receive a task's reports",
+  TASK_BLOCKED: "Task blocked",
 };

@@ -53,6 +53,7 @@ const DEPARTMENT_KEYS = [
   "id",
   "manager",
   "name",
+  "reportingAdmin",
   "updatedAt",
 ].sort();
 

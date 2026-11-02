@@ -34,6 +34,10 @@ const report: Report = {
   submittedAt: "2024-03-03T12:00:00.000Z",
   reviewedAt: null,
   reviewerId: null,
+  reportToId: null,
+  reportTo: null,
+  author: null,
+  sources: [],
   reviews: [],
 };
 
@@ -249,6 +253,7 @@ describe("ReportsWorkspace", () => {
         selectedId="report-1"
         detail={detail}
         canReview
+        isSuperAdmin
         onReview={onReview}
       />,
     );
@@ -325,11 +330,15 @@ describe("ReportsWorkspace", () => {
         {...base}
         selectedId="report-1"
         detail={{ ...draft, nextWeekPlan: "Tour" }}
+        recipients={[{ id: "manager-1", name: "Morgan Manager" }]}
         onSubmit={onSubmit}
       />,
     );
+    expect(
+      screen.getByText(/Will be submitted to Morgan Manager/),
+    ).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Submit for review" }));
-    expect(onSubmit).toHaveBeenCalledWith("report-1");
+    expect(onSubmit).toHaveBeenCalledWith("report-1", "manager-1");
   });
 
   it("distinguishes list and detail failures, empty results, and success notices", () => {

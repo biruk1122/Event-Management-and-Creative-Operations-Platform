@@ -39,6 +39,7 @@ function makeDepartment(overrides: Partial<Department> = {}): Department {
     id: "dep-1",
     name: "Event Management",
     description: "Owns events.",
+    reportingAdmin: null,
     manager: {
       id: "user-1",
       email: "morgan@example.com",

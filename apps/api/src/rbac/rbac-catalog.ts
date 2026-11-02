@@ -1,4 +1,5 @@
 import type { PermissionScope } from "../generated/prisma/client.js";
+import { ADMIN_ORGANIZATION_PERMISSION_KEYS } from "../common/security/department-access.policy.js";
 
 /**
  * The permission catalog, baseline grants, and role matrix, transcribed
@@ -111,6 +112,11 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
   {
     key: "department.assign_manager",
     description: "Set or change a department's manager.",
+  },
+  {
+    key: "department.assign_reporting_admin",
+    description:
+      "Designate the Admin who receives a department's reports. Super Admin only.",
   },
   {
     key: "department.manage_activities",
@@ -717,6 +723,11 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "report.create", scope: "DEPARTMENT" },
   { permissionKey: "report.submit", scope: "DEPARTMENT" },
   { permissionKey: "report.read", scope: "DEPARTMENT" },
+  // Members report to their Department Manager. The service only honours this
+  // grant for a report whose recipient is that manager (or for the manager's
+  // own department when the report names them), so it never widens review of
+  // records created before per-report recipients existed.
+  { permissionKey: "report.review", scope: "DEPARTMENT" },
   { permissionKey: "report.attachment.create", scope: "DEPARTMENT" },
   {
     permissionKey: "analytics.department_performance.read",
@@ -777,7 +788,29 @@ const TEAM_MEMBER_GRANTS: readonly GrantDefinition[] = [
 ];
 
 /**
- * The three approved platform roles, seeded as ordinary data - never a code
+ * Admin: the operational coordinator. A department employee (member-level
+ * personal grants come from BASELINE_GRANTS) whose cross-department reach is
+ * the explicit organization-scope set generated from the policy allow-list, so
+ * the catalog and `constrainDepartmentGrants` cannot drift. Admin holds no
+ * user/role/settings/audit/HR/delete keys.
+ */
+const ADMIN_GRANTS: readonly GrantDefinition[] = [
+  ...ADMIN_ORGANIZATION_PERMISSION_KEYS.map(
+    (permissionKey): GrantDefinition => ({
+      permissionKey,
+      scope: "ORGANIZATION",
+    }),
+  ),
+  // As an assignee (e.g. a task assigned by Super Admin) Admin works and
+  // reports like anyone else; `TasksService.review` refuses self-review.
+  { permissionKey: "task.update_status", scope: "SELF" },
+  { permissionKey: "task.update_progress", scope: "SELF" },
+  { permissionKey: "task.submit", scope: "SELF" },
+  { permissionKey: "meeting.read", scope: "SELF" },
+];
+
+/**
+ * The approved platform roles, seeded as ordinary data - never a code
  * branch. Each role holds only the grants listed here in addition to
  * `BASELINE_GRANTS`; there is no inheritance between roles.
  */
@@ -787,6 +820,12 @@ export const ROLE_DEFINITIONS: readonly RoleDefinition[] = [
     description:
       "Holds every administrative and operational permission at organization scope.",
     grants: SUPER_ADMIN_GRANTS,
+  },
+  {
+    name: "Admin",
+    description:
+      "Coordinates work and reporting across all departments on behalf of Super Admin.",
+    grants: ADMIN_GRANTS,
   },
   {
     name: "Department Manager",

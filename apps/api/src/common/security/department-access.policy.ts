@@ -2,6 +2,7 @@ import type { PermissionScope } from "../../generated/prisma/client.js";
 
 export const PLATFORM_ROLES = [
   "SUPER_ADMIN",
+  "ADMIN",
   "DEPARTMENT_MANAGER",
   "DEPARTMENT_MEMBER",
 ] as const;
@@ -21,6 +22,9 @@ export function platformRole(name: string): PlatformRole | null {
     case "Super Admin":
     case "SUPER_ADMIN":
       return "SUPER_ADMIN";
+    case "Admin":
+    case "ADMIN":
+      return "ADMIN";
     case "Department Manager":
     case "DEPARTMENT_MANAGER":
       return "DEPARTMENT_MANAGER";
@@ -70,6 +74,39 @@ interface Grant {
   scope: PermissionScope;
 }
 
+/**
+ * The only keys an Admin may hold at organization scope. Admin is a
+ * department employee whose coordination reach is explicit rather than
+ * inherited from Super Admin, so this allow-list - not the role row - is the
+ * real ceiling: `constrainDepartmentGrants` drops every other organization or
+ * management grant even if the role is edited through role administration.
+ * Nothing here touches users, roles, settings, audit, HR-only features,
+ * expense approval, or deletion.
+ */
+export const ADMIN_ORGANIZATION_PERMISSION_KEYS = [
+  "task.create",
+  "task.read",
+  "task.assign",
+  "task.update",
+  "task.review",
+  "task.comment.create",
+  "task.attachment.create",
+  "report.create",
+  "report.submit",
+  "report.read",
+  "report.review",
+  "report.attachment.create",
+  "analytics.management.read",
+  "analytics.department_performance.read",
+  "dashboard.management.read",
+  "department.read",
+  "team.read",
+] as const;
+
+const ADMIN_ORGANIZATION_KEY_SET: ReadonlySet<string> = new Set(
+  ADMIN_ORGANIZATION_PERMISSION_KEYS,
+);
+
 /** A permission row cannot turn a department account into an organization administrator. */
 export function constrainDepartmentGrants(
   context: DepartmentAccessContext,
@@ -89,7 +126,11 @@ export function constrainDepartmentGrants(
   }
   return grants.filter((grant) => {
     if (grant.scope === "ORGANIZATION" || grant.scope === "MANAGEMENT") {
-      return false;
+      return (
+        context.role === "ADMIN" &&
+        grant.scope === "ORGANIZATION" &&
+        ADMIN_ORGANIZATION_KEY_SET.has(grant.permissionKey)
+      );
     }
     if (context.role === "DEPARTMENT_MEMBER") return grant.scope === "SELF";
     return true;

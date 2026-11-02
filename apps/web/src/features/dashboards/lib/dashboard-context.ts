@@ -11,6 +11,14 @@ export function dashboardContext(access: CurrentAccess) {
         description:
           "Oversee Production, Marketing, Promotion and Manager / Event & Office Manager. Manage users, assignments and permitted company-wide results in one place.",
       };
+    case "ADMIN":
+      return {
+        title: "Admin dashboard",
+        role: "Admin",
+        scope: "All departments",
+        description:
+          "Coordinate work and reporting across Production, Marketing, Promotion and Manager / Event & Office Manager. Assign tasks, follow progress and consolidate reports for Super Admin; user and role administration stays with Super Admin.",
+      };
     case "DEPARTMENT_MANAGER":
       return {
         title: department

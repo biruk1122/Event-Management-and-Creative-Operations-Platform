@@ -47,7 +47,10 @@ async function csrfToken(page: Page): Promise<string> {
 
 async function createReportUser(
   admin: Page,
-  roleName: "Department Member" | "Super Admin" = "Department Member",
+  roleName:
+    | "Department Manager"
+    | "Department Member"
+    | "Super Admin" = "Department Member",
   departmentId?: string,
 ) {
   const suffix = randomUUID().slice(0, 8);
@@ -136,6 +139,18 @@ test.describe("Reporting — end to end", () => {
       { headers: { "x-csrf-token": csrf } },
     );
     expect(assignment.ok()).toBe(true);
+    // A Department Member's report is submitted to their department's
+    // manager, so the department needs one before the member can submit.
+    const { id: managerId } = await createReportUser(
+      admin,
+      "Department Manager",
+      departmentId,
+    );
+    const managerAssigned = await admin.request.put(
+      `${apiBaseUrl}/api/v1/departments/${departmentId}/manager`,
+      { headers: { "x-csrf-token": csrf }, data: { managerId } },
+    );
+    expect(managerAssigned.ok()).toBe(true);
     const employeeContext = await browser.newContext();
     const employee = await employeeContext.newPage();
     const management = await browser.newContext({

@@ -29,6 +29,7 @@ import {
   type ReportStatus,
   type ReportType,
   type ReviewOutcome,
+  reportPersonName,
 } from "../lib/report-presentation";
 import { ReportDraftForm, type WorkspaceChoice } from "./report-draft-form";
 import { ReportActionButton } from "./report-action-button";
@@ -49,6 +50,17 @@ export interface ReportsWorkspaceProps {
   departmentNames?: Readonly<Record<string, string>>;
   canCreate?: boolean;
   canReview?: boolean;
+  isSuperAdmin?: boolean;
+  /** People the author may submit to (server-computed eligible set). */
+  recipients?: readonly { id: string; name: string }[];
+  recipientsLoading?: boolean;
+  /** Admin only: fold reviewed manager reports into one report. */
+  canConsolidate?: boolean;
+  consolidatable?: readonly {
+    id: string;
+    title: string;
+    authorName: string;
+  }[];
   canAttach?: boolean;
   busy?: boolean;
   notice?: { kind: "success" | "error"; message: string } | null;
@@ -64,7 +76,7 @@ export interface ReportsWorkspaceProps {
         files: readonly File[],
       ) => boolean | Promise<boolean>)
     | undefined;
-  onSubmit?: ((id: string) => void) | undefined;
+  onSubmit?: ((id: string, reportToId?: string) => void) | undefined;
   onStartReview?: ((id: string) => void) | undefined;
   onReview?:
     ((id: string, outcome: ReviewOutcome, note: string) => void) | undefined;
@@ -97,6 +109,9 @@ function ReportDetailPanel({
   report,
   currentUserId,
   canReview,
+  isSuperAdmin,
+  recipients,
+  recipientsLoading,
   busy,
   onEdit,
   onSubmit,
@@ -111,9 +126,12 @@ function ReportDetailPanel({
   report: ReportDetail;
   currentUserId: string;
   canReview: boolean;
+  isSuperAdmin: boolean;
+  recipients: readonly { id: string; name: string }[];
+  recipientsLoading: boolean;
   busy: boolean;
   onEdit?: (() => void) | undefined;
-  onSubmit?: (() => void) | undefined;
+  onSubmit?: ((reportToId?: string) => void) | undefined;
   onStartReview?: (() => void) | undefined;
   onReview?: ((outcome: ReviewOutcome, note: string) => void) | undefined;
   onExport?: (() => void) | undefined;
@@ -123,8 +141,21 @@ function ReportDetailPanel({
   focusVersion: number;
 }) {
   const [reviewNote, setReviewNote] = useState("");
+  const [submitTo, setSubmitTo] = useState("");
   const headingRef = useRef<HTMLHeadingElement>(null);
   const isAuthor = report.authorId === currentUserId;
+  // A report is reviewed by the person it was submitted to (or Super Admin).
+  // Reports from before recipients existed keep the Super-Admin-only rule.
+  const mayReview =
+    canReview &&
+    !isAuthor &&
+    (report.reportToId
+      ? report.reportToId === currentUserId || isSuperAdmin
+      : isSuperAdmin);
+  const chosenRecipient =
+    recipients.length === 1 ? (recipients[0]?.id ?? "") : submitTo;
+  const needsRecipient = !isSuperAdmin;
+  const recipientReady = !needsRecipient || chosenRecipient !== "";
   const editable =
     isAuthor &&
     (report.status === "DRAFT" || report.status === "CHANGES_REQUESTED");
@@ -163,6 +194,12 @@ function ReportDetailPanel({
           <p className="text-muted-foreground mt-3 text-sm">
             {authorName} · {departmentName}
           </p>
+          {report.reportTo ? (
+            <p className="text-muted-foreground mt-1 text-sm">
+              Submitted to {reportPersonName(report.reportTo)}
+              {report.reportTo.id === currentUserId ? " (you)" : ""}
+            </p>
+          ) : null}
           <p className="text-muted-foreground mt-1 text-sm">
             {report.status === "DRAFT"
               ? "Save your progress, then submit when every section is complete."
@@ -199,16 +236,13 @@ function ReportDetailPanel({
         {isAuthor && report.status === "DRAFT" && onSubmit ? (
           <ReportActionButton
             busy={busy}
-            disabled={!submissionComplete}
-            onClick={onSubmit}
+            disabled={!submissionComplete || !recipientReady}
+            onClick={() => onSubmit(chosenRecipient || undefined)}
           >
             Submit for review
           </ReportActionButton>
         ) : null}
-        {canReview &&
-        !isAuthor &&
-        report.status === "SUBMITTED" &&
-        onStartReview ? (
+        {mayReview && report.status === "SUBMITTED" && onStartReview ? (
           <ReportActionButton
             variant="outline"
             busy={busy}
@@ -223,6 +257,57 @@ function ReportDetailPanel({
           </ReportActionButton>
         ) : null}
       </div>
+      {isAuthor && report.status === "DRAFT" && onSubmit && needsRecipient ? (
+        <div className="space-y-1">
+          {recipientsLoading ? (
+            <p className="text-muted-foreground text-sm">
+              Checking who receives this report…
+            </p>
+          ) : recipients.length === 0 ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              No one is designated to receive this report yet. Ask Super Admin
+              to designate your department&apos;s reporting Admin.
+            </p>
+          ) : recipients.length === 1 ? (
+            <p className="text-muted-foreground text-sm">
+              Will be submitted to {recipients[0]?.name}.
+            </p>
+          ) : (
+            <>
+              <Label htmlFor="report-submit-to">Submit to</Label>
+              <select
+                id="report-submit-to"
+                value={submitTo}
+                onChange={(event) => setSubmitTo(event.target.value)}
+                disabled={busy}
+                className="border-input bg-background focus-visible:ring-ring h-9 w-full max-w-sm rounded-md border px-3 text-sm focus-visible:ring-2"
+              >
+                <option value="">Choose a recipient…</option>
+                {recipients.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+        </div>
+      ) : null}
+      {report.sources.length > 0 ? (
+        <section aria-labelledby="report-sources-title" className="space-y-1">
+          <h3 id="report-sources-title" className="font-medium">
+            Consolidated from
+          </h3>
+          <ul className="text-muted-foreground list-disc pl-5 text-sm">
+            {report.sources.map((source) => (
+              <li key={source.id}>
+                {source.title}
+                {source.author ? ` · ${reportPersonName(source.author)}` : ""}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {isAuthor && report.status === "DRAFT" && !submissionComplete ? (
         <p className="text-muted-foreground text-sm">
           Complete every report section before submitting. You can still save an
@@ -346,8 +431,7 @@ function ReportDetailPanel({
         )}
       </section>
 
-      {canReview &&
-      !isAuthor &&
+      {mayReview &&
       (report.status === "SUBMITTED" || report.status === "UNDER_REVIEW") &&
       onReview ? (
         <section
@@ -522,6 +606,11 @@ export function ReportsWorkspace({
   departmentNames = {},
   canCreate = false,
   canReview = false,
+  isSuperAdmin = false,
+  recipients = [],
+  recipientsLoading = false,
+  canConsolidate = false,
+  consolidatable = [],
   canAttach = false,
   busy = false,
   notice,
@@ -924,6 +1013,9 @@ export function ReportsWorkspace({
             report={detail}
             currentUserId={currentUserId}
             canReview={canReview}
+            isSuperAdmin={isSuperAdmin}
+            recipients={recipients}
+            recipientsLoading={recipientsLoading}
             focusVersion={focusVersion}
             authorName={
               detail.authorId === currentUserId
@@ -941,7 +1033,11 @@ export function ReportsWorkspace({
             onEdit={
               canCreate && onSaveDraft ? () => setEditing(detail) : undefined
             }
-            onSubmit={onSubmit ? () => onSubmit(detail.id) : undefined}
+            onSubmit={
+              onSubmit
+                ? (reportToId) => onSubmit(detail.id, reportToId)
+                : undefined
+            }
             onStartReview={
               onStartReview ? () => onStartReview(detail.id) : undefined
             }
@@ -974,6 +1070,9 @@ export function ReportsWorkspace({
             warning={workspaceWarning}
             busy={busy}
             canAttach={canAttach}
+            consolidation={
+              canConsolidate ? { reports: consolidatable } : undefined
+            }
             onCancel={closeEditor}
             onSave={(values, files) => {
               void Promise.resolve(

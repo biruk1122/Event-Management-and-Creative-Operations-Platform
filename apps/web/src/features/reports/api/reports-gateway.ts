@@ -28,6 +28,12 @@ const MESSAGES: Readonly<Record<string, string>> = {
   REPORT_CONCURRENT_CHANGE:
     "This report changed while you were editing. Refresh and try again.",
   REPORT_WORKSPACE_NOT_FOUND: "A linked workspace is no longer available.",
+  REPORT_RECIPIENT_NOT_DESIGNATED:
+    "No one is designated to receive this report yet. Ask Super Admin to designate your department's reporting Admin.",
+  REPORT_RECIPIENT_REQUIRED: "Choose who to submit this report to.",
+  REPORT_RECIPIENT_INVALID: "That person cannot receive this report.",
+  REPORT_SOURCE_INVALID:
+    "Consolidated reports can only include reviewed reports from Department Managers.",
   REPORT_NOT_FOUND: "This report is no longer available. Refresh the list.",
   VALIDATION_ERROR: "Check the report fields and try again.",
 };
@@ -133,13 +139,29 @@ export async function updateReport(id: string, values: CreateReport) {
   return data;
 }
 
-export async function submitReport(id: string) {
+export async function submitReport(id: string, reportToId?: string) {
   const { data, error, response } = await browserApi.POST(
     "/api/v1/reports/{id}/submit",
-    { params: { path: { id } }, headers: csrfHeaders() },
+    {
+      params: { path: { id } },
+      body: reportToId ? { reportToId } : {},
+      headers: csrfHeaders(),
+    },
   );
   if (!data) throw requestError(error, response.status);
   return data;
+}
+
+/** Who the caller may submit a report to: their manager (members), the
+ * department's designated reporting Admin (managers), or a Super Admin
+ * (Admin). The server never offers or accepts anyone else. */
+export async function listReportRecipients(signal?: AbortSignal) {
+  const { data, error, response } = await browserApi.GET(
+    "/api/v1/reports/eligible-recipients",
+    { ...(signal ? { signal } : {}), cache: "no-store" },
+  );
+  if (!data) throw requestError(error, response.status);
+  return data.items;
 }
 
 /** Marks a submitted report as actively being looked at (SUBMITTED →

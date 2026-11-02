@@ -8,6 +8,16 @@ import {
 } from "../generated/prisma/client.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
+import {
+  platformRole,
+  type PlatformRole,
+} from "../common/security/department-access.policy.js";
+import {
+  canReviewTask,
+  resolveInitialReportTo,
+  isEligibleExplicitRecipient,
+  type RecipientCandidate,
+} from "./tasks-report-to.domain.js";
 import type { CreateTaskChecklistItemDto } from "./dto/create-task-checklist-item.dto.js";
 import type { CreateTaskCommentDto } from "./dto/create-task-comment.dto.js";
 import type { CreateTaskDto } from "./dto/create-task.dto.js";
@@ -42,6 +52,8 @@ import {
   taskInvalidTransition,
   taskNotFound,
   taskOwnerRequired,
+  taskReportToInvalid,
+  taskAssigneeNotEligible,
   taskReviewStateConflict,
   taskScheduleInvalid,
   taskUserNotFound,
@@ -78,6 +90,26 @@ export class TasksService implements AuditWorkspaceContextResolver {
     scope: PermissionScope,
   ): Promise<boolean> {
     return this.permissions.hasGrant(actingUserId, permissionKey, scope);
+  }
+
+  private async actorRole(actingUserId: string): Promise<PlatformRole | null> {
+    return (await this.permissions.getAccessContext(actingUserId)).role;
+  }
+
+  private async recipientCandidate(
+    userId: string,
+  ): Promise<RecipientCandidate | null> {
+    const record = await this.repository.findRecipientCandidate(userId);
+    if (!record) return null;
+    return {
+      id: record.id,
+      active: record.active,
+      role:
+        record.roleIsSystem && record.roleName
+          ? platformRole(record.roleName)
+          : null,
+      departmentId: record.departmentId,
+    };
   }
 
   /**
@@ -199,6 +231,7 @@ export class TasksService implements AuditWorkspaceContextResolver {
       ...(query.parentTaskId ? { parentTaskId: query.parentTaskId } : {}),
       ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
       ...(query.createdById ? { createdById: query.createdById } : {}),
+      ...(query.reportToId ? { reportToId: query.reportToId } : {}),
       ...(query.search?.trim() ? { search: query.search.trim() } : {}),
       ...(query.scheduledFrom
         ? { scheduledFrom: new Date(query.scheduledFrom) }
@@ -296,9 +329,28 @@ export class TasksService implements AuditWorkspaceContextResolver {
     const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
     const dueAt = dto.dueAt ? new Date(dto.dueAt) : undefined;
     assertSchedule(startAt ?? null, dueAt ?? null);
+    // Only Super Admin may assign an Admin account as the assignee; checked
+    // before the task exists.
+    if (dto.assigneeId)
+      await this.assertAssigneeAllowed(actingUserId, dto.assigneeId);
+    const reportTo = resolveInitialReportTo({
+      actorId: actingUserId,
+      actorRole: await this.actorRole(actingUserId),
+      explicitReportToId: dto.reportToId,
+      candidate: dto.reportToId
+        ? await this.recipientCandidate(dto.reportToId)
+        : null,
+      taskDepartmentId: departmentId ?? null,
+    });
+    if (!reportTo.ok) {
+      if (reportTo.reason === "not_allowed") throw permissionDenied();
+      throw taskReportToInvalid();
+    }
     const task = await this.repository.create({
       title: dto.title.trim(),
       createdById: actingUserId,
+      reportToId: reportTo.reportToId,
+      reportToPinned: reportTo.pinned,
       ...(workspaceId ? { workspaceId } : {}),
       ...(departmentId ? { departmentId } : {}),
       ...(parent ? { parentTaskId: parent.id } : {}),
@@ -324,6 +376,7 @@ export class TasksService implements AuditWorkspaceContextResolver {
     actingUserId: string,
     taskId: string,
     dto: UpdateTaskDto,
+    requestId = "",
   ): Promise<TaskResponse> {
     const { task, visibility } = await this.mutationContext(
       actingUserId,
@@ -350,6 +403,20 @@ export class TasksService implements AuditWorkspaceContextResolver {
         ? { dueAt: dto.dueAt === null ? null : new Date(dto.dueAt) }
         : {}),
     };
+    let nextReportTo: string | undefined;
+    if (dto.reportToId !== undefined) {
+      // Re-pointing a task's reporting recipient is Super Admin's decision.
+      if ((await this.actorRole(actingUserId)) !== "SUPER_ADMIN")
+        throw permissionDenied();
+      const candidate = await this.recipientCandidate(dto.reportToId);
+      if (
+        !candidate ||
+        !isEligibleExplicitRecipient(candidate, task.departmentId)
+      ) {
+        throw taskReportToInvalid();
+      }
+      nextReportTo = dto.reportToId;
+    }
     const details = changedFields(task, fields);
     const updated = await this.repository.update(
       taskId,
@@ -360,6 +427,19 @@ export class TasksService implements AuditWorkspaceContextResolver {
     );
     if (updated === "forbidden" || !updated)
       this.mutationUnavailable(visibility, updated);
+    if (nextReportTo) {
+      const repointed = await this.repository.setReportTo({
+        taskId,
+        reportToId: nextReportTo,
+        pinned: true,
+        actorId: actingUserId,
+        visibility,
+        requestId,
+      });
+      if (repointed === "forbidden" || !repointed)
+        this.mutationUnavailable(visibility, repointed);
+      return toTaskResponse(repointed);
+    }
     return toTaskResponse(updated);
   }
 
@@ -374,6 +454,7 @@ export class TasksService implements AuditWorkspaceContextResolver {
       taskId,
       "task.assign",
     );
+    await this.assertAssigneeAllowed(actingUserId, userId);
     const result = await this.repository.addAssignee(
       taskId,
       userId,
@@ -389,6 +470,18 @@ export class TasksService implements AuditWorkspaceContextResolver {
     return toTaskResponse(result);
   }
 
+  /** Admin accounts are assigned work only by Super Admin (Super Admin ->
+   * Admin); an Admin or Department Manager cannot hand tasks to an Admin. */
+  private async assertAssigneeAllowed(
+    actingUserId: string,
+    assigneeId: string,
+  ): Promise<void> {
+    const candidate = await this.recipientCandidate(assigneeId);
+    if (candidate?.role !== "ADMIN") return;
+    if ((await this.actorRole(actingUserId)) !== "SUPER_ADMIN")
+      throw taskAssigneeNotEligible();
+  }
+
   /** Active staff of one department, for the create-task assignee picker. */
   async listEligibleAssignees(
     actingUserId: string,
@@ -399,7 +492,38 @@ export class TasksService implements AuditWorkspaceContextResolver {
       throw permissionDenied();
     if (!(await this.repository.departmentExists(departmentId)))
       throw taskDepartmentNotFound();
-    return this.repository.listEligibleAssignees(departmentId);
+    const excludeAdmins =
+      (await this.actorRole(actingUserId)) !== "SUPER_ADMIN";
+    return this.repository.listEligibleAssignees(departmentId, {
+      excludeAdmins,
+    });
+  }
+
+  /** Valid explicit recipients for a task in a department (Super Admin only). */
+  async listEligibleRecipients(
+    actingUserId: string,
+    departmentId: string | null,
+  ): Promise<TaskPersonRecord[]> {
+    if ((await this.actorRole(actingUserId)) !== "SUPER_ADMIN")
+      throw permissionDenied();
+    const candidates =
+      await this.repository.listRecipientCandidates(departmentId);
+    return candidates
+      .filter((candidate) =>
+        isEligibleExplicitRecipient(
+          {
+            id: candidate.person.id,
+            active: true,
+            role:
+              candidate.roleIsSystem && candidate.roleName
+                ? platformRole(candidate.roleName)
+                : null,
+            departmentId: candidate.departmentId,
+          },
+          departmentId,
+        ),
+      )
+      .map((candidate) => candidate.person);
   }
 
   async removeAssignee(
@@ -650,6 +774,17 @@ export class TasksService implements AuditWorkspaceContextResolver {
     if (task.assignees.some((assignee) => assignee.id === actingUserId)) {
       throw permissionDenied();
     }
+    // The task's own reporting recipient (or Super Admin) decides the review;
+    // a Department Manager no longer approves work that reports to Admin.
+    if (
+      !canReviewTask({
+        actorId: actingUserId,
+        actorRole: await this.actorRole(actingUserId),
+        reportToId: task.reportTo?.id ?? null,
+      })
+    ) {
+      throw permissionDenied();
+    }
     if (task.status !== TaskStatus.UNDER_REVIEW)
       throw taskReviewStateConflict();
     const result = await this.repository.review({
@@ -856,6 +991,8 @@ function toTaskResponse(
     })),
     checklistItems: record.checklistItems.map(toChecklistItemResponse),
     createdBy: record.createdBy,
+    reportTo: record.reportTo,
+    reportToPinned: record.reportToPinned,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     subtaskSummary: subtaskSummary ?? null,

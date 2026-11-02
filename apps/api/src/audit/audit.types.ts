@@ -8,6 +8,8 @@ export type SupportedAuditAction =
   | "task.assignee_added"
   | "task.assignee_removed"
   | "task.submitted_for_review"
+  | "task.report_to_changed"
+  | "report.recipient_changed"
   | "task.review.approved"
   | "task.review.changes_requested"
   | "report.submitted"

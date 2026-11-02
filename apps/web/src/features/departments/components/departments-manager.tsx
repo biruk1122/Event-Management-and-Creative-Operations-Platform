@@ -14,6 +14,7 @@ import {
   DepartmentsRequestError,
   getDepartment,
   listAssignableManagers,
+  listReportingAdminCandidates,
   listDepartments,
 } from "../api/departments-gateway";
 import {
@@ -49,6 +50,7 @@ export function DepartmentsManager({ access }: { access: CurrentAccess }) {
   const canCreate = can("department.create");
   const canEdit = can("department.update");
   const canAssignManager = can("department.assign_manager");
+  const canAssignReportingAdmin = can("department.assign_reporting_admin");
   const canDelete = can("department.delete");
 
   const [statusFilter, setStatusFilter] = useState<DepartmentActivity | null>(
@@ -82,6 +84,14 @@ export function DepartmentsManager({ access }: { access: CurrentAccess }) {
     retry: false,
     staleTime: 60_000,
     enabled: canCreate || canEdit || canAssignManager,
+  });
+
+  const reportingAdminsQuery = useQuery({
+    queryKey: keys.reportingAdmins,
+    queryFn: ({ signal }) => listReportingAdminCandidates(signal),
+    retry: false,
+    staleTime: 60_000,
+    enabled: canAssignReportingAdmin,
   });
 
   const mutations = useDepartmentsMutations(access);
@@ -192,6 +202,11 @@ export function DepartmentsManager({ access }: { access: CurrentAccess }) {
           }
         }}
         managers={managers}
+        reportingAdmins={reportingAdminsQuery.data ?? []}
+        canAssignReportingAdmin={canAssignReportingAdmin}
+        onAssignReportingAdmin={(id, userId) =>
+          mutations.assignReportingAdmin.mutateAsync({ id, userId })
+        }
         canEdit={canEdit}
         canAssignManager={canAssignManager}
         canDelete={canDelete}

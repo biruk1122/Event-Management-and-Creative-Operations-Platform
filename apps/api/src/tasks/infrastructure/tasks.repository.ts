@@ -65,6 +65,10 @@ export interface TaskRecord {
   assignees: TaskAssigneeRecord[];
   checklistItems: TaskChecklistItemRecord[];
   createdBy: TaskPersonRecord | null;
+  /** Who receives this task's reports and decides its review; null on tasks
+   * that predate per-task recipients (they keep the earlier review rule). */
+  reportTo: TaskPersonRecord | null;
+  reportToPinned: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,6 +95,7 @@ export interface ListTasksInput {
   departmentId?: string;
   assigneeId?: string;
   createdById?: string;
+  reportToId?: string;
   parentTaskId?: string;
   search?: string;
   scheduledFrom?: Date;
@@ -112,6 +117,9 @@ export interface CreateTaskInput {
   startAt?: Date;
   dueAt?: Date;
   createdById: string;
+  /** The resolved reporting recipient (see tasks-report-to.domain.ts). */
+  reportToId?: string;
+  reportToPinned?: boolean;
 }
 
 export interface TaskSubtaskSummary {
@@ -196,6 +204,9 @@ const TASK_SELECT = {
     orderBy: { position: "asc" },
   },
   createdBy: { select: PERSON_SELECT },
+  reportToId: true,
+  reportTo: { select: PERSON_SELECT },
+  reportToPinned: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -282,6 +293,8 @@ function toTaskRecord(raw: RawTask): TaskRecord {
       .sort(byPerson),
     checklistItems: raw.checklistItems.map(toChecklistItemRecord),
     createdBy: raw.createdBy,
+    reportTo: raw.reportTo,
+    reportToPinned: raw.reportToPinned,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -424,6 +437,7 @@ export class TasksRepository {
         ? { assignments: { some: { userId: input.assigneeId } } }
         : {}),
       ...(input.createdById ? { createdById: input.createdById } : {}),
+      ...(input.reportToId ? { reportToId: input.reportToId } : {}),
       ...(input.search
         ? {
             OR: [
@@ -539,12 +553,198 @@ export class TasksRepository {
   /** Active staff of one department, for the create-task assignee picker. */
   async listEligibleAssignees(
     departmentId: string,
+    options: { excludeAdmins?: boolean } = {},
   ): Promise<TaskPersonRecord[]> {
     if (!isUuid(departmentId)) return [];
     return this.db.user.findMany({
-      where: { departmentId, status: UserAccountStatus.ACTIVE },
+      where: {
+        departmentId,
+        status: UserAccountStatus.ACTIVE,
+        ...(options.excludeAdmins
+          ? {
+              NOT: {
+                roleAssignment: { role: { name: "Admin", isSystem: true } },
+              },
+            }
+          : {}),
+      },
       select: PERSON_SELECT,
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    });
+  }
+
+  /** A potential reporting recipient with the facts the service needs to
+   * validate the choice (active, system role name, department). */
+  async findRecipientCandidate(userId: string): Promise<{
+    id: string;
+    active: boolean;
+    departmentId: string | null;
+    roleName: string | null;
+    roleIsSystem: boolean;
+  } | null> {
+    if (!isUuid(userId)) return null;
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        status: true,
+        departmentId: true,
+        roleAssignment: {
+          select: { role: { select: { name: true, isSystem: true } } },
+        },
+      },
+    });
+    if (!user) return null;
+    return {
+      id: user.id,
+      active: user.status === UserAccountStatus.ACTIVE,
+      departmentId: user.departmentId,
+      roleName: user.roleAssignment?.role.name ?? null,
+      roleIsSystem: user.roleAssignment?.role.isSystem ?? false,
+    };
+  }
+
+  /** Active users who could be named a task's recipient: every Super Admin and
+   * Admin, plus the given department's staff (filtered to its manager by the
+   * service). The service decides eligibility from the system role. */
+  async listRecipientCandidates(departmentId: string | null): Promise<
+    {
+      person: TaskPersonRecord;
+      departmentId: string | null;
+      roleName: string | null;
+      roleIsSystem: boolean;
+    }[]
+  > {
+    const users = await this.db.user.findMany({
+      where: {
+        status: UserAccountStatus.ACTIVE,
+        roleAssignment: { role: { isSystem: true } },
+        OR: [
+          {
+            roleAssignment: {
+              role: { name: { in: ["Super Admin", "Admin"] } },
+            },
+          },
+          ...(departmentId && isUuid(departmentId)
+            ? [
+                {
+                  departmentId,
+                  roleAssignment: { role: { name: "Department Manager" } },
+                },
+              ]
+            : []),
+        ],
+      },
+      select: {
+        ...PERSON_SELECT,
+        departmentId: true,
+        roleAssignment: {
+          select: { role: { select: { name: true, isSystem: true } } },
+        },
+      },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    });
+    return users.map((user) => ({
+      person: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+      departmentId: user.departmentId,
+      roleName: user.roleAssignment?.role.name ?? null,
+      roleIsSystem: user.roleAssignment?.role.isSystem ?? false,
+    }));
+  }
+
+  /** Explicitly sets (or re-sets) a task's reporting recipient, recording the
+   * from/to history in the activity log and the audit trail and notifying the
+   * newly named recipient. */
+  async setReportTo(input: {
+    taskId: string;
+    reportToId: string;
+    pinned: boolean;
+    actorId: string;
+    visibility: TaskVisibility;
+    requestId: string;
+  }): Promise<TaskRecord | "forbidden" | null> {
+    if (!isUuid(input.taskId)) return null;
+    return this.db.$transaction(async (tx) => {
+      const access = await this.lockMutationAccess(
+        tx,
+        input.taskId,
+        input.visibility,
+      );
+      if (access === "not_found") return null;
+      if (access === "forbidden") return "forbidden";
+      const before = await tx.task.findUnique({
+        where: { id: input.taskId },
+        select: { reportToId: true, workspaceId: true },
+      });
+      if (!before) return null;
+      if (before.reportToId === input.reportToId) {
+        if (input.pinned) {
+          await tx.task.update({
+            where: { id: input.taskId },
+            data: { reportToPinned: true },
+          });
+        }
+      } else {
+        await tx.task.update({
+          where: { id: input.taskId },
+          data: {
+            reportToId: input.reportToId,
+            reportToPinned: input.pinned,
+          },
+        });
+        const reason = input.pinned ? "explicit" : "assigner";
+        await tx.taskActivity.create({
+          data: {
+            taskId: input.taskId,
+            actorId: input.actorId,
+            type: TaskActivityType.REPORT_TO_CHANGED,
+            details: json({
+              from: before.reportToId,
+              to: input.reportToId,
+              reason,
+            }),
+          },
+        });
+        await this.audit.append(tx, {
+          action: "task.report_to_changed",
+          actorKind: AuditActorKind.USER,
+          actorUserId: input.actorId,
+          metadata: { from: before.reportToId, to: input.reportToId, reason },
+          outcome: AuditOutcome.SUCCEEDED,
+          requestId: input.requestId,
+          resourceId: input.taskId,
+          resourceType: "task",
+          ...(before.workspaceId
+            ? { workspaceContext: before.workspaceId }
+            : {}),
+        });
+        if (input.reportToId !== input.actorId) {
+          await this.outbox.append(tx, {
+            name: "task.report_to_assigned",
+            version: 1,
+            actorKind: OutboxActorKind.USER,
+            actorUserId: input.actorId,
+            correlationId: input.requestId,
+            resourceType: "task",
+            resourceId: input.taskId,
+            ...(before.workspaceId
+              ? { workspaceContext: before.workspaceId }
+              : {}),
+            payload: { recipientUserId: input.reportToId },
+            consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
+          });
+        }
+      }
+      const task = await tx.task.findUnique({
+        where: { id: input.taskId },
+        select: TASK_SELECT,
+      });
+      return task ? toTaskRecord(task) : null;
     });
   }
 
@@ -554,6 +754,12 @@ export class TasksRepository {
         data: {
           title: input.title,
           createdById: input.createdById,
+          ...(input.reportToId
+            ? {
+                reportToId: input.reportToId,
+                reportToPinned: input.reportToPinned ?? false,
+              }
+            : {}),
           ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
           ...(input.departmentId ? { departmentId: input.departmentId } : {}),
           ...(input.parentTaskId ? { parentTaskId: input.parentTaskId } : {}),
@@ -575,9 +781,24 @@ export class TasksRepository {
           details: json({
             workspaceId: task.workspaceId,
             departmentId: task.departmentId,
+            reportToId: input.reportToId ?? null,
           }),
         },
       });
+      if (input.reportToId) {
+        await tx.taskActivity.create({
+          data: {
+            taskId: task.id,
+            actorId: input.createdById,
+            type: TaskActivityType.REPORT_TO_CHANGED,
+            details: json({
+              from: null,
+              to: input.reportToId,
+              reason: input.reportToPinned ? "explicit" : "created",
+            }),
+          },
+        });
+      }
       if (input.parentTaskId) {
         // The parent just gained a new child, which can change its own
         // aggregated progress (decision #5) even though the parent itself
@@ -668,6 +889,32 @@ export class TasksRepository {
           resourceId: id,
           resourceType: "task",
           ...(task.workspaceId ? { workspaceContext: task.workspaceId } : {}),
+        });
+      }
+      // Tell the task's reporting recipient when work is submitted for their
+      // review or becomes blocked (an escalation). Tasks without a recipient
+      // (created before per-task recipients) notify nobody extra.
+      const recipientId = task?.reportTo?.id;
+      if (
+        task &&
+        recipientId &&
+        recipientId !== actorId &&
+        (status === TaskStatus.UNDER_REVIEW || status === TaskStatus.BLOCKED)
+      ) {
+        await this.outbox.append(tx, {
+          name:
+            status === TaskStatus.UNDER_REVIEW
+              ? "task.submitted"
+              : "task.blocked",
+          version: 1,
+          actorKind: OutboxActorKind.USER,
+          actorUserId: actorId,
+          ...(auditContext ? { correlationId: auditContext.requestId } : {}),
+          resourceType: "task",
+          resourceId: id,
+          ...(task.workspaceId ? { workspaceContext: task.workspaceId } : {}),
+          payload: { recipientUserId: recipientId },
+          consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
         });
       }
       return task ? toTaskRecord(task) : null;
@@ -1082,6 +1329,10 @@ export class TasksRepository {
         where: { id: taskId },
         select: TASK_SELECT,
       });
+      let currentTask = task;
+      if (task && inserted.count === 1) {
+        currentTask = await this.takeOverReportTo(tx, task, actorId, requestId);
+      }
       if (task && inserted.count === 1) {
         await this.audit.append(tx, {
           action: "task.assignee_added",
@@ -1107,8 +1358,61 @@ export class TasksRepository {
           consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
         });
       }
-      return task ? toTaskRecord(task) : null;
+      return currentTask ? toTaskRecord(currentTask) : null;
     });
+  }
+
+  /**
+   * The person who actually assigns a task becomes its default reporting
+   * recipient. Applies only to tasks that already have a recipient (tasks
+   * created before per-task recipients keep their earlier review behavior),
+   * never replaces a recipient Super Admin explicitly pinned, and never makes
+   * an assignee their own reviewer. Runs inside the assignment transaction so
+   * the change, its history and its notification are atomic.
+   */
+  private async takeOverReportTo(
+    tx: Prisma.TransactionClient,
+    task: RawTask,
+    actorId: string,
+    requestId: string,
+  ): Promise<RawTask> {
+    if (
+      !task.reportToId ||
+      task.reportToPinned ||
+      task.reportToId === actorId ||
+      task.assignments.some((assignment) => assignment.user.id === actorId)
+    ) {
+      return task;
+    }
+    const from = task.reportToId;
+    await tx.task.update({
+      where: { id: task.id },
+      data: { reportToId: actorId },
+    });
+    await tx.taskActivity.create({
+      data: {
+        taskId: task.id,
+        actorId,
+        type: TaskActivityType.REPORT_TO_CHANGED,
+        details: json({ from, to: actorId, reason: "assigner" }),
+      },
+    });
+    await this.audit.append(tx, {
+      action: "task.report_to_changed",
+      actorKind: AuditActorKind.USER,
+      actorUserId: actorId,
+      metadata: { from, to: actorId, reason: "assigner" },
+      outcome: AuditOutcome.SUCCEEDED,
+      requestId,
+      resourceId: task.id,
+      resourceType: "task",
+      ...(task.workspaceId ? { workspaceContext: task.workspaceId } : {}),
+    });
+    const refreshed = await tx.task.findUnique({
+      where: { id: task.id },
+      select: TASK_SELECT,
+    });
+    return refreshed ?? task;
   }
 
   async removeAssignee(

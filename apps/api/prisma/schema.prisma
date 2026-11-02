@@ -105,6 +105,7 @@ model User {
   roleAssignment               UserRoleAssignment?
   department                   Department?                  @relation("DepartmentEmployees", fields: [departmentId], references: [id], onDelete: SetNull)
   managedDepartments           Department[]                 @relation("DepartmentManager")
+  reportingAdminDepartments    Department[]                 @relation("DepartmentReportingAdmin")
   managedTeams                 Team[]                       @relation("TeamManager")
   teamMemberships              TeamMembership[]
   managedWorkspaces            Workspace[]                  @relation("WorkspaceManager")
@@ -120,6 +121,8 @@ model User {
   initiatedManagedFiles        ManagedFile[]                @relation("ManagedFileInitiator")
   workspaceFileAttachments     WorkspaceFileAttachment[]    @relation("WorkspaceFileAttachedBy")
   createdTasks                 Task[]                       @relation("TaskCreatedBy")
+  reportToTasks                Task[]                       @relation("TaskReportTo")
+  reportToReports              Report[]                     @relation("ReportRecipient")
   taskAssignments              TaskAssignment[]             @relation("TaskAssignee")
   assignedTasks                TaskAssignment[]             @relation("TaskAssignedBy")
   taskComments                 TaskComment[]                @relation("TaskCommentAuthor")
@@ -365,31 +368,37 @@ model UserRoleAssignment {
 /// the safe-deactivation marker only — departments have no SRS status field
 /// and the archive/delete/reassignment policy is OD-02.
 model Department {
-  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  name          String    @unique
-  description   String?
-  managerId     String?   @map("manager_id") @db.Uuid
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  name             String    @unique
+  description      String?
+  managerId        String?   @map("manager_id") @db.Uuid
+  /// The Admin Super Admin designated to receive this department's
+  /// department-level reports (not tied to a task). NULL until designated;
+  /// the server never picks an Admin on its own.
+  reportingAdminId String?   @map("reporting_admin_id") @db.Uuid
   /// Set when the department is deactivated and cleared on reactivation;
   /// NULL means active.
-  deactivatedAt DateTime? @map("deactivated_at") @db.Timestamptz(6)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deactivatedAt    DateTime? @map("deactivated_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  manager       User?          @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
-  employees     User[]         @relation("DepartmentEmployees")
-  teams         Team[]
-  tasks         Task[]
-  conversations Conversation[]
-  reports       Report[]
-  events        Event[]
-  expenses      Expense[]
-  suppliers     Supplier[]
-  productions   Production[]
-  campaigns     Campaign[]
-  partners      Partner[]
+  manager        User?          @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  reportingAdmin User?          @relation("DepartmentReportingAdmin", fields: [reportingAdminId], references: [id], onDelete: SetNull)
+  employees      User[]         @relation("DepartmentEmployees")
+  teams          Team[]
+  tasks          Task[]
+  conversations  Conversation[]
+  reports        Report[]
+  events         Event[]
+  expenses       Expense[]
+  suppliers      Supplier[]
+  productions    Production[]
+  campaigns      Campaign[]
+  partners       Partner[]
 
   // Look up the departments a user manages, and list active departments.
   @@index([managerId])
+  @@index([reportingAdminId])
   @@index([deactivatedAt])
   @@map("departments")
 }
@@ -777,6 +786,8 @@ enum TaskActivityType {
   CHECKLIST_ITEM_REOPENED
   CHECKLIST_ITEM_REMOVED
   CHECKLIST_ITEM_REORDERED
+  /// The task's reporting recipient was set or changed (from, to, reason).
+  REPORT_TO_CHANGED
 
   @@map("task_activity_type")
 }
@@ -815,19 +826,29 @@ model Task {
   /// application layer (TasksService), not here.
   parentTaskId    String?      @map("parent_task_id") @db.Uuid
   createdById     String?      @map("created_by_id") @db.Uuid
+  /// Who receives this task's progress/completion reports and decides its
+  /// review. Decided per task (default: the person who assigns it; Super
+  /// Admin may pin another), never inferred from the assignee's role. NULL on
+  /// tasks created before per-task recipients existed, which keep the earlier
+  /// "anyone holding task.review in scope" behavior.
+  reportToId      String?      @map("report_to_id") @db.Uuid
+  /// True once Super Admin explicitly selected the recipient; later
+  /// assignments by someone else then no longer replace it.
+  reportToPinned  Boolean      @default(false) @map("report_to_pinned")
   createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace       Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  department      Department?      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  sourceMeeting   Meeting?         @relation(fields: [sourceMeetingId], references: [id], onDelete: SetNull)
-  parent          Task?            @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
-  subtasks        Task[]           @relation("TaskHierarchy")
-  createdBy       User?            @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  workspace       Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  department      Department?         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  sourceMeeting   Meeting?            @relation(fields: [sourceMeetingId], references: [id], onDelete: SetNull)
+  parent          Task?               @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subtasks        Task[]              @relation("TaskHierarchy")
+  createdBy       User?               @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reportTo        User?               @relation("TaskReportTo", fields: [reportToId], references: [id], onDelete: SetNull)
   assignments     TaskAssignment[]
   comments        TaskComment[]
   attachments     TaskAttachment[]
-  fileIntents     ManagedFile[]    @relation("ManagedFileIntentTask")
+  fileIntents     ManagedFile[]       @relation("ManagedFileIntentTask")
   reviews         TaskReview[]
   activities      TaskActivity[]
   checklistItems  TaskChecklistItem[]
@@ -843,6 +864,7 @@ model Task {
   @@index([dueAt])
   @@index([priority, dueAt])
   @@index([createdById])
+  @@index([reportToId])
   @@index([sourceMeetingId])
   @@index([parentTaskId])
   @@map("tasks")
@@ -2082,6 +2104,12 @@ enum NotificationType {
   LEAVE_REQUEST_SUBMITTED
   /// ATT-02: a leave request was approved, rejected, or returned for changes.
   LEAVE_REQUEST_DECIDED
+  /// A task was submitted for review; notifies its reporting recipient.
+  TASK_SUBMITTED
+  /// The user was named (or became) a task's reporting recipient.
+  TASK_REPORT_TO_ASSIGNED
+  /// A task became blocked; escalates to its reporting recipient.
+  TASK_BLOCKED
 
   @@map("notification_type")
 }
@@ -2346,24 +2374,46 @@ model Report {
   submittedAt           DateTime?    @map("submitted_at") @db.Timestamptz(6)
   reviewedAt            DateTime?    @map("reviewed_at") @db.Timestamptz(6)
   reviewerId            String?      @map("reviewer_id") @db.Uuid
+  /// Who this report is submitted to (its designated reviewer). NULL on
+  /// reports that predate per-report recipients, which keep the earlier
+  /// Super-Admin-only review behavior.
+  reportToId            String?      @map("report_to_id") @db.Uuid
   createdAt             DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  author        User               @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Restrict)
-  department    Department?        @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  reviewer      User?              @relation("ReportCurrentReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
-  reviews       ReportReview[]
-  workspaces    ReportWorkspace[]
-  attachments   ReportAttachment[]
-  fileIntents   ManagedFile[]      @relation("ManagedFileIntentReport")
-  notifications Notification[]
+  author         User               @relation("ReportAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  department     Department?        @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  reviewer       User?              @relation("ReportCurrentReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  reportTo       User?              @relation("ReportRecipient", fields: [reportToId], references: [id], onDelete: SetNull)
+  sources        ReportSource[]     @relation("ConsolidatedReport")
+  consolidatedIn ReportSource[]     @relation("SourceReport")
+  reviews        ReportReview[]
+  workspaces     ReportWorkspace[]
+  attachments    ReportAttachment[]
+  fileIntents    ManagedFile[]      @relation("ManagedFileIntentReport")
+  notifications  Notification[]
 
   @@unique([authorId, type, periodStart])
   @@index([authorId, type, periodStart, id])
   @@index([departmentId, type, periodStart, id])
   @@index([status, type, periodStart, id])
   @@index([reviewerId, status])
+  @@index([reportToId, status])
   @@map("reports")
+}
+
+/// A department report an Admin folded into a consolidated report. The
+/// consolidated report is an ordinary Report; this only records its sources.
+model ReportSource {
+  reportId       String @map("report_id") @db.Uuid
+  sourceReportId String @map("source_report_id") @db.Uuid
+
+  report       Report @relation("ConsolidatedReport", fields: [reportId], references: [id], onDelete: Cascade)
+  sourceReport Report @relation("SourceReport", fields: [sourceReportId], references: [id], onDelete: Cascade)
+
+  @@id([reportId, sourceReportId])
+  @@index([sourceReportId])
+  @@map("report_sources")
 }
 
 /// A report may discuss several connected workspaces. Both foreign keys are

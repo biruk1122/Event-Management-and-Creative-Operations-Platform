@@ -82,6 +82,28 @@ function creatorGatedFor(access: CurrentAccess, permissionKey: string) {
     organizationScoped || (grantedAtAll && isCreator(task, access.userId));
 }
 
+/**
+ * Per-task review authority. A task with a reporting recipient is reviewed by
+ * that recipient (or Super Admin) - not by anyone who merely holds
+ * `task.review` in scope, so a Department Manager no longer sees a review
+ * panel on work that reports to Admin. Tasks from before per-task recipients
+ * keep the earlier creator/organization rule, which never included Admin.
+ * An assignee can never review their own work.
+ */
+function canReviewFor(access: CurrentAccess) {
+  const legacy = creatorGatedFor(access, "task.review");
+  return (task: Task) => {
+    if (!hasGrant(access, "task.review")) return false;
+    if (isAssignee(task, access.userId)) return false;
+    if (task.reportTo) {
+      return (
+        task.reportTo.id === access.userId || access.role === "SUPER_ADMIN"
+      );
+    }
+    return access.role !== "ADMIN" && legacy(task);
+  };
+}
+
 /** Per-task "may manage this task's own assignee list" predicate - a
  * Manager who is merely the assignee of a task someone else created
  * manages assignment only by creating subtasks, not by editing who else
@@ -105,6 +127,8 @@ export interface TaskListFilters {
   status: TaskStatus | null;
   assignedToMe: boolean;
   createdByMe: boolean;
+  /** "Reporting to me": tasks whose reporting recipient is the viewer. */
+  reportingToMe: boolean;
   overdueOnly: boolean;
   departmentId: string | null;
 }
@@ -116,6 +140,7 @@ export function TasksManager({ access }: { access: CurrentAccess }) {
     status: null,
     assignedToMe: false,
     createdByMe: false,
+    reportingToMe: false,
     overdueOnly: false,
     departmentId: null,
   });
@@ -129,6 +154,7 @@ export function TasksManager({ access }: { access: CurrentAccess }) {
     status: filters.status,
     ...(filters.assignedToMe ? { assigneeId: access.userId } : {}),
     ...(filters.createdByMe ? { createdById: access.userId } : {}),
+    ...(filters.reportingToMe ? { reportToId: access.userId } : {}),
     ...(filters.overdueOnly ? { overdue: true } : {}),
     ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
     page,
@@ -163,6 +189,7 @@ export function TasksManager({ access }: { access: CurrentAccess }) {
         current.status === next.status &&
         current.assignedToMe === next.assignedToMe &&
         current.createdByMe === next.createdByMe &&
+        current.reportingToMe === next.reportingToMe &&
         current.overdueOnly === next.overdueOnly &&
         current.departmentId === next.departmentId
       ) {
@@ -216,7 +243,12 @@ export function TasksManager({ access }: { access: CurrentAccess }) {
           ),
           canTransition: canActOnAssignedTask(access, "task.update_status"),
           canSubmit: canActOnAssignedTask(access, "task.submit"),
-          canReview: creatorGatedFor(access, "task.review"),
+          canReview: canReviewFor(access),
+          canSetReportTo: access.role === "SUPER_ADMIN",
+          loadEligibleRecipients: (departmentId, signal) =>
+            gateway.listEligibleRecipients(departmentId, signal),
+          setReportTo: (id, reportToId) =>
+            mutations.setReportTo.mutateAsync({ id, reportToId }),
           canUpload: hasGrant(access, "task.attachment.create"),
           canAssign: hasGrant(access, "task.assign"),
           canManageAssignees: canManageAssigneesFor(access),
@@ -277,6 +309,14 @@ export function TasksManager({ access }: { access: CurrentAccess }) {
           loadEligibleAssignees={(departmentId, signal) =>
             gateway.listEligibleAssignees(departmentId, signal)
           }
+          {...(access.role === "SUPER_ADMIN"
+            ? {
+                loadEligibleRecipients: (
+                  departmentId: string,
+                  signal?: AbortSignal,
+                ) => gateway.listEligibleRecipients(departmentId, signal),
+              }
+            : {})}
           onCreate={(values) => mutations.create.mutateAsync(values)}
           onUploadAttachment={(taskId, file) =>
             mutations.upload.mutateAsync({ id: taskId, file })

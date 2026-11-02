@@ -33,6 +33,8 @@ function createdTask(): Task {
     departmentId: "dept-1",
     parentTaskId: null,
     subtaskSummary: null,
+    reportTo: null,
+    reportToPinned: false,
     title: "Confirm venue",
     description: "Check the contract.",
     priority: "MEDIUM",

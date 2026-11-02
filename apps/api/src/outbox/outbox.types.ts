@@ -8,6 +8,9 @@ import type { OutboxActorKind, Prisma } from "../generated/prisma/client.js";
 export type SupportedOutboxEventName =
   | "task.assigned"
   | "task.reviewed"
+  | "task.submitted"
+  | "task.report_to_assigned"
+  | "task.blocked"
   | "discuss.message.created"
   | "meeting.participant.invited"
   | "meeting.reminder"

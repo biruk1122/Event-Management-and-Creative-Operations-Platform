@@ -3,7 +3,10 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import type { PermissionScope } from "../generated/prisma/client.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
-import { supportedDepartment } from "../common/security/department-access.policy.js";
+import {
+  platformRole,
+  supportedDepartment,
+} from "../common/security/department-access.policy.js";
 import type { CreateDepartmentDto } from "./dto/create-department.dto.js";
 import {
   DepartmentActivityFilter,
@@ -187,6 +190,40 @@ export class DepartmentsService {
     return toDepartmentResponse(result);
   }
 
+  /**
+   * Super Admin designates the Admin who receives a department's
+   * department-level reports (reports not tied to a task). Only an active
+   * Admin can be designated, and nothing ever picks one automatically.
+   */
+  async setReportingAdmin(
+    actingUserId: string,
+    id: string,
+    userId: string | null,
+  ): Promise<DepartmentResponse> {
+    await this.requireGrant(actingUserId, "department.assign_reporting_admin");
+
+    if (userId !== null) {
+      const candidate = await this.repository.findAdminCandidate(userId);
+      if (!candidate) throw departmentUserNotFound();
+      if (
+        !candidate.active ||
+        !candidate.roleIsSystem ||
+        !candidate.roleName ||
+        platformRole(candidate.roleName) !== "ADMIN"
+      ) {
+        throw new BadRequestException({
+          code: "USER_ASSIGNMENT_INVALID",
+          error: "Bad Request",
+          detail: "Choose an active Admin as the reporting recipient.",
+        });
+      }
+    }
+    const result = await this.repository.setReportingAdmin(id, userId);
+    if (result === "not_found") throw departmentNotFound();
+    if (result === "admin_not_found") throw departmentUserNotFound();
+    return toDepartmentResponse(result);
+  }
+
   async deactivate(
     actingUserId: string,
     id: string,
@@ -276,6 +313,7 @@ export class DepartmentsService {
 
     const context = await this.permissions.getAccessContext(userId);
     if (
+      context.role === "ADMIN" ||
       context.role === "DEPARTMENT_MANAGER" ||
       context.role === "DEPARTMENT_MEMBER"
     ) {
@@ -283,7 +321,7 @@ export class DepartmentsService {
         code: "USER_ASSIGNMENT_INVALID",
         error: "Bad Request",
         detail:
-          "Department managers and members must retain a department. Reassign them instead.",
+          "Admins, department managers and members must retain a department. Reassign them instead.",
       });
     }
 
@@ -307,6 +345,7 @@ function toDepartmentResponse(record: DepartmentRecord): DepartmentResponse {
     name: record.name,
     description: record.description,
     manager: record.manager,
+    reportingAdmin: record.reportingAdmin,
     employeeCount: record.employeeCount,
     deactivatedAt: record.deactivatedAt
       ? record.deactivatedAt.toISOString()

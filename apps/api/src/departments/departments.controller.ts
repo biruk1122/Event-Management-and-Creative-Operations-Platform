@@ -40,6 +40,7 @@ import {
 } from "./departments.contracts.js";
 import { DepartmentsService } from "./departments.service.js";
 import { AssignDepartmentManagerDto } from "./dto/assign-department-manager.dto.js";
+import { AssignReportingAdminDto } from "./dto/assign-reporting-admin.dto.js";
 import { CreateDepartmentDto } from "./dto/create-department.dto.js";
 import { ListDepartmentsQueryDto } from "./dto/list-departments-query.dto.js";
 import { UpdateDepartmentDto } from "./dto/update-department.dto.js";
@@ -160,6 +161,32 @@ export class DepartmentsController {
       actingUserId(request),
       id,
       body.managerId,
+    );
+  }
+
+  @Put(":id/reporting-admin")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("department.assign_reporting_admin")
+  @ApiOperation({
+    summary:
+      "Designate, change, or clear the Admin who receives a department's reports (Super Admin only)",
+  })
+  @ApiOkResponse({ type: DepartmentResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "The department or the requested user does not exist",
+  })
+  async setReportingAdmin(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: AssignReportingAdminDto,
+  ): Promise<DepartmentResponse> {
+    return this.departments.setReportingAdmin(
+      actingUserId(request),
+      id,
+      body.userId,
     );
   }
 

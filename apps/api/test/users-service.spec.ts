@@ -50,7 +50,10 @@ describe("UsersService", () => {
     setStatus: ReturnType<typeof vi.fn>;
     setRole: ReturnType<typeof vi.fn>;
   };
-  let permissions: { hasGrant: ReturnType<typeof vi.fn> };
+  let permissions: {
+    getAccessContext: ReturnType<typeof vi.fn>;
+    hasGrant: ReturnType<typeof vi.fn>;
+  };
   let passwordHasher: { hash: ReturnType<typeof vi.fn> };
   let service: UsersService;
 
@@ -70,7 +73,12 @@ describe("UsersService", () => {
       setStatus: vi.fn(),
       setRole: vi.fn(),
     };
-    permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
+    permissions = {
+      getAccessContext: vi
+        .fn()
+        .mockResolvedValue({ role: "SUPER_ADMIN", department: null }),
+      hasGrant: vi.fn().mockResolvedValue(true),
+    };
     passwordHasher = { hash: vi.fn().mockResolvedValue("argon2id$hash") };
     service = new UsersService(
       repository as never,

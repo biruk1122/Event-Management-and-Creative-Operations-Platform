@@ -4,6 +4,17 @@ import { PermissionsService } from "../common/security/permissions.service.js";
 import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import {
+  platformRole,
+  type PlatformRole,
+} from "../common/security/department-access.policy.js";
+import { isEligibleExplicitRecipient } from "../tasks/tasks-report-to.domain.js";
+import {
+  canReviewReport,
+  eligibleReportRecipients,
+  resolveReportRecipient,
+  type ReportRecipientContext,
+} from "./reports-recipient.domain.js";
+import {
   AuditActorKind,
   AuditOutcome,
   type Prisma,
@@ -29,12 +40,17 @@ import {
 import type {
   PaginatedReportsResponse,
   ReportDetailResponse,
+  ReportEligibleRecipientsResponse,
   ReportResponse,
 } from "./reports.contracts.js";
 import {
   reportInvalidRange,
   reportInvalidTransition,
   reportNotFound,
+  reportRecipientInvalid,
+  reportRecipientNotDesignated,
+  reportRecipientRequired,
+  reportSourceInvalid,
   reportWorkspaceNotFound,
 } from "./reports.errors.js";
 import {
@@ -52,6 +68,20 @@ function dateOnly(date: Date): string {
 
 function toResponse(report: ReportRecord): ReportResponse {
   return {
+    reportToId: report.reportToId,
+    reportTo: report.reportTo,
+    author: report.author,
+    sources: report.sources.map(({ sourceReport }) => ({
+      id: sourceReport.id,
+      title: sourceReport.title,
+      status: sourceReport.status,
+      type: sourceReport.type,
+      periodStart: dateOnly(sourceReport.periodStart),
+      periodEnd: dateOnly(sourceReport.periodEnd),
+      authorId: sourceReport.authorId,
+      author: sourceReport.author,
+      departmentId: sourceReport.departmentId,
+    })),
     id: report.id,
     type: report.type,
     title: report.title,
@@ -110,6 +140,73 @@ export class ReportsService {
     private readonly eventFacts: EventsReportFactsQuery,
     private readonly expenseFacts: ExpensesReportFactsQuery,
   ) {}
+
+  private async actorRole(userId: string): Promise<PlatformRole | null> {
+    return (await this.permissions.getAccessContext(userId)).role;
+  }
+
+  private async recipientContext(
+    authorRole: PlatformRole | null,
+    departmentId: string | null,
+  ): Promise<ReportRecipientContext> {
+    const routing = await this.repo.getDepartmentRouting(departmentId);
+    return {
+      authorRole,
+      departmentManagerId: routing.managerId,
+      reportingAdminId: routing.reportingAdminId,
+      activeSuperAdminIds:
+        authorRole === "ADMIN" ? await this.repo.listActiveSuperAdminIds() : [],
+    };
+  }
+
+  /** Who the caller may submit a report to (their own department's routing). */
+  async eligibleRecipients(
+    userId: string,
+    departmentId?: string,
+  ): Promise<ReportEligibleRecipientsResponse> {
+    const role = await this.actorRole(userId);
+    const department =
+      departmentId ?? (await this.repo.findUserDepartmentId(userId));
+    const ids = eligibleReportRecipients(
+      await this.recipientContext(role, department),
+    );
+    return { items: await this.repo.listPeople(ids) };
+  }
+
+  /** Super Admin re-routes a submitted, not-yet-reviewed report. */
+  async setRecipient(
+    userId: string,
+    id: string,
+    reportToId: string,
+    requestId: string,
+  ): Promise<ReportResponse> {
+    if ((await this.actorRole(userId)) !== "SUPER_ADMIN")
+      throw permissionDenied();
+    const report = await this.load(userId, id, "report.review");
+    if (report.status !== "SUBMITTED") throw reportInvalidTransition();
+    const candidate = await this.repo.findRecipientUser(reportToId);
+    if (
+      !candidate ||
+      !isEligibleExplicitRecipient(
+        {
+          id: candidate.id,
+          active: candidate.active,
+          role:
+            candidate.roleIsSystem && candidate.roleName
+              ? platformRole(candidate.roleName)
+              : null,
+          departmentId: candidate.departmentId,
+        },
+        report.departmentId,
+      ) ||
+      candidate.id === report.authorId
+    ) {
+      throw reportRecipientInvalid();
+    }
+    return toResponse(
+      await this.repo.setRecipient(id, reportToId, userId, requestId),
+    );
+  }
 
   private async visibility(
     userId: string,
@@ -217,6 +314,26 @@ export class ReportsService {
       ...sectionsFrom(input),
     };
     validateSections(type, sections);
+    let sourceReportIds: string[] | undefined;
+    if (input.sourceReportIds !== undefined) {
+      sourceReportIds = input.sourceReportIds;
+      if (sourceReportIds.length) {
+        if ((await this.actorRole(userId)) !== "ADMIN")
+          throw permissionDenied();
+        const found = await this.repo.findSourceCandidates(sourceReportIds);
+        const valid =
+          found.length === sourceReportIds.length &&
+          found.every(
+            (source) =>
+              source.status === "REVIEWED" &&
+              source.id !== existing?.id &&
+              source.authorRoleIsSystem &&
+              source.authorRoleName !== null &&
+              platformRole(source.authorRoleName) === "DEPARTMENT_MANAGER",
+          );
+        if (!valid) throw reportSourceInvalid();
+      }
+    }
     const description =
       input.description !== undefined
         ? input.description.trim()
@@ -230,6 +347,7 @@ export class ReportsService {
       departmentId: departmentId ?? null,
       workspaceIds,
       sections,
+      ...(sourceReportIds !== undefined ? { sourceReportIds } : {}),
     };
   }
 
@@ -344,13 +462,33 @@ export class ReportsService {
     userId: string,
     id: string,
     requestId: string,
+    explicitReportToId?: string,
   ): Promise<ReportResponse> {
     const report = await this.load(userId, id, "report.submit");
     if (report.authorId !== userId) throw permissionDenied();
     if (report.status !== "DRAFT") throw reportInvalidTransition();
     validateSubmission(report.type, sectionsFrom(report));
+    const department =
+      report.departmentId ?? (await this.repo.findUserDepartmentId(userId));
+    const resolution = resolveReportRecipient(
+      await this.recipientContext(await this.actorRole(userId), department),
+      explicitReportToId,
+    );
+    if (!resolution.ok) {
+      if (resolution.reason === "not_designated")
+        throw reportRecipientNotDesignated();
+      if (resolution.reason === "selection_required")
+        throw reportRecipientRequired();
+      throw reportRecipientInvalid();
+    }
     return toResponse(
-      await this.repo.submit(id, report.updatedAt, userId, requestId),
+      await this.repo.submit(
+        id,
+        report.updatedAt,
+        userId,
+        requestId,
+        resolution.reportToId,
+      ),
     );
   }
 
@@ -365,6 +503,14 @@ export class ReportsService {
     const report = await this.load(userId, id, "report.review");
     if (report.status !== "SUBMITTED") throw reportInvalidTransition();
     if (report.authorId === userId) throw permissionDenied();
+    if (
+      !canReviewReport({
+        actorId: userId,
+        actorRole: await this.actorRole(userId),
+        reportToId: report.reportToId,
+      })
+    )
+      throw permissionDenied();
     return toResponse(
       await this.repo.startReview(id, report.updatedAt, userId, requestId),
     );
@@ -380,6 +526,14 @@ export class ReportsService {
     if (report.status !== "SUBMITTED" && report.status !== "UNDER_REVIEW")
       throw reportInvalidTransition();
     if (report.authorId === userId) throw permissionDenied();
+    if (
+      !canReviewReport({
+        actorId: userId,
+        actorRole: await this.actorRole(userId),
+        reportToId: report.reportToId,
+      })
+    )
+      throw permissionDenied();
     return toResponse(
       await this.repo.review(
         id,

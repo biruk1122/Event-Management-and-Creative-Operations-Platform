@@ -120,6 +120,13 @@ export interface TaskCollaborationActions {
    * merely this task's assignee from approving/rejecting their own
    * assigned work just because they hold `task.review` broadly. */
   canReview: (task: Task) => boolean;
+  /** Super Admin only: may re-point a task's reporting recipient. */
+  canSetReportTo?: boolean;
+  loadEligibleRecipients?: (
+    departmentId: string,
+    signal?: AbortSignal,
+  ) => Promise<TaskPerson[]>;
+  setReportTo?: (id: string, reportToId: string) => Promise<unknown>;
   canUpload: boolean;
   /** Blanket: gates the "Add subtask" action and the subtask-creation
    * dialog's own assignee picker, since a Manager manages assignment by
@@ -689,6 +696,37 @@ function TaskDetailDialog({
     retry: false,
   });
 
+  const canRepoint = Boolean(
+    collaboration?.canSetReportTo &&
+    collaboration.loadEligibleRecipients &&
+    collaboration.setReportTo &&
+    task?.departmentId,
+  );
+  const recipients = useQuery({
+    queryKey: ["task-eligible-recipients", task?.departmentId ?? ""],
+    queryFn: ({ signal }) =>
+      collaboration!.loadEligibleRecipients!(task!.departmentId!, signal),
+    enabled: canRepoint,
+    retry: false,
+    staleTime: 30_000,
+  });
+  // A caller who can assign but cannot browse the user directory (Admin,
+  // Department Manager) picks from the task's own department roster instead.
+  const needsRosterFallback = Boolean(
+    collaboration?.assignmentDirectoryMessage &&
+    task?.departmentId &&
+    collaboration.canManageAssignees(task),
+  );
+  const rosterAssignees = useQuery({
+    queryKey: ["task-detail-eligible-assignees", task?.departmentId ?? ""],
+    queryFn: ({ signal }) =>
+      collaboration!.loadEligibleAssignees(task!.departmentId!, signal),
+    enabled: needsRosterFallback,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const [recipientChoice, setRecipientChoice] = useState("");
+
   async function perform(action: () => Promise<unknown>) {
     setActionError(null);
     try {
@@ -902,6 +940,76 @@ function TaskDetailDialog({
               </section>
             ) : null}
             <section
+              aria-labelledby="task-people"
+              className="border-border border-t pt-4"
+            >
+              <h2 id="task-people" className="text-sm font-medium">
+                People
+              </h2>
+              <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground text-xs">Created by</dt>
+                  <dd>
+                    {task.createdBy ? personName(task.createdBy) : "Unknown"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground text-xs">Reports to</dt>
+                  <dd>
+                    {task.reportTo
+                      ? personName(task.reportTo)
+                      : "Not set (task from before recipients)"}
+                    {task.reportTo &&
+                    collaboration?.currentUserId === task.reportTo.id
+                      ? " (you)"
+                      : ""}
+                  </dd>
+                </div>
+              </dl>
+              {canRepoint ? (
+                <div className="mt-3 flex flex-wrap items-end gap-2">
+                  <div className="min-w-48 flex-1">
+                    <Label htmlFor="task-report-to">
+                      Change who it reports to
+                    </Label>
+                    <Select
+                      value={recipientChoice}
+                      onValueChange={setRecipientChoice}
+                    >
+                      <SelectTrigger id="task-report-to" className="mt-1">
+                        <SelectValue placeholder="Select a recipient" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(recipients.data ?? [])
+                          .filter((person) => person.id !== task.reportTo?.id)
+                          .map((person) => (
+                            <SelectItem key={person.id} value={person.id}>
+                              {personName(person)}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!recipientChoice || detail.isFetching}
+                    onClick={() =>
+                      void perform(async () => {
+                        await collaboration!.setReportTo!(
+                          task.id,
+                          recipientChoice,
+                        );
+                        setRecipientChoice("");
+                      })
+                    }
+                  >
+                    Update recipient
+                  </Button>
+                </div>
+              ) : null}
+            </section>
+            <section
               aria-labelledby="task-assignees"
               className="border-border border-t pt-4"
             >
@@ -958,7 +1066,10 @@ function TaskDetailDialog({
                         <SelectValue placeholder="Select a user" />
                       </SelectTrigger>
                       <SelectContent>
-                        {collaboration.users
+                        {(collaboration.users.length > 0
+                          ? collaboration.users
+                          : (rosterAssignees.data ?? [])
+                        )
                           .filter(
                             (user) =>
                               !task.assignees.some(
@@ -985,7 +1096,8 @@ function TaskDetailDialog({
                   >
                     Add
                   </Button>
-                  {collaboration.assignmentDirectoryMessage ? (
+                  {collaboration.assignmentDirectoryMessage &&
+                  !rosterAssignees.data ? (
                     <p
                       role="status"
                       className="text-muted-foreground basis-full text-xs"
@@ -1327,6 +1439,7 @@ export interface TaskWorkspaceFilters {
   status: TaskStatus | null;
   assignedToMe: boolean;
   createdByMe: boolean;
+  reportingToMe: boolean;
   overdueOnly: boolean;
   departmentId: string | null;
 }
@@ -1376,6 +1489,7 @@ export function TaskWorkspace({
   const [status, setStatus] = useState<TaskStatus | null>(null);
   const [assignedToMe, setAssignedToMe] = useState(false);
   const [createdByMe, setCreatedByMe] = useState(false);
+  const [reportingToMe, setReportingToMe] = useState(false);
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [departmentId, setDepartmentId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Task | null>(null);
@@ -1391,6 +1505,7 @@ export function TaskWorkspace({
     status !== null ||
     assignedToMe ||
     createdByMe ||
+    reportingToMe ||
     overdueOnly ||
     departmentId !== null;
   const select = (task: Task) => setSelected(task);
@@ -1401,6 +1516,7 @@ export function TaskWorkspace({
       status,
       assignedToMe,
       createdByMe,
+      reportingToMe,
       overdueOnly,
       departmentId,
     });
@@ -1410,6 +1526,7 @@ export function TaskWorkspace({
     status,
     assignedToMe,
     createdByMe,
+    reportingToMe,
     overdueOnly,
     departmentId,
   ]);
@@ -1525,6 +1642,17 @@ export function TaskWorkspace({
                 >
                   Created by Me
                 </Button>
+                {canFilterByReview ? (
+                  <Button
+                    type="button"
+                    variant={reportingToMe ? "secondary" : "outline"}
+                    size="sm"
+                    aria-pressed={reportingToMe}
+                    onClick={() => setReportingToMe((current) => !current)}
+                  >
+                    Reporting to Me
+                  </Button>
+                ) : null}
                 {canFilterByReview ? (
                   <Button
                     type="button"

@@ -74,6 +74,9 @@ import {
   taskAssignedContent,
   taskDueContent,
   taskOverdueContent,
+  taskSubmittedContent,
+  taskReportToAssignedContent,
+  taskBlockedContent,
   taskRejectedContent,
   todoReminderContent,
   type NotificationContent,
@@ -182,6 +185,27 @@ export class NotificationsService {
       case "task.reviewed":
         await this.processTaskReviewed(event);
         return;
+      case "task.submitted":
+        await this.processTaskRecipientEvent(
+          event,
+          NotificationType.TASK_SUBMITTED,
+          taskSubmittedContent,
+        );
+        return;
+      case "task.report_to_assigned":
+        await this.processTaskRecipientEvent(
+          event,
+          NotificationType.TASK_REPORT_TO_ASSIGNED,
+          taskReportToAssignedContent,
+        );
+        return;
+      case "task.blocked":
+        await this.processTaskRecipientEvent(
+          event,
+          NotificationType.TASK_BLOCKED,
+          taskBlockedContent,
+        );
+        return;
       case "discuss.message.created":
         await this.processMessageCreated(event);
         return;
@@ -282,6 +306,42 @@ export class NotificationsService {
     });
   }
 
+  /**
+   * Notifies a task's reporting recipient (work submitted for their review,
+   * being named the recipient, or an escalated block). The recipient is
+   * re-resolved from the task rather than trusted from the payload, so a
+   * recipient change between the event and its delivery cannot notify the
+   * wrong person, and nobody else is ever broadcast to.
+   */
+  private async processTaskRecipientEvent(
+    event: OutboxEventEnvelope,
+    type: NotificationType,
+    contentFor: (taskTitle: string) => NotificationContent,
+  ): Promise<void> {
+    const payload = event.payload as { recipientUserId?: string } | null;
+    const recipientUserId = payload?.recipientUserId;
+    if (!recipientUserId || !event.resourceId) return;
+    if (recipientUserId === event.actorUserId) return;
+    if (
+      (await this.repository.getTaskReportToId(event.resourceId)) !==
+      recipientUserId
+    )
+      return;
+    if (!(await this.repository.isUserActive(recipientUserId))) return;
+    const task = await this.repository.getTask(event.resourceId);
+    if (!task) return;
+    const content = contentFor(task.title);
+    await this.createAndPublish({
+      recipientUserId,
+      type,
+      sourceEventId: event.id,
+      occurrenceKey: event.id,
+      title: content.title,
+      body: content.body,
+      taskId: event.resourceId,
+    });
+  }
+
   private async processMeetingInvitation(
     event: OutboxEventEnvelope,
   ): Promise<void> {
@@ -367,6 +427,19 @@ export class NotificationsService {
     const recipientIds = await this.repository.getTaskAssigneeIds(
       event.resourceId,
     );
+    if (type === NotificationType.TASK_OVERDUE) {
+      // An overdue task also surfaces to whoever receives its reports.
+      const reportToId = await this.repository.getTaskReportToId(
+        event.resourceId,
+      );
+      if (
+        reportToId &&
+        !recipientIds.includes(reportToId) &&
+        (await this.repository.isUserActive(reportToId))
+      ) {
+        recipientIds.push(reportToId);
+      }
+    }
     const content = contentFor(task.title);
     for (const recipientUserId of recipientIds) {
       const muted = await this.repository.isMuted(recipientUserId, type);
@@ -487,9 +560,13 @@ export class NotificationsService {
     if (!event.resourceId) return;
     const report = await this.repository.getReport(event.resourceId);
     if (!report) return;
-    const recipientIds = await this.repository.getReportReviewerIds(
-      report.departmentId,
-    );
+    // A report with a recipient notifies exactly that person; reports from
+    // before per-report recipients fall back to the earlier reviewer set.
+    const recipientIds = report.reportToId
+      ? (await this.repository.isUserActive(report.reportToId))
+        ? [report.reportToId]
+        : []
+      : await this.repository.getReportReviewerIds(report.departmentId);
     const content = reportSubmittedContent(report.title);
     for (const recipientUserId of recipientIds) {
       if (recipientUserId === event.actorUserId) continue;
@@ -950,14 +1027,29 @@ export class NotificationsService {
     if (!event.resourceId || !payload?.employeeId) return;
     const request = await this.repository.getLeaveRequest(event.resourceId);
     if (!request || request.status !== "PENDING") return;
+    const content = leaveRequestSubmittedContent(
+      request.employeeName ?? "An employee",
+    );
+    // An Admin reports directly to Super Admin, so their leave request goes
+    // to Super Admin rather than the manager of the department they sit in.
+    if (await this.repository.isAdminUser(request.employeeId)) {
+      for (const recipientUserId of await this.repository.getActiveSuperAdminIds()) {
+        await this.createAndPublish({
+          recipientUserId,
+          type: NotificationType.LEAVE_REQUEST_SUBMITTED,
+          sourceEventId: event.id,
+          occurrenceKey: event.id,
+          title: content.title,
+          body: content.body,
+        });
+      }
+      return;
+    }
     if (!request.employeeDepartmentId) return;
     const managerId = await this.repository.getDepartmentManagerId(
       request.employeeDepartmentId,
     );
     if (!managerId || managerId === request.employeeId) return;
-    const content = leaveRequestSubmittedContent(
-      request.employeeName ?? "An employee",
-    );
     await this.createAndPublish({
       recipientUserId: managerId,
       type: NotificationType.LEAVE_REQUEST_SUBMITTED,

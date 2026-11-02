@@ -39,6 +39,7 @@ const TEST_USERS = [
   { email: "member@e2e.test", role: "Department Member" },
   { email: "dept-manager@e2e.test", role: "Department Manager" },
   { email: "talent-manager@e2e.test", role: "Super Admin" },
+  { email: "admin@e2e.test", role: "Admin" },
 ];
 
 function baseDatabaseUrl() {
@@ -122,9 +123,11 @@ async function main() {
           email.toLowerCase(),
           role === "Super Admin"
             ? null
-            : role === "Department Manager"
-              ? "Marketing"
-              : "Production",
+            : role === "Admin"
+              ? "Manager / Event & Office Manager"
+              : role === "Department Manager"
+                ? "Marketing"
+                : "Production",
         ],
       );
       const id = rows[0]?.id;

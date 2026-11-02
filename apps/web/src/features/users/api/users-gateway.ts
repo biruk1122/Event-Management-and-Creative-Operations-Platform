@@ -211,9 +211,12 @@ export async function listAssignableRoles(
     .filter(
       (role) =>
         role.isSystem &&
-        ["Super Admin", "Department Manager", "Department Member"].includes(
-          role.name,
-        ),
+        [
+          "Super Admin",
+          "Admin",
+          "Department Manager",
+          "Department Member",
+        ].includes(role.name),
     )
     .map((role) => ({ id: role.id, name: role.name }));
 }

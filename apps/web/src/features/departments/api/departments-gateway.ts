@@ -115,6 +115,8 @@ function assignManagerFailure(
 ): Exclude<AssignManagerOutcome, { status: "success" }> {
   if (isProblemDetails(error)) {
     if (error.code === "USER_NOT_FOUND") return { status: "manager_not_found" };
+    if (error.code === "USER_ASSIGNMENT_INVALID")
+      return { status: "invalid_user" };
     if (error.code === "DEPARTMENT_NOT_FOUND") return { status: "not_found" };
   }
   if (status === 401 || status === 403) return { status: "permission_denied" };
@@ -228,6 +230,30 @@ export async function listAssignableManagers(
   }));
 }
 
+/**
+ * Active Admins Super Admin may designate as a department's reporting
+ * recipient. Reads the first page of `GET /api/v1/users` (Super Admin only)
+ * and keeps accounts holding the Admin role; resolves `[]` when the caller
+ * cannot read users.
+ */
+export async function listReportingAdminCandidates(
+  signal?: AbortSignal,
+): Promise<AssignableUser[]> {
+  const { data } = await browserApi.GET("/api/v1/users", {
+    params: { query: { pageSize: 100 } as never },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return (data?.items ?? [])
+    .filter((user) => user.role?.name === "Admin" && user.status === "ACTIVE")
+    .map((user) => ({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    }));
+}
+
 function toCreateBody(values: CreateDepartmentValues) {
   return {
     name: values.name.trim(),
@@ -285,6 +311,25 @@ export const assignDepartmentManager: AssignManager = async (id, managerId) => {
     const { data, error, response } = await browserApi.PUT(
       "/api/v1/departments/{id}/manager",
       { params: { path: { id } }, body: { managerId }, headers: headers() },
+    );
+    return data
+      ? { status: "success", department: data }
+      : assignManagerFailure(error, response.status);
+  } catch {
+    return { status: "unexpected" };
+  }
+};
+
+/** Super Admin designates (or clears) the Admin who receives a
+ * department's reports. Same outcome shape as assigning a manager. */
+export const assignDepartmentReportingAdmin: AssignManager = async (
+  id,
+  userId,
+) => {
+  try {
+    const { data, error, response } = await browserApi.PUT(
+      "/api/v1/departments/{id}/reporting-admin",
+      { params: { path: { id } }, body: { userId }, headers: headers() },
     );
     return data
       ? { status: "success", department: data }

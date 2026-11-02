@@ -356,6 +356,15 @@ export class LeaveService {
       REVIEW_PERMISSION,
       request.employeeDepartmentId,
     );
+    // An Admin is an employee of a department but reports directly to Super
+    // Admin, so their own department's manager cannot decide their leave.
+    if (
+      (await this.permissions.getAccessContext(request.employeeId)).role ===
+        "ADMIN" &&
+      (await this.permissions.getAccessContext(actingUserId)).role !==
+        "SUPER_ADMIN"
+    )
+      throw permissionDenied();
     if (request.status !== LeaveRequestStatus.PENDING)
       throw leaveRequestAlreadyDecided();
 

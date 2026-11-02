@@ -38,6 +38,7 @@ import { CreateTaskChecklistItemDto } from "./dto/create-task-checklist-item.dto
 import { CreateTaskCommentDto } from "./dto/create-task-comment.dto.js";
 import { CreateTaskDto } from "./dto/create-task.dto.js";
 import { ListEligibleAssigneesQueryDto } from "./dto/list-eligible-assignees-query.dto.js";
+import { ListEligibleRecipientsQueryDto } from "./dto/list-eligible-recipients-query.dto.js";
 import { ListTaskFeedQueryDto } from "./dto/list-task-feed-query.dto.js";
 import { ListTasksQueryDto } from "./dto/list-tasks-query.dto.js";
 import { ReviewTaskDto } from "./dto/review-task.dto.js";
@@ -137,6 +138,24 @@ export class TasksController {
     return { items };
   }
 
+  @Get("eligible-recipients")
+  @RequirePermissions("task.create")
+  @ApiOperation({
+    summary:
+      "List the people Super Admin may name as a task's reporting recipient",
+  })
+  @ApiOkResponse({ type: TaskEligibleAssigneesResponse })
+  async listEligibleRecipients(
+    @Req() request: RequestWithContext,
+    @Query() query: ListEligibleRecipientsQueryDto,
+  ): Promise<TaskEligibleAssigneesResponse> {
+    const items = await this.tasks.listEligibleRecipients(
+      actingUserId(request),
+      query.departmentId ?? null,
+    );
+    return { items };
+  }
+
   @Get(":id")
   @RequirePermissions("task.read")
   @ApiOperation({ summary: "Get task details and assignees" })
@@ -164,7 +183,7 @@ export class TasksController {
     @Param("id") id: string,
     @Body() body: UpdateTaskDto,
   ): Promise<TaskResponse> {
-    return this.tasks.update(actingUserId(request), id, body);
+    return this.tasks.update(actingUserId(request), id, body, request.id);
   }
 
   @Put(":id/assignees/:userId")

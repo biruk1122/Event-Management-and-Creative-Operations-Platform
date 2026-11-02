@@ -1048,6 +1048,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/departments/{id}/reporting-admin": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Designate, change, or clear the Admin who receives a department's reports (Super Admin only) */
+    put: operations["Departments_setReportingAdmin_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/documents": {
     parameters: {
       query?: never;
@@ -2801,6 +2818,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/reports/eligible-recipients": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List who the caller may submit a report to */
+    get: operations["Reports_eligibleRecipients_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/reports/{id}": {
     parameters: {
       query?: never;
@@ -2829,6 +2863,23 @@ export interface paths {
     /** Export an authorized report snapshot as JSON */
     get: operations["Reports_export_v1"];
     put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/reports/{id}/recipient": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Re-route a submitted, not-yet-reviewed report to another recipient (Super Admin only) */
+    put: operations["Reports_setRecipient_v1"];
     post?: never;
     delete?: never;
     options?: never;
@@ -3404,6 +3455,23 @@ export interface paths {
     };
     /** List a department's active staff eligible for task assignment */
     get: operations["Tasks_listEligibleAssignees_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks/eligible-recipients": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the people Super Admin may name as a task's reporting recipient */
+    get: operations["Tasks_listEligibleRecipients_v1"];
     put?: never;
     post?: never;
     delete?: never;
@@ -4107,6 +4175,13 @@ export interface components {
       role: string;
       /** Format: uuid */
       talentId: string;
+    };
+    AssignReportingAdminDto: {
+      /**
+       * Format: uuid
+       * @description The Admin to designate as this department's reporting recipient, or null to clear it.
+       */
+      userId: string | null;
     };
     AssignTeamManagerDto: {
       /**
@@ -5047,6 +5122,8 @@ export interface components {
       problemsEncountered?: string;
       /** @description Post-event only. */
       recommendations?: string;
+      /** @description Admin only: reviewed Department Manager reports consolidated into this report. */
+      sourceReportIds?: string[];
       title: string;
       /** @enum {string} */
       type: "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT";
@@ -5144,6 +5221,11 @@ export interface components {
        * @enum {string}
        */
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+      /**
+       * Format: uuid
+       * @description Who receives this task's reports and decides its review. Defaults to the person creating/assigning the task; only Super Admin may name someone else (an active Super Admin, Admin, or the department's own manager).
+       */
+      reportToId?: string;
       /** Format: date-time */
       startAt?: string;
       /** @example Confirm venue permits */
@@ -5289,7 +5371,12 @@ export interface components {
       department?: components["schemas"]["AccessDepartmentResponse"] | null;
       grants: components["schemas"]["EffectivePermissionResponse"][];
       /** @enum {string|null} */
-      role?: "SUPER_ADMIN" | "DEPARTMENT_MANAGER" | "DEPARTMENT_MEMBER" | null;
+      role?:
+        | "SUPER_ADMIN"
+        | "ADMIN"
+        | "DEPARTMENT_MANAGER"
+        | "DEPARTMENT_MEMBER"
+        | null;
       /** Format: uuid */
       userId: string;
     };
@@ -5494,6 +5581,8 @@ export interface components {
       manager: components["schemas"]["DepartmentManagerSummary"] | null;
       /** @example Event Management */
       name: string;
+      /** @description The Admin Super Admin designated to receive this department's reports. Null until designated; the server never picks one on its own. */
+      reportingAdmin: components["schemas"]["DepartmentManagerSummary"] | null;
       /** Format: date-time */
       updatedAt: string;
     };
@@ -6389,7 +6478,10 @@ export interface components {
         | "ATTENDANCE_OVERTIME_DECIDED"
         | "ATTENDANCE_EXCEPTION_DECIDED"
         | "LEAVE_REQUEST_SUBMITTED"
-        | "LEAVE_REQUEST_DECIDED";
+        | "LEAVE_REQUEST_DECIDED"
+        | "TASK_SUBMITTED"
+        | "TASK_REPORT_TO_ASSIGNED"
+        | "TASK_BLOCKED";
     };
     NotificationPreferencesResponse: {
       items: components["schemas"]["NotificationPreferenceResponse"][];
@@ -6449,7 +6541,10 @@ export interface components {
         | "ATTENDANCE_OVERTIME_DECIDED"
         | "ATTENDANCE_EXCEPTION_DECIDED"
         | "LEAVE_REQUEST_SUBMITTED"
-        | "LEAVE_REQUEST_DECIDED";
+        | "LEAVE_REQUEST_DECIDED"
+        | "TASK_SUBMITTED"
+        | "TASK_REPORT_TO_ASSIGNED"
+        | "TASK_BLOCKED";
     };
     Object: Record<string, never>;
     OvertimeApprovalResponse: {
@@ -7142,6 +7237,7 @@ export interface components {
       orderedItemIds: string[];
     };
     ReportDetailResponse: {
+      author: components["schemas"]["ReportPersonSummary"] | null;
       /** Format: uuid */
       authorId: string;
       challenges: string | null;
@@ -7169,11 +7265,19 @@ export interface components {
       problemsEncountered: string | null;
       /** @description Post-event only. */
       recommendations: string | null;
+      reportTo: components["schemas"]["ReportPersonSummary"] | null;
+      /**
+       * Format: uuid
+       * @description Who this report is submitted to and who may review it. Null on reports from before per-report recipients (Super Admin reviews those).
+       */
+      reportToId: string | null;
       /** Format: date-time */
       reviewedAt: string | null;
       /** Format: uuid */
       reviewerId: string | null;
       reviews: components["schemas"]["ReportReviewResponse"][];
+      /** @description The department reports an Admin consolidated into this one. */
+      sources: components["schemas"]["ReportSourceSummary"][];
       /** @enum {string} */
       status:
         | "DRAFT"
@@ -7189,6 +7293,9 @@ export interface components {
       /** Format: date-time */
       updatedAt: string;
       workspaceIds: string[];
+    };
+    ReportEligibleRecipientsResponse: {
+      items: components["schemas"]["ReportPersonSummary"][];
     };
     ReportFactsResponse: {
       activeProjectsNow: number | null;
@@ -7209,7 +7316,15 @@ export interface components {
       pendingTasksNow: number;
       totalProjectsNow: number | null;
     };
+    ReportPersonSummary: {
+      email: string;
+      firstName: string | null;
+      /** Format: uuid */
+      id: string;
+      lastName: string | null;
+    };
     ReportResponse: {
+      author: components["schemas"]["ReportPersonSummary"] | null;
       /** Format: uuid */
       authorId: string;
       challenges: string | null;
@@ -7236,11 +7351,19 @@ export interface components {
       problemsEncountered: string | null;
       /** @description Post-event only. */
       recommendations: string | null;
+      reportTo: components["schemas"]["ReportPersonSummary"] | null;
+      /**
+       * Format: uuid
+       * @description Who this report is submitted to and who may review it. Null on reports from before per-report recipients (Super Admin reviews those).
+       */
+      reportToId: string | null;
       /** Format: date-time */
       reviewedAt: string | null;
       /** Format: uuid */
       reviewerId: string | null;
       reviews: components["schemas"]["ReportReviewResponse"][];
+      /** @description The department reports an Admin consolidated into this one. */
+      sources: components["schemas"]["ReportSourceSummary"][];
       /** @enum {string} */
       status:
         | "DRAFT"
@@ -7267,6 +7390,29 @@ export interface components {
       reviewedAt: string;
       /** Format: uuid */
       reviewerId: string;
+    };
+    ReportSourceSummary: {
+      author: components["schemas"]["ReportPersonSummary"] | null;
+      /** Format: uuid */
+      authorId: string;
+      /** Format: uuid */
+      departmentId: string | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: date */
+      periodEnd: string;
+      /** Format: date */
+      periodStart: string;
+      /** @enum {string} */
+      status:
+        | "DRAFT"
+        | "SUBMITTED"
+        | "UNDER_REVIEW"
+        | "REVIEWED"
+        | "CHANGES_REQUESTED";
+      title: string;
+      /** @enum {string} */
+      type: "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT";
     };
     RescheduleEventShiftDto: {
       /** Format: date-time */
@@ -7393,6 +7539,10 @@ export interface components {
        */
       currency: string | null;
     };
+    SetReportRecipientDto: {
+      /** Format: uuid */
+      reportToId: string;
+    };
     SetTalentManagerDto: {
       /** Format: uuid */
       managerId: Record<string, never> | null;
@@ -7509,6 +7659,13 @@ export interface components {
     };
     ShiftReasonDto: {
       reason: string;
+    };
+    SubmitReportDto: {
+      /**
+       * Format: uuid
+       * @description Who to submit to. Must be one of the caller's eligible recipients; optional when exactly one exists.
+       */
+      reportToId?: string;
     };
     SupplierResponse: {
       /** @example Catering */
@@ -7636,7 +7793,8 @@ export interface components {
         | "CHECKLIST_ITEM_COMPLETED"
         | "CHECKLIST_ITEM_REOPENED"
         | "CHECKLIST_ITEM_REMOVED"
-        | "CHECKLIST_ITEM_REORDERED";
+        | "CHECKLIST_ITEM_REORDERED"
+        | "REPORT_TO_CHANGED";
     };
     TaskAnalyticsResponse: {
       /**
@@ -7725,6 +7883,10 @@ export interface components {
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
       /** @description Server-computed from checklist items or, when subtasks exist, the mean of direct children's own progress (subtasks always win). Null means 'not tracked' - no checklist items and no subtasks. Never client-settable, and reaching 100 never implies review approval. */
       progress: number | null;
+      /** @description Who receives this task's reports and decides its review. Null on tasks created before per-task recipients, which keep the earlier review rule. */
+      reportTo: components["schemas"]["TaskPersonSummary"] | null;
+      /** @description True when Super Admin explicitly chose the recipient, so a later assignment by someone else does not replace it. */
+      reportToPinned: boolean;
       /** Format: date-time */
       startAt: string | null;
       /** @enum {string} */
@@ -8201,6 +8363,8 @@ export interface components {
       problemsEncountered?: string;
       /** @description Post-event only. */
       recommendations?: string;
+      /** @description Admin only: reviewed Department Manager reports consolidated into this report. */
+      sourceReportIds?: string[];
       title?: string;
       /** @enum {string} */
       type?: "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT";
@@ -8261,6 +8425,11 @@ export interface components {
       dueAt?: string | null;
       /** @enum {string} */
       priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+      /**
+       * Format: uuid
+       * @description Re-point the task's reporting recipient. Super Admin only; the recipient is then pinned so later assignments by someone else do not replace it.
+       */
+      reportToId?: string;
       /** Format: date-time */
       startAt?: string | null;
       title?: string;
@@ -12841,6 +13010,58 @@ export interface operations {
       };
       /** @description The department is already active */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Departments_setReportingAdmin_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignReportingAdminDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DepartmentResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, out of read scope, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The department or the requested user does not exist */
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -20672,6 +20893,41 @@ export interface operations {
       };
     };
   };
+  Reports_eligibleRecipients_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportEligibleRecipientsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Reports_get_v1: {
     parameters: {
       query?: never;
@@ -20820,6 +21076,63 @@ export interface operations {
       };
     };
   };
+  Reports_setRecipient_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SetReportRecipientDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReportResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Reports_review_v1: {
     parameters: {
       query?: never;
@@ -20923,7 +21236,11 @@ export interface operations {
       };
       cookie?: never;
     };
-    requestBody?: never;
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SubmitReportDto"];
+      };
+    };
     responses: {
       200: {
         headers: {
@@ -22693,6 +23010,8 @@ export interface operations {
         assigneeId?: string;
         /** @description Only tasks created by this user ("Created by Me"). */
         createdById?: string;
+        /** @description Only tasks that report to this user ("Reporting to me"). */
+        reportToId?: string;
         /** @description Only subtasks created from this higher-level task. */
         parentTaskId?: string;
         search?: string;
@@ -22854,6 +23173,55 @@ export interface operations {
       };
       /** @description Department not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Tasks_listEligibleRecipients_v1: {
+    parameters: {
+      query?: {
+        /** @description The task's department; its own manager is then also a valid recipient. */
+        departmentId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskEligibleAssigneesResponse"];
+        };
+      };
+      /** @description Invalid request fields, owner, progress, or schedule */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
         headers: {
           [name: string]: unknown;
         };

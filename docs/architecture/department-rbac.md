@@ -8,6 +8,18 @@ and Department Member. Legacy names are accepted only for staged migration.
 Supported departments: Production, Marketing, Promotion, and
 Manager / Event & Office Manager. Preserve this capitalization.
 
+## Admin role (added October 2026)
+
+A fourth supported role, `ADMIN` (display name Admin), is the operational coordinator between
+Super Admin and the departments. It is an employee: it requires an active supported department and
+appears in the employee directory. Department membership does **not** restrict its coordination:
+it holds explicit organization-scope task/report/analytics grants, capped in code by
+`ADMIN_ORGANIZATION_PERMISSION_KEYS` in `department-access.policy.ts`
+(`constrainDepartmentGrants` strips any other organization or management grant). Only Super Admin
+assigns the role; Admin cannot manage users or roles, change their own role, or reach
+Super-Admin-only settings. Department Manager and Department Member rules are unchanged.
+Deployments must re-run `db:seed` to create the Admin role row and its grants.
+
 ## Policy
 
 - Super Admin retains platform-wide authority and is protected from demotion and

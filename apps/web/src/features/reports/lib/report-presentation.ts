@@ -5,6 +5,15 @@ export type ReportDetail = components["schemas"]["ReportDetailResponse"];
 export type ReportList = components["schemas"]["PaginatedReportsResponse"];
 export type CreateReport = components["schemas"]["CreateReportDto"];
 export type ReportType = Report["type"];
+export type ReportPerson = components["schemas"]["ReportPersonSummary"];
+
+/** A person's display name, falling back to their email. */
+export function reportPersonName(person: ReportPerson): string {
+  return (
+    [person.firstName, person.lastName].filter(Boolean).join(" ") ||
+    person.email
+  );
+}
 export type ReportStatus = Report["status"];
 export type ReviewOutcome = components["schemas"]["ReviewReportDto"]["outcome"];
 
@@ -51,7 +60,10 @@ export const STATUS_LABELS: Record<ReportStatus, string> = {
 
 export const NARRATIVE_FIELDS: Record<
   ReportType,
-  readonly { key: keyof CreateReport; label: string }[]
+  readonly {
+    key: Exclude<keyof CreateReport, "sourceReportIds">;
+    label: string;
+  }[]
 > = {
   DAILY: [
     { key: "problemsEncountered", label: "Problems encountered" },
