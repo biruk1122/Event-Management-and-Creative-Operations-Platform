@@ -896,10 +896,37 @@ test.describe("ANA-06 responsive and network release profiles", () => {
         );
         await expect(monthlyPanel.getByRole("table")).toBeVisible();
         await expect(monthlyPanel.getByRole("figure")).toHaveCount(6);
+        // Name the elements that spill past the viewport outside any scroll
+        // container, so a failure says what overflows instead of just that
+        // something does.
+        const offenders = await page.evaluate(() => {
+          const limit = window.innerWidth;
+          return Array.from(document.querySelectorAll("body *"))
+            .filter((element) => {
+              const box = element.getBoundingClientRect();
+              if (box.right <= limit + 1 || box.width === 0) return false;
+              for (
+                let parent = element.parentElement;
+                parent && parent !== document.body;
+                parent = parent.parentElement
+              ) {
+                if (getComputedStyle(parent).overflowX !== "visible")
+                  return false;
+              }
+              return true;
+            })
+            .slice(0, 10)
+            .map(
+              (element) =>
+                `${element.tagName.toLowerCase()} right=${Math.round(element.getBoundingClientRect().right)} text="${(element.textContent ?? "").trim().slice(0, 50)}"`,
+            );
+        });
+        const pageFits = await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        );
         expect(
-          await page.evaluate(
-            () => document.documentElement.scrollWidth <= window.innerWidth,
-          ),
+          pageFits,
+          `page overflows ${width}px ${dark ? "dark" : "light"}; offenders: ${offenders.join(" | ") || "none found outside scroll containers"}`,
         ).toBe(true);
         await expectNoWcag22AaViolations(
           page,
