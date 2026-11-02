@@ -38,4 +38,5 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   TASK_SUBMITTED: "Work submitted for your review",
   TASK_REPORT_TO_ASSIGNED: "You receive a task's reports",
   TASK_BLOCKED: "Task blocked",
+  TASK_REVIEWER_CHANGED: "Task reviewer changed",
 };

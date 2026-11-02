@@ -370,8 +370,16 @@ describe("task assignment and collaboration API", () => {
       body<{ mentionedUsers: Array<{ id: string }> }>(comment).mentionedUsers,
     ).toEqual([expect.objectContaining({ id: departmentManager.id })]);
 
-    const changes = await as(
+    // Super Admin created and assigned the task, so Super Admin is the only
+    // person who can request changes; the assigned manager cannot.
+    const notReviewer = await as(
       departmentManager,
+      "post",
+      `/api/v1/tasks/${created.id}/reviews`,
+    ).send({ outcome: "CHANGES_REQUESTED", note: "Add the permit number." });
+    expect(notReviewer.status).toBe(403);
+    const changes = await as(
+      management,
       "post",
       `/api/v1/tasks/${created.id}/reviews`,
     ).send({ outcome: "CHANGES_REQUESTED", note: "Add the permit number." });
@@ -380,7 +388,7 @@ describe("task assignment and collaboration API", () => {
 
     await as(member, "post", `/api/v1/tasks/${created.id}/submit`).expect(200);
     const approved = await as(
-      departmentManager,
+      management,
       "post",
       `/api/v1/tasks/${created.id}/reviews`,
     ).send({ outcome: "APPROVED" });
@@ -827,7 +835,7 @@ describe("task assignment and collaboration API", () => {
     expect(body<{ code: string }>(reviewRequired).code).toBe(
       "TASK_INVALID_TRANSITION",
     );
-    await as(departmentManager, "post", `/api/v1/tasks/${created.id}/reviews`)
+    await as(management, "post", `/api/v1/tasks/${created.id}/reviews`)
       .send({ outcome: "APPROVED" })
       .expect(201);
     await as(member, "post", `/api/v1/tasks/${created.id}/transition`)
@@ -994,7 +1002,7 @@ describe("task assignment and collaboration API", () => {
     );
     expect(directAssign.status).toBe(400);
     expect(body<{ code: string }>(directAssign).code).toBe(
-      "TASK_ASSIGNEE_OUTSIDE_DEPARTMENT",
+      "TASK_ASSIGNEE_NOT_ELIGIBLE",
     );
   });
 
@@ -1370,11 +1378,7 @@ describe("task assignment and collaboration API", () => {
   });
 
   it("aggregates a parent's progress from its subtasks rather than its own checklist", async () => {
-    const parentResponse = await as(
-      departmentManager,
-      "post",
-      "/api/v1/tasks",
-    ).send({
+    const parentResponse = await as(management, "post", "/api/v1/tasks").send({
       title: "Campaign rollout",
       departmentId,
       assigneeId: departmentManager.id,
@@ -1404,11 +1408,7 @@ describe("task assignment and collaboration API", () => {
     );
     expect(body<TaskBody>(fullyChecked).progress).toBe(100);
 
-    const subtaskResponse = await as(
-      departmentManager,
-      "post",
-      "/api/v1/tasks",
-    ).send({
+    const subtaskResponse = await as(management, "post", "/api/v1/tasks").send({
       title: "Draft the social copy",
       parentTaskId: parent.id,
       // The subtask's own checklist toggle below needs an actual assignee
@@ -1517,7 +1517,7 @@ describe("task assignment and collaboration API", () => {
     );
     expect(directAssign.status).toBe(400);
     expect(body<{ code: string }>(directAssign).code).toBe(
-      "TASK_ASSIGNEE_OUTSIDE_DEPARTMENT",
+      "TASK_ASSIGNEE_NOT_ELIGIBLE",
     );
   });
 
@@ -1552,5 +1552,179 @@ describe("task assignment and collaboration API", () => {
       `/api/v1/tasks/eligible-assignees?departmentId=${departmentId}`,
     );
     expect(asMember.status).toBe(403);
+  });
+
+  it("gives simultaneous task creations distinct identifiers through the API", async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 10 }, (_, index) =>
+        Promise.resolve(
+          as(management, "post", "/api/v1/tasks").send({
+            title: `Parallel create ${index}`,
+            departmentId,
+          }),
+        ),
+      ),
+    );
+    expect(responses.every((response) => response.status === 201)).toBe(true);
+    const identifiers = responses.map(
+      (response) => body<{ identifier: string }>(response).identifier,
+    );
+    expect(new Set(identifiers).size).toBe(identifiers.length);
+    for (const identifier of identifiers) {
+      expect(identifier).toMatch(/^TSK-\d{3,}$/);
+    }
+  });
+
+  it("refuses a checklist write that waits behind a review, once the review commits", async () => {
+    const created = await as(management, "post", "/api/v1/tasks").send({
+      title: "Checklist under concurrent review",
+      departmentId,
+      assigneeId: member.id,
+    });
+    expect(created.status).toBe(201);
+    const taskId = body<TaskBody>(created).id;
+    const before = await prisma.taskChecklistItem.count({ where: { taskId } });
+
+    // The review transaction holds the task row lock and moves the task to
+    // UNDER_REVIEW. The checklist add is sent while it is open: the request
+    // passes the service's status check (still TODO), then blocks on the row
+    // lock. Once the review commits, the add must read UNDER_REVIEW and refuse.
+    let pending: Promise<request.Response> | undefined;
+    await prisma.$transaction(async (tx) => {
+      await tx.task.update({
+        where: { id: taskId },
+        data: { status: "UNDER_REVIEW" },
+      });
+      // Promise.resolve starts the request now; supertest sends it only when
+      // it is awaited, which would otherwise happen after the commit.
+      pending = Promise.resolve(
+        as(
+          departmentManager,
+          "post",
+          `/api/v1/tasks/${taskId}/checklist-items`,
+        ).send({
+          description: "Added while under review",
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    });
+    const late = await pending!;
+    expect(late.status).toBe(409);
+    expect(body<{ code: string }>(late).code).toBe("TASK_CHECKLIST_LOCKED");
+    expect(await prisma.taskChecklistItem.count({ where: { taskId } })).toBe(
+      before,
+    );
+  });
+
+  it("lists tasks needing a reviewer, pages them exactly, and clears them when a reviewer is named", async () => {
+    // A task whose creator is also its only assignee has no eligible reviewer.
+    const orphan = await prisma.task.create({
+      data: {
+        title: "Needs a reviewer",
+        departmentId,
+        createdById: member.id,
+        reportToId: null,
+        assignments: {
+          create: [{ userId: member.id, assignedById: management.id }],
+        },
+      },
+    });
+    const normal = await as(management, "post", "/api/v1/tasks").send({
+      title: "Has a reviewer",
+      departmentId,
+      assigneeId: member.id,
+    });
+    expect(normal.status).toBe(201);
+
+    const needed = await as(
+      management,
+      "get",
+      "/api/v1/tasks?reviewerUnresolved=true&pageSize=1&page=1",
+    );
+    expect(needed.status).toBe(200);
+    expect(body<{ total: number }>(needed).total).toBeGreaterThanOrEqual(1);
+    const everyIsNeeded = await as(
+      management,
+      "get",
+      "/api/v1/tasks?reviewerUnresolved=true&pageSize=100",
+    );
+    const neededIds = body<{
+      items: Array<{ id: string; reviewerUnresolved: boolean | null }>;
+    }>(everyIsNeeded).items.map((item) => item.id);
+    expect(neededIds).toContain(orphan.id);
+    expect(neededIds).not.toContain(body<TaskBody>(normal).id);
+
+    // The detail view agrees with the filter.
+    const detail = await as(management, "get", `/api/v1/tasks/${orphan.id}`);
+    expect(
+      body<{ reviewerUnresolved: boolean }>(detail).reviewerUnresolved,
+    ).toBe(true);
+
+    // Super Admin names an eligible reviewer; the task leaves the filter.
+    const named = await as(
+      management,
+      "put",
+      `/api/v1/tasks/${orphan.id}/reviewer`,
+    ).send({
+      reviewerId: departmentManager.id,
+      reason: "Assigned to the manager",
+    });
+    expect(named.status, JSON.stringify(named.body)).toBe(200);
+    const afterNamed = await as(
+      management,
+      "get",
+      "/api/v1/tasks?reviewerUnresolved=true&pageSize=100",
+    );
+    expect(
+      body<{ items: Array<{ id: string }> }>(afterNamed).items.map(
+        (item) => item.id,
+      ),
+    ).not.toContain(orphan.id);
+  });
+
+  it("returns the parent task summary only to viewers who can see the parent", async () => {
+    const parentResponse = await as(management, "post", "/api/v1/tasks").send({
+      title: "Parent launch plan",
+      departmentId,
+      assigneeId: departmentManager.id,
+    });
+    expect(parentResponse.status).toBe(201);
+    const parent = body<TaskBody>(parentResponse);
+    const subtaskResponse = await as(management, "post", "/api/v1/tasks").send({
+      title: "Parent launch subtask",
+      departmentId,
+      parentTaskId: parent.id,
+      assigneeId: member.id,
+    });
+    expect(subtaskResponse.status, JSON.stringify(subtaskResponse.body)).toBe(
+      201,
+    );
+    const subtask = body<TaskBody>(subtaskResponse);
+
+    const asManager = await as(
+      departmentManager,
+      "get",
+      `/api/v1/tasks/${subtask.id}`,
+    );
+    expect(asManager.status).toBe(200);
+    const parentSeen = body<{
+      parentTask: {
+        id: string;
+        identifier: string;
+        title: string;
+        status: string;
+      } | null;
+    }>(asManager).parentTask;
+    expect(parentSeen).toMatchObject({
+      id: parent.id,
+      title: "Parent launch plan",
+      status: "TODO",
+    });
+    expect(parentSeen?.identifier).toMatch(/^TSK-\d{3,}$/);
+
+    // The subtask's assignee sees the subtask but not the parent: no leak.
+    const asMember = await as(member, "get", `/api/v1/tasks/${subtask.id}`);
+    expect(asMember.status).toBe(200);
+    expect(body<{ parentTask: unknown }>(asMember).parentTask).toBeNull();
   });
 });

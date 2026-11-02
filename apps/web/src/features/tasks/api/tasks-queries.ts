@@ -43,8 +43,15 @@ export function useTaskMutations(access: CurrentAccess) {
       onSettled: reconcile,
     }),
     setReportTo: useMutation({
-      mutationFn: ({ id, reportToId }: { id: string; reportToId: string }) =>
-        gateway.setTaskReportTo(id, reportToId),
+      mutationFn: ({
+        id,
+        reviewerId,
+        reason,
+      }: {
+        id: string;
+        reviewerId: string;
+        reason: string;
+      }) => gateway.setTaskReportTo(id, reviewerId, reason),
       onSettled: reconcile,
     }),
     comment: useMutation({

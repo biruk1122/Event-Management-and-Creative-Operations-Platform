@@ -126,6 +126,9 @@ export async function createIsolatedDatabase(
             WHERE table_schema = $1
               AND table_type = 'BASE TABLE'
               AND table_name <> '_prisma_migrations'
+              -- The task number counter must survive resets: next_task_number()
+              -- needs its single row, and numbers only ever move forward.
+              AND table_name <> 'task_number_counters'
             ORDER BY table_name`,
           [schema],
         );

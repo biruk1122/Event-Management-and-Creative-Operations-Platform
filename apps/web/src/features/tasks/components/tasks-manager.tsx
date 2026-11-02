@@ -90,17 +90,18 @@ function creatorGatedFor(access: CurrentAccess, permissionKey: string) {
  * keep the earlier creator/organization rule, which never included Admin.
  * An assignee can never review their own work.
  */
+/**
+ * Only the task's designated reviewer may approve or request changes - Super
+ * Admin included. The designated reviewer is the stored reporting recipient,
+ * or, for older tasks without one, the recorded creator. The server makes the
+ * final call; this only decides whether the review panel is offered.
+ */
 function canReviewFor(access: CurrentAccess) {
-  const legacy = creatorGatedFor(access, "task.review");
   return (task: Task) => {
     if (!hasGrant(access, "task.review")) return false;
     if (isAssignee(task, access.userId)) return false;
-    if (task.reportTo) {
-      return (
-        task.reportTo.id === access.userId || access.role === "SUPER_ADMIN"
-      );
-    }
-    return access.role !== "ADMIN" && legacy(task);
+    const designated = task.reportTo?.id ?? task.createdBy?.id ?? null;
+    return designated === access.userId;
   };
 }
 
@@ -247,8 +248,8 @@ export function TasksManager({ access }: { access: CurrentAccess }) {
           canSetReportTo: access.role === "SUPER_ADMIN",
           loadEligibleRecipients: (departmentId, signal) =>
             gateway.listEligibleRecipients(departmentId, signal),
-          setReportTo: (id, reportToId) =>
-            mutations.setReportTo.mutateAsync({ id, reportToId }),
+          setReportTo: (id, reviewerId, reason) =>
+            mutations.setReportTo.mutateAsync({ id, reviewerId, reason }),
           canUpload: hasGrant(access, "task.attachment.create"),
           canAssign: hasGrant(access, "task.assign"),
           canManageAssignees: canManageAssigneesFor(access),

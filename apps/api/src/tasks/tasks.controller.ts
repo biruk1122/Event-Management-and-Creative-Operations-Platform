@@ -41,6 +41,7 @@ import { ListEligibleAssigneesQueryDto } from "./dto/list-eligible-assignees-que
 import { ListEligibleRecipientsQueryDto } from "./dto/list-eligible-recipients-query.dto.js";
 import { ListTaskFeedQueryDto } from "./dto/list-task-feed-query.dto.js";
 import { ListTasksQueryDto } from "./dto/list-tasks-query.dto.js";
+import { ChangeTaskReviewerDto } from "./dto/change-task-reviewer.dto.js";
 import { ReviewTaskDto } from "./dto/review-task.dto.js";
 import { ToggleTaskChecklistItemDto } from "./dto/toggle-task-checklist-item.dto.js";
 import { TransitionTaskDto } from "./dto/transition-task.dto.js";
@@ -183,7 +184,7 @@ export class TasksController {
     @Param("id") id: string,
     @Body() body: UpdateTaskDto,
   ): Promise<TaskResponse> {
-    return this.tasks.update(actingUserId(request), id, body, request.id);
+    return this.tasks.update(actingUserId(request), id, body);
   }
 
   @Put(":id/assignees/:userId")
@@ -389,6 +390,31 @@ export class TasksController {
     );
   }
 
+  @Put(":id/reviewer")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("task.review")
+  @ApiOperation({
+    summary:
+      "Super Admin: change a task's designated reviewer, with a reason. Recorded in activity and audit.",
+  })
+  @ApiOkResponse({ type: TaskResponse })
+  @ApiForbiddenResponse({ type: ProblemDetails })
+  @ApiBadRequestResponse({ type: ProblemDetails })
+  @ApiNotFoundResponse({ type: ProblemDetails, description: "Task not found" })
+  async changeReviewer(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: ChangeTaskReviewerDto,
+  ): Promise<TaskResponse> {
+    return this.tasks.changeReviewer(
+      actingUserId(request),
+      id,
+      body,
+      request.id,
+    );
+  }
+
   @Post(":id/reviews")
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
@@ -450,6 +476,22 @@ export class TasksController {
     @Query() query: ListTaskFeedQueryDto,
   ): Promise<PaginatedTaskCommentsResponse> {
     return this.tasks.listComments(actingUserId(request), id, query);
+  }
+
+  @Get(":id/review-history")
+  @RequirePermissions("task.read")
+  @ApiOperation({
+    summary:
+      "List the review history: submissions, review decisions with notes, and reviewer changes",
+  })
+  @ApiOkResponse({ type: PaginatedTaskActivitiesResponse })
+  @ApiNotFoundResponse({ type: ProblemDetails, description: "Task not found" })
+  async listReviewHistory(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Query() query: ListTaskFeedQueryDto,
+  ): Promise<PaginatedTaskActivitiesResponse> {
+    return this.tasks.listReviewHistory(actingUserId(request), id, query);
   }
 
   @Get(":id/activity")

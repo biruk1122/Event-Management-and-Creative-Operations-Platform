@@ -81,6 +81,22 @@ export class CreateTaskDto {
   @IsUUID()
   reportToId?: string;
 
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Optional related event.",
+  })
+  @IsOptional()
+  @IsUUID()
+  relatedEventId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "Optional related campaign.",
+  })
+  @IsOptional()
+  @IsUUID()
+  relatedCampaignId?: string;
+
   @ApiPropertyOptional({ format: "date-time" })
   @IsOptional()
   @IsISO8601({ strict: true })

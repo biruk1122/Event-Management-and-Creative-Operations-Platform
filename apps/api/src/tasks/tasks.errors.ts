@@ -23,7 +23,80 @@ export const TASK_ERROR = {
   checklistItemOwnershipDenied: "TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED",
   reportToInvalid: "TASK_REPORT_TO_INVALID",
   assigneeNotEligible: "TASK_ASSIGNEE_NOT_ELIGIBLE",
+  relatedNotFound: "TASK_RELATED_NOT_FOUND",
+  reviewNoteRequired: "TASK_REVIEW_NOTE_REQUIRED",
+  reviewerUnresolved: "TASK_REVIEWER_UNRESOLVED",
+  reviewerInvalid: "TASK_REVIEWER_INVALID",
+  reviewerReasonRequired: "TASK_REVIEWER_REASON_REQUIRED",
+  checklistLocked: "TASK_CHECKLIST_LOCKED",
+  subtaskNotAllowed: "TASK_SUBTASK_NOT_ALLOWED",
 } as const;
+
+export function taskRelatedNotFound(): HttpException {
+  return new BadRequestException({
+    code: TASK_ERROR.relatedNotFound,
+    error: "Bad Request",
+    detail: "The related event or campaign does not exist.",
+  });
+}
+
+/** TSK-### identifier from the task number (zero-padded to three digits). */
+export function taskIdentifier(taskNumber: number): string {
+  return `TSK-${String(taskNumber).padStart(3, "0")}`;
+}
+
+export function taskReviewNoteRequired(): HttpException {
+  return new BadRequestException({
+    code: TASK_ERROR.reviewNoteRequired,
+    error: "Bad Request",
+    detail:
+      "Explain the requested changes in a note so the assignee can act on them.",
+  });
+}
+
+export function taskReviewerUnresolved(): HttpException {
+  return new ConflictException({
+    code: TASK_ERROR.reviewerUnresolved,
+    error: "Conflict",
+    detail:
+      "This task has no eligible reviewer. A Super Admin must designate one before it can be approved or sent back.",
+  });
+}
+
+export function taskReviewerInvalid(): HttpException {
+  return new BadRequestException({
+    code: TASK_ERROR.reviewerInvalid,
+    error: "Bad Request",
+    detail:
+      "The reviewer must be an active person who can review this department and is not assigned to the task.",
+  });
+}
+
+export function taskReviewerReasonRequired(): HttpException {
+  return new BadRequestException({
+    code: TASK_ERROR.reviewerReasonRequired,
+    error: "Bad Request",
+    detail: "Give a reason for changing the reviewer.",
+  });
+}
+
+export function taskChecklistLocked(): HttpException {
+  return new ConflictException({
+    code: TASK_ERROR.checklistLocked,
+    error: "Conflict",
+    detail:
+      "The checklist is locked while the task is under review, completed or cancelled.",
+  });
+}
+
+export function taskSubtaskNotAllowed(): HttpException {
+  return new ForbiddenException({
+    code: TASK_ERROR.subtaskNotAllowed,
+    error: "Forbidden",
+    detail:
+      "You can only create subtasks under tasks you created or are assigned to.",
+  });
+}
 
 export function taskAssigneeNotEligible(): HttpException {
   return new BadRequestException({

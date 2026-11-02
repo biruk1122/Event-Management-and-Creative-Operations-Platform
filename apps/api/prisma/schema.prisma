@@ -788,6 +788,12 @@ enum TaskActivityType {
   CHECKLIST_ITEM_REORDERED
   /// The task's reporting recipient was set or changed (from, to, reason).
   REPORT_TO_CHANGED
+  /// Work was submitted for review (who, when). Every resubmission adds one.
+  SUBMITTED_FOR_REVIEW
+  /// A subtask was created under this task (recorded on the parent).
+  SUBTASK_ADDED
+  /// A subtask of this task changed status or progress (recorded on the parent).
+  SUBTASK_UPDATED
 
   @@map("task_activity_type")
 }
@@ -797,48 +803,58 @@ enum TaskActivityType {
 /// a polymorphic entity-type/id pair; department ownership supports general
 /// departmental work. A database CHECK requires at least one explicit owner.
 model Task {
-  id              String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  workspaceId     String?      @map("workspace_id") @db.Uuid
-  departmentId    String?      @map("department_id") @db.Uuid
-  title           String
-  description     String?
-  priority        TaskPriority @default(MEDIUM)
-  type            TaskType     @default(GENERAL)
-  status          TaskStatus   @default(TODO)
+  id                String       @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  workspaceId       String?      @map("workspace_id") @db.Uuid
+  departmentId      String?      @map("department_id") @db.Uuid
+  title             String
+  description       String?
+  priority          TaskPriority @default(MEDIUM)
+  type              TaskType     @default(GENERAL)
+  status            TaskStatus   @default(TODO)
   /// Server-computed from checklist items or, when subtasks exist, from the
   /// mean of direct children's own progress (subtasks always win over this
   /// task's own checklist). NULL means "not tracked" - no checklist items
   /// and no subtasks - never a fabricated 0. Never client-settable, and
   /// reaching 100 never implies review approval (TasksService.review()
   /// owns that decision independently).
-  progress        Int?
-  startAt         DateTime?    @map("start_at") @db.Timestamptz(6)
-  dueAt           DateTime?    @map("due_at") @db.Timestamptz(6)
+  progress          Int?
+  startAt           DateTime?    @map("start_at") @db.Timestamptz(6)
+  dueAt             DateTime?    @map("due_at") @db.Timestamptz(6)
   /// The meeting this task was created from as an action item (EOM-01), or
   /// NULL for an ordinary task. Cleared, not cascaded, if that meeting row is
   /// removed - the task itself stays a real, assignable, trackable task.
-  sourceMeetingId String?      @map("source_meeting_id") @db.Uuid
+  sourceMeetingId   String?      @map("source_meeting_id") @db.Uuid
   /// The higher-level assignment this task was broken down from (e.g. a
   /// Department Manager's subordinate task created from a Super Admin's
   /// directive), or NULL for an ordinary, top-level task. Completing every
   /// subtask never auto-transitions the parent - that only happens through
   /// an explicit review/transition on the parent itself, enforced in the
   /// application layer (TasksService), not here.
-  parentTaskId    String?      @map("parent_task_id") @db.Uuid
-  createdById     String?      @map("created_by_id") @db.Uuid
+  parentTaskId      String?      @map("parent_task_id") @db.Uuid
+  createdById       String?      @map("created_by_id") @db.Uuid
   /// Who receives this task's progress/completion reports and decides its
   /// review. Decided per task (default: the person who assigns it; Super
   /// Admin may pin another), never inferred from the assignee's role. NULL on
   /// tasks created before per-task recipients existed, which keep the earlier
   /// "anyone holding task.review in scope" behavior.
-  reportToId      String?      @map("report_to_id") @db.Uuid
+  reportToId        String?      @map("report_to_id") @db.Uuid
   /// True once Super Admin explicitly selected the recipient; later
   /// assignments by someone else then no longer replace it.
-  reportToPinned  Boolean      @default(false) @map("report_to_pinned")
-  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  reportToPinned    Boolean      @default(false) @map("report_to_pinned")
+  /// Human-readable number behind the TSK-### identifier, drawn from the
+  /// `task_number_counters` row by `next_task_number()` on every insert, so
+  /// concurrent creates can never receive the same number.
+  taskNumber        Int          @unique @default(dbgenerated("next_task_number()")) @map("task_number")
+  /// Optional business links chosen at creation or edit. Cleared, not
+  /// cascaded, if the linked event or campaign is removed.
+  relatedEventId    String?      @map("related_event_id") @db.Uuid
+  relatedCampaignId String?      @map("related_campaign_id") @db.Uuid
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace       Workspace?          @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  relatedEvent    Event?              @relation("TaskRelatedEvent", fields: [relatedEventId], references: [id], onDelete: SetNull)
+  relatedCampaign Campaign?           @relation("TaskRelatedCampaign", fields: [relatedCampaignId], references: [id], onDelete: SetNull)
   department      Department?         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   sourceMeeting   Meeting?            @relation(fields: [sourceMeetingId], references: [id], onDelete: SetNull)
   parent          Task?               @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
@@ -867,6 +883,8 @@ model Task {
   @@index([reportToId])
   @@index([sourceMeetingId])
   @@index([parentTaskId])
+  @@index([relatedEventId])
+  @@index([relatedCampaignId])
   @@map("tasks")
 }
 
@@ -1113,6 +1131,7 @@ model Event {
   expenses          Expense[]
   partners          Partner[]
   shifts            EventShift[]
+  relatedTasks      Task[]          @relation("TaskRelatedEvent")
 
   // Administration and the connected-workspace overview filter events by
   // lifecycle state, type, schedule, author, and (EOM-01) owning department.
@@ -1564,6 +1583,7 @@ model Campaign {
   promotionActivities PromotionActivity[]
   expenses            Expense[]
   partners            Partner[]
+  relatedTasks        Task[]              @relation("TaskRelatedCampaign")
 
   // Supports a composite FK that fixes promotion detail ownership to PROMOTION.
   @@unique([id, campaignType])
@@ -2110,6 +2130,9 @@ enum NotificationType {
   TASK_REPORT_TO_ASSIGNED
   /// A task became blocked; escalates to its reporting recipient.
   TASK_BLOCKED
+  /// The designated reviewer of a task changed (Super Admin's explicit action).
+  /// Sent to the new reviewer and to the task's other participants.
+  TASK_REVIEWER_CHANGED
 
   @@map("notification_type")
 }
@@ -3540,4 +3563,13 @@ model LeaveRequest {
   @@index([leaveTypeId])
   @@index([startDate, endDate])
   @@map("leave_requests")
+}
+
+/// Single-row counter behind Task.taskNumber (TSK-###). Incremented only by
+/// next_task_number(); the CHECK constraints in the migration keep it to one row.
+model TaskNumberCounter {
+  id        Int @id @default(1)
+  lastValue Int @map("last_value")
+
+  @@map("task_number_counters")
 }

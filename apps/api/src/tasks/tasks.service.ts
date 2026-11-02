@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 
 import type { AuditWorkspaceContextResolver } from "../audit/audit-workspace-context.js";
 import {
+  TaskReviewOutcome,
   TaskStatus,
   type PermissionScope,
   type Prisma,
@@ -13,10 +14,16 @@ import {
   type PlatformRole,
 } from "../common/security/department-access.policy.js";
 import {
+  canAssignRole,
+  canCreateSubtaskUnder,
   canReviewTask,
-  resolveInitialReportTo,
   isEligibleExplicitRecipient,
+  isEligibleReviewer,
+  resolveDesignatedReviewer,
+  resolveInitialReportTo,
+  type DesignatedReviewer,
   type RecipientCandidate,
+  type ReviewerCandidate,
 } from "./tasks-report-to.domain.js";
 import type { CreateTaskChecklistItemDto } from "./dto/create-task-checklist-item.dto.js";
 import type { CreateTaskCommentDto } from "./dto/create-task-comment.dto.js";
@@ -26,7 +33,9 @@ import {
   TaskSort,
   type ListTasksQueryDto,
 } from "./dto/list-tasks-query.dto.js";
+import type { ChangeTaskReviewerDto } from "./dto/change-task-reviewer.dto.js";
 import type { ReviewTaskDto } from "./dto/review-task.dto.js";
+
 import type {
   ReorderTaskChecklistItemsDto,
   UpdateTaskChecklistItemDto,
@@ -46,6 +55,7 @@ import {
   taskAssigneeOutsideDepartment,
   taskChecklistItemNotFound,
   taskChecklistItemOwnershipDenied,
+  taskChecklistLocked,
   taskChecklistReorderMismatch,
   taskConcurrentChange,
   taskDepartmentNotFound,
@@ -54,7 +64,14 @@ import {
   taskOwnerRequired,
   taskReportToInvalid,
   taskAssigneeNotEligible,
+  taskIdentifier,
+  taskRelatedNotFound,
+  taskReviewNoteRequired,
+  taskReviewerInvalid,
+  taskReviewerReasonRequired,
+  taskReviewerUnresolved,
   taskReviewStateConflict,
+  taskSubtaskNotAllowed,
   taskScheduleInvalid,
   taskUserNotFound,
   taskWorkspaceNotFound,
@@ -72,6 +89,20 @@ import {
   type TaskVisibility,
   type UpdateTaskFields,
 } from "./infrastructure/tasks.repository.js";
+
+/** A reviewer's standing, independent of any one task's assignees. */
+type ReviewerBase = Omit<ReviewerCandidate, "isAssignee">;
+
+/** Checklist changes are closed while work is awaiting, or past, review. */
+function assertChecklistOpen(task: TaskRecord): void {
+  if (
+    task.status === TaskStatus.UNDER_REVIEW ||
+    task.status === TaskStatus.COMPLETED ||
+    task.status === TaskStatus.CANCELLED
+  ) {
+    throw taskChecklistLocked();
+  }
+}
 
 @Injectable()
 export class TasksService implements AuditWorkspaceContextResolver {
@@ -94,6 +125,80 @@ export class TasksService implements AuditWorkspaceContextResolver {
 
   private async actorRole(actingUserId: string): Promise<PlatformRole | null> {
     return (await this.permissions.getAccessContext(actingUserId)).role;
+  }
+
+  /**
+   * Whether a person may review this task: active, not one of its assignees,
+   * and holding task.review for the task's department (organization scope, or
+   * department scope within the same department).
+   */
+  private async reviewerCandidate(
+    task: TaskRecord,
+    userId: string | null,
+    cache?: Map<string, ReviewerBase | null>,
+  ): Promise<ReviewerCandidate | null> {
+    return this.reviewerCandidateFor(
+      task.departmentId,
+      task.assignees.map((assignee) => assignee.id),
+      userId,
+      cache,
+    );
+  }
+
+  private async reviewerCandidateFor(
+    departmentId: string | null,
+    assigneeIds: readonly string[],
+    userId: string | null,
+    cache?: Map<string, ReviewerBase | null>,
+  ): Promise<ReviewerCandidate | null> {
+    if (!userId) return null;
+    const key = `${userId}|${departmentId ?? ""}`;
+    let base = cache?.get(key);
+    if (base === undefined) {
+      base = await this.reviewerBase(userId, departmentId);
+      cache?.set(key, base);
+    }
+    return base ? { ...base, isAssignee: assigneeIds.includes(userId) } : null;
+  }
+
+  /** Everything about a reviewer that does not depend on the task's assignees. */
+  private async reviewerBase(
+    userId: string,
+    departmentId: string | null,
+  ): Promise<ReviewerBase | null> {
+    const record = await this.repository.findRecipientCandidate(userId);
+    if (!record) return null;
+    const organization = await this.hasGrant(
+      userId,
+      "task.review",
+      "ORGANIZATION",
+    );
+    const sameDepartment =
+      departmentId !== null && record.departmentId === departmentId;
+    const department =
+      !organization &&
+      sameDepartment &&
+      (await this.hasGrant(userId, "task.review", "DEPARTMENT"));
+    return {
+      id: record.id,
+      active: record.active,
+      canReview: organization || department,
+    };
+  }
+
+  /** The one reviewer this task answers to right now. */
+  private async designatedReviewer(
+    task: TaskRecord,
+    cache?: Map<string, ReviewerBase | null>,
+  ): Promise<DesignatedReviewer> {
+    const reportToId = task.reportTo?.id ?? null;
+    return resolveDesignatedReviewer({
+      reportToId,
+      reportTo: await this.reviewerCandidate(task, reportToId, cache),
+      creator: reportToId
+        ? null
+        : await this.reviewerCandidate(task, task.createdBy?.id ?? null, cache),
+    });
   }
 
   private async recipientCandidate(
@@ -167,6 +272,29 @@ export class TasksService implements AuditWorkspaceContextResolver {
     return false;
   }
 
+  /**
+   * Adding, editing and removing checkpoints: anyone holding task.update in
+   * scope (creator/assigner, managers, Admin, Super Admin) may write them; the
+   * assignee may too, limited to the items they created (enforced by the
+   * repository's owner check).
+   */
+  private async checklistWriteContext(
+    actingUserId: string,
+    taskId: string,
+  ): Promise<{ task: TaskRecord; visibility: TaskVisibility }> {
+    const organizer =
+      (await this.hasGrant(actingUserId, "task.update", "ORGANIZATION")) ||
+      (await this.hasGrant(actingUserId, "task.update", "DEPARTMENT"));
+    return organizer
+      ? this.mutationContext(actingUserId, taskId, "task.update")
+      : this.mutationContext(
+          actingUserId,
+          taskId,
+          "task.update_progress",
+          "assignee",
+        );
+  }
+
   private async mutationContext(
     actingUserId: string,
     taskId: string,
@@ -222,6 +350,9 @@ export class TasksService implements AuditWorkspaceContextResolver {
     query: ListTasksQueryDto,
   ): Promise<PaginatedTasksResponse> {
     const visibility = await this.visibilityFor(actingUserId, "task.read");
+    if (query.reviewerUnresolved === true) {
+      return this.listReviewerNeeded(query, visibility);
+    }
     const { items, total } = await this.repository.list({
       visibility,
       ...(query.status ? { status: query.status } : {}),
@@ -257,13 +388,93 @@ export class TasksService implements AuditWorkspaceContextResolver {
     };
   }
 
+  /**
+   * "Reviewer needed": visible tasks with no eligible designated reviewer. The
+   * eligibility rule is the one the details view uses, so the list and the
+   * details always agree. Matching tasks are found by scanning the other
+   * filters in batches, sharing one reviewer-eligibility cache, then the
+   * requested page is cut from the matches, so the total is exact.
+   */
+  private async listReviewerNeeded(
+    query: ListTasksQueryDto,
+    visibility: TaskVisibility,
+  ): Promise<PaginatedTasksResponse> {
+    const batchSize = 200;
+    const cache = new Map<string, ReviewerBase | null>();
+    const matches: TaskRecord[] = [];
+    const params = {
+      visibility,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.priority ? { priority: query.priority } : {}),
+      ...(query.workspaceId ? { workspaceId: query.workspaceId } : {}),
+      ...(query.departmentId ? { departmentId: query.departmentId } : {}),
+      ...(query.parentTaskId ? { parentTaskId: query.parentTaskId } : {}),
+      ...(query.assigneeId ? { assigneeId: query.assigneeId } : {}),
+      ...(query.createdById ? { createdById: query.createdById } : {}),
+      ...(query.reportToId ? { reportToId: query.reportToId } : {}),
+      ...(query.search?.trim() ? { search: query.search.trim() } : {}),
+      ...(query.scheduledFrom
+        ? { scheduledFrom: new Date(query.scheduledFrom) }
+        : {}),
+      ...(query.scheduledTo
+        ? { scheduledTo: new Date(query.scheduledTo) }
+        : {}),
+      ...(query.overdue !== undefined ? { overdue: query.overdue } : {}),
+      sort:
+        query.sort === TaskSort.DUE_AT
+          ? ("due" as const)
+          : query.sort === TaskSort.START_AT
+            ? ("start" as const)
+            : ("updated" as const),
+    };
+    for (let page = 1; ; page++) {
+      const { items } = await this.repository.list({
+        ...params,
+        page,
+        pageSize: batchSize,
+      });
+      for (const task of items) {
+        const designated = await this.designatedReviewer(task, cache);
+        if (designated.status === "unresolved") matches.push(task);
+      }
+      if (items.length < batchSize) break;
+    }
+    const start = (query.page - 1) * query.pageSize;
+    return {
+      items: matches
+        .slice(start, start + query.pageSize)
+        .map((task) => toTaskResponse(task)),
+      page: query.page,
+      pageSize: query.pageSize,
+      total: matches.length,
+    };
+  }
+
   async get(actingUserId: string, taskId: string): Promise<TaskResponse> {
     const task = await this.authorize(actingUserId, taskId, "task.read");
     // Only computed for the single-task detail view, not list/create, so an
     // ordinary task list never pays for a subtask-aggregation query it does
     // not need.
     const subtaskSummary = await this.repository.getSubtaskSummary(taskId);
-    return toTaskResponse(task, subtaskSummary);
+    const designated = await this.designatedReviewer(task);
+    const parent = task.parentTaskId
+      ? await this.repository.findVisibleParentSummary(
+          task.parentTaskId,
+          await this.visibilityFor(actingUserId, "task.read"),
+        )
+      : null;
+    return {
+      ...toTaskResponse(task, subtaskSummary),
+      reviewerUnresolved: designated.status === "unresolved",
+      parentTask: parent
+        ? {
+            id: parent.id,
+            identifier: taskIdentifier(parent.taskNumber),
+            title: parent.title,
+            status: parent.status,
+          }
+        : null,
+    };
   }
 
   async create(
@@ -286,17 +497,18 @@ export class TasksService implements AuditWorkspaceContextResolver {
         dto.parentTaskId,
         "task.read",
       );
-      // Only the parent's own assignee may break it into subordinate tasks -
-      // a department-scoped `task.create` grant alone would let any peer
-      // manager hijack someone else's assignment, not just the person it was
-      // actually delegated to. An organization-scoped caller (Super Admin)
-      // is never subject to this - the same "org scope always wins" idiom
-      // used throughout this service.
+      // Subtasks belong to the parent's own chain: Super Admin under any
+      // parent; Admin and Department Manager only under parents they created
+      // or are assigned to. Department Members never create subtasks.
       if (
-        !organization &&
-        !parent.assignees.some((assignee) => assignee.id === actingUserId)
+        !canCreateSubtaskUnder({
+          actorId: actingUserId,
+          actorRole: await this.actorRole(actingUserId),
+          parentCreatedById: parent.createdBy?.id ?? null,
+          parentAssigneeIds: parent.assignees.map((assignee) => assignee.id),
+        })
       ) {
-        throw permissionDenied();
+        throw taskSubtaskNotAllowed();
       }
     }
     const workspaceId = parent
@@ -346,6 +558,26 @@ export class TasksService implements AuditWorkspaceContextResolver {
       if (reportTo.reason === "not_allowed") throw permissionDenied();
       throw taskReportToInvalid();
     }
+    if (
+      dto.reportToId &&
+      !isEligibleReviewer(
+        await this.reviewerCandidateFor(
+          departmentId ?? null,
+          [dto.assigneeId].filter((id): id is string => Boolean(id)),
+          dto.reportToId,
+        ),
+      )
+    ) {
+      throw taskReviewerInvalid();
+    }
+    if (
+      !(await this.repository.relatedLinksExist({
+        eventId: dto.relatedEventId,
+        campaignId: dto.relatedCampaignId,
+      }))
+    ) {
+      throw taskRelatedNotFound();
+    }
     const task = await this.repository.create({
       title: dto.title.trim(),
       createdById: actingUserId,
@@ -354,6 +586,10 @@ export class TasksService implements AuditWorkspaceContextResolver {
       ...(workspaceId ? { workspaceId } : {}),
       ...(departmentId ? { departmentId } : {}),
       ...(parent ? { parentTaskId: parent.id } : {}),
+      ...(dto.relatedEventId ? { relatedEventId: dto.relatedEventId } : {}),
+      ...(dto.relatedCampaignId
+        ? { relatedCampaignId: dto.relatedCampaignId }
+        : {}),
       ...(dto.description !== undefined
         ? { description: dto.description.trim() }
         : {}),
@@ -376,7 +612,6 @@ export class TasksService implements AuditWorkspaceContextResolver {
     actingUserId: string,
     taskId: string,
     dto: UpdateTaskDto,
-    requestId = "",
   ): Promise<TaskResponse> {
     const { task, visibility } = await this.mutationContext(
       actingUserId,
@@ -403,19 +638,17 @@ export class TasksService implements AuditWorkspaceContextResolver {
         ? { dueAt: dto.dueAt === null ? null : new Date(dto.dueAt) }
         : {}),
     };
-    let nextReportTo: string | undefined;
-    if (dto.reportToId !== undefined) {
-      // Re-pointing a task's reporting recipient is Super Admin's decision.
-      if ((await this.actorRole(actingUserId)) !== "SUPER_ADMIN")
-        throw permissionDenied();
-      const candidate = await this.recipientCandidate(dto.reportToId);
-      if (
-        !candidate ||
-        !isEligibleExplicitRecipient(candidate, task.departmentId)
-      ) {
-        throw taskReportToInvalid();
-      }
-      nextReportTo = dto.reportToId;
+    if (dto.relatedEventId !== undefined)
+      fields.relatedEventId = dto.relatedEventId;
+    if (dto.relatedCampaignId !== undefined)
+      fields.relatedCampaignId = dto.relatedCampaignId;
+    if (
+      !(await this.repository.relatedLinksExist({
+        eventId: dto.relatedEventId,
+        campaignId: dto.relatedCampaignId,
+      }))
+    ) {
+      throw taskRelatedNotFound();
     }
     const details = changedFields(task, fields);
     const updated = await this.repository.update(
@@ -427,19 +660,6 @@ export class TasksService implements AuditWorkspaceContextResolver {
     );
     if (updated === "forbidden" || !updated)
       this.mutationUnavailable(visibility, updated);
-    if (nextReportTo) {
-      const repointed = await this.repository.setReportTo({
-        taskId,
-        reportToId: nextReportTo,
-        pinned: true,
-        actorId: actingUserId,
-        visibility,
-        requestId,
-      });
-      if (repointed === "forbidden" || !repointed)
-        this.mutationUnavailable(visibility, repointed);
-      return toTaskResponse(repointed);
-    }
     return toTaskResponse(updated);
   }
 
@@ -477,9 +697,11 @@ export class TasksService implements AuditWorkspaceContextResolver {
     assigneeId: string,
   ): Promise<void> {
     const candidate = await this.recipientCandidate(assigneeId);
-    if (candidate?.role !== "ADMIN") return;
-    if ((await this.actorRole(actingUserId)) !== "SUPER_ADMIN")
+    // An unknown user is reported by the assignment itself as not found.
+    if (!candidate) return;
+    if (!canAssignRole(await this.actorRole(actingUserId), candidate.role)) {
       throw taskAssigneeNotEligible();
+    }
   }
 
   /** Active staff of one department, for the create-task assignee picker. */
@@ -626,17 +848,18 @@ export class TasksService implements AuditWorkspaceContextResolver {
     taskId: string,
     dto: CreateTaskChecklistItemDto,
   ): Promise<TaskChecklistItemResponse> {
-    const { visibility } = await this.mutationContext(
+    const { task, visibility } = await this.checklistWriteContext(
       actingUserId,
       taskId,
-      "task.update",
     );
+    assertChecklistOpen(task);
     const result = await this.repository.createChecklistItem({
       taskId,
       description: dto.description.trim(),
       actorId: actingUserId,
       visibility,
     });
+    if (result === "locked") throw taskChecklistLocked();
     if (result === "forbidden" || !result)
       this.mutationUnavailable(visibility, result);
     return toChecklistItemResponse(result);
@@ -648,11 +871,11 @@ export class TasksService implements AuditWorkspaceContextResolver {
     itemId: string,
     dto: UpdateTaskChecklistItemDto,
   ): Promise<TaskChecklistItemResponse> {
-    const { visibility } = await this.mutationContext(
+    const { task, visibility } = await this.checklistWriteContext(
       actingUserId,
       taskId,
-      "task.update",
     );
+    assertChecklistOpen(task);
     const actorIsOrganizationScoped = await this.hasGrant(
       actingUserId,
       "task.update",
@@ -666,6 +889,7 @@ export class TasksService implements AuditWorkspaceContextResolver {
       visibility,
       actorIsOrganizationScoped,
     });
+    if (result === "locked") throw taskChecklistLocked();
     if (result === "ownership_denied") throw taskChecklistItemOwnershipDenied();
     if (result === "not_found") throw taskChecklistItemNotFound();
     if (result === "forbidden" || !result)
@@ -678,11 +902,11 @@ export class TasksService implements AuditWorkspaceContextResolver {
     taskId: string,
     itemId: string,
   ): Promise<void> {
-    const { visibility } = await this.mutationContext(
+    const { task, visibility } = await this.checklistWriteContext(
       actingUserId,
       taskId,
-      "task.update",
     );
+    assertChecklistOpen(task);
     const actorIsOrganizationScoped = await this.hasGrant(
       actingUserId,
       "task.update",
@@ -695,6 +919,7 @@ export class TasksService implements AuditWorkspaceContextResolver {
       visibility,
       actorIsOrganizationScoped,
     });
+    if (result === "locked") throw taskChecklistLocked();
     if (result === "ownership_denied") throw taskChecklistItemOwnershipDenied();
     if (result === "not_found") throw taskChecklistItemNotFound();
     if (result === "forbidden" || !result)
@@ -706,17 +931,19 @@ export class TasksService implements AuditWorkspaceContextResolver {
     taskId: string,
     dto: ReorderTaskChecklistItemsDto,
   ): Promise<TaskChecklistItemResponse[]> {
-    const { visibility } = await this.mutationContext(
+    const { task, visibility } = await this.mutationContext(
       actingUserId,
       taskId,
       "task.update",
     );
+    assertChecklistOpen(task);
     const result = await this.repository.reorderChecklistItems({
       taskId,
       orderedItemIds: dto.orderedItemIds,
       actorId: actingUserId,
       visibility,
     });
+    if (result === "locked") throw taskChecklistLocked();
     if (result === "mismatch") throw taskChecklistReorderMismatch();
     if (result === "forbidden" || !result)
       this.mutationUnavailable(visibility, result);
@@ -739,6 +966,7 @@ export class TasksService implements AuditWorkspaceContextResolver {
       "task.update_progress",
       "assignee",
     );
+    assertChecklistOpen(task);
     const result = await this.repository.setChecklistItemCompletion({
       taskId: task.id,
       itemId,
@@ -746,6 +974,7 @@ export class TasksService implements AuditWorkspaceContextResolver {
       actorId: actingUserId,
       visibility,
     });
+    if (result === "locked") throw taskChecklistLocked();
     if (result === "concurrent") throw taskConcurrentChange();
     if (result === "not_found") throw taskChecklistItemNotFound();
     if (result === "forbidden" || !result)
@@ -774,19 +1003,20 @@ export class TasksService implements AuditWorkspaceContextResolver {
     if (task.assignees.some((assignee) => assignee.id === actingUserId)) {
       throw permissionDenied();
     }
-    // The task's own reporting recipient (or Super Admin) decides the review;
-    // a Department Manager no longer approves work that reports to Admin.
-    if (
-      !canReviewTask({
-        actorId: actingUserId,
-        actorRole: await this.actorRole(actingUserId),
-        reportToId: task.reportTo?.id ?? null,
-      })
-    ) {
+    // Only the designated reviewer decides, Super Admin included. A task
+    // with no eligible reviewer is blocked for everyone until one is named.
+    const designated = await this.designatedReviewer(task);
+    if (designated.status === "unresolved") throw taskReviewerUnresolved();
+    if (!canReviewTask({ actorId: actingUserId, designated }))
       throw permissionDenied();
-    }
     if (task.status !== TaskStatus.UNDER_REVIEW)
       throw taskReviewStateConflict();
+    if (
+      dto.outcome === TaskReviewOutcome.CHANGES_REQUESTED &&
+      !dto.note?.trim()
+    ) {
+      throw taskReviewNoteRequired();
+    }
     const result = await this.repository.review({
       taskId,
       reviewerId: actingUserId,
@@ -801,6 +1031,42 @@ export class TasksService implements AuditWorkspaceContextResolver {
     if (result === "forbidden" || !result)
       this.mutationUnavailable(visibility, result);
     return toTaskResponse(result.task);
+  }
+
+  /**
+   * Super Admin's deliberate, reason-required change of the designated
+   * reviewer. The new reviewer must be eligible, and the change is recorded in
+   * the activity log and the audit trail with the reason.
+   */
+  async changeReviewer(
+    actingUserId: string,
+    taskId: string,
+    dto: ChangeTaskReviewerDto,
+    requestId: string,
+  ): Promise<TaskResponse> {
+    if ((await this.actorRole(actingUserId)) !== "SUPER_ADMIN")
+      throw permissionDenied();
+    const { task, visibility } = await this.mutationContext(
+      actingUserId,
+      taskId,
+      "task.review",
+    );
+    const reason = dto.reason.trim();
+    if (!reason) throw taskReviewerReasonRequired();
+    const candidate = await this.reviewerCandidate(task, dto.reviewerId);
+    if (!isEligibleReviewer(candidate)) throw taskReviewerInvalid();
+    const updated = await this.repository.setReportTo({
+      taskId,
+      reportToId: dto.reviewerId,
+      pinned: true,
+      actorId: actingUserId,
+      visibility,
+      requestId,
+      reason,
+    });
+    if (updated === "forbidden" || !updated)
+      this.mutationUnavailable(visibility, updated);
+    return toTaskResponse(updated);
   }
 
   async createComment(
@@ -918,6 +1184,20 @@ export class TasksService implements AuditWorkspaceContextResolver {
     return page(items.map(toReviewResponse), query, total);
   }
 
+  async listReviewHistory(
+    actingUserId: string,
+    taskId: string,
+    query: ListTaskFeedQueryDto,
+  ): Promise<PaginatedTaskActivitiesResponse> {
+    await this.authorize(actingUserId, taskId, "task.read");
+    const { items, total } = await this.repository.listReviewHistory(
+      taskId,
+      query.page,
+      query.pageSize,
+    );
+    return page(items.map(toActivityResponse), query, total);
+  }
+
   async listActivities(
     actingUserId: string,
     taskId: string,
@@ -971,6 +1251,9 @@ function toTaskResponse(
 ): TaskResponse {
   return {
     id: record.id,
+    identifier: taskIdentifier(record.taskNumber),
+    relatedEvent: record.relatedEvent,
+    relatedCampaign: record.relatedCampaign,
     workspaceId: record.workspaceId,
     departmentId: record.departmentId,
     parentTaskId: record.parentTaskId,
@@ -996,6 +1279,9 @@ function toTaskResponse(
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     subtaskSummary: subtaskSummary ?? null,
+    // Computed on the detail view only; null on lists where it is not needed.
+    reviewerUnresolved: null,
+    parentTask: null,
   };
 }
 

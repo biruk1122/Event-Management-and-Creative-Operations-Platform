@@ -381,8 +381,11 @@ describe("notifications API and delivery pipeline", () => {
       await as(member, "post", `/api/v1/tasks/${created.id}/submit`).expect(
         200,
       );
-      await as(departmentManager, "post", `/api/v1/tasks/${created.id}/reviews`)
-        .send({ outcome: "CHANGES_REQUESTED" })
+      await as(management, "post", `/api/v1/tasks/${created.id}/reviews`)
+        .send({
+          outcome: "CHANGES_REQUESTED",
+          note: "Add the venue details",
+        })
         .expect(201);
 
       const rejected = await waitFor(async () => {
@@ -396,7 +399,7 @@ describe("notifications API and delivery pipeline", () => {
       await as(member, "post", `/api/v1/tasks/${created.id}/submit`).expect(
         200,
       );
-      await as(departmentManager, "post", `/api/v1/tasks/${created.id}/reviews`)
+      await as(management, "post", `/api/v1/tasks/${created.id}/reviews`)
         .send({ outcome: "APPROVED" })
         .expect(201);
 
@@ -560,7 +563,7 @@ describe("notifications API and delivery pipeline", () => {
   });
 
   it(
-    "does not notify a manager who assigns a task to themselves",
+    "refuses self-assignment and notifies no one",
     { timeout: 15_000 },
     async () => {
       const created = body<{ id: string }>(
@@ -570,11 +573,13 @@ describe("notifications API and delivery pipeline", () => {
           workspaceId,
         }),
       );
+      // A Department Manager may assign Members only, so self-assignment is
+      // refused outright; the refusal must not notify anyone.
       await as(
         departmentManager,
         "put",
         `/api/v1/tasks/${created.id}/assignees/${departmentManager.id}`,
-      ).expect(200);
+      ).expect(400);
 
       // No "eventually appears" signal for a negative assertion - give the
       // relay several cycles, then confirm absence.

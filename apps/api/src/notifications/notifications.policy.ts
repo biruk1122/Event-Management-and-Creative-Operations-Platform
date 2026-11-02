@@ -48,6 +48,15 @@ export function taskReportToAssignedContent(
   };
 }
 
+export function taskReviewerChangedContent(
+  taskTitle: string,
+  isNewReviewer: boolean,
+): NotificationContent {
+  return isNewReviewer
+    ? { title: "You are now responsible for reviewing a task", body: taskTitle }
+    : { title: "The reviewer of a task you are on changed", body: taskTitle };
+}
+
 export function taskBlockedContent(taskTitle: string): NotificationContent {
   return {
     title: "A task you receive reports for is blocked",

@@ -532,25 +532,41 @@ export async function listEligibleRecipients(
 }
 
 /** Super Admin re-points a task's reporting recipient (pinned). */
+/**
+ * Super Admin's deliberate reviewer change. The reason is required and is
+ * recorded with the change in the activity log and the audit trail.
+ */
 export async function setTaskReportTo(
   id: string,
-  reportToId: string,
+  reviewerId: string,
+  reason: string,
 ): Promise<Task> {
-  const { data, error, response } = await browserApi.PATCH(
-    "/api/v1/tasks/{id}",
+  const { data, error, response } = await browserApi.PUT(
+    "/api/v1/tasks/{id}/reviewer",
     {
       params: { path: { id } },
-      body: { reportToId },
+      body: { reviewerId, reason },
       headers: headers(),
     },
   );
   if (!data)
-    fail(
-      response.status,
-      error,
-      "The reporting recipient was not changed. Try again.",
-    );
+    fail(response.status, error, "The reviewer was not changed. Try again.");
   return data;
+}
+
+/** The task's review story: submissions, decisions with notes, reviewer changes. */
+export async function getTaskReviewHistory(id: string, signal?: AbortSignal) {
+  const { data, error, response } = await browserApi.GET(
+    "/api/v1/tasks/{id}/review-history",
+    {
+      params: { path: { id }, query: { page: 1, pageSize: 100 } as never },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data)
+    fail(response.status, error, "The review history could not be loaded.");
+  return data.items;
 }
 
 /** Active staff of one department, for the create-task assignee picker.

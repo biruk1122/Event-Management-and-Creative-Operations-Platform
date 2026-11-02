@@ -174,6 +174,13 @@ export function notificationAppearance(type: NotificationType) {
         action: "View task",
         description: "When you become a task's reporting recipient",
       };
+    case "TASK_REVIEWER_CHANGED":
+      return {
+        icon: ClipboardCheck,
+        tone: "gold",
+        action: "View task",
+        description: "When a task you are on gets a new reviewer",
+      };
     case "TASK_BLOCKED":
       return {
         icon: TriangleAlert,

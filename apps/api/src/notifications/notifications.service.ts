@@ -77,6 +77,7 @@ import {
   taskSubmittedContent,
   taskReportToAssignedContent,
   taskBlockedContent,
+  taskReviewerChangedContent,
   taskRejectedContent,
   todoReminderContent,
   type NotificationContent,
@@ -198,6 +199,9 @@ export class NotificationsService {
           NotificationType.TASK_REPORT_TO_ASSIGNED,
           taskReportToAssignedContent,
         );
+        return;
+      case "task.reviewer_changed":
+        await this.processTaskParticipantEvent(event);
         return;
       case "task.blocked":
         await this.processTaskRecipientEvent(
@@ -334,6 +338,35 @@ export class NotificationsService {
     await this.createAndPublish({
       recipientUserId,
       type,
+      sourceEventId: event.id,
+      occurrenceKey: event.id,
+      title: content.title,
+      body: content.body,
+      taskId: event.resourceId,
+    });
+  }
+
+  /** Reviewer changes reach every participant, not only the reviewer. */
+  private async processTaskParticipantEvent(
+    event: OutboxEventEnvelope,
+  ): Promise<void> {
+    const payload = event.payload as {
+      recipientUserId?: string;
+      isNewReviewer?: boolean;
+    } | null;
+    const recipientUserId = payload?.recipientUserId;
+    if (!recipientUserId || !event.resourceId) return;
+    if (recipientUserId === event.actorUserId) return;
+    if (!(await this.repository.isUserActive(recipientUserId))) return;
+    const task = await this.repository.getTask(event.resourceId);
+    if (!task) return;
+    const content = taskReviewerChangedContent(
+      task.title,
+      payload?.isNewReviewer === true,
+    );
+    await this.createAndPublish({
+      recipientUserId,
+      type: NotificationType.TASK_REVIEWER_CHANGED,
       sourceEventId: event.id,
       occurrenceKey: event.id,
       title: content.title,
