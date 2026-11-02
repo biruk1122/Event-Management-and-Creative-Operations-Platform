@@ -42,6 +42,14 @@ export function useTaskMutations(access: CurrentAccess) {
         gateway.createTask(params),
       onSettled: reconcile,
     }),
+    update: useMutation({
+      mutationFn: ({
+        id,
+        ...params
+      }: { id: string } & gateway.UpdateTaskParams) =>
+        gateway.updateTask(id, params),
+      onSettled: reconcile,
+    }),
     setReportTo: useMutation({
       mutationFn: ({
         id,

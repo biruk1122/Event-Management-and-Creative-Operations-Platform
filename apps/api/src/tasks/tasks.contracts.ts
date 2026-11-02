@@ -72,11 +72,28 @@ export class TaskSubtaskSummaryResponse {
   remaining!: number;
 }
 
-export interface TaskParentSummary {
-  id: string;
-  identifier: string;
-  title: string;
-  status: string;
+/** A parent task as shown from a subtask: enough to link and label it. */
+export class TaskParentSummary {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ example: "TSK-007" })
+  identifier!: string;
+
+  @ApiProperty()
+  title!: string;
+
+  @ApiProperty({ enum: TaskStatus })
+  status!: TaskStatus;
+}
+
+/** A related event or campaign, by id and name. */
+export class TaskLinkSummary {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
 }
 
 export class TaskResponse {
@@ -95,18 +112,18 @@ export class TaskResponse {
   identifier!: string;
 
   @ApiProperty({
-    type: Object,
+    type: TaskParentSummary,
     nullable: true,
     description:
       "The parent task, when this task is a subtask and the viewer can see the parent. Null otherwise.",
   })
   parentTask!: TaskParentSummary | null;
 
-  @ApiProperty({ type: Object, nullable: true })
-  relatedEvent!: { id: string; name: string } | null;
+  @ApiProperty({ type: TaskLinkSummary, nullable: true })
+  relatedEvent!: TaskLinkSummary | null;
 
-  @ApiProperty({ type: Object, nullable: true })
-  relatedCampaign!: { id: string; name: string } | null;
+  @ApiProperty({ type: TaskLinkSummary, nullable: true })
+  relatedCampaign!: TaskLinkSummary | null;
 
   @ApiProperty({ type: String, format: "uuid", nullable: true })
   workspaceId!: string | null;

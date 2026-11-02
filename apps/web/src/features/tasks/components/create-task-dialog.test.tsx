@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CreateTaskDialog,
   type AssignableDepartment,
+  type RelatedOption,
 } from "./create-task-dialog";
 import type { Task, TaskPerson } from "../lib/tasks-types";
 
@@ -61,11 +62,13 @@ function renderDialog({
   onUploadAttachment = vi.fn(() => Promise.resolve()),
   onCreated = vi.fn(),
   departmentLocked = false,
+  loadRelatedEvents,
 }: {
   onCreate?: (...args: unknown[]) => Promise<Task>;
   onUploadAttachment?: (...args: unknown[]) => Promise<unknown>;
   onCreated?: (...args: unknown[]) => void;
   departmentLocked?: boolean;
+  loadRelatedEvents?: (signal?: AbortSignal) => Promise<RelatedOption[]>;
 } = {}) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -82,6 +85,7 @@ function renderDialog({
         departments={DEPARTMENTS}
         departmentLocked={departmentLocked}
         loadEligibleAssignees={loadEligibleAssignees}
+        {...(loadRelatedEvents ? { loadRelatedEvents } : {})}
         onCreate={onCreate}
         onUploadAttachment={onUploadAttachment}
         onCreated={onCreated}
@@ -183,6 +187,77 @@ describe("CreateTaskDialog", () => {
       expect(onUploadAttachment).toHaveBeenCalledWith("task-new", file),
     );
     expect(onCreated).toHaveBeenCalledWith(createdTask());
+  });
+
+  it("sends an optional start date and refuses one after the target date", async () => {
+    const user = userEvent.setup();
+    const onCreate = vi.fn(() => Promise.resolve(createdTask()));
+    renderDialog({ onCreate });
+
+    await user.type(screen.getByLabelText("Task name *"), "Plan the shoot");
+    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Event Management" }),
+    );
+    await user.click(screen.getByRole("combobox", { name: "Assigned person" }));
+    await user.click(await screen.findByRole("option", { name: "Maya Chen" }));
+    await user.type(screen.getByLabelText("Description *"), "Shoot plan.");
+    await user.type(screen.getByLabelText("Target date *"), "2026-12-01");
+
+    // A start after the target date is refused before anything is sent.
+    await user.type(screen.getByLabelText("Start date"), "2026-12-05");
+    await user.click(screen.getByRole("button", { name: "Create task" }));
+    expect(
+      await screen.findByText(
+        "The start date must be on or before the target date.",
+      ),
+    ).toBeVisible();
+    expect(onCreate).not.toHaveBeenCalled();
+
+    // A valid start date is sent as an ISO timestamp.
+    await user.clear(screen.getByLabelText("Start date"));
+    await user.type(screen.getByLabelText("Start date"), "2026-11-20");
+    await user.click(screen.getByRole("button", { name: "Create task" }));
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          startAt: "2026-11-20T00:00:00.000Z",
+          dueAt: "2026-12-01T00:00:00.000Z",
+        }),
+      ),
+    );
+  });
+
+  it("offers related events and sends the chosen one", async () => {
+    const user = userEvent.setup();
+    const onCreate = vi.fn(() => Promise.resolve(createdTask()));
+    renderDialog({
+      onCreate,
+      loadRelatedEvents: () =>
+        Promise.resolve([{ id: "event-1", name: "Addis Live 2026" }]),
+    });
+
+    await user.type(screen.getByLabelText("Task name *"), "Stage the show");
+    await user.click(screen.getByRole("combobox", { name: "Department" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Event Management" }),
+    );
+    await user.click(screen.getByRole("combobox", { name: "Assigned person" }));
+    await user.click(await screen.findByRole("option", { name: "Maya Chen" }));
+    await user.type(screen.getByLabelText("Description *"), "Stage plan.");
+    await user.type(screen.getByLabelText("Target date *"), "2026-12-01");
+
+    await user.click(screen.getByRole("combobox", { name: "Related event" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Addis Live 2026" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Create task" }));
+
+    await waitFor(() =>
+      expect(onCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ relatedEventId: "event-1" }),
+      ),
+    );
   });
 
   it("locks the department selector for a Department Manager", () => {

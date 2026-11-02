@@ -23,6 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  ALLOWED_ATTACHMENT_TYPES,
+  MAX_ATTACHMENT_BYTES,
+} from "../lib/task-attachments";
 
 import {
   TASK_PRIORITY_LABELS,
@@ -40,6 +44,12 @@ export interface AssignableDepartment {
   name: string;
 }
 
+/** A related event or campaign offered in the create dialog. */
+export interface RelatedOption {
+  id: string;
+  name: string;
+}
+
 export interface CreateTaskValues {
   title: string;
   description: string;
@@ -47,6 +57,11 @@ export interface CreateTaskValues {
   priority: TaskPriority;
   departmentId: string;
   assigneeId: string;
+  /** Optional planned start, as a calendar date (YYYY-MM-DD). */
+  startAt: string;
+  /** Optional related event and campaign ("" means none). */
+  relatedEventId: string;
+  relatedCampaignId: string;
   dueAt: string;
   workspaceId?: string;
   parentTaskId?: string;
@@ -85,6 +100,9 @@ interface CreateTaskDialogProps {
     departmentId: string,
     signal?: AbortSignal,
   ) => Promise<TaskPerson[]>;
+  /** Offered when provided; a failed load simply leaves the picker empty. */
+  loadRelatedEvents?: (signal?: AbortSignal) => Promise<RelatedOption[]>;
+  loadRelatedCampaigns?: (signal?: AbortSignal) => Promise<RelatedOption[]>;
   /** Provided only to Super Admin: enables the "Reports to" selector. */
   loadEligibleRecipients?: (
     departmentId: string,
@@ -96,19 +114,7 @@ interface CreateTaskDialogProps {
 }
 
 const DEFAULT_RECIPIENT = "__me__";
-const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
-const ALLOWED_ATTACHMENT_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/plain",
-]);
+const NO_RELATED = "__none__";
 
 function emptyValues(defaultDepartmentId: string): CreateTaskValues {
   return {
@@ -118,6 +124,9 @@ function emptyValues(defaultDepartmentId: string): CreateTaskValues {
     priority: "MEDIUM",
     departmentId: defaultDepartmentId,
     assigneeId: "",
+    startAt: "",
+    relatedEventId: "",
+    relatedCampaignId: "",
     dueAt: "",
     checklistItems: [],
   };
@@ -131,6 +140,8 @@ export function CreateTaskDialog({
   workspaceId,
   parentTaskId,
   loadEligibleAssignees,
+  loadRelatedEvents,
+  loadRelatedCampaigns,
   loadEligibleRecipients,
   onCreate,
   onUploadAttachment,
@@ -144,6 +155,9 @@ export function CreateTaskDialog({
   const priorityId = useId();
   const descriptionId = useId();
   const dueAtId = useId();
+  const startAtId = useId();
+  const relatedEventId = useId();
+  const relatedCampaignId = useId();
   const fileId = useId();
   const checklistId = useId();
 
@@ -169,6 +183,22 @@ export function CreateTaskDialog({
     enabled: open && values.departmentId !== "",
     retry: false,
     staleTime: 30_000,
+  });
+
+  const relatedEvents = useQuery({
+    queryKey: ["create-task-related-events"],
+    queryFn: ({ signal }) => loadRelatedEvents!(signal),
+    enabled: open && !!loadRelatedEvents,
+    retry: false,
+    staleTime: 60_000,
+  });
+
+  const relatedCampaigns = useQuery({
+    queryKey: ["create-task-related-campaigns"],
+    queryFn: ({ signal }) => loadRelatedCampaigns!(signal),
+    enabled: open && !!loadRelatedCampaigns,
+    retry: false,
+    staleTime: 60_000,
   });
 
   const recipients = useQuery({
@@ -267,6 +297,13 @@ export function CreateTaskDialog({
     if (values.description.trim() === "")
       localErrors.description = "Enter a description.";
     if (values.dueAt === "") localErrors.dueAt = "Choose a target date.";
+    if (
+      values.startAt !== "" &&
+      values.dueAt !== "" &&
+      values.startAt > values.dueAt
+    )
+      localErrors.startAt =
+        "The start date must be on or before the target date.";
     if (Object.keys(localErrors).length > 0) {
       setFieldErrors(localErrors);
       return;
@@ -279,6 +316,13 @@ export function CreateTaskDialog({
       const task = await onCreate({
         ...values,
         dueAt: new Date(`${values.dueAt}T00:00:00.000Z`).toISOString(),
+        ...(values.startAt !== ""
+          ? {
+              startAt: new Date(
+                `${values.startAt}T00:00:00.000Z`,
+              ).toISOString(),
+            }
+          : {}),
         ...(workspaceId ? { workspaceId } : {}),
         ...(parentTaskId ? { parentTaskId } : {}),
       });
@@ -320,7 +364,7 @@ export function CreateTaskDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{parentTaskId ? "New subtask" : "New task"}</DialogTitle>
           <DialogDescription>
@@ -498,7 +542,66 @@ export function CreateTaskDialog({
             </div>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-3">
+          {loadRelatedEvents || loadRelatedCampaigns ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {loadRelatedEvents ? (
+                <div className="space-y-2">
+                  <Label htmlFor={relatedEventId}>Related event</Label>
+                  <Select
+                    value={values.relatedEventId || NO_RELATED}
+                    onValueChange={(value) =>
+                      setValues((current) => ({
+                        ...current,
+                        relatedEventId: value === NO_RELATED ? "" : value,
+                      }))
+                    }
+                    disabled={submitting}
+                  >
+                    <SelectTrigger id={relatedEventId} className="w-full">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_RELATED}>None</SelectItem>
+                      {(relatedEvents.data ?? []).map((event) => (
+                        <SelectItem key={event.id} value={event.id}>
+                          {event.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              {loadRelatedCampaigns ? (
+                <div className="space-y-2">
+                  <Label htmlFor={relatedCampaignId}>Related campaign</Label>
+                  <Select
+                    value={values.relatedCampaignId || NO_RELATED}
+                    onValueChange={(value) =>
+                      setValues((current) => ({
+                        ...current,
+                        relatedCampaignId: value === NO_RELATED ? "" : value,
+                      }))
+                    }
+                    disabled={submitting}
+                  >
+                    <SelectTrigger id={relatedCampaignId} className="w-full">
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_RELATED}>None</SelectItem>
+                      {(relatedCampaigns.data ?? []).map((campaign) => (
+                        <SelectItem key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor={typeId}>
                 Task type <span aria-hidden="true">*</span>
@@ -549,6 +652,28 @@ export function CreateTaskDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor={startAtId}>Start date</Label>
+              <Input
+                id={startAtId}
+                type="date"
+                value={values.startAt}
+                disabled={submitting}
+                aria-invalid={fieldErrors.startAt ? true : undefined}
+                onChange={(event) =>
+                  setValues((current) => ({
+                    ...current,
+                    startAt: event.target.value,
+                  }))
+                }
+              />
+              {fieldErrors.startAt ? (
+                <p className="text-destructive text-sm">
+                  {fieldErrors.startAt}
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">

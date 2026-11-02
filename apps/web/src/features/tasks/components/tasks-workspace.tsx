@@ -21,6 +21,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import type { Route } from "next";
+import Link from "next/link";
+import { ASSIGNEE_TRANSITION_TARGETS } from "../lib/task-transitions";
 import {
   Dialog,
   DialogContent as BaseDialogContent,
@@ -74,14 +77,6 @@ import { CreateTaskDialog, type CreateTaskValues } from "./create-task-dialog";
 type View = "list" | "board" | "calendar";
 
 const ALL = "ALL";
-const ASSIGNEE_TRANSITION_TARGETS: Record<TaskStatus, readonly TaskStatus[]> = {
-  TODO: ["IN_PROGRESS", "BLOCKED", "CANCELLED"],
-  IN_PROGRESS: ["BLOCKED", "CANCELLED"],
-  UNDER_REVIEW: [],
-  BLOCKED: ["TODO", "IN_PROGRESS", "CANCELLED"],
-  COMPLETED: [],
-  CANCELLED: [],
-};
 
 export interface TaskCollaborationActions {
   detailKey: (id: string) => readonly unknown[];
@@ -332,8 +327,11 @@ function ListView({
   page,
   pageSize,
   collaboration,
+  departmentNames,
 }: {
   tasks: readonly Task[];
+  /** Department names by id, for the department column. */
+  departmentNames: ReadonlyMap<string, string>;
   onSelect: (task: Task) => void;
   filtered: boolean;
   page: number;
@@ -380,13 +378,18 @@ function ListView({
                   {(page - 1) * pageSize + index + 1}
                 </td>
                 <th scope="row" className="max-w-xs px-4 py-3 font-normal">
-                  <button
-                    type="button"
-                    onClick={() => onSelect(task)}
+                  <span className="text-muted-foreground block text-xs">
+                    {task.identifier}
+                    {task.departmentId
+                      ? ` · ${departmentNames.get(task.departmentId) ?? "Department"}`
+                      : ""}
+                  </span>
+                  <Link
+                    href={`/tasks/${task.id}` as Route}
                     className="focus-visible:ring-ring/50 rounded text-left font-medium underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:outline-none"
                   >
                     {task.title}
-                  </button>
+                  </Link>
                   {task.description ? (
                     <p
                       className="text-muted-foreground mt-0.5 truncate text-xs"
@@ -453,11 +456,13 @@ function ListView({
       <ul aria-label="Task list" className="space-y-3 sm:hidden">
         {tasks.map((task) => (
           <li key={task.id} className="border-border rounded-xl border p-4">
-            <button
-              type="button"
-              onClick={() => onSelect(task)}
+            <Link
+              href={`/tasks/${task.id}` as Route}
               className="focus-visible:ring-ring/50 block w-full rounded text-left focus-visible:ring-3 focus-visible:outline-none"
             >
+              <span className="text-muted-foreground block text-xs">
+                {task.identifier}
+              </span>
               <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
                 {task.title}
                 <Badge variant={STATUS_VARIANT[task.status]}>
@@ -473,7 +478,7 @@ function ListView({
               <div className="mt-3">
                 <TaskProgressBar task={task} />
               </div>
-            </button>
+            </Link>
           </li>
         ))}
       </ul>
@@ -1469,6 +1474,7 @@ export interface TaskWorkspaceFilters {
   createdByMe: boolean;
   reportingToMe: boolean;
   overdueOnly: boolean;
+  reviewerNeeded: boolean;
   departmentId: string | null;
 }
 
@@ -1519,6 +1525,14 @@ export function TaskWorkspace({
   const [createdByMe, setCreatedByMe] = useState(false);
   const [reportingToMe, setReportingToMe] = useState(false);
   const [overdueOnly, setOverdueOnly] = useState(false);
+  const departmentNames = useMemo(
+    () =>
+      new Map(
+        departments.map((department) => [department.id, department.name]),
+      ),
+    [departments],
+  );
+  const [reviewerNeeded, setReviewerNeeded] = useState(false);
   const [departmentId, setDepartmentId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Task | null>(null);
   const visibleTasks = useMemo(
@@ -1535,6 +1549,7 @@ export function TaskWorkspace({
     createdByMe ||
     reportingToMe ||
     overdueOnly ||
+    reviewerNeeded ||
     departmentId !== null;
   const select = (task: Task) => setSelected(task);
 
@@ -1546,6 +1561,7 @@ export function TaskWorkspace({
       createdByMe,
       reportingToMe,
       overdueOnly,
+      reviewerNeeded,
       departmentId,
     });
   }, [
@@ -1556,6 +1572,7 @@ export function TaskWorkspace({
     createdByMe,
     reportingToMe,
     overdueOnly,
+    reviewerNeeded,
     departmentId,
   ]);
 
@@ -1707,6 +1724,15 @@ export function TaskWorkspace({
                 >
                   Overdue
                 </Button>
+                <Button
+                  type="button"
+                  variant={reviewerNeeded ? "secondary" : "outline"}
+                  size="sm"
+                  aria-pressed={reviewerNeeded}
+                  onClick={() => setReviewerNeeded((current) => !current)}
+                >
+                  Reviewer needed
+                </Button>
                 {departments.length > 0 ? (
                   <Select
                     value={departmentId ?? ALL}
@@ -1770,6 +1796,7 @@ export function TaskWorkspace({
                 filtered={filtered}
                 page={page ?? 1}
                 pageSize={pageSize ?? 25}
+                departmentNames={departmentNames}
                 {...(collaboration ? { collaboration } : {})}
               />
             ) : null}

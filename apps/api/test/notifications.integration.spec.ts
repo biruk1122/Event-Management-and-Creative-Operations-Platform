@@ -604,4 +604,51 @@ describe("notifications API and delivery pipeline", () => {
       .set("Cookie", member.cookies);
     expect(missingCsrf.status).toBe(403);
   });
+
+  it("tells the new reviewer and the other participants when the reviewer changes, not the actor", async () => {
+    const created = body<{ id: string }>(
+      await as(management, "post", "/api/v1/tasks").send({
+        title: "Reviewer notice check",
+        departmentId,
+        workspaceId,
+        assigneeId: member.id,
+      }),
+    );
+    const changed = await as(
+      management,
+      "put",
+      `/api/v1/tasks/${created.id}/reviewer`,
+    ).send({ reviewerId: departmentManager.id, reason: "Covering review" });
+    expect(changed.status, JSON.stringify(changed.body)).toBe(200);
+
+    const newReviewer = await waitFor(async () =>
+      (await feedFor(departmentManager)).find(
+        (item) =>
+          item.type === "TASK_REVIEWER_CHANGED" && item.taskId === created.id,
+      ),
+    );
+    expect(newReviewer.title).toBe(
+      "You are now responsible for reviewing a task",
+    );
+
+    const assignee = await waitFor(async () =>
+      (await feedFor(member)).find(
+        (item) =>
+          item.type === "TASK_REVIEWER_CHANGED" && item.taskId === created.id,
+      ),
+    );
+    expect(assignee.title).toBe("The reviewer of a task you are on changed");
+
+    // Give the relay time to deliver anything else, then confirm the actor was not told.
+    await new Promise((resolve) =>
+      setTimeout(resolve, 3 * RELAY_POLL_INTERVAL_MS),
+    );
+    expect(
+      (await feedFor(management)).some(
+        (item) =>
+          item.type === "TASK_REVIEWER_CHANGED" && item.taskId === created.id,
+      ),
+    ).toBe(false);
+  });
+
 });
