@@ -7930,6 +7930,8 @@ export interface components {
       id: string;
       /** @example TSK-042 */
       identifier: string;
+      /** @description The parent task, when this task is a subtask and the viewer can see the parent. Null otherwise. */
+      parentTask: Record<string, never> | null;
       /**
        * Format: uuid
        * @description The higher-level task this was broken down from, or null for a top-level task.
@@ -23078,6 +23080,8 @@ export interface operations {
         scheduledTo?: string;
         /** @description Only overdue open tasks. */
         overdue?: boolean;
+        /** @description Only tasks with no eligible designated reviewer ("Reviewer needed"). Super Admin resolves them with the reviewer change action. */
+        reviewerUnresolved?: boolean;
         sort?: "UPDATED" | "DUE_AT" | "START_AT";
         page?: components["schemas"]["Object"];
         pageSize?: components["schemas"]["Object"];

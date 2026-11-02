@@ -9122,6 +9122,11 @@
             "example": "TSK-042",
             "type": "string"
           },
+          "parentTask": {
+            "description": "The parent task, when this task is a subtask and the viewer can see the parent. Null otherwise.",
+            "nullable": true,
+            "type": "object"
+          },
           "parentTaskId": {
             "description": "The higher-level task this was broken down from, or null for a top-level task.",
             "format": "uuid",
@@ -9222,6 +9227,7 @@
           "id",
           "reviewerUnresolved",
           "identifier",
+          "parentTask",
           "relatedEvent",
           "relatedCampaign",
           "workspaceId",
@@ -33289,6 +33295,15 @@
             "description": "Only overdue open tasks.",
             "in": "query",
             "name": "overdue",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Only tasks with no eligible designated reviewer (\"Reviewer needed\"). Super Admin resolves them with the reviewer change action.",
+            "in": "query",
+            "name": "reviewerUnresolved",
             "required": false,
             "schema": {
               "type": "boolean"
