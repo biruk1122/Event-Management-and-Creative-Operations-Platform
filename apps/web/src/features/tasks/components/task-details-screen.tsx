@@ -10,7 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ProgressBar } from "@/components/ui/progress-bar";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -32,10 +31,6 @@ import {
   hasGrant,
   isAssignee,
 } from "../lib/task-access";
-import {
-  taskProgressSummary,
-  taskProgressTone,
-} from "../lib/task-progress-tone";
 import { attachmentProblem } from "../lib/task-attachments";
 import { ASSIGNEE_TRANSITION_TARGETS } from "../lib/task-transitions";
 import {
@@ -167,24 +162,23 @@ function LoadedTaskDetails({
   }
 
   return (
-    <article className="space-y-8">
-      <nav aria-label="Breadcrumb" className="text-sm">
-        <Link href="/tasks" className="underline underline-offset-4">
-          Back to tasks
-        </Link>
-      </nav>
-
-      <header className="space-y-3">
+    <article className="space-y-10">
+      <header className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{task.identifier}</Badge>
+          <Badge variant="outline" className="font-mono">
+            {task.identifier}
+          </Badge>
           <Badge variant="secondary">{TASK_STATUS_LABELS[task.status]}</Badge>
-          <Badge variant="outline">{TASK_PRIORITY_LABELS[task.priority]}</Badge>
+          <Badge variant="outline">
+            {TASK_PRIORITY_LABELS[task.priority]} priority
+          </Badge>
+          <Badge variant="outline">{TASK_TYPE_LABELS[task.type]}</Badge>
           {task.reviewerUnresolved ? (
             <Badge variant="destructive">Reviewer needed</Badge>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <h1 className="text-3xl font-semibold tracking-tight">
             {task.title}
           </h1>
           <div className="flex flex-wrap gap-2">
@@ -217,24 +211,40 @@ function LoadedTaskDetails({
             ) : null}
           </div>
         </div>
+        <div className="text-muted-foreground flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <span>
+            Assigned to{" "}
+            <span className="text-foreground font-medium">
+              {task.assignees.length > 0
+                ? task.assignees.map((person) => personName(person)).join(", ")
+                : "Nobody yet"}
+            </span>
+          </span>
+          <span>
+            Created by{" "}
+            <span className="text-foreground font-medium">
+              {task.createdBy ? personName(task.createdBy) : "Unknown"}
+            </span>
+          </span>
+          <span>{scheduleLabel(task)}</span>
+        </div>
+        {task.parentTask ? (
+          <p className="text-muted-foreground text-sm">
+            Subtask of{" "}
+            <Link
+              href={`/tasks/${task.parentTask.id}` as Route}
+              className="text-foreground underline underline-offset-4"
+            >
+              {task.parentTask.identifier} · {task.parentTask.title}
+            </Link>
+          </p>
+        ) : null}
         {actionError ? (
           <p role="alert" className="text-destructive text-sm">
             {actionError}
           </p>
         ) : null}
       </header>
-
-      {task.parentTask ? (
-        <p className="text-muted-foreground text-sm">
-          Subtask of{" "}
-          <Link
-            href={`/tasks/${task.parentTask.id}` as Route}
-            className="text-foreground underline underline-offset-4"
-          >
-            {task.parentTask.identifier} · {task.parentTask.title}
-          </Link>
-        </p>
-      ) : null}
 
       {editing ? (
         <TaskEditForm
@@ -248,133 +258,164 @@ function LoadedTaskDetails({
             })
           }
         />
-      ) : (
-        <TaskOverview task={task} />
-      )}
-
-      <section aria-labelledby="progress-heading" className="space-y-2">
-        <h2 id="progress-heading" className="text-sm font-medium">
-          Progress
-        </h2>
-        <ProgressBar
-          percent={task.progress}
-          summary={taskProgressSummary(task.progress)}
-          tone={taskProgressTone(task)}
-        />
-      </section>
-
-      <ChecklistSection
-        task={task}
-        items={task.checklistItems}
-        busy={mutations.addChecklistItem.isPending}
-        actions={{
-          canEditItems: canEdit || assignedToViewer,
-          canToggleItems: canActOnAssignedTask(
-            access,
-            "task.update_progress",
-          )(task),
-          currentUserId: viewerId,
-          canManageUnattributedItems: hasGrant(access, "task.update"),
-          addItem: (description) =>
-            mutations.addChecklistItem.mutateAsync({
-              id: task.id,
-              description,
-            }),
-          removeItem: (itemId) =>
-            mutations.removeChecklistItem.mutateAsync({ id: task.id, itemId }),
-          reorderItems: (orderedItemIds) =>
-            mutations.reorderChecklistItems.mutateAsync({
-              id: task.id,
-              orderedItemIds,
-            }),
-          toggleItem: (itemId, completed) =>
-            mutations.toggleChecklistItem.mutateAsync({
-              id: task.id,
-              itemId,
-              completed,
-            }),
-        }}
-      />
-
-      <ReviewPanel
-        task={task}
-        canReview={canReview}
-        busy={mutations.review.isPending}
-        onReview={(outcome, note) =>
-          run(() =>
-            mutations.review.mutateAsync({
-              id: task.id,
-              outcome,
-              note: note ?? "",
-            }),
-          )
-        }
-      />
-
-      {access.role === "SUPER_ADMIN" ? (
-        <ReviewerChangePanel
-          task={task}
-          busy={mutations.setReportTo.isPending}
-          onChange={(reviewerId, reason) =>
-            run(() =>
-              mutations.setReportTo.mutateAsync({
-                id: task.id,
-                reviewerId,
-                reason,
-              }),
-            )
-          }
-        />
       ) : null}
 
-      <SubtasksPanel
-        subtasks={subtasks.data?.items ?? []}
-        loading={subtasks.isPending}
-        failed={subtasks.isError}
-      />
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="min-w-0 space-y-6">
+          <Panel>
+            <h2 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+              Description
+            </h2>
+            <p className="text-sm whitespace-pre-line">
+              {task.description ?? "No description was provided for this task."}
+            </p>
+          </Panel>
 
-      <ReviewHistory
-        entries={history.data ?? []}
-        loading={history.isPending}
-        failed={history.isError}
-      />
+          <Panel>
+            <ChecklistSection
+              task={task}
+              items={task.checklistItems}
+              busy={mutations.addChecklistItem.isPending}
+              actions={{
+                canEditItems: canEdit || assignedToViewer,
+                canToggleItems: canActOnAssignedTask(
+                  access,
+                  "task.update_progress",
+                )(task),
+                currentUserId: viewerId,
+                canManageUnattributedItems: hasGrant(access, "task.update"),
+                addItem: (description) =>
+                  mutations.addChecklistItem.mutateAsync({
+                    id: task.id,
+                    description,
+                  }),
+                removeItem: (itemId) =>
+                  mutations.removeChecklistItem.mutateAsync({
+                    id: task.id,
+                    itemId,
+                  }),
+                reorderItems: (orderedItemIds) =>
+                  mutations.reorderChecklistItems.mutateAsync({
+                    id: task.id,
+                    orderedItemIds,
+                  }),
+                toggleItem: (itemId, completed) =>
+                  mutations.toggleChecklistItem.mutateAsync({
+                    id: task.id,
+                    itemId,
+                    completed,
+                  }),
+              }}
+            />
+          </Panel>
 
-      <CommentsPanel
-        comments={comments}
-        canComment={hasGrant(access, "task.comment.create")}
-        busy={mutations.comment.isPending}
-        onAdd={(content) =>
-          run(() => mutations.comment.mutateAsync({ id: task.id, content }))
-        }
-      />
+          {subtasks.isPending ? null : (
+            <Panel>
+              <SubtasksPanel
+                subtasks={subtasks.data?.items ?? []}
+                loading={subtasks.isPending}
+                failed={subtasks.isError}
+              />
+            </Panel>
+          )}
 
-      <FilesPanel
-        files={files}
-        taskId={task.id}
-        canUpload={hasGrant(access, "task.attachment.create")}
-        uploading={mutations.upload.isPending}
-        onUpload={(file) =>
-          run(() => mutations.upload.mutateAsync({ id: task.id, file }))
-        }
-      />
+          {task.status === "UNDER_REVIEW" ? (
+            <Panel>
+              <ReviewPanel
+                task={task}
+                canReview={canReview}
+                busy={mutations.review.isPending}
+                onReview={(outcome, note) =>
+                  run(() =>
+                    mutations.review.mutateAsync({
+                      id: task.id,
+                      outcome,
+                      note: note ?? "",
+                    }),
+                  )
+                }
+              />
+            </Panel>
+          ) : null}
 
-      <ActivityTimeline items={activity} />
+          <Panel>
+            <CommentsPanel
+              comments={comments}
+              canComment={hasGrant(access, "task.comment.create")}
+              busy={mutations.comment.isPending}
+              onAdd={(content) =>
+                run(() =>
+                  mutations.comment.mutateAsync({ id: task.id, content }),
+                )
+              }
+            />
+          </Panel>
+        </div>
+
+        <aside className="min-w-0 space-y-6">
+          <TaskOverview task={task} />
+
+          {access.role === "SUPER_ADMIN" ? (
+            <Panel>
+              <ReviewerChangePanel
+                task={task}
+                busy={mutations.setReportTo.isPending}
+                onChange={(reviewerId, reason) =>
+                  run(() =>
+                    mutations.setReportTo.mutateAsync({
+                      id: task.id,
+                      reviewerId,
+                      reason,
+                    }),
+                  )
+                }
+              />
+            </Panel>
+          ) : null}
+
+          <Panel>
+            <FilesPanel
+              files={files}
+              taskId={task.id}
+              canUpload={hasGrant(access, "task.attachment.create")}
+              uploading={mutations.upload.isPending}
+              onUpload={(file) =>
+                run(() => mutations.upload.mutateAsync({ id: task.id, file }))
+              }
+            />
+          </Panel>
+        </aside>
+      </div>
+
+      <div className="space-y-6 border-t pt-10">
+        <Panel>
+          <ReviewHistory
+            entries={history.data ?? []}
+            loading={history.isPending}
+            failed={history.isError}
+          />
+        </Panel>
+        <Panel>
+          <ActivityTimeline items={activity} />
+        </Panel>
+      </div>
     </article>
   );
 }
 
 function TaskOverview({ task }: { task: Task }) {
   return (
-    <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
-      <section aria-labelledby="description-heading" className="space-y-2">
-        <h2 id="description-heading" className="text-sm font-medium">
-          Description
-        </h2>
-        <p className="text-sm whitespace-pre-line">
-          {task.description ?? "No description was provided for this task."}
-        </p>
-      </section>
-      <dl className="grid gap-4 text-sm">
+    <section
+      aria-labelledby="details-heading"
+      className="bg-card rounded-2xl border p-6"
+    >
+      <h2
+        id="details-heading"
+        className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase"
+      >
+        Details
+      </h2>
+      <dl className="text-sm">
         <Field label="Assigned to">
           {task.assignees.length > 0
             ? task.assignees.map((person) => personName(person)).join(", ")
@@ -399,17 +440,22 @@ function TaskOverview({ task }: { task: Task }) {
           {task.relatedCampaign ? task.relatedCampaign.name : "None"}
         </Field>
       </dl>
-    </div>
+    </section>
   );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div>
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-medium">{children}</dd>
+    <div className="flex min-h-11 items-center justify-between gap-4 border-b py-2 last:border-b-0">
+      <dt className="text-muted-foreground shrink-0">{label}</dt>
+      <dd className="min-w-0 text-right font-medium">{children}</dd>
     </div>
   );
+}
+
+/** A bordered card that holds one section of the details page. */
+function Panel({ children }: { children: ReactNode }) {
+  return <div className="bg-card rounded-2xl border p-6">{children}</div>;
 }
 
 function TaskEditForm({
@@ -654,10 +700,7 @@ function ReviewPanel({
     );
   }
   return (
-    <section
-      aria-labelledby="review-heading"
-      className="space-y-3 rounded-xl border p-4"
-    >
+    <section aria-labelledby="review-heading" className="space-y-3">
       <h2 id="review-heading" className="text-sm font-medium">
         Review
       </h2>
@@ -913,10 +956,7 @@ function FilesPanel({
 
 function ActivityTimeline({ items }: { items: readonly TaskActivity[] }) {
   return (
-    <section
-      aria-labelledby="activity-heading"
-      className="space-y-3 border-t pt-6"
-    >
+    <section aria-labelledby="activity-heading" className="space-y-5">
       <h2 id="activity-heading" className="text-sm font-medium">
         Activity
       </h2>
@@ -925,7 +965,7 @@ function ActivityTimeline({ items }: { items: readonly TaskActivity[] }) {
           No activity recorded yet.
         </p>
       ) : (
-        <ol className="space-y-3 border-l pl-4 text-sm">
+        <ol className="space-y-5 border-l pl-5 text-sm">
           {items.map((item) => (
             <li key={item.id} className="relative">
               <span
@@ -1040,10 +1080,7 @@ function ReviewerChangePanel({
     (person) => person.id !== task.reportTo?.id,
   );
   return (
-    <section
-      aria-labelledby="reviewer-change-heading"
-      className="space-y-3 rounded-xl border p-4"
-    >
+    <section aria-labelledby="reviewer-change-heading" className="space-y-3">
       <h2 id="reviewer-change-heading" className="text-sm font-medium">
         Change reviewer
       </h2>
