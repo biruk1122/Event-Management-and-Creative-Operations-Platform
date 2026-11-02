@@ -27,6 +27,7 @@ export function departmentKeys(access: CurrentAccess) {
     list: (params: Record<string, unknown>) =>
       [...all, "list", params] as const,
     managers: [...all, "assignable-managers"] as const,
+    reportingAdmins: [...all, "reporting-admin-candidates"] as const,
     detail: (id: string) => [...all, "department", id] as const,
   };
 }
@@ -61,6 +62,11 @@ export function useDepartmentsMutations(access: CurrentAccess) {
       gateway.assignDepartmentManager(id, managerId),
     onSettled: reconcile,
   });
+  const assignReportingAdmin = useMutation({
+    mutationFn: ({ id, userId }: { id: string; userId: string | null }) =>
+      gateway.assignDepartmentReportingAdmin(id, userId),
+    onSettled: reconcile,
+  });
   const deactivate = useMutation({
     mutationFn: gateway.deactivateDepartment,
     onSettled: reconcile,
@@ -74,5 +80,13 @@ export function useDepartmentsMutations(access: CurrentAccess) {
     onSettled: reconcile,
   });
 
-  return { create, update, assignManager, deactivate, reactivate, remove };
+  return {
+    create,
+    update,
+    assignManager,
+    assignReportingAdmin,
+    deactivate,
+    reactivate,
+    remove,
+  };
 }

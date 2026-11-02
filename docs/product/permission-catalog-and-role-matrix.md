@@ -358,6 +358,39 @@ Department Manager manages their own productions end to end, and the general Pro
 granted here (see its own module doc comment) - so this row gives a Department Manager full control
 over productions in their own department without ever reaching general projects.
 
+### Admin
+
+The operational coordinator between Super Admin and the departments (October 2026 requirement).
+An Admin is an **employee**: they hold a required, active department, appear in the employee
+directory, and are covered by attendance and leave like any other employee. Department membership
+and authorization scope are deliberately separate: the Admin's coordination reach is the explicit
+`organization`-scope set below, enforced by a code-level allow-list
+(`ADMIN_ORGANIZATION_PERMISSION_KEYS`) so that editing the role row can never exceed it. Admin
+reports directly to Super Admin and is **not** Super Admin.
+
+| Permission key                                                 | Scope        |
+| -------------------------------------------------------------- | ------------ |
+| `task.create`, `task.read`, `task.assign`, `task.update`       | organization |
+| `task.review`, `task.comment.create`, `task.attachment.create` | organization |
+| `task.update_status`, `task.update_progress`, `task.submit`    | self         |
+| `report.create`, `report.submit`, `report.read`                | organization |
+| `report.review`, `report.attachment.create`                    | organization |
+| `analytics.management.read`                                    | organization |
+| `analytics.department_performance.read`                        | organization |
+| `dashboard.management.read`, `department.read`, `team.read`    | organization |
+| `meeting.read`                                                 | self         |
+
+Admin holds no `user.*`, `role.*`, `settings.*`, `audit.*`, `employee.*`, HR-only `letter.*` /
+`document.*`, `expense.approve`, or any `*.delete` key, and cannot assign or change roles, promote
+anyone, change their own role, or approve their own work. Only Super Admin assigns the Admin role.
+
+Reporting recipients are decided **per task and per report**, never inferred from the assignee's
+role. A task's default recipient is the person who assigns it (Super Admin may explicitly pin a
+different recipient); a task's reviewer is its recipient or Super Admin. Records created before this
+change have no recipient and keep their previous review behavior. Department-level reports go to the
+department's Super-Admin-designated reporting Admin (`department.assign_reporting_admin`), never to
+an arbitrary Admin.
+
 ### Team Member
 
 | Permission key                                  | Scope |

@@ -105,6 +105,7 @@ describe("NotificationsService", () => {
         authorId: "author-1",
         departmentId: null,
         status: "DRAFT",
+        reportToId: null,
       }),
       getReportReviewerIds: vi.fn().mockResolvedValue([]),
       getTodo: vi.fn().mockResolvedValue({
@@ -158,6 +159,9 @@ describe("NotificationsService", () => {
         leaveTypeName: "Annual",
       }),
       getDepartmentManagerId: vi.fn().mockResolvedValue("manager-1"),
+      getTaskReportToId: vi.fn().mockResolvedValue(null),
+      isAdminUser: vi.fn().mockResolvedValue(false),
+      getActiveSuperAdminIds: vi.fn().mockResolvedValue([]),
     };
     permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
     realtime = { publish: vi.fn() };
@@ -1353,6 +1357,138 @@ describe("NotificationsService", () => {
         }),
       );
       expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("processEvent: task reporting recipient events", () => {
+    const recipientEvent = (name: string, overrides = {}) =>
+      makeEvent({
+        name,
+        payload: { recipientUserId: "admin-1" },
+        ...overrides,
+      });
+
+    it.each([
+      ["task.submitted", NotificationType.TASK_SUBMITTED],
+      ["task.report_to_assigned", NotificationType.TASK_REPORT_TO_ASSIGNED],
+      ["task.blocked", NotificationType.TASK_BLOCKED],
+    ])("%s notifies only the task's current recipient", async (name, type) => {
+      repository.getTaskReportToId!.mockResolvedValue("admin-1");
+      await service.processEvent(recipientEvent(name));
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(1);
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserId: "admin-1", type }),
+      );
+    });
+
+    it("does not notify a recipient who is no longer the task's recipient", async () => {
+      repository.getTaskReportToId!.mockResolvedValue("someone-else");
+      await service.processEvent(recipientEvent("task.submitted"));
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("does not notify the actor about their own action, or an inactive recipient", async () => {
+      repository.getTaskReportToId!.mockResolvedValue("admin-1");
+      await service.processEvent(
+        recipientEvent("task.submitted", { actorUserId: "admin-1" }),
+      );
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+      repository.isUserActive!.mockResolvedValue(false);
+      await service.processEvent(recipientEvent("task.blocked"));
+      expect(repository.createIfAbsent).not.toHaveBeenCalled();
+    });
+
+    it("an overdue task also notifies its recipient, once", async () => {
+      repository.getTaskAssigneeIds!.mockResolvedValue(["assignee-1"]);
+      repository.getTaskReportToId!.mockResolvedValue("admin-1");
+      await service.processEvent(
+        makeEvent({
+          name: "task.overdue",
+          payload: {
+            occurrenceKey: "task-1:2026-02-01T09:00:00.000Z:task.overdue:v1",
+          },
+        }),
+      );
+      const recipients = repository.createIfAbsent!.mock.calls.map(
+        ([input]: unknown[]) =>
+          (input as { recipientUserId: string }).recipientUserId,
+      );
+      expect(recipients.sort()).toEqual(["admin-1", "assignee-1"]);
+    });
+
+    it("a due (not overdue) task does not notify the recipient", async () => {
+      repository.getTaskAssigneeIds!.mockResolvedValue(["assignee-1"]);
+      repository.getTaskReportToId!.mockResolvedValue("admin-1");
+      await service.processEvent(
+        makeEvent({
+          name: "task.due",
+          payload: {
+            occurrenceKey: "task-1:2026-02-01T09:00:00.000Z:task.due:v1",
+          },
+        }),
+      );
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("processEvent: report.submitted routing", () => {
+    it("notifies exactly the report's recipient, not everyone who could review", async () => {
+      repository.getReport!.mockResolvedValue({
+        title: "Dept report",
+        authorId: "author-1",
+        departmentId: "dept-1",
+        status: "SUBMITTED",
+        reportToId: "admin-1",
+      });
+      repository.getReportReviewerIds!.mockResolvedValue(["sa-1", "admin-2"]);
+      await service.processEvent(
+        makeEvent({
+          name: "report.submitted",
+          resourceType: "report",
+          resourceId: "report-1",
+        }),
+      );
+      expect(repository.getReportReviewerIds).not.toHaveBeenCalled();
+      expect(repository.createIfAbsent).toHaveBeenCalledTimes(1);
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserId: "admin-1" }),
+      );
+    });
+
+    it("falls back to the earlier reviewer set for reports without a recipient", async () => {
+      repository.getReportReviewerIds!.mockResolvedValue(["sa-1"]);
+      await service.processEvent(
+        makeEvent({
+          name: "report.submitted",
+          resourceType: "report",
+          resourceId: "report-1",
+        }),
+      );
+      expect(repository.getReportReviewerIds).toHaveBeenCalled();
+      expect(repository.createIfAbsent).toHaveBeenCalledWith(
+        expect.objectContaining({ recipientUserId: "sa-1" }),
+      );
+    });
+  });
+
+  describe("processEvent: an Admin's leave request goes to Super Admin", () => {
+    it("notifies every active Super Admin instead of the department manager", async () => {
+      repository.isAdminUser!.mockResolvedValue(true);
+      repository.getActiveSuperAdminIds!.mockResolvedValue(["sa-1", "sa-2"]);
+      await service.processEvent(
+        makeEvent({
+          name: "leave.request.submitted",
+          resourceType: "leave_request",
+          resourceId: "request-1",
+          payload: { employeeId: "employee-1" },
+        }),
+      );
+      const recipients = repository.createIfAbsent!.mock.calls.map(
+        ([input]: unknown[]) =>
+          (input as { recipientUserId: string }).recipientUserId,
+      );
+      expect(recipients.sort()).toEqual(["sa-1", "sa-2"]);
+      expect(repository.getDepartmentManagerId).not.toHaveBeenCalled();
     });
   });
 

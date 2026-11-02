@@ -166,6 +166,18 @@
         "required": ["talentId", "role"],
         "type": "object"
       },
+      "AssignReportingAdminDto": {
+        "properties": {
+          "userId": {
+            "description": "The Admin to designate as this department's reporting recipient, or null to clear it.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["userId"],
+        "type": "object"
+      },
       "AssignTeamManagerDto": {
         "properties": {
           "managerId": {
@@ -2166,6 +2178,14 @@
             "maxLength": 5000,
             "type": "string"
           },
+          "sourceReportIds": {
+            "description": "Admin only: reviewed Department Manager reports consolidated into this report.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "title": {
             "maxLength": 200,
             "type": "string"
@@ -2386,6 +2406,11 @@
           "priority": {
             "default": "MEDIUM",
             "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "type": "string"
+          },
+          "reportToId": {
+            "description": "Who receives this task's reports and decides its review. Defaults to the person creating/assigning the task; only Super Admin may name someone else (an active Super Admin, Admin, or the department's own manager).",
+            "format": "uuid",
             "type": "string"
           },
           "startAt": {
@@ -2639,7 +2664,12 @@
             "type": "array"
           },
           "role": {
-            "enum": ["SUPER_ADMIN", "DEPARTMENT_MANAGER", "DEPARTMENT_MEMBER"],
+            "enum": [
+              "SUPER_ADMIN",
+              "ADMIN",
+              "DEPARTMENT_MANAGER",
+              "DEPARTMENT_MEMBER"
+            ],
             "nullable": true,
             "type": "string"
           },
@@ -3158,6 +3188,16 @@
             "example": "Event Management",
             "type": "string"
           },
+          "reportingAdmin": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DepartmentManagerSummary"
+              }
+            ],
+            "description": "The Admin Super Admin designated to receive this department's reports. Null until designated; the server never picks one on its own.",
+            "nullable": true,
+            "type": "object"
+          },
           "updatedAt": {
             "format": "date-time",
             "type": "string"
@@ -3168,6 +3208,7 @@
           "name",
           "description",
           "manager",
+          "reportingAdmin",
           "employeeCount",
           "deactivatedAt",
           "createdAt",
@@ -5458,7 +5499,10 @@
               "ATTENDANCE_OVERTIME_DECIDED",
               "ATTENDANCE_EXCEPTION_DECIDED",
               "LEAVE_REQUEST_SUBMITTED",
-              "LEAVE_REQUEST_DECIDED"
+              "LEAVE_REQUEST_DECIDED",
+              "TASK_SUBMITTED",
+              "TASK_REPORT_TO_ASSIGNED",
+              "TASK_BLOCKED"
             ],
             "type": "string"
           }
@@ -5572,7 +5616,10 @@
               "ATTENDANCE_OVERTIME_DECIDED",
               "ATTENDANCE_EXCEPTION_DECIDED",
               "LEAVE_REQUEST_SUBMITTED",
-              "LEAVE_REQUEST_DECIDED"
+              "LEAVE_REQUEST_DECIDED",
+              "TASK_SUBMITTED",
+              "TASK_REPORT_TO_ASSIGNED",
+              "TASK_BLOCKED"
             ],
             "type": "string"
           }
@@ -7288,6 +7335,15 @@
       },
       "ReportDetailResponse": {
         "properties": {
+          "author": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
           "authorId": {
             "format": "uuid",
             "type": "string"
@@ -7363,6 +7419,21 @@
             "nullable": true,
             "type": "string"
           },
+          "reportTo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "reportToId": {
+            "description": "Who this report is submitted to and who may review it. Null on reports from before per-report recipients (Super Admin reviews those).",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "reviewedAt": {
             "format": "date-time",
             "nullable": true,
@@ -7376,6 +7447,13 @@
           "reviews": {
             "items": {
               "$ref": "#/components/schemas/ReportReviewResponse"
+            },
+            "type": "array"
+          },
+          "sources": {
+            "description": "The department reports an Admin consolidated into this one.",
+            "items": {
+              "$ref": "#/components/schemas/ReportSourceSummary"
             },
             "type": "array"
           },
@@ -7436,12 +7514,28 @@
           "submittedAt",
           "reviewedAt",
           "reviewerId",
+          "reportToId",
+          "reportTo",
+          "author",
+          "sources",
           "workspaceIds",
           "reviews",
           "createdAt",
           "updatedAt",
           "facts"
         ],
+        "type": "object"
+      },
+      "ReportEligibleRecipientsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReportPersonSummary"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["items"],
         "type": "object"
       },
       "ReportFactsResponse": {
@@ -7523,8 +7617,38 @@
         ],
         "type": "object"
       },
+      "ReportPersonSummary": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["id", "email", "firstName", "lastName"],
+        "type": "object"
+      },
       "ReportResponse": {
         "properties": {
+          "author": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
           "authorId": {
             "format": "uuid",
             "type": "string"
@@ -7597,6 +7721,21 @@
             "nullable": true,
             "type": "string"
           },
+          "reportTo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "reportToId": {
+            "description": "Who this report is submitted to and who may review it. Null on reports from before per-report recipients (Super Admin reviews those).",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "reviewedAt": {
             "format": "date-time",
             "nullable": true,
@@ -7610,6 +7749,13 @@
           "reviews": {
             "items": {
               "$ref": "#/components/schemas/ReportReviewResponse"
+            },
+            "type": "array"
+          },
+          "sources": {
+            "description": "The department reports an Admin consolidated into this one.",
+            "items": {
+              "$ref": "#/components/schemas/ReportSourceSummary"
             },
             "type": "array"
           },
@@ -7670,6 +7816,10 @@
           "submittedAt",
           "reviewedAt",
           "reviewerId",
+          "reportToId",
+          "reportTo",
+          "author",
+          "sources",
           "workspaceIds",
           "reviews",
           "createdAt",
@@ -7701,6 +7851,69 @@
           }
         },
         "required": ["id", "reviewerId", "outcome", "note", "reviewedAt"],
+        "type": "object"
+      },
+      "ReportSourceSummary": {
+        "properties": {
+          "author": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReportPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "authorId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "departmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "periodEnd": {
+            "format": "date",
+            "type": "string"
+          },
+          "periodStart": {
+            "format": "date",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "SUBMITTED",
+              "UNDER_REVIEW",
+              "REVIEWED",
+              "CHANGES_REQUESTED"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "enum": ["DAILY", "WEEKLY", "MONTHLY", "POST_EVENT"],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "type",
+          "periodStart",
+          "periodEnd",
+          "authorId",
+          "author",
+          "departmentId"
+        ],
         "type": "object"
       },
       "RescheduleEventShiftDto": {
@@ -7958,6 +8171,16 @@
           }
         },
         "required": ["amount", "currency"],
+        "type": "object"
+      },
+      "SetReportRecipientDto": {
+        "properties": {
+          "reportToId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["reportToId"],
         "type": "object"
       },
       "SetTalentManagerDto": {
@@ -8295,6 +8518,16 @@
         "required": ["reason"],
         "type": "object"
       },
+      "SubmitReportDto": {
+        "properties": {
+          "reportToId": {
+            "description": "Who to submit to. Must be one of the caller's eligible recipients; optional when exactly one exists.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "SupplierResponse": {
         "properties": {
           "category": {
@@ -8611,7 +8844,8 @@
               "CHECKLIST_ITEM_COMPLETED",
               "CHECKLIST_ITEM_REOPENED",
               "CHECKLIST_ITEM_REMOVED",
-              "CHECKLIST_ITEM_REORDERED"
+              "CHECKLIST_ITEM_REORDERED",
+              "REPORT_TO_CHANGED"
             ],
             "type": "string"
           }
@@ -8872,6 +9106,20 @@
             "nullable": true,
             "type": "number"
           },
+          "reportTo": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaskPersonSummary"
+              }
+            ],
+            "description": "Who receives this task's reports and decides its review. Null on tasks created before per-task recipients, which keep the earlier review rule.",
+            "nullable": true,
+            "type": "object"
+          },
+          "reportToPinned": {
+            "description": "True when Super Admin explicitly chose the recipient, so a later assignment by someone else does not replace it.",
+            "type": "boolean"
+          },
           "startAt": {
             "format": "date-time",
             "nullable": true,
@@ -8940,6 +9188,8 @@
           "assignees",
           "checklistItems",
           "createdBy",
+          "reportTo",
+          "reportToPinned",
           "createdAt",
           "updatedAt",
           "subtaskSummary"
@@ -10132,6 +10382,14 @@
             "maxLength": 5000,
             "type": "string"
           },
+          "sourceReportIds": {
+            "description": "Admin only: reviewed Department Manager reports consolidated into this report.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "array"
+          },
           "title": {
             "maxLength": 200,
             "type": "string"
@@ -10282,6 +10540,11 @@
           },
           "priority": {
             "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "type": "string"
+          },
+          "reportToId": {
+            "description": "Re-point the task's reporting recipient. Super Admin only; the recipient is then pinned so later assignments by someone else do not replace it.",
+            "format": "uuid",
             "type": "string"
           },
           "startAt": {
@@ -17320,6 +17583,83 @@
           }
         ],
         "summary": "Reactivate a deactivated department",
+        "tags": ["Department management"]
+      }
+    },
+    "/api/v1/departments/{id}/reporting-admin": {
+      "put": {
+        "operationId": "Departments_setReportingAdmin_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignReportingAdminDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartmentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, out of read scope, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The department or the requested user does not exist"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Designate, change, or clear the Admin who receives a department's reports (Super Admin only)",
         "tags": ["Department management"]
       }
     },
@@ -29442,6 +29782,51 @@
         "tags": ["Reports"]
       }
     },
+    "/api/v1/reports/eligible-recipients": {
+      "get": {
+        "operationId": "Reports_eligibleRecipients_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportEligibleRecipientsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List who the caller may submit a report to",
+        "tags": ["Reports"]
+      }
+    },
     "/api/v1/reports/{id}": {
       "get": {
         "operationId": "Reports_get_v1",
@@ -29655,6 +30040,93 @@
         "tags": ["Reports"]
       }
     },
+    "/api/v1/reports/{id}/recipient": {
+      "put": {
+        "operationId": "Reports_setRecipient_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetReportRecipientDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Re-route a submitted, not-yet-reviewed report to another recipient (Super Admin only)",
+        "tags": ["Reports"]
+      }
+    },
     "/api/v1/reports/{id}/reviews": {
       "post": {
         "operationId": "Reports_review_v1",
@@ -29812,6 +30284,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitReportDto"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -32702,6 +33184,16 @@
             }
           },
           {
+            "description": "Only tasks that report to this user (\"Reporting to me\").",
+            "in": "query",
+            "name": "reportToId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
             "description": "Only subtasks created from this higher-level task.",
             "in": "query",
             "name": "parentTaskId",
@@ -32986,6 +33478,72 @@
           }
         ],
         "summary": "List a department's active staff eligible for task assignment",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/eligible-recipients": {
+      "get": {
+        "operationId": "Tasks_listEligibleRecipients_v1",
+        "parameters": [
+          {
+            "description": "The task's department; its own manager is then also a valid recipient.",
+            "in": "query",
+            "name": "departmentId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskEligibleAssigneesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the people Super Admin may name as a task's reporting recipient",
         "tags": ["Task management"]
       }
     },

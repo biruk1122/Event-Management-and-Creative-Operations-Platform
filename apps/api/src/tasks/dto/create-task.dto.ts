@@ -70,6 +70,17 @@ export class CreateTaskDto {
   @IsUUID()
   assigneeId?: string;
 
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Who receives this task's reports and decides its review. Defaults to " +
+      "the person creating/assigning the task; only Super Admin may name " +
+      "someone else (an active Super Admin, Admin, or the department's own manager).",
+  })
+  @IsOptional()
+  @IsUUID()
+  reportToId?: string;
+
   @ApiPropertyOptional({ format: "date-time" })
   @IsOptional()
   @IsISO8601({ strict: true })

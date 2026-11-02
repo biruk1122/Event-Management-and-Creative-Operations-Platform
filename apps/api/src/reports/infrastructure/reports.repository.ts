@@ -20,8 +20,33 @@ import {
 import type { Sections } from "../reports.policy.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const PERSON = {
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+} as const;
 const include = {
   workspaces: { select: { workspaceId: true } },
+  author: { select: PERSON },
+  reportTo: { select: PERSON },
+  sources: {
+    select: {
+      sourceReport: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          type: true,
+          periodStart: true,
+          periodEnd: true,
+          authorId: true,
+          departmentId: true,
+          author: { select: PERSON },
+        },
+      },
+    },
+  },
   reviews: {
     orderBy: [{ reviewedAt: "asc" }, { id: "asc" }],
     select: {
@@ -63,6 +88,8 @@ export interface ReportWrite {
   departmentId: string | null;
   workspaceIds: string[];
   sections: Sections;
+  /** Consolidation sources (Admin only); undefined leaves them untouched. */
+  sourceReportIds?: string[];
 }
 
 function visibilityWhere(
@@ -220,6 +247,15 @@ export class ReportsRepository {
           workspaces: {
             create: data.workspaceIds.map((workspaceId) => ({ workspaceId })),
           },
+          ...(data.sourceReportIds?.length
+            ? {
+                sources: {
+                  create: data.sourceReportIds.map((sourceReportId) => ({
+                    sourceReportId,
+                  })),
+                },
+              }
+            : {}),
         },
         include,
       });
@@ -258,10 +294,21 @@ export class ReportsRepository {
             submittedAt: null,
             reviewedAt: null,
             reviewerId: null,
+            reportToId: null,
             updatedAt: new Date(),
           },
         });
         if (changed.count !== 1) throw reportConcurrentChange();
+        if (data.sourceReportIds !== undefined) {
+          await tx.reportSource.deleteMany({ where: { reportId: id } });
+          if (data.sourceReportIds.length)
+            await tx.reportSource.createMany({
+              data: data.sourceReportIds.map((sourceReportId) => ({
+                reportId: id,
+                sourceReportId,
+              })),
+            });
+        }
         await tx.reportWorkspace.deleteMany({ where: { reportId: id } });
         if (data.workspaceIds.length)
           await tx.reportWorkspace.createMany({
@@ -287,6 +334,7 @@ export class ReportsRepository {
     expectedUpdatedAt: Date,
     actorId: string,
     requestId: string,
+    reportToId: string | null,
   ): Promise<ReportRecord> {
     return this.db.$transaction(async (tx) => {
       const changed = await tx.report.updateMany({
@@ -300,6 +348,7 @@ export class ReportsRepository {
           submittedAt: new Date(),
           reviewedAt: null,
           reviewerId: null,
+          reportToId,
           updatedAt: new Date(),
         },
       });
@@ -325,6 +374,171 @@ export class ReportsRepository {
       });
       return tx.report.findUniqueOrThrow({ where: { id }, include });
     });
+  }
+
+  /** Re-routes a submitted, not-yet-reviewed report to another recipient
+   * (Super Admin only, checked by the service). Audited, and the new
+   * recipient is notified through the usual report.submitted event. */
+  async setRecipient(
+    id: string,
+    reportToId: string,
+    actorId: string,
+    requestId: string,
+  ): Promise<ReportRecord> {
+    return this.db.$transaction(async (tx) => {
+      const before = await tx.report.findUnique({
+        where: { id },
+        select: { reportToId: true },
+      });
+      const changed = await tx.report.updateMany({
+        where: { id, status: "SUBMITTED" },
+        data: { reportToId, reviewerId: null, updatedAt: new Date() },
+      });
+      if (changed.count !== 1) throw reportInvalidTransition();
+      await this.audit.append(tx, {
+        action: "report.recipient_changed",
+        actorKind: AuditActorKind.USER,
+        actorUserId: actorId,
+        requestId,
+        resourceType: "report",
+        resourceId: id,
+        metadata: { from: before?.reportToId ?? null, to: reportToId },
+        outcome: AuditOutcome.SUCCEEDED,
+      });
+      await this.outbox.append(tx, {
+        name: "report.submitted",
+        version: 1,
+        actorKind: OutboxActorKind.USER,
+        actorUserId: actorId,
+        correlationId: requestId,
+        resourceType: "report",
+        resourceId: id,
+        consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
+      });
+      return tx.report.findUniqueOrThrow({ where: { id }, include });
+    });
+  }
+
+  /** Active manager and designated reporting Admin of a department. */
+  async getDepartmentRouting(departmentId: string | null): Promise<{
+    managerId: string | null;
+    reportingAdminId: string | null;
+  }> {
+    if (!departmentId || !UUID.test(departmentId))
+      return { managerId: null, reportingAdminId: null };
+    const department = await this.db.department.findUnique({
+      where: { id: departmentId },
+      select: {
+        manager: { select: { id: true, status: true } },
+        reportingAdmin: {
+          select: {
+            id: true,
+            status: true,
+            roleAssignment: {
+              select: { role: { select: { name: true, isSystem: true } } },
+            },
+          },
+        },
+      },
+    });
+    const admin = department?.reportingAdmin;
+    const adminOk =
+      admin?.status === "ACTIVE" &&
+      admin.roleAssignment?.role.isSystem === true &&
+      admin.roleAssignment.role.name === "Admin";
+    return {
+      managerId:
+        department?.manager?.status === "ACTIVE" ? department.manager.id : null,
+      reportingAdminId: adminOk && admin ? admin.id : null,
+    };
+  }
+
+  async listActiveSuperAdminIds(): Promise<string[]> {
+    const rows = await this.db.user.findMany({
+      where: {
+        status: "ACTIVE",
+        roleAssignment: { role: { name: "Super Admin", isSystem: true } },
+      },
+      select: { id: true },
+      orderBy: { id: "asc" },
+    });
+    return rows.map((row) => row.id);
+  }
+
+  async findRecipientUser(userId: string): Promise<{
+    id: string;
+    active: boolean;
+    departmentId: string | null;
+    roleName: string | null;
+    roleIsSystem: boolean;
+  } | null> {
+    if (!UUID.test(userId)) return null;
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        status: true,
+        departmentId: true,
+        roleAssignment: {
+          select: { role: { select: { name: true, isSystem: true } } },
+        },
+      },
+    });
+    if (!user) return null;
+    return {
+      id: user.id,
+      active: user.status === "ACTIVE",
+      departmentId: user.departmentId,
+      roleName: user.roleAssignment?.role.name ?? null,
+      roleIsSystem: user.roleAssignment?.role.isSystem ?? false,
+    };
+  }
+
+  async listPeople(ids: string[]): Promise<
+    {
+      id: string;
+      email: string;
+      firstName: string | null;
+      lastName: string | null;
+    }[]
+  > {
+    if (!ids.length) return [];
+    return this.db.user.findMany({
+      where: { id: { in: ids.filter((id) => UUID.test(id)) } },
+      select: PERSON,
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    });
+  }
+
+  /** The facts needed to validate consolidation sources. */
+  async findSourceCandidates(ids: string[]): Promise<
+    {
+      id: string;
+      status: ReportStatus;
+      authorRoleName: string | null;
+      authorRoleIsSystem: boolean;
+    }[]
+  > {
+    const rows = await this.db.report.findMany({
+      where: { id: { in: ids.filter((id) => UUID.test(id)) } },
+      select: {
+        id: true,
+        status: true,
+        author: {
+          select: {
+            roleAssignment: {
+              select: { role: { select: { name: true, isSystem: true } } },
+            },
+          },
+        },
+      },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      status: row.status,
+      authorRoleName: row.author.roleAssignment?.role.name ?? null,
+      authorRoleIsSystem: row.author.roleAssignment?.role.isSystem ?? false,
+    }));
   }
 
   /** Marks a submitted report as actively being looked at (EOM-01's

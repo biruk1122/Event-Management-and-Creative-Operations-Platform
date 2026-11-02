@@ -66,6 +66,19 @@ export class CreateReportDto {
   @IsUUID("all", { each: true })
   workspaceIds?: string[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    format: "uuid",
+    description:
+      "Admin only: reviewed Department Manager reports consolidated into this report.",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ArrayUnique()
+  @IsUUID("all", { each: true })
+  sourceReportIds?: string[];
+
   @ApiPropertyOptional({ maxLength: 5000 })
   @IsOptional()
   @IsString()
@@ -141,4 +154,21 @@ export class ReviewReportDto {
   @MaxLength(2000)
   @Matches(NONBLANK)
   note?: string;
+}
+
+export class SubmitReportDto {
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Who to submit to. Must be one of the caller's eligible recipients; optional when exactly one exists.",
+  })
+  @IsOptional()
+  @IsUUID()
+  reportToId?: string;
+}
+
+export class SetReportRecipientDto {
+  @ApiProperty({ format: "uuid" })
+  @IsUUID()
+  reportToId!: string;
 }

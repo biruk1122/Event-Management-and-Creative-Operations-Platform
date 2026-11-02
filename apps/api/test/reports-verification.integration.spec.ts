@@ -174,6 +174,10 @@ describe("EVE-167 report verification", () => {
     );
     reviewer = await principal("fixture-reviewer@reports.test", "Super Admin");
     admin = await principal("fixture-admin@reports.test", "Super Admin");
+    await prisma.department.update({
+      where: { id: departmentId },
+      data: { managerId: manager.id },
+    });
 
     async function report(
       authorId: string,
@@ -558,7 +562,7 @@ describe("EVE-167 report verification", () => {
     ).toBe("REPORT_INVALID_TRANSITION");
     expect(
       (
-        await as(manager, "post", `${path}/reviews`).send({
+        await as(outsider, "post", `${path}/reviews`).send({
           outcome: "REVIEWED",
         })
       ).status,
@@ -770,7 +774,9 @@ describe("EVE-167 report verification", () => {
       });
       const smallQueries = statements.length;
       expect(small.items).toHaveLength(1);
-      expect(smallQueries).toBeLessThanOrEqual(6);
+      // The reporting recipient and consolidation sources each add one batched
+      // relation load; the budget stays constant, not per-row (checked below).
+      expect(smallQueries).toBeLessThanOrEqual(9);
       statements.length = 0;
       const larger = await reports.list({
         visibility: { organization: true },

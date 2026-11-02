@@ -29,6 +29,8 @@ function makeTask(overrides: Partial<TaskRecord> = {}): TaskRecord {
     assignees: [],
     checklistItems: [],
     createdBy: null,
+    reportTo: null,
+    reportToPinned: false,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     ...overrides,
@@ -47,6 +49,7 @@ async function expectCode(promise: Promise<unknown>, code: string) {
 describe("TasksService", () => {
   let repository: Record<string, ReturnType<typeof vi.fn>>;
   let permissions: {
+    getAccessContext: ReturnType<typeof vi.fn>;
     hasGrant: ReturnType<
       typeof vi.fn<
         (
@@ -121,6 +124,9 @@ describe("TasksService", () => {
         review: {},
       }),
       listEligibleAssignees: vi.fn().mockResolvedValue([]),
+      findRecipientCandidate: vi.fn().mockResolvedValue(null),
+      listRecipientCandidates: vi.fn().mockResolvedValue([]),
+      setReportTo: vi.fn().mockResolvedValue(makeTask()),
       createComment: vi.fn().mockResolvedValue({
         id: "comment-1",
         content: "done",
@@ -133,7 +139,14 @@ describe("TasksService", () => {
       listReviews: vi.fn().mockResolvedValue({ items: [], total: 0 }),
       listActivities: vi.fn().mockResolvedValue({ items: [], total: 0 }),
     };
-    permissions = { hasGrant: vi.fn().mockResolvedValue(false) };
+    permissions = {
+      // No platform role by default: scope grants alone decide, as before
+      // per-task reporting recipients existed.
+      getAccessContext: vi
+        .fn()
+        .mockResolvedValue({ role: null, department: null }),
+      hasGrant: vi.fn().mockResolvedValue(false),
+    };
     service = new TasksService(repository as never, permissions as never);
   });
 

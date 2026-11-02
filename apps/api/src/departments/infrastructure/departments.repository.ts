@@ -15,6 +15,8 @@ export interface DepartmentRecord {
   name: string;
   description: string | null;
   manager: DepartmentManagerRecord | null;
+  /** The Admin Super Admin designated to receive department-level reports. */
+  reportingAdmin: DepartmentManagerRecord | null;
   employeeCount: number;
   deactivatedAt: Date | null;
   createdAt: Date;
@@ -53,6 +55,9 @@ const DEPARTMENT_SELECT = {
   manager: {
     select: { id: true, email: true, firstName: true, lastName: true },
   },
+  reportingAdmin: {
+    select: { id: true, email: true, firstName: true, lastName: true },
+  },
   _count: { select: { employees: true } },
 } as const;
 
@@ -66,6 +71,7 @@ function toRecord(raw: RawDepartment): DepartmentRecord {
     name: raw.name,
     description: raw.description,
     manager: raw.manager ?? null,
+    reportingAdmin: raw.reportingAdmin ?? null,
     employeeCount: raw._count.employees,
     deactivatedAt: raw.deactivatedAt,
     createdAt: raw.createdAt,
@@ -195,6 +201,52 @@ export class DepartmentsRepository {
       }
       if (isPrismaError(error, PRISMA_ERROR.foreignKeyViolation)) {
         return "manager_not_found";
+      }
+      throw error;
+    }
+  }
+
+  /** The facts needed to validate a reporting-Admin designation. */
+  async findAdminCandidate(userId: string): Promise<{
+    active: boolean;
+    roleName: string | null;
+    roleIsSystem: boolean;
+  } | null> {
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: {
+        status: true,
+        roleAssignment: {
+          select: { role: { select: { name: true, isSystem: true } } },
+        },
+      },
+    });
+    if (!user) return null;
+    return {
+      active: user.status === "ACTIVE",
+      roleName: user.roleAssignment?.role.name ?? null,
+      roleIsSystem: user.roleAssignment?.role.isSystem ?? false,
+    };
+  }
+
+  /** Returns the updated record, or `"not_found"` / `"admin_not_found"`. */
+  async setReportingAdmin(
+    id: string,
+    reportingAdminId: string | null,
+  ): Promise<DepartmentRecord | "not_found" | "admin_not_found"> {
+    try {
+      const updated = await this.db.department.update({
+        where: { id },
+        data: { reportingAdminId },
+        select: DEPARTMENT_SELECT,
+      });
+      return toRecord(updated);
+    } catch (error) {
+      if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
+        return "not_found";
+      }
+      if (isPrismaError(error, PRISMA_ERROR.foreignKeyViolation)) {
+        return "admin_not_found";
       }
       throw error;
     }

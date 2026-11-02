@@ -198,6 +198,7 @@ export class EmployeesService {
   }
 
   private async validateNewUserAssignment(
+    actingUserId: string,
     roleId: string,
     departmentId: string,
   ): Promise<void> {
@@ -207,10 +208,21 @@ export class EmployeesService {
     });
     if (!role) throw userRoleNotFound();
     const code = role.isSystem ? platformRole(role.name) : null;
-    if (code !== "DEPARTMENT_MANAGER" && code !== "DEPARTMENT_MEMBER") {
+    if (
+      code !== "ADMIN" &&
+      code !== "DEPARTMENT_MANAGER" &&
+      code !== "DEPARTMENT_MEMBER"
+    ) {
       throw employeeAssignmentInvalid(
-        "Choose a Department Manager or Department Member role. A Super Admin account cannot be created through employee registration.",
+        "Choose an Admin, Department Manager or Department Member role. A Super Admin account cannot be created through employee registration.",
       );
+    }
+    if (code === "ADMIN") {
+      // Admin is a real employee, but promoting someone into that role is a
+      // Super-Admin decision - the HR manager can register managers and
+      // members only.
+      const context = await this.permissions.getAccessContext(actingUserId);
+      if (context.role !== "SUPER_ADMIN") throw permissionDenied();
     }
     const department = await this.db.department.findUnique({
       where: { id: departmentId },
@@ -305,6 +317,19 @@ export class EmployeesService {
     if (dto.userId) {
       const existing = await this.repository.findByUserId(dto.userId);
       if (existing) throw employeeUserAlreadyLinked();
+      // Super Admin represents the CEO and stays outside the employee system.
+      const linkedRole = await this.db.userRoleAssignment.findUnique({
+        where: { userId: dto.userId },
+        select: { role: { select: { name: true, isSystem: true } } },
+      });
+      if (
+        linkedRole?.role.isSystem &&
+        platformRole(linkedRole.role.name) === "SUPER_ADMIN"
+      ) {
+        throw employeeAssignmentInvalid(
+          "A Super Admin account cannot be registered as an employee.",
+        );
+      }
       const result = await this.repository.createForExistingUser(
         dto.userId,
         actingUserId,
@@ -333,7 +358,11 @@ export class EmployeesService {
         "email, firstName, lastName, temporaryPassword, roleId, and departmentId are required to create a new account.",
       );
     }
-    await this.validateNewUserAssignment(dto.roleId, dto.departmentId);
+    await this.validateNewUserAssignment(
+      actingUserId,
+      dto.roleId,
+      dto.departmentId,
+    );
 
     const passwordHash = await this.passwordHasher.hash(dto.temporaryPassword);
     const result = await this.repository.createForNewUser(

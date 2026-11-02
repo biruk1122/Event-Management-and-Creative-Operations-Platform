@@ -44,6 +44,10 @@ function report(overrides: Partial<Report> = {}): Report {
     submittedAt: now,
     reviewedAt: null,
     reviewerId: null,
+    reportToId: null,
+    reportTo: null,
+    author: null,
+    sources: [],
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -300,6 +304,7 @@ describe("ReportsManager", () => {
     const user = userEvent.setup();
     setup({
       userId: "reviewer-1",
+      role: "SUPER_ADMIN",
       grants: [
         { permissionKey: "report.read", scope: "ORGANIZATION" },
         { permissionKey: "report.review", scope: "ORGANIZATION" },
@@ -339,6 +344,17 @@ describe("ReportsManager", () => {
         });
       if (path === "/api/v1/reports/{id}") return ok(draft);
       if (path === "/api/v1/reports/{id}/export") return ok(draft);
+      if (path === "/api/v1/reports/eligible-recipients")
+        return ok({
+          items: [
+            {
+              id: "manager-1",
+              email: "morgan@example.test",
+              firstName: "Morgan",
+              lastName: "Manager",
+            },
+          ],
+        });
       return ok({ items: [] });
     });
     const createObjectURL = vi.fn(() => "blob:report");
@@ -362,7 +378,10 @@ describe("ReportsManager", () => {
       await waitFor(() =>
         expect(post).toHaveBeenCalledWith(
           "/api/v1/reports/{id}/submit",
-          expect.objectContaining({ params: { path: { id: "report-1" } } }),
+          expect.objectContaining({
+            params: { path: { id: "report-1" } },
+            body: { reportToId: "manager-1" },
+          }),
         ),
       );
       expect(await screen.findByRole("status")).toHaveTextContent(
@@ -405,6 +424,7 @@ describe("ReportsManager", () => {
     const user = userEvent.setup();
     setup({
       userId: "reviewer-1",
+      role: "SUPER_ADMIN",
       grants: [
         { permissionKey: "report.read", scope: "ORGANIZATION" },
         { permissionKey: "report.review", scope: "ORGANIZATION" },

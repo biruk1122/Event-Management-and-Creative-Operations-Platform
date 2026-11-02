@@ -425,6 +425,7 @@ export class NotificationsRepository {
     authorId: string;
     departmentId: string | null;
     status: ReportStatus;
+    reportToId: string | null;
   } | null> {
     return this.db.report.findUnique({
       where: { id: reportId },
@@ -433,8 +434,20 @@ export class NotificationsRepository {
         authorId: true,
         departmentId: true,
         status: true,
+        reportToId: true,
       },
     });
+  }
+
+  /** The task's current reporting recipient (null on tasks that predate
+   * per-task recipients), resolved at process time rather than trusted from
+   * the event payload. */
+  async getTaskReportToId(taskId: string): Promise<string | null> {
+    const task = await this.db.task.findUnique({
+      where: { id: taskId },
+      select: { reportToId: true },
+    });
+    return task?.reportToId ?? null;
   }
 
   /** Every active user who can review this report: holding `report.review`
@@ -443,9 +456,15 @@ export class NotificationsRepository {
    * same per-user department comparison `ReportsService.visibility` already
    * performs for authorization, never a payload snapshot. */
   async getReportReviewerIds(departmentId: string | null): Promise<string[]> {
+    // Reports without a recipient (created before per-report recipients)
+    // keep the earlier Super-Admin-only review, so only Super Admin is
+    // notified: the Admin and Department Manager roles hold report.review for
+    // reports addressed to them, never for these.
+    void departmentId;
     const organization = await this.db.userRoleAssignment.findMany({
       where: {
         role: {
+          name: { not: "Admin" },
           rolePermissions: {
             some: { permissionKey: "report.review", scope: "ORGANIZATION" },
           },
@@ -454,22 +473,7 @@ export class NotificationsRepository {
       },
       select: { userId: true },
     });
-    const department = departmentId
-      ? await this.db.userRoleAssignment.findMany({
-          where: {
-            role: {
-              rolePermissions: {
-                some: { permissionKey: "report.review", scope: "DEPARTMENT" },
-              },
-            },
-            user: { status: UserAccountStatus.ACTIVE, departmentId },
-          },
-          select: { userId: true },
-        })
-      : [];
-    return [
-      ...new Set([...organization, ...department].map((row) => row.userId)),
-    ];
+    return [...new Set(organization.map((row) => row.userId))];
   }
 
   async getTodo(
@@ -686,6 +690,28 @@ export class NotificationsRepository {
       employeeDepartmentId: row.employee.departmentId,
       leaveTypeName: row.leaveType.name,
     };
+  }
+
+  /** Active Super Admin accounts, for requests that bypass the department
+   * manager (an Admin's leave goes straight to Super Admin). */
+  async getActiveSuperAdminIds(): Promise<string[]> {
+    const rows = await this.db.user.findMany({
+      where: {
+        status: UserAccountStatus.ACTIVE,
+        roleAssignment: { role: { name: "Super Admin", isSystem: true } },
+      },
+      select: { id: true },
+    });
+    return rows.map((row) => row.id);
+  }
+
+  /** True when the user holds the system Admin role. */
+  async isAdminUser(userId: string): Promise<boolean> {
+    return (
+      (await this.db.userRoleAssignment.count({
+        where: { userId, role: { name: "Admin", isSystem: true } },
+      })) > 0
+    );
   }
 
   async getDepartmentManagerId(departmentId: string): Promise<string | null> {

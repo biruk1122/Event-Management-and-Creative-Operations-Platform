@@ -29,6 +29,7 @@ function makeDepartment(
   return {
     description: null,
     manager: null,
+    reportingAdmin: null,
     employeeCount: 0,
     deactivatedAt: null,
     createdAt: now,

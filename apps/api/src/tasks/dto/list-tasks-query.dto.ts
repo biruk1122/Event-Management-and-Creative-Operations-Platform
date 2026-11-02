@@ -57,6 +57,14 @@ export class ListTasksQueryDto {
 
   @ApiPropertyOptional({
     format: "uuid",
+    description: 'Only tasks that report to this user ("Reporting to me").',
+  })
+  @IsOptional()
+  @IsUUID()
+  reportToId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
     description: "Only subtasks created from this higher-level task.",
   })
   @IsOptional()

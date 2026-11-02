@@ -35,6 +35,26 @@ export function taskAssignedContent(taskTitle: string): NotificationContent {
   return { title: "You were assigned a task", body: taskTitle };
 }
 
+export function taskSubmittedContent(taskTitle: string): NotificationContent {
+  return { title: "Work submitted for your review", body: taskTitle };
+}
+
+export function taskReportToAssignedContent(
+  taskTitle: string,
+): NotificationContent {
+  return {
+    title: "You now receive reports for a task",
+    body: taskTitle,
+  };
+}
+
+export function taskBlockedContent(taskTitle: string): NotificationContent {
+  return {
+    title: "A task you receive reports for is blocked",
+    body: taskTitle,
+  };
+}
+
 export function taskApprovedContent(taskTitle: string): NotificationContent {
   return { title: "Task approved", body: taskTitle };
 }

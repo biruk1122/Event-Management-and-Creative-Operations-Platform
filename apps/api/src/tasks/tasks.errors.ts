@@ -21,7 +21,26 @@ export const TASK_ERROR = {
   checklistItemNotFound: "TASK_CHECKLIST_ITEM_NOT_FOUND",
   checklistReorderMismatch: "TASK_CHECKLIST_REORDER_MISMATCH",
   checklistItemOwnershipDenied: "TASK_CHECKLIST_ITEM_OWNERSHIP_DENIED",
+  reportToInvalid: "TASK_REPORT_TO_INVALID",
+  assigneeNotEligible: "TASK_ASSIGNEE_NOT_ELIGIBLE",
 } as const;
+
+export function taskAssigneeNotEligible(): HttpException {
+  return new BadRequestException({
+    code: TASK_ERROR.assigneeNotEligible,
+    error: "Bad Request",
+    detail: "Only Super Admin can assign work to an Admin account.",
+  });
+}
+
+export function taskReportToInvalid(): HttpException {
+  return new BadRequestException({
+    code: TASK_ERROR.reportToInvalid,
+    error: "Bad Request",
+    detail:
+      "Choose an active Super Admin, Admin, or the department's own manager as the reporting recipient.",
+  });
+}
 
 export function taskNotFound(): HttpException {
   return new NotFoundException({

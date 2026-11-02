@@ -15,15 +15,17 @@ import { listWorkspaces } from "@/features/workspaces/api/workspaces-gateway";
 import {
   exportReport,
   getReport,
+  listReportRecipients,
   listReports,
   ReportsRequestError,
 } from "../api/reports-gateway";
 import { reportKeys, useReportsMutations } from "../api/reports-queries";
 import { reportAbilities } from "../lib/reports-access";
-import type {
-  CreateReport,
-  ReportFilters,
-  ReviewOutcome,
+import {
+  reportPersonName,
+  type CreateReport,
+  type ReportFilters,
+  type ReviewOutcome,
 } from "../lib/report-presentation";
 import { ReportsWorkspace } from "./reports-workspace";
 
@@ -104,6 +106,13 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
       access.grants.some((grant) => grant.permissionKey === "department.read"),
     retry: false,
     staleTime: 60_000,
+  });
+  const recipientsQuery = useQuery({
+    queryKey: [...keys.all, "eligible-recipients"],
+    queryFn: ({ signal }) => listReportRecipients(signal),
+    enabled: abilities.canSubmit,
+    retry: false,
+    staleTime: 30_000,
   });
   const workspacesQuery = useQuery({
     queryKey: keys.workspaces,
@@ -235,11 +244,14 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
     }
   }
 
-  async function submit(id: string) {
+  async function submit(id: string, reportToId?: string) {
     if (requestInFlight.current) return;
     requestInFlight.current = true;
     try {
-      await mutations.submit.mutateAsync(id);
+      await mutations.submit.mutateAsync({
+        id,
+        ...(reportToId ? { reportToId } : {}),
+      });
       setNotice({ kind: "success", message: "Report submitted for review." });
     } catch (error) {
       setNotice({ kind: "error", message: messageOf(error) });
@@ -328,6 +340,25 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
       }
       canCreate={abilities.canCreate}
       canReview={abilities.canReview}
+      isSuperAdmin={access.role === "SUPER_ADMIN"}
+      recipients={(recipientsQuery.data ?? []).map((person) => ({
+        id: person.id,
+        name: reportPersonName(person),
+      }))}
+      recipientsLoading={recipientsQuery.isPending && abilities.canSubmit}
+      canConsolidate={access.role === "ADMIN"}
+      consolidatable={(listQuery.data?.items ?? [])
+        .filter(
+          (item) =>
+            item.status === "REVIEWED" && item.authorId !== access.userId,
+        )
+        .map((item) => ({
+          id: item.id,
+          title: item.title,
+          authorName: item.author
+            ? reportPersonName(item.author)
+            : (authorNames[item.authorId] ?? "A manager"),
+        }))}
       canAttach={abilities.canAttach}
       busy={busy}
       notice={displayNotice}
@@ -353,8 +384,8 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
       onSaveDraft={abilities.canCreate ? saveDraft : undefined}
       onSubmit={
         abilities.canSubmit
-          ? (id) => {
-              void submit(id);
+          ? (id, reportToId) => {
+              void submit(id, reportToId);
             }
           : undefined
       }

@@ -20,7 +20,8 @@ export interface TestUser {
    * "Management/Administrator" and "Talent Manager" and renamed "Team
    * Member" to "Department Member".
    */
-  readonly role: "Super Admin" | "Department Manager" | "Department Member";
+  readonly role:
+    "Super Admin" | "Admin" | "Department Manager" | "Department Member";
   readonly firstName: string;
   readonly lastName: string;
 }
@@ -67,6 +68,16 @@ export const TEST_USERS: readonly TestUser[] = [
     role: "Department Manager",
     firstName: "Dana",
     lastName: "Okafor",
+  },
+  {
+    // The operational coordinator: a real employee (department-bound) with
+    // organization-wide task/report coordination but no user/role authority.
+    key: "admin",
+    email: "admin@e2e.test",
+    password: TEST_USER_PASSWORD,
+    role: "Admin",
+    firstName: "Alex",
+    lastName: "Coordinator",
   },
   {
     key: "talentManager",

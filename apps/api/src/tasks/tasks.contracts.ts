@@ -134,6 +134,23 @@ export class TaskResponse {
   @ApiProperty({ type: TaskPersonSummary, nullable: true })
   createdBy!: TaskPersonSummary | null;
 
+  @ApiProperty({
+    type: TaskPersonSummary,
+    nullable: true,
+    description:
+      "Who receives this task's reports and decides its review. Null on " +
+      "tasks created before per-task recipients, which keep the earlier " +
+      "review rule.",
+  })
+  reportTo!: TaskPersonSummary | null;
+
+  @ApiProperty({
+    description:
+      "True when Super Admin explicitly chose the recipient, so a later " +
+      "assignment by someone else does not replace it.",
+  })
+  reportToPinned!: boolean;
+
   @ApiProperty({ format: "date-time" })
   createdAt!: string;
 

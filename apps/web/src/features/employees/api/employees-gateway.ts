@@ -196,24 +196,25 @@ export interface AssignableRole {
 }
 
 /**
- * Roles an HR Manager or Super Admin may assign while registering a new
- * employee account - Department Manager and Department Member only. A
- * Super Admin role is deliberately excluded: `EmployeesService` rejects it
- * server-side, so it is never offered here either.
+ * Roles offered while registering a new employee account: Department Manager
+ * and Department Member for the HR manager or Super Admin, plus Admin for
+ * Super Admin only (Admin is an employee, but granting it is a Super Admin
+ * decision the server also enforces). Super Admin itself is excluded - the
+ * CEO is not an employee - and `EmployeesService` rejects it server-side.
  */
 export async function listAssignableEmployeeRoles(
   signal?: AbortSignal,
+  options: { includeAdmin?: boolean } = {},
 ): Promise<AssignableRole[]> {
+  const offered = options.includeAdmin
+    ? ["Admin", "Department Manager", "Department Member"]
+    : ["Department Manager", "Department Member"];
   const { data } = await browserApi.GET("/api/v1/roles", {
     ...(signal ? { signal } : {}),
     cache: "no-store",
   });
   return (data ?? [])
-    .filter(
-      (role) =>
-        role.isSystem &&
-        ["Department Manager", "Department Member"].includes(role.name),
-    )
+    .filter((role) => role.isSystem && offered.includes(role.name))
     .map((role) => ({ id: role.id, name: role.name }));
 }
 

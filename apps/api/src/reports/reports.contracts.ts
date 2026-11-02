@@ -14,6 +14,32 @@ export class ReportReviewResponse {
   @ApiProperty({ format: "date-time" }) reviewedAt!: string;
 }
 
+export class ReportPersonSummary {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty() email!: string;
+  @ApiProperty({ type: String, nullable: true }) firstName!: string | null;
+  @ApiProperty({ type: String, nullable: true }) lastName!: string | null;
+}
+
+export class ReportSourceSummary {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty() title!: string;
+  @ApiProperty({ enum: ReportStatus }) status!: ReportStatus;
+  @ApiProperty({ enum: ReportType }) type!: ReportType;
+  @ApiProperty({ format: "date" }) periodStart!: string;
+  @ApiProperty({ format: "date" }) periodEnd!: string;
+  @ApiProperty({ format: "uuid" }) authorId!: string;
+  @ApiProperty({ type: ReportPersonSummary, nullable: true })
+  author!: ReportPersonSummary | null;
+  @ApiProperty({ type: String, nullable: true, format: "uuid" }) departmentId!:
+    string | null;
+}
+
+export class ReportEligibleRecipientsResponse {
+  @ApiProperty({ type: [ReportPersonSummary] })
+  items!: ReportPersonSummary[];
+}
+
 export class ReportResponse {
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty({ enum: ReportType }) type!: ReportType;
@@ -62,6 +88,23 @@ export class ReportResponse {
   reviewedAt!: string | null;
   @ApiProperty({ type: String, nullable: true, format: "uuid" }) reviewerId!:
     string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    format: "uuid",
+    description:
+      "Who this report is submitted to and who may review it. Null on reports from before per-report recipients (Super Admin reviews those).",
+  })
+  reportToId!: string | null;
+  @ApiProperty({ type: ReportPersonSummary, nullable: true })
+  reportTo!: ReportPersonSummary | null;
+  @ApiProperty({ type: ReportPersonSummary, nullable: true })
+  author!: ReportPersonSummary | null;
+  @ApiProperty({
+    type: [ReportSourceSummary],
+    description: "The department reports an Admin consolidated into this one.",
+  })
+  sources!: ReportSourceSummary[];
   @ApiProperty({ type: [String], format: "uuid" }) workspaceIds!: string[];
   @ApiProperty({ type: [ReportReviewResponse] })
   reviews!: ReportReviewResponse[];

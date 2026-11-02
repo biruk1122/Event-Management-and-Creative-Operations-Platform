@@ -25,6 +25,7 @@ describe("department RBAC catalog migration", () => {
     );
     expect(ROLE_DEFINITIONS.map((role) => role.name)).toEqual([
       "Super Admin",
+      "Admin",
       "Department Manager",
       "Department Member",
     ]);

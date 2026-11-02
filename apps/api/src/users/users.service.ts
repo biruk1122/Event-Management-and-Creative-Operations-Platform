@@ -58,6 +58,38 @@ export class UsersService {
     }
   }
 
+  /**
+   * Only Super Admin may grant or remove the Admin (or Super Admin) role, and
+   * nobody may change their own role. These are stated explicitly rather than
+   * left implicit in who happens to hold `user.assign_role`, so granting that
+   * key to another role could never become a promotion path.
+   */
+  private async requireRoleChangeAuthority(
+    actingUserId: string,
+    targetUserId: string,
+    targetRoleId: string | null | undefined,
+    currentRole: { id: string; name: string } | null | undefined,
+  ): Promise<void> {
+    if (targetRoleId === currentRole?.id) return;
+    if (actingUserId === targetUserId) {
+      throw invalidUserAssignment("You cannot change your own role.");
+    }
+    const target = targetRoleId
+      ? await this.repository.findRole(targetRoleId)
+      : null;
+    const targetCode =
+      target && target.isSystem ? platformRole(target.name) : null;
+    const currentCode = currentRole ? platformRole(currentRole.name) : null;
+    const privileged = (code: string | null) =>
+      code === "ADMIN" || code === "SUPER_ADMIN";
+    if (privileged(targetCode) || privileged(currentCode)) {
+      const context = await this.permissions.getAccessContext(actingUserId);
+      if (context.role !== "SUPER_ADMIN") {
+        throw permissionDenied();
+      }
+    }
+  }
+
   private async validateAssignment(
     roleId: string | null | undefined,
     departmentId: string | null | undefined,
@@ -67,7 +99,7 @@ export class UsersService {
     if (!role) throw roleNotFound();
     const code = role.isSystem ? platformRole(role.name) : null;
     if (!code)
-      throw invalidUserAssignment("Choose one of the three platform roles.");
+      throw invalidUserAssignment("Choose one of the four platform roles.");
     if (code !== "SUPER_ADMIN" && !departmentId) {
       throw invalidUserAssignment(
         "Department managers and members require a department.",
@@ -123,6 +155,7 @@ export class UsersService {
     if (dto.departmentId)
       await this.requireGrant(actingUserId, "user.assign_department");
     await this.validateAssignment(dto.roleId, dto.departmentId);
+    await this.requireRoleChangeAuthority(actingUserId, "", dto.roleId, null);
 
     const passwordHash = await this.passwordHasher.hash(dto.temporaryPassword);
     const result = await this.repository.create({
@@ -175,6 +208,14 @@ export class UsersService {
           ? current.department?.id
           : dto.departmentId,
       );
+      if (dto.roleId !== undefined) {
+        await this.requireRoleChangeAuthority(
+          actingUserId,
+          id,
+          dto.roleId,
+          current.role,
+        );
+      }
     }
 
     const result = await this.repository.update(id, {
@@ -260,6 +301,7 @@ export class UsersService {
       );
     }
     await this.validateAssignment(roleId, user.department?.id);
+    await this.requireRoleChangeAuthority(actingUserId, id, roleId, user.role);
 
     const result = await this.repository.setRole(id, roleId);
     if (result === "user_not_found") {

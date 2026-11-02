@@ -174,6 +174,12 @@ describe("report API", () => {
       "Department Member",
       other.id,
     );
+    // Members report to their department's manager; submit resolves it from
+    // the department record, so the manager must be assigned.
+    await prisma.department.update({
+      where: { id: department.id },
+      data: { managerId: manager.id },
+    });
   });
 
   afterAll(async () => {
@@ -273,7 +279,7 @@ describe("report API", () => {
     expect(body<ReportBody>(submitted).status).toBe("SUBMITTED");
     expect(
       (
-        await as(manager, "post", `${path}/reviews`).send({
+        await as(outsider, "post", `${path}/reviews`).send({
           outcome: "REVIEWED",
         })
       ).status,

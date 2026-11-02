@@ -58,3 +58,32 @@ export const reportWorkspaceNotFound = () =>
   new NotFoundException(
     problem("REPORT_WORKSPACE_NOT_FOUND", "A linked workspace does not exist."),
   );
+
+export const reportRecipientNotDesignated = () =>
+  new ConflictException(
+    problem(
+      "REPORT_RECIPIENT_NOT_DESIGNATED",
+      "No one is designated to receive this report. Ask Super Admin to designate the department's reporting Admin (or manager).",
+    ),
+  );
+export const reportRecipientRequired = () =>
+  new BadRequestException(
+    problem(
+      "REPORT_RECIPIENT_REQUIRED",
+      "Choose who this report is submitted to.",
+    ),
+  );
+export const reportRecipientInvalid = () =>
+  new BadRequestException(
+    problem(
+      "REPORT_RECIPIENT_INVALID",
+      "That person cannot receive this report.",
+    ),
+  );
+export const reportSourceInvalid = () =>
+  new BadRequestException(
+    problem(
+      "REPORT_SOURCE_INVALID",
+      "Consolidated reports can only include reviewed reports authored by Department Managers.",
+    ),
+  );

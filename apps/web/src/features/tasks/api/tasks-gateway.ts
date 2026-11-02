@@ -63,6 +63,8 @@ export interface ListTasksParams {
   assigneeId?: string | null;
   /** "Created by Me". */
   createdById?: string | null;
+  /** "Reporting to me": tasks whose reporting recipient is this user. */
+  reportToId?: string | null;
   overdue?: boolean | null;
   page?: number;
   pageSize?: number;
@@ -85,6 +87,7 @@ export async function listTasks(params: ListTasksParams, signal?: AbortSignal) {
   if (params.parentTaskId) query.parentTaskId = params.parentTaskId;
   if (params.assigneeId) query.assigneeId = params.assigneeId;
   if (params.createdById) query.createdById = params.createdById;
+  if (params.reportToId) query.reportToId = params.reportToId;
   if (params.overdue) query.overdue = params.overdue;
 
   const { data, error, response } = await browserApi.GET("/api/v1/tasks", {
@@ -473,6 +476,9 @@ export interface CreateTaskParams {
    * set - only the parent's own assignee (or an organization-scoped
    * caller) may create one. */
   parentTaskId?: string;
+  /** Who receives this task's reports. Only Super Admin may set it; when
+   * omitted the server defaults it to the person creating the task. */
+  reportToId?: string;
   /** Checkpoints authored up front; added one at a time, in order, after
    * the task itself is created (no checklist-item field on create). */
   checklistItems?: readonly string[];
@@ -490,6 +496,7 @@ export async function createTask(params: CreateTaskParams): Promise<Task> {
       ...(params.assigneeId ? { assigneeId: params.assigneeId } : {}),
       ...(params.workspaceId ? { workspaceId: params.workspaceId } : {}),
       ...(params.parentTaskId ? { parentTaskId: params.parentTaskId } : {}),
+      ...(params.reportToId ? { reportToId: params.reportToId } : {}),
     },
     headers: headers(),
   });
@@ -502,6 +509,47 @@ export async function createTask(params: CreateTaskParams): Promise<Task> {
     const trimmed = description.trim();
     if (trimmed) await addTaskChecklistItem(data.id, trimmed);
   }
+  return data;
+}
+
+/** The people Super Admin may name as a task's reporting recipient (every
+ * Admin and Super Admin, plus the department's own manager). */
+export async function listEligibleRecipients(
+  departmentId: string,
+  signal?: AbortSignal,
+): Promise<TaskPerson[]> {
+  const { data, error, response } = await browserApi.GET(
+    "/api/v1/tasks/eligible-recipients",
+    {
+      params: { query: { departmentId } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data)
+    fail(response.status, error, "The recipients could not be loaded.");
+  return data.items;
+}
+
+/** Super Admin re-points a task's reporting recipient (pinned). */
+export async function setTaskReportTo(
+  id: string,
+  reportToId: string,
+): Promise<Task> {
+  const { data, error, response } = await browserApi.PATCH(
+    "/api/v1/tasks/{id}",
+    {
+      params: { path: { id } },
+      body: { reportToId },
+      headers: headers(),
+    },
+  );
+  if (!data)
+    fail(
+      response.status,
+      error,
+      "The reporting recipient was not changed. Try again.",
+    );
   return data;
 }
 

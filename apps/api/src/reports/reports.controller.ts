@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -38,10 +39,13 @@ import { ListReportsQueryDto } from "./dto/list-reports-query.dto.js";
 import {
   CreateReportDto,
   ReviewReportDto,
+  SetReportRecipientDto,
+  SubmitReportDto,
   UpdateReportDto,
 } from "./dto/report-input.dto.js";
 import {
   PaginatedReportsResponse,
+  ReportEligibleRecipientsResponse,
   ReportDetailResponse,
   ReportResponse,
 } from "./reports.contracts.js";
@@ -73,6 +77,18 @@ export class ReportsController {
     @Query() query: ListReportsQueryDto,
   ): Promise<PaginatedReportsResponse> {
     return this.reports.list(actingUserId(req), query);
+  }
+
+  @Get("eligible-recipients")
+  @RequirePermissions("report.submit")
+  @ApiOperation({
+    summary: "List who the caller may submit a report to",
+  })
+  @ApiOkResponse({ type: ReportEligibleRecipientsResponse })
+  eligibleRecipients(
+    @Req() req: RequestWithContext,
+  ): Promise<ReportEligibleRecipientsResponse> {
+    return this.reports.eligibleRecipients(actingUserId(req));
   }
 
   @Get(":id")
@@ -150,8 +166,34 @@ export class ReportsController {
   submit(
     @Req() req: RequestWithContext,
     @Param("id") id: string,
+    @Body() body: SubmitReportDto,
   ): Promise<ReportResponse> {
-    return this.reports.submit(actingUserId(req), id, req.id);
+    return this.reports.submit(actingUserId(req), id, req.id, body?.reportToId);
+  }
+
+  @Put(":id/recipient")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("report.review")
+  @ApiOperation({
+    summary:
+      "Re-route a submitted, not-yet-reviewed report to another recipient (Super Admin only)",
+  })
+  @ApiOkResponse({ type: ReportResponse })
+  @ApiBadRequestResponse({ type: ProblemDetails })
+  @ApiConflictResponse({ type: ProblemDetails })
+  setRecipient(
+    @Req() req: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: SetReportRecipientDto,
+  ): Promise<ReportResponse> {
+    return this.reports.setRecipient(
+      actingUserId(req),
+      id,
+      body.reportToId,
+      req.id,
+    );
   }
 
   @Post(":id/start-review")

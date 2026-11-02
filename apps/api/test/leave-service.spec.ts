@@ -79,7 +79,10 @@ describe("LeaveService", () => {
     withdrawRequest: ReturnType<typeof vi.fn>;
     listApprovedInRange: ReturnType<typeof vi.fn>;
   };
-  let permissions: { hasGrant: ReturnType<typeof vi.fn> };
+  let permissions: {
+    getAccessContext: ReturnType<typeof vi.fn>;
+    hasGrant: ReturnType<typeof vi.fn>;
+  };
   let audit: { record: ReturnType<typeof vi.fn> };
   let service: LeaveService;
 
@@ -116,6 +119,9 @@ describe("LeaveService", () => {
       listApprovedInRange: vi.fn().mockResolvedValue([]),
     };
     permissions = {
+      getAccessContext: vi
+        .fn()
+        .mockResolvedValue({ role: "DEPARTMENT_MANAGER", department: null }),
       hasGrant: vi
         .fn()
         .mockImplementation(
@@ -303,6 +309,53 @@ describe("LeaveService", () => {
         ),
         SECURITY_ERROR.permissionDenied,
       );
+    });
+
+    describe("an Admin's leave (an Admin reports directly to Super Admin)", () => {
+      const roleOf = (map: Record<string, string>) =>
+        (permissions.getAccessContext = vi.fn((userId: string) =>
+          Promise.resolve({ role: map[userId] ?? null, department: null }),
+        ));
+
+      it("cannot be decided by the department manager of the Admin's own department", async () => {
+        roleOf({ "employee-1": "ADMIN", "manager-1": "DEPARTMENT_MANAGER" });
+        await expectCode(
+          service.decideRequest(
+            "manager-1",
+            "request-1",
+            { decision: "APPROVED" },
+            "req-1",
+          ),
+          SECURITY_ERROR.permissionDenied,
+        );
+        expect(repository.consumeForRequest).not.toHaveBeenCalled();
+      });
+
+      it("can be decided by Super Admin", async () => {
+        roleOf({ "employee-1": "ADMIN", "sa-1": "SUPER_ADMIN" });
+        permissions.hasGrant.mockResolvedValue(true);
+        await service.decideRequest(
+          "sa-1",
+          "request-1",
+          { decision: "APPROVED" },
+          "req-1",
+        );
+        expect(repository.consumeForRequest).toHaveBeenCalled();
+      });
+
+      it("leaves an ordinary member's leave with their department manager", async () => {
+        roleOf({
+          "employee-1": "DEPARTMENT_MEMBER",
+          "manager-1": "DEPARTMENT_MANAGER",
+        });
+        await service.decideRequest(
+          "manager-1",
+          "request-1",
+          { decision: "APPROVED" },
+          "req-1",
+        );
+        expect(repository.consumeForRequest).toHaveBeenCalled();
+      });
     });
 
     it("rejects deciding an already-decided request", async () => {

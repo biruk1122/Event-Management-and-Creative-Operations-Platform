@@ -50,6 +50,9 @@ export interface CreateTaskValues {
   dueAt: string;
   workspaceId?: string;
   parentTaskId?: string;
+  /** Super Admin only: who receives this task's reports. Blank means the
+   * default (the person creating the task). */
+  reportToId?: string;
   /** Checkpoints authored up front; posted one at a time after creation. */
   checklistItems: string[];
 }
@@ -82,11 +85,17 @@ interface CreateTaskDialogProps {
     departmentId: string,
     signal?: AbortSignal,
   ) => Promise<TaskPerson[]>;
+  /** Provided only to Super Admin: enables the "Reports to" selector. */
+  loadEligibleRecipients?: (
+    departmentId: string,
+    signal?: AbortSignal,
+  ) => Promise<TaskPerson[]>;
   onCreate: (values: CreateTaskValues) => Promise<Task>;
   onUploadAttachment: (taskId: string, file: File) => Promise<unknown>;
   onCreated: (task: Task) => void;
 }
 
+const DEFAULT_RECIPIENT = "__me__";
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = new Set([
   "image/png",
@@ -122,6 +131,7 @@ export function CreateTaskDialog({
   workspaceId,
   parentTaskId,
   loadEligibleAssignees,
+  loadEligibleRecipients,
   onCreate,
   onUploadAttachment,
   onCreated,
@@ -129,6 +139,7 @@ export function CreateTaskDialog({
   const titleId = useId();
   const departmentId = useId();
   const assigneeId = useId();
+  const reportToFieldId = useId();
   const typeId = useId();
   const priorityId = useId();
   const descriptionId = useId();
@@ -156,6 +167,15 @@ export function CreateTaskDialog({
     queryKey: ["create-task-eligible-assignees", values.departmentId],
     queryFn: ({ signal }) => loadEligibleAssignees(values.departmentId, signal),
     enabled: open && values.departmentId !== "",
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  const recipients = useQuery({
+    queryKey: ["create-task-eligible-recipients", values.departmentId],
+    queryFn: ({ signal }) =>
+      loadEligibleRecipients!(values.departmentId, signal),
+    enabled: open && !!loadEligibleRecipients && values.departmentId !== "",
     retry: false,
     staleTime: 30_000,
   });
@@ -198,6 +218,7 @@ export function CreateTaskDialog({
       // The eligible-assignee list depends on the department, so a prior
       // selection from a different department must not silently survive.
       assigneeId: "",
+      reportToId: "",
     }));
   }
 
@@ -437,6 +458,45 @@ export function CreateTaskDialog({
               ) : null}
             </div>
           </div>
+
+          {loadEligibleRecipients ? (
+            <div className="space-y-2">
+              <Label htmlFor={reportToFieldId}>Reports to</Label>
+              <Select
+                value={values.reportToId || DEFAULT_RECIPIENT}
+                disabled={submitting || values.departmentId === ""}
+                onValueChange={(value) =>
+                  setValues((current) => ({
+                    ...current,
+                    reportToId: value === DEFAULT_RECIPIENT ? "" : value,
+                  }))
+                }
+              >
+                <SelectTrigger id={reportToFieldId}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={DEFAULT_RECIPIENT}>
+                    Me (default)
+                  </SelectItem>
+                  {(recipients.data ?? []).map((person) => (
+                    <SelectItem key={person.id} value={person.id}>
+                      {personName(person)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                Who receives this task&apos;s progress and completion reports.
+                Defaults to whoever assigns the task.
+              </p>
+              {recipients.isError ? (
+                <p className="text-destructive text-sm">
+                  The recipient list could not be loaded.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">

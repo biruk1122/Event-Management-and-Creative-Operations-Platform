@@ -46,6 +46,7 @@ const NO_MANAGER = "NONE";
 const ACTION_ERRORS: Record<string, string> = {
   name_conflict: "Another department already uses that name.",
   manager_not_found: "That user no longer exists.",
+  invalid_user: "Choose an active Admin.",
   already_inactive: "This department is already deactivated.",
   already_active: "This department is already active.",
   in_use: "This department still has employees and cannot be removed.",
@@ -68,6 +69,10 @@ interface DepartmentDetailDialogProps {
   getDepartment?: GetDepartment;
   onUpdate: UpdateDepartment;
   onAssignManager: AssignManager;
+  /** Super Admin only: Admins offered as the department's reporting Admin. */
+  reportingAdmins?: readonly AssignableUser[];
+  canAssignReportingAdmin?: boolean;
+  onAssignReportingAdmin?: AssignManager;
   onDeactivate: DeactivateDepartment;
   onReactivate: ReactivateDepartment;
   onDelete: DeleteDepartment;
@@ -111,6 +116,9 @@ interface DepartmentDetailBodyProps {
   getDepartment?: GetDepartment;
   onUpdate: UpdateDepartment;
   onAssignManager: AssignManager;
+  reportingAdmins?: readonly AssignableUser[];
+  canAssignReportingAdmin?: boolean;
+  onAssignReportingAdmin?: AssignManager;
   onDeactivate: DeactivateDepartment;
   onReactivate: ReactivateDepartment;
   onDelete: DeleteDepartment;
@@ -127,6 +135,9 @@ function DepartmentDetailBody({
   getDepartment = defaultGetDepartment,
   onUpdate,
   onAssignManager,
+  reportingAdmins = [],
+  canAssignReportingAdmin = false,
+  onAssignReportingAdmin,
   onDeactivate,
   onReactivate,
   onDelete,
@@ -137,7 +148,12 @@ function DepartmentDetailBody({
     name: useId(),
     description: useId(),
     manager: useId(),
+    reportingAdmin: useId(),
   };
+  const [reportingAdminError, setReportingAdminError] = useState<string | null>(
+    null,
+  );
+  const [reportingAdminBusy, setReportingAdminBusy] = useState(false);
 
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     "loading",
@@ -236,6 +252,25 @@ function DepartmentDetailBody({
       return;
     }
     setManagerError(ACTION_ERRORS[outcome.status] ?? ACTION_ERRORS.unexpected!);
+  }
+
+  async function handleReportingAdminChange(value: string) {
+    if (!department || !onAssignReportingAdmin) return;
+    const userId = value === NO_MANAGER ? null : value;
+    setReportingAdminBusy(true);
+    setReportingAdminError(null);
+    const outcome = await onAssignReportingAdmin(department.id, userId);
+    setReportingAdminBusy(false);
+    if (outcome.status === "success") {
+      applyDepartment(outcome.department);
+      setAnnouncement(
+        userId ? "Reporting Admin designated." : "Reporting Admin cleared.",
+      );
+      return;
+    }
+    setReportingAdminError(
+      ACTION_ERRORS[outcome.status] ?? ACTION_ERRORS.unexpected!,
+    );
   }
 
   async function runStatusChange(next: "deactivate" | "reactivate") {
@@ -402,6 +437,47 @@ function DepartmentDetailBody({
             </p>
           ) : null}
         </div>
+
+        {canAssignReportingAdmin ? (
+          <div className="space-y-2">
+            <Label htmlFor={ids.reportingAdmin}>Reporting Admin</Label>
+            <Select
+              value={department.reportingAdmin?.id ?? NO_MANAGER}
+              onValueChange={(value) => void handleReportingAdminChange(value)}
+              disabled={reportingAdminBusy}
+            >
+              <SelectTrigger
+                id={ids.reportingAdmin}
+                aria-busy={reportingAdminBusy}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_MANAGER}>Not designated</SelectItem>
+                {(department.reportingAdmin &&
+                !reportingAdmins.some(
+                  (admin) => admin.id === department.reportingAdmin!.id,
+                )
+                  ? [department.reportingAdmin, ...reportingAdmins]
+                  : reportingAdmins
+                ).map((admin) => (
+                  <SelectItem key={admin.id} value={admin.id}>
+                    {personName(admin)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              The Admin who receives this department&apos;s reports. Reports are
+              never sent to an Admin that is not designated here.
+            </p>
+            {reportingAdminError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {reportingAdminError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {canEdit || canDelete ? (
           <div className="flex flex-wrap items-center gap-2">

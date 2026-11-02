@@ -65,6 +65,7 @@ export type ReactivateDepartment = (
 export type AssignManagerOutcome =
   | { status: "success"; department: Department }
   | { status: "manager_not_found" }
+  | { status: "invalid_user" }
   | { status: "not_found" }
   | { status: "permission_denied" }
   | { status: "unexpected" };

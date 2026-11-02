@@ -12,10 +12,13 @@ export function reportAbilities(access: CurrentAccess) {
     canCreate: holds(access.grants, "report.create"),
     canSubmit: holds(access.grants, "report.submit"),
     canAttach: holds(access.grants, "report.attachment.create"),
+    // Holding the grant only makes the review UI possible; each report is
+    // reviewable only by its own recipient (or Super Admin) - see
+    // ReportDetailPanel - and the API enforces the same rule.
     canReview: access.grants.some(
       (grant) =>
         grant.permissionKey === "report.review" &&
-        grant.scope === "ORGANIZATION",
+        (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
     ),
     audience: access.grants.some(
       (grant) =>

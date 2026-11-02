@@ -47,7 +47,8 @@ export function useReportsMutations(access: CurrentAccess) {
       onSettled: reconcile,
     }),
     submit: useMutation({
-      mutationFn: gateway.submitReport,
+      mutationFn: ({ id, reportToId }: { id: string; reportToId?: string }) =>
+        gateway.submitReport(id, reportToId),
       onSettled: reconcile,
     }),
     startReview: useMutation({

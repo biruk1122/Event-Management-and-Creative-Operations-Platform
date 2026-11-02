@@ -4,6 +4,7 @@ import {
   IsISO8601,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
   MinLength,
@@ -41,6 +42,16 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsEnum(TaskType)
   type?: TaskType;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Re-point the task's reporting recipient. Super Admin only; the " +
+      "recipient is then pinned so later assignments by someone else do not replace it.",
+  })
+  @IsOptional()
+  @IsUUID()
+  reportToId?: string;
 
   @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
   @IsOptional()

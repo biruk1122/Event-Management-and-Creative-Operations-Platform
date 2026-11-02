@@ -160,6 +160,27 @@ export function notificationAppearance(type: NotificationType) {
         description:
           "When your leave request is approved, rejected, or returned",
       };
+    case "TASK_SUBMITTED":
+      return {
+        icon: ClipboardCheck,
+        tone: "teal",
+        action: "Review task",
+        description: "When work is submitted for your review",
+      };
+    case "TASK_REPORT_TO_ASSIGNED":
+      return {
+        icon: ClipboardCheck,
+        tone: "gold",
+        action: "View task",
+        description: "When you become a task's reporting recipient",
+      };
+    case "TASK_BLOCKED":
+      return {
+        icon: TriangleAlert,
+        tone: "danger",
+        action: "View task",
+        description: "When a task you receive reports for is blocked",
+      };
     default:
       return {
         icon: Bell,
