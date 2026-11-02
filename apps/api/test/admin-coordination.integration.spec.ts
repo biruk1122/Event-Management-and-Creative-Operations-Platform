@@ -52,9 +52,6 @@ interface ReportBody {
 interface ProblemBody {
   code: string;
 }
-interface ActivityBody {
-  items: Array<{ type: string; details: Record<string, unknown> }>;
-}
 
 function body<T>(response: request.Response): T {
   return response.body as T;
@@ -405,7 +402,7 @@ describe("Admin coordination, per-task reporting recipients and role guards", ()
       expect((await review(admin, parent.id)).status).toBe(201);
     });
 
-    it("makes the person who later assigns the default recipient, recording the history", async () => {
+    it("keeps the designated reviewer when someone else assigns the task later", async () => {
       const task = await createTask(admin, {
         departmentId: production,
         assigneeId: productionMember.id,
@@ -418,59 +415,59 @@ describe("Admin coordination, per-task reporting recipients and role guards", ()
         `/api/v1/tasks/${task.id}/assignees/${secondProductionMember.id}`,
       );
       expect(assigned.status, JSON.stringify(assigned.body)).toBe(200);
-      expect(body<TaskBody>(assigned).reportTo?.id).toBe(productionManager.id);
+      // Reassignment never changes who reviews the work.
+      expect(body<TaskBody>(assigned).reportTo?.id).toBe(admin.id);
+      expect((await getTask(superAdmin, task.id)).reportTo?.id).toBe(admin.id);
 
-      const activity = await as(
-        superAdmin,
-        "get",
-        `/api/v1/tasks/${task.id}/activity`,
-      );
-      expect(activity.status).toBe(200);
-      const changes = body<ActivityBody>(activity).items.filter(
-        (item) => item.type === "REPORT_TO_CHANGED",
-      );
-      // One entry at creation, one for the takeover.
-      expect(changes.map((c) => c.details.reason).sort()).toEqual([
-        "assigner",
-        "created",
-      ]);
-      expect(
-        changes.find((c) => c.details.reason === "assigner")?.details,
-      ).toMatchObject({ from: admin.id, to: productionManager.id });
+      await submitWork(productionMember, task.id);
+      expect((await review(productionManager, task.id)).status).toBe(403);
+      expect((await review(admin, task.id)).status).toBe(201);
     });
-
-    it("lets Super Admin pin a recipient that later assignments do not replace", async () => {
-      const task = await createTask(superAdmin, {
+    it("changes the reviewer only through Super Admin's reason-required action", async () => {
+      const task = await createTask(admin, {
         departmentId: production,
         assigneeId: productionMember.id,
-        reportToId: admin.id,
       });
-      expect(task.reportTo?.id).toBe(admin.id);
-      expect(task.reportToPinned).toBe(true);
+      const missingReason = await as(
+        superAdmin,
+        "put",
+        `/api/v1/tasks/${task.id}/reviewer`,
+      ).send({ reviewerId: admin2.id, reason: "   " });
+      expect(missingReason.status).toBe(400);
 
+      const changed = await as(
+        superAdmin,
+        "put",
+        `/api/v1/tasks/${task.id}/reviewer`,
+      ).send({ reviewerId: admin2.id, reason: "Covering while Admin is away" });
+      expect(changed.status, JSON.stringify(changed.body)).toBe(200);
+      expect(body<TaskBody>(changed).reportTo?.id).toBe(admin2.id);
+
+      // The change, its reason and the actor are kept in the review history.
+      const history = await as(
+        superAdmin,
+        "get",
+        `/api/v1/tasks/${task.id}/review-history`,
+      );
+      expect(history.status).toBe(200);
+      expect(JSON.stringify(body(history))).toContain(
+        "Covering while Admin is away",
+      );
+
+      // Later assignments do not undo it.
       await as(
         productionManager,
         "put",
         `/api/v1/tasks/${task.id}/assignees/${secondProductionMember.id}`,
       );
-      expect((await getTask(superAdmin, task.id)).reportTo?.id).toBe(admin.id);
-
-      // Super Admin can re-point it explicitly, and that is recorded too.
-      const repointed = await as(
-        superAdmin,
-        "patch",
-        `/api/v1/tasks/${task.id}`,
-      ).send({ reportToId: superAdmin2.id });
-      expect(repointed.status, JSON.stringify(repointed.body)).toBe(200);
-      expect(body<TaskBody>(repointed).reportTo?.id).toBe(superAdmin2.id);
+      expect((await getTask(superAdmin, task.id)).reportTo?.id).toBe(admin2.id);
     });
-
-    it("rejects recipient changes from anyone but Super Admin, and invalid targets", async () => {
+    it("only Super Admin changes the reviewer, and only to an eligible person", async () => {
       const task = await createTask(admin, {
         departmentId: production,
         assigneeId: productionMember.id,
       });
-      // Admin and managers cannot name a recipient on create or update.
+      // Admin and managers cannot name a recipient on create.
       const onCreate = await as(admin, "post", "/api/v1/tasks").send({
         title: "Named recipient",
         departmentId: production,
@@ -478,26 +475,25 @@ describe("Admin coordination, per-task reporting recipients and role guards", ()
       });
       expect(onCreate.status).toBe(403);
       for (const actor of [admin, productionManager]) {
-        const patched = await as(
+        const changed = await as(
           actor,
-          "patch",
-          `/api/v1/tasks/${task.id}`,
-        ).send({ reportToId: admin2.id });
-        expect(patched.status).toBe(403);
+          "put",
+          `/api/v1/tasks/${task.id}/reviewer`,
+        ).send({ reviewerId: admin2.id, reason: "Not mine to decide" });
+        expect(changed.status).toBe(403);
       }
-      // A member is never a valid recipient, nor is another department's manager.
+      // A member assigned to the task, and another department's manager, are
+      // not eligible reviewers.
       for (const target of [productionMember.id, marketingManager.id]) {
         const invalid = await as(
           superAdmin,
-          "patch",
-          `/api/v1/tasks/${task.id}`,
-        ).send({ reportToId: target });
+          "put",
+          `/api/v1/tasks/${task.id}/reviewer`,
+        ).send({ reviewerId: target, reason: "Try" });
         expect(invalid.status).toBe(400);
-        expect(code(invalid)).toBe("TASK_REPORT_TO_INVALID");
+        expect(code(invalid)).toBe("TASK_REVIEWER_INVALID");
       }
-      expect((await getTask(superAdmin, task.id)).reportTo?.id).toBe(admin.id);
     });
-
     it("only lets Super Admin assign work to an Admin account", async () => {
       for (const actor of [admin2, productionManager]) {
         const response = await as(actor, "post", "/api/v1/tasks").send({
@@ -539,8 +535,9 @@ describe("Admin coordination, per-task reporting recipients and role guards", ()
         ).toBe(403);
         expect(
           (
-            await as(actor, "patch", `/api/v1/tasks/${task.id}`).send({
-              reportToId: actor.id,
+            await as(actor, "put", `/api/v1/tasks/${task.id}/reviewer`).send({
+              reviewerId: actor.id,
+              reason: "Self-promotion",
             })
           ).status,
         ).toBe(403);
@@ -612,9 +609,14 @@ describe("Admin coordination, per-task reporting recipients and role guards", ()
       expect((await review(productionMember, task.id)).status).toBe(403);
       expect((await review(productionManager, task.id)).status).toBe(403);
       // Only a decision from the recipient lands.
-      expect((await review(admin, task.id, "CHANGES_REQUESTED")).status).toBe(
-        201,
-      );
+      expect(
+        (
+          await as(admin, "post", `/api/v1/tasks/${task.id}/reviews`).send({
+            outcome: "CHANGES_REQUESTED",
+            note: "Add the venue permit",
+          })
+        ).status,
+      ).toBe(201);
       expect((await getTask(admin, task.id)).status).toBe("IN_PROGRESS");
     });
 
@@ -635,8 +637,10 @@ describe("Admin coordination, per-task reporting recipients and role guards", ()
         });
       const first = await legacy();
       expect(first).toMatchObject({ reportToId: null });
+      // The creator (Super Admin) is the designated reviewer; nobody else is.
       expect((await review(admin, first.id)).status).toBe(403);
-      expect((await review(productionManager, first.id)).status).toBe(201);
+      expect((await review(productionManager, first.id)).status).toBe(403);
+      expect((await review(superAdmin, first.id)).status).toBe(201);
 
       const second = await legacy();
       expect((await review(superAdmin, second.id)).status).toBe(201);

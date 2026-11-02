@@ -3621,6 +3621,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/tasks/{id}/review-history": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the review history: submissions, review decisions with notes, and reviewer changes */
+    get: operations["Tasks_listReviewHistory_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks/{id}/reviewer": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Super Admin: change a task's designated reviewer, with a reason. Recorded in activity and audit. */
+    put: operations["Tasks_changeReviewer_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/tasks/{id}/reviews": {
     parameters: {
       query?: never;
@@ -4506,6 +4540,11 @@ export interface components {
       /** @example Marketing Team */
       name: string;
     };
+    ChangeTaskReviewerDto: {
+      reason: string;
+      /** Format: uuid */
+      reviewerId: string;
+    };
     CheckMeetingAvailabilityDto: {
       /** Format: date-time */
       endAt: string;
@@ -5221,6 +5260,16 @@ export interface components {
        * @enum {string}
        */
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+      /**
+       * Format: uuid
+       * @description Optional related campaign.
+       */
+      relatedCampaignId?: string;
+      /**
+       * Format: uuid
+       * @description Optional related event.
+       */
+      relatedEventId?: string;
       /**
        * Format: uuid
        * @description Who receives this task's reports and decides its review. Defaults to the person creating/assigning the task; only Super Admin may name someone else (an active Super Admin, Admin, or the department's own manager).
@@ -6481,7 +6530,8 @@ export interface components {
         | "LEAVE_REQUEST_DECIDED"
         | "TASK_SUBMITTED"
         | "TASK_REPORT_TO_ASSIGNED"
-        | "TASK_BLOCKED";
+        | "TASK_BLOCKED"
+        | "TASK_REVIEWER_CHANGED";
     };
     NotificationPreferencesResponse: {
       items: components["schemas"]["NotificationPreferenceResponse"][];
@@ -6544,7 +6594,8 @@ export interface components {
         | "LEAVE_REQUEST_DECIDED"
         | "TASK_SUBMITTED"
         | "TASK_REPORT_TO_ASSIGNED"
-        | "TASK_BLOCKED";
+        | "TASK_BLOCKED"
+        | "TASK_REVIEWER_CHANGED";
     };
     Object: Record<string, never>;
     OvertimeApprovalResponse: {
@@ -7794,7 +7845,10 @@ export interface components {
         | "CHECKLIST_ITEM_REOPENED"
         | "CHECKLIST_ITEM_REMOVED"
         | "CHECKLIST_ITEM_REORDERED"
-        | "REPORT_TO_CHANGED";
+        | "REPORT_TO_CHANGED"
+        | "SUBMITTED_FOR_REVIEW"
+        | "SUBTASK_ADDED"
+        | "SUBTASK_UPDATED";
     };
     TaskAnalyticsResponse: {
       /**
@@ -7874,6 +7928,10 @@ export interface components {
       dueAt: string | null;
       /** Format: uuid */
       id: string;
+      /** @example TSK-042 */
+      identifier: string;
+      /** @description The parent task, when this task is a subtask and the viewer can see the parent. Null otherwise. */
+      parentTask: Record<string, never> | null;
       /**
        * Format: uuid
        * @description The higher-level task this was broken down from, or null for a top-level task.
@@ -7883,10 +7941,14 @@ export interface components {
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
       /** @description Server-computed from checklist items or, when subtasks exist, the mean of direct children's own progress (subtasks always win). Null means 'not tracked' - no checklist items and no subtasks. Never client-settable, and reaching 100 never implies review approval. */
       progress: number | null;
+      relatedCampaign: Record<string, never> | null;
+      relatedEvent: Record<string, never> | null;
       /** @description Who receives this task's reports and decides its review. Null on tasks created before per-task recipients, which keep the earlier review rule. */
       reportTo: components["schemas"]["TaskPersonSummary"] | null;
       /** @description True when Super Admin explicitly chose the recipient, so a later assignment by someone else does not replace it. */
       reportToPinned: boolean;
+      /** @description True when the task has no eligible designated reviewer and needs a Super Admin to name one. Null on lists. */
+      reviewerUnresolved: boolean | null;
       /** Format: date-time */
       startAt: string | null;
       /** @enum {string} */
@@ -8425,11 +8487,10 @@ export interface components {
       dueAt?: string | null;
       /** @enum {string} */
       priority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
-      /**
-       * Format: uuid
-       * @description Re-point the task's reporting recipient. Super Admin only; the recipient is then pinned so later assignments by someone else do not replace it.
-       */
-      reportToId?: string;
+      /** Format: uuid */
+      relatedCampaignId?: string | null;
+      /** Format: uuid */
+      relatedEventId?: string | null;
       /** Format: date-time */
       startAt?: string | null;
       title?: string;
@@ -23019,6 +23080,8 @@ export interface operations {
         scheduledTo?: string;
         /** @description Only overdue open tasks. */
         overdue?: boolean;
+        /** @description Only tasks with no eligible designated reviewer ("Reviewer needed"). Super Admin resolves them with the reviewer change action. */
+        reviewerUnresolved?: boolean;
         sort?: "UPDATED" | "DUE_AT" | "START_AT";
         page?: components["schemas"]["Object"];
         pageSize?: components["schemas"]["Object"];
@@ -23998,6 +24061,125 @@ export interface operations {
         };
       };
       /** @description Task or mentioned user not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Tasks_listReviewHistory_v1: {
+    parameters: {
+      query?: {
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedTaskActivitiesResponse"];
+        };
+      };
+      /** @description Invalid request fields, owner, progress, or schedule */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside the resolved scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Task not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Tasks_changeReviewer_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChangeTaskReviewerDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Task not found */
       404: {
         headers: {
           [name: string]: unknown;

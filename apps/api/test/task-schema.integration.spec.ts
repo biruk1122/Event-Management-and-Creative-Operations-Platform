@@ -131,6 +131,29 @@ describe("task assignment and collaboration schema", () => {
     return row!.id;
   }
 
+  it("numbers concurrent tasks uniquely as TSK-### identifiers", async () => {
+    // Twenty inserts race for the one counter row; none may share a number.
+    const rows = await Promise.all(
+      Array.from({ length: 20 }, () => insertTask({})),
+    );
+    const numbers = rows.map(
+      (row) => (row as unknown as { task_number: number }).task_number,
+    );
+    expect(new Set(numbers).size).toBe(numbers.length);
+    expect(numbers.every((n) => Number.isInteger(n) && n > 0)).toBe(true);
+  });
+
+  it("refuses a duplicate task number at the database level", async () => {
+    const existing = await insertTask({});
+    const taskNumber = (existing as unknown as { task_number: number })
+      .task_number;
+    await expect(insertTask({ task_number: taskNumber })).rejects.toMatchObject(
+      {
+        code: PG_ERROR.uniqueViolation,
+      },
+    );
+  });
+
   it("creates workspace and department tasks with server defaults", async () => {
     const workspaceTask = await insertTask();
     const departmentId = await insertDepartment();

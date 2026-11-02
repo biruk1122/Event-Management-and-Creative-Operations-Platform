@@ -20,6 +20,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent as BaseDialogContent,
@@ -126,7 +127,11 @@ export interface TaskCollaborationActions {
     departmentId: string,
     signal?: AbortSignal,
   ) => Promise<TaskPerson[]>;
-  setReportTo?: (id: string, reportToId: string) => Promise<unknown>;
+  setReportTo?: (
+    id: string,
+    reviewerId: string,
+    reason: string,
+  ) => Promise<unknown>;
   canUpload: boolean;
   /** Blanket: gates the "Add subtask" action and the subtask-creation
    * dialog's own assignee picker, since a Manager manages assignment by
@@ -726,6 +731,7 @@ function TaskDetailDialog({
     staleTime: 30_000,
   });
   const [recipientChoice, setRecipientChoice] = useState("");
+  const [recipientReason, setRecipientReason] = useState("");
 
   async function perform(action: () => Promise<unknown>) {
     setActionError(null);
@@ -977,7 +983,7 @@ function TaskDetailDialog({
                       onValueChange={setRecipientChoice}
                     >
                       <SelectTrigger id="task-report-to" className="mt-1">
-                        <SelectValue placeholder="Select a recipient" />
+                        <SelectValue placeholder="Select a reviewer" />
                       </SelectTrigger>
                       <SelectContent>
                         {(recipients.data ?? [])
@@ -989,18 +995,40 @@ function TaskDetailDialog({
                           ))}
                       </SelectContent>
                     </Select>
+                    <label
+                      htmlFor="task-reviewer-reason"
+                      className="mt-3 block text-sm font-medium"
+                    >
+                      Reason for the change
+                    </label>
+                    <Textarea
+                      id="task-reviewer-reason"
+                      className="mt-1"
+                      maxLength={500}
+                      value={recipientReason}
+                      onChange={(event) =>
+                        setRecipientReason(event.target.value)
+                      }
+                      placeholder="Why the reviewer is changing"
+                    />
                   </div>
                   <Button
                     type="button"
                     size="sm"
-                    disabled={!recipientChoice || detail.isFetching}
+                    disabled={
+                      !recipientChoice ||
+                      !recipientReason.trim() ||
+                      detail.isFetching
+                    }
                     onClick={() =>
                       void perform(async () => {
                         await collaboration!.setReportTo!(
                           task.id,
                           recipientChoice,
+                          recipientReason.trim(),
                         );
                         setRecipientChoice("");
+                        setRecipientReason("");
                       })
                     }
                   >

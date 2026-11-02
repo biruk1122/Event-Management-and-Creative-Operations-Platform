@@ -916,6 +916,20 @@
         "required": ["id", "name"],
         "type": "object"
       },
+      "ChangeTaskReviewerDto": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "reviewerId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["reviewerId", "reason"],
+        "type": "object"
+      },
       "CheckMeetingAvailabilityDto": {
         "properties": {
           "endAt": {
@@ -2406,6 +2420,16 @@
           "priority": {
             "default": "MEDIUM",
             "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
+            "type": "string"
+          },
+          "relatedCampaignId": {
+            "description": "Optional related campaign.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "relatedEventId": {
+            "description": "Optional related event.",
+            "format": "uuid",
             "type": "string"
           },
           "reportToId": {
@@ -5502,7 +5526,8 @@
               "LEAVE_REQUEST_DECIDED",
               "TASK_SUBMITTED",
               "TASK_REPORT_TO_ASSIGNED",
-              "TASK_BLOCKED"
+              "TASK_BLOCKED",
+              "TASK_REVIEWER_CHANGED"
             ],
             "type": "string"
           }
@@ -5619,7 +5644,8 @@
               "LEAVE_REQUEST_DECIDED",
               "TASK_SUBMITTED",
               "TASK_REPORT_TO_ASSIGNED",
-              "TASK_BLOCKED"
+              "TASK_BLOCKED",
+              "TASK_REVIEWER_CHANGED"
             ],
             "type": "string"
           }
@@ -8845,7 +8871,10 @@
               "CHECKLIST_ITEM_REOPENED",
               "CHECKLIST_ITEM_REMOVED",
               "CHECKLIST_ITEM_REORDERED",
-              "REPORT_TO_CHANGED"
+              "REPORT_TO_CHANGED",
+              "SUBMITTED_FOR_REVIEW",
+              "SUBTASK_ADDED",
+              "SUBTASK_UPDATED"
             ],
             "type": "string"
           }
@@ -9089,6 +9118,15 @@
             "format": "uuid",
             "type": "string"
           },
+          "identifier": {
+            "example": "TSK-042",
+            "type": "string"
+          },
+          "parentTask": {
+            "description": "The parent task, when this task is a subtask and the viewer can see the parent. Null otherwise.",
+            "nullable": true,
+            "type": "object"
+          },
           "parentTaskId": {
             "description": "The higher-level task this was broken down from, or null for a top-level task.",
             "format": "uuid",
@@ -9106,6 +9144,14 @@
             "nullable": true,
             "type": "number"
           },
+          "relatedCampaign": {
+            "nullable": true,
+            "type": "object"
+          },
+          "relatedEvent": {
+            "nullable": true,
+            "type": "object"
+          },
           "reportTo": {
             "allOf": [
               {
@@ -9118,6 +9164,11 @@
           },
           "reportToPinned": {
             "description": "True when Super Admin explicitly chose the recipient, so a later assignment by someone else does not replace it.",
+            "type": "boolean"
+          },
+          "reviewerUnresolved": {
+            "description": "True when the task has no eligible designated reviewer and needs a Super Admin to name one. Null on lists.",
+            "nullable": true,
             "type": "boolean"
           },
           "startAt": {
@@ -9174,6 +9225,11 @@
         },
         "required": [
           "id",
+          "reviewerUnresolved",
+          "identifier",
+          "parentTask",
+          "relatedEvent",
+          "relatedCampaign",
           "workspaceId",
           "departmentId",
           "parentTaskId",
@@ -10542,9 +10598,14 @@
             "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"],
             "type": "string"
           },
-          "reportToId": {
-            "description": "Re-point the task's reporting recipient. Super Admin only; the recipient is then pinned so later assignments by someone else do not replace it.",
+          "relatedCampaignId": {
             "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "relatedEventId": {
+            "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "startAt": {
@@ -33240,6 +33301,15 @@
             }
           },
           {
+            "description": "Only tasks with no eligible designated reviewer (\"Reviewer needed\"). Super Admin resolves them with the reviewer change action.",
+            "in": "query",
+            "name": "reviewerUnresolved",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "in": "query",
             "name": "sort",
             "required": false,
@@ -34687,6 +34757,196 @@
           }
         ],
         "summary": "Add a task comment with explicit user mentions",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}/review-history": {
+      "get": {
+        "operationId": "Tasks_listReviewHistory_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedTaskActivitiesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields, owner, progress, or schedule"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the review history: submissions, review decisions with notes, and reviewer changes",
+        "tags": ["Task management"]
+      }
+    },
+    "/api/v1/tasks/{id}/reviewer": {
+      "put": {
+        "operationId": "Tasks_changeReviewer_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeTaskReviewerDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Task not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Super Admin: change a task's designated reviewer, with a reason. Recorded in activity and audit.",
         "tags": ["Task management"]
       }
     },

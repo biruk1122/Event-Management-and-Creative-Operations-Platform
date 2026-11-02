@@ -154,7 +154,7 @@ describe("review authority follows the task's reporting recipient", () => {
     expect(screen.getByRole("button", { name: "Approve" })).toBeVisible();
   });
 
-  it("lets Super Admin review regardless of the recipient", async () => {
+  it("does not let Super Admin approve a task it does not designate", async () => {
     const superAccess = {
       userId: SUPER_ADMIN.id,
       role: "SUPER_ADMIN",
@@ -166,9 +166,10 @@ describe("review authority follows the task's reporting recipient", () => {
     const task = underReview({ reportTo: OTHER_ADMIN });
     renderManager(superAccess, task);
     await openDetail(task);
-    expect(screen.getByRole("button", { name: "Approve" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Approve" }),
+    ).not.toBeInTheDocument();
   });
-
   it("never offers an assignee the review of their own work", async () => {
     const selfAccess = {
       ...adminAccess,

@@ -2,10 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import type { PlatformRole } from "../src/common/security/department-access.policy.js";
 import {
+  canAssignRole,
+  canCreateSubtaskUnder,
   canReviewTask,
   isEligibleExplicitRecipient,
+  isEligibleReviewer,
+  resolveDesignatedReviewer,
   resolveInitialReportTo,
   type RecipientCandidate,
+  type ReviewerCandidate,
 } from "../src/tasks/tasks-report-to.domain.js";
 
 const candidate = (
@@ -124,42 +129,163 @@ describe("isEligibleExplicitRecipient", () => {
   });
 });
 
-describe("canReviewTask", () => {
-  it("lets only the recipient or Super Admin review a task that has a recipient", () => {
-    const base = { reportToId: "admin-1" };
+const reviewer = (
+  id: string,
+  overrides: Partial<ReviewerCandidate> = {},
+): ReviewerCandidate => ({
+  id,
+  active: true,
+  isAssignee: false,
+  canReview: true,
+  ...overrides,
+});
+
+describe("designated reviewer", () => {
+  it("is the stored reviewer while eligible, regardless of role", () => {
     expect(
-      canReviewTask({ ...base, actorId: "admin-1", actorRole: "ADMIN" }),
-    ).toBe(true);
-    expect(
-      canReviewTask({ ...base, actorId: "sa", actorRole: "SUPER_ADMIN" }),
-    ).toBe(true);
-    // The Production manager keeps visibility but is not the recipient.
-    expect(
-      canReviewTask({
-        ...base,
-        actorId: "dm",
-        actorRole: "DEPARTMENT_MANAGER",
+      resolveDesignatedReviewer({
+        reportToId: "sa",
+        reportTo: reviewer("sa"),
+        creator: reviewer("other"),
       }),
-    ).toBe(false);
-    expect(
-      canReviewTask({ ...base, actorId: "admin-2", actorRole: "ADMIN" }),
-    ).toBe(false);
+    ).toEqual({ status: "resolved", reviewerId: "sa" });
   });
 
-  it("keeps the earlier behavior for tasks without a recipient, without widening it to Admin", () => {
-    const legacy = { reportToId: null };
+  it("resolves a legacy task with no recipient to an eligible creator", () => {
     expect(
-      canReviewTask({ ...legacy, actorId: "sa", actorRole: "SUPER_ADMIN" }),
-    ).toBe(true);
+      resolveDesignatedReviewer({
+        reportToId: null,
+        reportTo: null,
+        creator: reviewer("creator"),
+      }),
+    ).toEqual({ status: "resolved", reviewerId: "creator" });
+  });
+
+  it("is unresolved when the stored reviewer became inactive or is now an assignee", () => {
+    expect(
+      resolveDesignatedReviewer({
+        reportToId: "r",
+        reportTo: reviewer("r", { active: false }),
+        creator: null,
+      }),
+    ).toEqual({ status: "unresolved" });
+    expect(
+      resolveDesignatedReviewer({
+        reportToId: "r",
+        reportTo: reviewer("r", { isAssignee: true }),
+        creator: null,
+      }),
+    ).toEqual({ status: "unresolved" });
+  });
+
+  it("is unresolved for a legacy task whose creator is missing, inactive or an assignee", () => {
+    for (const creator of [
+      null,
+      reviewer("c", { active: false }),
+      reviewer("c", { isAssignee: true }),
+      reviewer("c", { canReview: false }),
+    ]) {
+      expect(
+        resolveDesignatedReviewer({
+          reportToId: null,
+          reportTo: null,
+          creator,
+        }),
+      ).toEqual({ status: "unresolved" });
+    }
+  });
+
+  it("never falls back to Super Admin or Admin silently", () => {
+    expect(
+      resolveDesignatedReviewer({
+        reportToId: null,
+        reportTo: null,
+        creator: null,
+      }),
+    ).toEqual({ status: "unresolved" });
+  });
+
+  it("applies one eligibility rule to every candidate", () => {
+    expect(isEligibleReviewer(reviewer("a"))).toBe(true);
+    expect(isEligibleReviewer(reviewer("a", { active: false }))).toBe(false);
+    expect(isEligibleReviewer(reviewer("a", { isAssignee: true }))).toBe(false);
+    expect(isEligibleReviewer(reviewer("a", { canReview: false }))).toBe(false);
+    expect(isEligibleReviewer(null)).toBe(false);
+  });
+});
+
+describe("canReviewTask", () => {
+  it("lets only the designated reviewer approve, never Super Admin as such", () => {
+    const designated = { status: "resolved" as const, reviewerId: "admin-1" };
+    expect(canReviewTask({ actorId: "admin-1", designated })).toBe(true);
+    expect(canReviewTask({ actorId: "sa", designated })).toBe(false);
+    expect(canReviewTask({ actorId: "admin-2", designated })).toBe(false);
+  });
+
+  it("allows nobody when the reviewer is unresolved", () => {
     expect(
       canReviewTask({
-        ...legacy,
-        actorId: "dm",
-        actorRole: "DEPARTMENT_MANAGER",
+        actorId: "sa",
+        designated: { status: "unresolved" },
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("canAssignRole", () => {
+  it("follows the chain Super Admin -> Admin -> Manager -> Member", () => {
+    expect(canAssignRole("SUPER_ADMIN", "ADMIN")).toBe(true);
+    expect(canAssignRole("SUPER_ADMIN", "DEPARTMENT_MANAGER")).toBe(true);
+    expect(canAssignRole("SUPER_ADMIN", "DEPARTMENT_MEMBER")).toBe(true);
+    expect(canAssignRole("SUPER_ADMIN", "SUPER_ADMIN")).toBe(false);
+    expect(canAssignRole("ADMIN", "DEPARTMENT_MANAGER")).toBe(true);
+    expect(canAssignRole("ADMIN", "DEPARTMENT_MEMBER")).toBe(true);
+    expect(canAssignRole("ADMIN", "ADMIN")).toBe(false);
+    expect(canAssignRole("ADMIN", "SUPER_ADMIN")).toBe(false);
+    expect(canAssignRole("DEPARTMENT_MANAGER", "DEPARTMENT_MEMBER")).toBe(true);
+    expect(canAssignRole("DEPARTMENT_MANAGER", "DEPARTMENT_MANAGER")).toBe(
+      false,
+    );
+    expect(canAssignRole("DEPARTMENT_MANAGER", "ADMIN")).toBe(false);
+    expect(canAssignRole("DEPARTMENT_MEMBER", "DEPARTMENT_MEMBER")).toBe(false);
+    expect(canAssignRole(null, "DEPARTMENT_MEMBER")).toBe(false);
+  });
+});
+
+describe("canCreateSubtaskUnder", () => {
+  const base = {
+    parentCreatedById: "creator",
+    parentAssigneeIds: ["assignee"],
+  };
+  it("lets Super Admin create under any parent", () => {
+    expect(
+      canCreateSubtaskUnder({
+        ...base,
+        actorId: "sa",
+        actorRole: "SUPER_ADMIN",
       }),
     ).toBe(true);
+  });
+  it("limits Admin and Manager to parents they created or are assigned to", () => {
+    for (const actorRole of ["ADMIN", "DEPARTMENT_MANAGER"] as const) {
+      expect(
+        canCreateSubtaskUnder({ ...base, actorId: "creator", actorRole }),
+      ).toBe(true);
+      expect(
+        canCreateSubtaskUnder({ ...base, actorId: "assignee", actorRole }),
+      ).toBe(true);
+      expect(
+        canCreateSubtaskUnder({ ...base, actorId: "other", actorRole }),
+      ).toBe(false);
+    }
+  });
+  it("never lets a Department Member create subtasks", () => {
     expect(
-      canReviewTask({ ...legacy, actorId: "admin", actorRole: "ADMIN" }),
+      canCreateSubtaskUnder({
+        ...base,
+        actorId: "assignee",
+        actorRole: "DEPARTMENT_MEMBER",
+      }),
     ).toBe(false);
   });
 });

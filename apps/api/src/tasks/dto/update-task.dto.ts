@@ -43,16 +43,6 @@ export class UpdateTaskDto {
   @IsEnum(TaskType)
   type?: TaskType;
 
-  @ApiPropertyOptional({
-    format: "uuid",
-    description:
-      "Re-point the task's reporting recipient. Super Admin only; the " +
-      "recipient is then pinned so later assignments by someone else do not replace it.",
-  })
-  @IsOptional()
-  @IsUUID()
-  reportToId?: string;
-
   @ApiPropertyOptional({ type: String, format: "date-time", nullable: true })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
@@ -64,4 +54,16 @@ export class UpdateTaskDto {
   @ValidateIf((_, value) => value !== null)
   @IsISO8601({ strict: true })
   dueAt?: string | null;
+
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  relatedEventId?: string | null;
+
+  @ApiPropertyOptional({ type: String, format: "uuid", nullable: true })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  relatedCampaignId?: string | null;
 }

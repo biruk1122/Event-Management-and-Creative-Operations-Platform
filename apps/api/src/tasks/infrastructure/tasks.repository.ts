@@ -65,6 +65,10 @@ export interface TaskRecord {
   assignees: TaskAssigneeRecord[];
   checklistItems: TaskChecklistItemRecord[];
   createdBy: TaskPersonRecord | null;
+  /** Human-readable number behind TSK-###. */
+  taskNumber: number;
+  relatedEvent: { id: string; name: string } | null;
+  relatedCampaign: { id: string; name: string } | null;
   /** Who receives this task's reports and decides its review; null on tasks
    * that predate per-task recipients (they keep the earlier review rule). */
   reportTo: TaskPersonRecord | null;
@@ -107,6 +111,8 @@ export interface ListTasksInput {
 }
 
 export interface CreateTaskInput {
+  relatedEventId?: string;
+  relatedCampaignId?: string;
   workspaceId?: string;
   departmentId?: string;
   parentTaskId?: string;
@@ -130,6 +136,8 @@ export interface TaskSubtaskSummary {
 }
 
 export interface UpdateTaskFields {
+  relatedEventId?: string | null;
+  relatedCampaignId?: string | null;
   title?: string;
   description?: string | null;
   priority?: TaskPriority;
@@ -203,6 +211,11 @@ const TASK_SELECT = {
     select: CHECKLIST_SELECT,
     orderBy: { position: "asc" },
   },
+  taskNumber: true,
+  relatedEventId: true,
+  relatedCampaignId: true,
+  relatedEvent: { select: { id: true, name: true } },
+  relatedCampaign: { select: { id: true, name: true } },
   createdBy: { select: PERSON_SELECT },
   reportToId: true,
   reportTo: { select: PERSON_SELECT },
@@ -293,6 +306,9 @@ function toTaskRecord(raw: RawTask): TaskRecord {
       .sort(byPerson),
     checklistItems: raw.checklistItems.map(toChecklistItemRecord),
     createdBy: raw.createdBy,
+    taskNumber: raw.taskNumber,
+    relatedEvent: raw.relatedEvent,
+    relatedCampaign: raw.relatedCampaign,
     reportTo: raw.reportTo,
     reportToPinned: raw.reportToPinned,
     createdAt: raw.createdAt,
@@ -362,12 +378,29 @@ function updateData(fields: UpdateTaskFields): Prisma.TaskUpdateInput {
   if (fields.type !== undefined) data.type = fields.type;
   if (fields.startAt !== undefined) data.startAt = fields.startAt;
   if (fields.dueAt !== undefined) data.dueAt = fields.dueAt;
+  if (fields.relatedEventId !== undefined)
+    data.relatedEvent =
+      fields.relatedEventId === null
+        ? { disconnect: true }
+        : { connect: { id: fields.relatedEventId } };
+  if (fields.relatedCampaignId !== undefined)
+    data.relatedCampaign =
+      fields.relatedCampaignId === null
+        ? { disconnect: true }
+        : { connect: { id: fields.relatedCampaignId } };
   return data;
 }
 
 function json(details: Record<string, unknown>): Prisma.InputJsonObject {
   return details as Prisma.InputJsonObject;
 }
+
+/** Checklist writes are refused in these states (see lockChecklistAccess). */
+const CHECKLIST_LOCKED_STATUSES: readonly TaskStatus[] = [
+  TaskStatus.UNDER_REVIEW,
+  TaskStatus.COMPLETED,
+  TaskStatus.CANCELLED,
+];
 
 @Injectable()
 export class TasksRepository {
@@ -524,6 +557,29 @@ export class TasksRepository {
     return visible === 1 ? "visible" : "forbidden";
   }
 
+  /**
+   * Locks the task row (as lockMutationAccess does) and then refuses checklist
+   * writes while the task is under review, completed or cancelled. Status
+   * changes and reviews take the same row lock, so the status read here cannot
+   * change before the checklist write commits: a concurrent review or completion
+   * waits for this transaction, and this transaction sees whatever it committed.
+   */
+  private async lockChecklistAccess(
+    tx: Prisma.TransactionClient,
+    taskId: string,
+    visibility: TaskVisibility,
+  ): Promise<MutationAccess | "locked"> {
+    const access = await this.lockMutationAccess(tx, taskId, visibility);
+    if (access !== "visible") return access;
+    const task = await tx.task.findUnique({
+      where: { id: taskId },
+      select: { status: true },
+    });
+    return task && CHECKLIST_LOCKED_STATUSES.includes(task.status)
+      ? "locked"
+      : "visible";
+  }
+
   /** Only a checklist item's own creator may edit or remove it - holding
    * `task.update` grants the right to add items and toggle/reorder the
    * list, not to rewrite or discard someone else's checkpoint. An item
@@ -667,6 +723,8 @@ export class TasksRepository {
     actorId: string;
     visibility: TaskVisibility;
     requestId: string;
+    /** The stated reason for an explicit reviewer change. */
+    reason?: string;
   }): Promise<TaskRecord | "forbidden" | null> {
     if (!isUuid(input.taskId)) return null;
     return this.db.$transaction(async (tx) => {
@@ -697,7 +755,7 @@ export class TasksRepository {
             reportToPinned: input.pinned,
           },
         });
-        const reason = input.pinned ? "explicit" : "assigner";
+        const reason = input.reason ?? (input.pinned ? "explicit" : "assigner");
         await tx.taskActivity.create({
           data: {
             taskId: input.taskId,
@@ -723,9 +781,30 @@ export class TasksRepository {
             ? { workspaceContext: before.workspaceId }
             : {}),
         });
-        if (input.reportToId !== input.actorId) {
+        // Everyone the change touches is told: the new reviewer (who now
+        // answers for approval), the previous reviewer, the creator and the
+        // assignees. Each is an outbox event so delivery is durable.
+        const participants = await tx.task.findUnique({
+          where: { id: input.taskId },
+          select: {
+            createdById: true,
+            assignments: { select: { userId: true } },
+          },
+        });
+        const recipients = new Map<string, boolean>([[input.reportToId, true]]);
+        for (const userId of [
+          before.reportToId,
+          participants?.createdById,
+          ...(participants?.assignments.map(
+            (assignment) => assignment.userId,
+          ) ?? []),
+        ]) {
+          if (userId && !recipients.has(userId)) recipients.set(userId, false);
+        }
+        for (const [recipientUserId, isNewReviewer] of recipients) {
+          if (recipientUserId === input.actorId) continue;
           await this.outbox.append(tx, {
-            name: "task.report_to_assigned",
+            name: "task.reviewer_changed",
             version: 1,
             actorKind: OutboxActorKind.USER,
             actorUserId: input.actorId,
@@ -735,7 +814,7 @@ export class TasksRepository {
             ...(before.workspaceId
               ? { workspaceContext: before.workspaceId }
               : {}),
-            payload: { recipientUserId: input.reportToId },
+            payload: { recipientUserId, isNewReviewer },
             consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
           });
         }
@@ -748,12 +827,63 @@ export class TasksRepository {
     });
   }
 
+  /**
+   * A parent task's summary for a subtask's details view, only when the
+   * viewer can see that parent. A parent hidden from the viewer yields null,
+   * so the subtask never reveals a task its viewer may not read.
+   */
+  async findVisibleParentSummary(
+    parentTaskId: string,
+    visibility: TaskVisibility,
+  ): Promise<{
+    id: string;
+    taskNumber: number;
+    title: string;
+    status: TaskStatus;
+  } | null> {
+    if (!isUuid(parentTaskId)) return null;
+    return this.db.task.findFirst({
+      where: { AND: [{ id: parentTaskId }, visibleWhere(visibility)] },
+      select: { id: true, taskNumber: true, title: true, status: true },
+    });
+  }
+
+  /** Whether the optional related event and campaign (when given) exist. */
+  async relatedLinksExist(input: {
+    eventId?: string | null | undefined;
+    campaignId?: string | null | undefined;
+  }): Promise<boolean> {
+    if (input.eventId) {
+      if (!isUuid(input.eventId)) return false;
+      const event = await this.db.event.findUnique({
+        where: { id: input.eventId },
+        select: { id: true },
+      });
+      if (!event) return false;
+    }
+    if (input.campaignId) {
+      if (!isUuid(input.campaignId)) return false;
+      const campaign = await this.db.campaign.findUnique({
+        where: { id: input.campaignId },
+        select: { id: true },
+      });
+      if (!campaign) return false;
+    }
+    return true;
+  }
+
   async create(input: CreateTaskInput): Promise<TaskRecord> {
     return this.db.$transaction(async (tx) => {
       const task = await tx.task.create({
         data: {
           title: input.title,
           createdById: input.createdById,
+          ...(input.relatedEventId
+            ? { relatedEventId: input.relatedEventId }
+            : {}),
+          ...(input.relatedCampaignId
+            ? { relatedCampaignId: input.relatedCampaignId }
+            : {}),
           ...(input.reportToId
             ? {
                 reportToId: input.reportToId,
@@ -782,6 +912,7 @@ export class TasksRepository {
             workspaceId: task.workspaceId,
             departmentId: task.departmentId,
             reportToId: input.reportToId ?? null,
+            parentTaskId: input.parentTaskId ?? null,
           }),
         },
       });
@@ -800,6 +931,14 @@ export class TasksRepository {
         });
       }
       if (input.parentTaskId) {
+        await tx.taskActivity.create({
+          data: {
+            taskId: input.parentTaskId,
+            actorId: input.createdById,
+            type: TaskActivityType.SUBTASK_ADDED,
+            details: json({ subtaskId: task.id, title: task.title }),
+          },
+        });
         // The parent just gained a new child, which can change its own
         // aggregated progress (decision #5) even though the parent itself
         // was not directly edited.
@@ -874,10 +1013,31 @@ export class TasksRepository {
           details: json({ from: expected, to: status }),
         },
       });
+      if (status === TaskStatus.UNDER_REVIEW) {
+        await tx.taskActivity.create({
+          data: {
+            taskId: id,
+            actorId,
+            type: TaskActivityType.SUBMITTED_FOR_REVIEW,
+            details: json({ from: expected }),
+          },
+        });
+      }
       const task = await tx.task.findUnique({
         where: { id },
         select: TASK_SELECT,
       });
+      if (task?.parentTaskId) {
+        // The parent's own history shows what happened to its subtasks.
+        await tx.taskActivity.create({
+          data: {
+            taskId: task.parentTaskId,
+            actorId,
+            type: TaskActivityType.SUBTASK_UPDATED,
+            details: json({ subtaskId: id, from: expected, to: status }),
+          },
+        });
+      }
       if (task && auditContext) {
         await this.audit.append(tx, {
           action: auditContext.action,
@@ -1013,16 +1173,17 @@ export class TasksRepository {
     description: string;
     actorId: string;
     visibility: TaskVisibility;
-  }): Promise<TaskChecklistItemRecord | "forbidden" | null> {
+  }): Promise<TaskChecklistItemRecord | "forbidden" | "locked" | null> {
     if (!isUuid(input.taskId)) return null;
     return this.db.$transaction(async (tx) => {
-      const access = await this.lockMutationAccess(
+      const access = await this.lockChecklistAccess(
         tx,
         input.taskId,
         input.visibility,
       );
       if (access === "not_found") return null;
       if (access === "forbidden") return "forbidden";
+      if (access === "locked") return "locked";
       const last = await tx.taskChecklistItem.findFirst({
         where: { taskId: input.taskId },
         orderBy: { position: "desc" },
@@ -1065,19 +1226,21 @@ export class TasksRepository {
   }): Promise<
     | TaskChecklistItemRecord
     | "forbidden"
+    | "locked"
     | "not_found"
     | "ownership_denied"
     | null
   > {
     if (!isUuid(input.taskId) || !isUuid(input.itemId)) return "not_found";
     return this.db.$transaction(async (tx) => {
-      const access = await this.lockMutationAccess(
+      const access = await this.lockChecklistAccess(
         tx,
         input.taskId,
         input.visibility,
       );
       if (access === "not_found") return null;
       if (access === "forbidden") return "forbidden";
+      if (access === "locked") return "locked";
       const existing = await tx.taskChecklistItem.findFirst({
         where: { id: input.itemId, taskId: input.taskId },
         select: { createdById: true },
@@ -1123,17 +1286,18 @@ export class TasksRepository {
     visibility: TaskVisibility;
     actorIsOrganizationScoped: boolean;
   }): Promise<
-    "removed" | "forbidden" | "not_found" | "ownership_denied" | null
+    "removed" | "forbidden" | "locked" | "not_found" | "ownership_denied" | null
   > {
     if (!isUuid(input.taskId) || !isUuid(input.itemId)) return "not_found";
     return this.db.$transaction(async (tx) => {
-      const access = await this.lockMutationAccess(
+      const access = await this.lockChecklistAccess(
         tx,
         input.taskId,
         input.visibility,
       );
       if (access === "not_found") return null;
       if (access === "forbidden") return "forbidden";
+      if (access === "locked") return "locked";
       const existing = await tx.taskChecklistItem.findFirst({
         where: { id: input.itemId, taskId: input.taskId },
         select: { createdById: true },
@@ -1170,16 +1334,19 @@ export class TasksRepository {
     orderedItemIds: string[];
     actorId: string;
     visibility: TaskVisibility;
-  }): Promise<TaskChecklistItemRecord[] | "forbidden" | "mismatch" | null> {
+  }): Promise<
+    TaskChecklistItemRecord[] | "forbidden" | "locked" | "mismatch" | null
+  > {
     if (!isUuid(input.taskId)) return null;
     return this.db.$transaction(async (tx) => {
-      const access = await this.lockMutationAccess(
+      const access = await this.lockChecklistAccess(
         tx,
         input.taskId,
         input.visibility,
       );
       if (access === "not_found") return null;
       if (access === "forbidden") return "forbidden";
+      if (access === "locked") return "locked";
       const current = await tx.taskChecklistItem.findMany({
         where: { taskId: input.taskId },
         select: { id: true },
@@ -1224,17 +1391,23 @@ export class TasksRepository {
     actorId: string;
     visibility: TaskVisibility;
   }): Promise<
-    TaskChecklistItemRecord | "forbidden" | "not_found" | "concurrent" | null
+    | TaskChecklistItemRecord
+    | "forbidden"
+    | "locked"
+    | "not_found"
+    | "concurrent"
+    | null
   > {
     if (!isUuid(input.taskId) || !isUuid(input.itemId)) return "not_found";
     return this.db.$transaction(async (tx) => {
-      const access = await this.lockMutationAccess(
+      const access = await this.lockChecklistAccess(
         tx,
         input.taskId,
         input.visibility,
       );
       if (access === "not_found") return null;
       if (access === "forbidden") return "forbidden";
+      if (access === "locked") return "locked";
       const existing = await tx.taskChecklistItem.findFirst({
         where: { id: input.itemId, taskId: input.taskId },
         select: { completed: true },
@@ -1329,10 +1502,6 @@ export class TasksRepository {
         where: { id: taskId },
         select: TASK_SELECT,
       });
-      let currentTask = task;
-      if (task && inserted.count === 1) {
-        currentTask = await this.takeOverReportTo(tx, task, actorId, requestId);
-      }
       if (task && inserted.count === 1) {
         await this.audit.append(tx, {
           action: "task.assignee_added",
@@ -1358,61 +1527,8 @@ export class TasksRepository {
           consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
         });
       }
-      return currentTask ? toTaskRecord(currentTask) : null;
+      return task ? toTaskRecord(task) : null;
     });
-  }
-
-  /**
-   * The person who actually assigns a task becomes its default reporting
-   * recipient. Applies only to tasks that already have a recipient (tasks
-   * created before per-task recipients keep their earlier review behavior),
-   * never replaces a recipient Super Admin explicitly pinned, and never makes
-   * an assignee their own reviewer. Runs inside the assignment transaction so
-   * the change, its history and its notification are atomic.
-   */
-  private async takeOverReportTo(
-    tx: Prisma.TransactionClient,
-    task: RawTask,
-    actorId: string,
-    requestId: string,
-  ): Promise<RawTask> {
-    if (
-      !task.reportToId ||
-      task.reportToPinned ||
-      task.reportToId === actorId ||
-      task.assignments.some((assignment) => assignment.user.id === actorId)
-    ) {
-      return task;
-    }
-    const from = task.reportToId;
-    await tx.task.update({
-      where: { id: task.id },
-      data: { reportToId: actorId },
-    });
-    await tx.taskActivity.create({
-      data: {
-        taskId: task.id,
-        actorId,
-        type: TaskActivityType.REPORT_TO_CHANGED,
-        details: json({ from, to: actorId, reason: "assigner" }),
-      },
-    });
-    await this.audit.append(tx, {
-      action: "task.report_to_changed",
-      actorKind: AuditActorKind.USER,
-      actorUserId: actorId,
-      metadata: { from, to: actorId, reason: "assigner" },
-      outcome: AuditOutcome.SUCCEEDED,
-      requestId,
-      resourceId: task.id,
-      resourceType: "task",
-      ...(task.workspaceId ? { workspaceContext: task.workspaceId } : {}),
-    });
-    const refreshed = await tx.task.findUnique({
-      where: { id: task.id },
-      select: TASK_SELECT,
-    });
-    return refreshed ?? task;
   }
 
   async removeAssignee(
@@ -1552,7 +1668,11 @@ export class TasksRepository {
             taskId: input.taskId,
             actorId: input.reviewerId,
             type: TaskActivityType.REVIEW_RECORDED,
-            details: json({ reviewId: review.id, outcome: input.outcome }),
+            details: json({
+              reviewId: review.id,
+              outcome: input.outcome,
+              note: input.note ?? null,
+            }),
           },
           {
             taskId: input.taskId,
@@ -1710,6 +1830,40 @@ export class TasksRepository {
       this.db.taskReview.count({ where }),
     ]);
     return { items: items.map(toReviewRecord), total };
+  }
+
+  /**
+   * The review story of a task: every submission, review decision (with its
+   * note), and designated-reviewer change, oldest first. Append-only records,
+   * so nothing here is ever rewritten or removed.
+   */
+  async listReviewHistory(
+    taskId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ items: TaskActivityRecord[]; total: number }> {
+    if (!isUuid(taskId)) return { items: [], total: 0 };
+    const where: Prisma.TaskActivityWhereInput = {
+      taskId,
+      type: {
+        in: [
+          TaskActivityType.SUBMITTED_FOR_REVIEW,
+          TaskActivityType.REVIEW_RECORDED,
+          TaskActivityType.REPORT_TO_CHANGED,
+        ],
+      },
+    };
+    const [items, total] = await Promise.all([
+      this.db.taskActivity.findMany({
+        where,
+        select: ACTIVITY_SELECT,
+        orderBy: [{ occurredAt: "asc" }, { id: "asc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.taskActivity.count({ where }),
+    ]);
+    return { items: items.map(toActivityRecord), total };
   }
 
   async listActivities(

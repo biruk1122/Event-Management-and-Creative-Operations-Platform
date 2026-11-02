@@ -98,6 +98,18 @@ export class ListTasksQueryDto {
   @IsBoolean()
   overdue?: boolean;
 
+  @ApiPropertyOptional({
+    type: Boolean,
+    description:
+      'Only tasks with no eligible designated reviewer ("Reviewer needed"). Super Admin resolves them with the reviewer change action.',
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === "true" ? true : value === "false" ? false : value,
+  )
+  @IsBoolean()
+  reviewerUnresolved?: boolean;
+
   @ApiPropertyOptional({ enum: TaskSort, default: TaskSort.UPDATED })
   @IsOptional()
   @IsEnum(TaskSort)

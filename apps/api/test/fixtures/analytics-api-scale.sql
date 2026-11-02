@@ -22,13 +22,16 @@ INSERT INTO workspaces (id, kind)
 SELECT md5('production-workspace' || g)::uuid, 'PRODUCTION' FROM generate_series(1, 500) g;
 INSERT INTO productions (workspace_id, name, production_type, created_at)
 SELECT md5('production-workspace' || g)::uuid, 'Production', 'Video', '2026-09-01' FROM generate_series(1, 500) g;
-INSERT INTO tasks (id, department_id, workspace_id, title, status, created_at, due_at)
-SELECT md5('task' || g)::uuid, md5('department' || (g % 100 + 1))::uuid,
+INSERT INTO tasks (task_number, id, department_id, workspace_id, title, status, created_at, due_at)
+SELECT g + 1000000, md5('task' || g)::uuid, md5('department' || (g % 100 + 1))::uuid,
   md5('event-workspace' || (g % 50 + 1))::uuid, 'Task',
   (ARRAY['TODO','IN_PROGRESS','UNDER_REVIEW','BLOCKED','COMPLETED','CANCELLED'])[g % 6 + 1]::task_status,
   '2025-01-01'::timestamptz + (g % 730) * interval '1 day',
   CASE WHEN g % 7 = 0 THEN NULL ELSE '2026-09-15'::timestamptz END
 FROM generate_series(1, 100000) g;
+-- Explicit numbers (offset above the counter range) bypass the counter; advance it past them so later
+-- task creations never reuse a number.
+UPDATE task_number_counters SET last_value = (SELECT MAX(task_number) FROM tasks);
 INSERT INTO task_assignments (task_id, user_id)
 SELECT md5('task' || g)::uuid, md5('user' || (g % 1000 + 1))::uuid FROM generate_series(1, 100000) g;
 INSERT INTO task_assignments (task_id, user_id)

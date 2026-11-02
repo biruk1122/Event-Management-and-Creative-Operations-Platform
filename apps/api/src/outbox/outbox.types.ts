@@ -10,6 +10,7 @@ export type SupportedOutboxEventName =
   | "task.reviewed"
   | "task.submitted"
   | "task.report_to_assigned"
+  | "task.reviewer_changed"
   | "task.blocked"
   | "discuss.message.created"
   | "meeting.participant.invited"

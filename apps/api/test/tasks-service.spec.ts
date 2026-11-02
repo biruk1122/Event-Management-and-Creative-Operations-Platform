@@ -31,6 +31,9 @@ function makeTask(overrides: Partial<TaskRecord> = {}): TaskRecord {
     createdBy: null,
     reportTo: null,
     reportToPinned: false,
+    taskNumber: 1,
+    relatedEvent: null,
+    relatedCampaign: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     ...overrides,
@@ -125,6 +128,7 @@ describe("TasksService", () => {
       }),
       listEligibleAssignees: vi.fn().mockResolvedValue([]),
       findRecipientCandidate: vi.fn().mockResolvedValue(null),
+      relatedLinksExist: vi.fn().mockResolvedValue(true),
       listRecipientCandidates: vi.fn().mockResolvedValue([]),
       setReportTo: vi.fn().mockResolvedValue(makeTask()),
       createComment: vi.fn().mockResolvedValue({
@@ -260,8 +264,23 @@ describe("TasksService", () => {
 
   it("maps review outcomes to the approved lifecycle targets", async () => {
     grantOnly(["task.review", "ORGANIZATION"]);
+    // The designated reviewer is the actor, who holds task.review in scope.
+    repository.findRecipientCandidate!.mockResolvedValue({
+      id: ACTOR,
+      active: true,
+      role: "SUPER_ADMIN",
+      departmentId: null,
+    });
     repository.findVisibleById!.mockResolvedValue(
-      makeTask({ status: TaskStatus.UNDER_REVIEW }),
+      makeTask({
+        status: TaskStatus.UNDER_REVIEW,
+        reportTo: {
+          id: ACTOR,
+          email: "actor@example.com",
+          firstName: null,
+          lastName: null,
+        },
+      }),
     );
     await service.review(
       ACTOR,
@@ -283,12 +302,49 @@ describe("TasksService", () => {
     await service.review(
       ACTOR,
       "task-1",
-      { outcome: TaskReviewOutcome.CHANGES_REQUESTED },
+      {
+        outcome: TaskReviewOutcome.CHANGES_REQUESTED,
+        note: "Add the venue permit",
+      },
       "request-2",
     );
     expect(repository.review).toHaveBeenLastCalledWith(
-      expect.objectContaining({ targetStatus: TaskStatus.IN_PROGRESS }),
+      expect.objectContaining({
+        targetStatus: TaskStatus.IN_PROGRESS,
+        note: "Add the venue permit",
+      }),
     );
+  });
+
+  it("requires a note to request changes", async () => {
+    grantOnly(["task.review", "ORGANIZATION"]);
+    repository.findRecipientCandidate!.mockResolvedValue({
+      id: ACTOR,
+      active: true,
+      role: "SUPER_ADMIN",
+      departmentId: null,
+    });
+    repository.findVisibleById!.mockResolvedValue(
+      makeTask({
+        status: TaskStatus.UNDER_REVIEW,
+        reportTo: {
+          id: ACTOR,
+          email: "actor@example.com",
+          firstName: null,
+          lastName: null,
+        },
+      }),
+    );
+    await expectCode(
+      service.review(
+        ACTOR,
+        "task-1",
+        { outcome: TaskReviewOutcome.CHANGES_REQUESTED, note: "   " },
+        "request-3",
+      ),
+      "TASK_REVIEW_NOTE_REQUIRED",
+    );
+    expect(repository.review).not.toHaveBeenCalled();
   });
 
   it("forbids an assignee from reviewing their own submitted task", async () => {
@@ -492,7 +548,7 @@ describe("TasksService", () => {
     );
     expect(repository.createChecklistItem).not.toHaveBeenCalled();
 
-    grantOnly(["task.update", "SELF"]);
+    grantOnly(["task.update_progress", "SELF"]);
     repository.findVisibleById!.mockResolvedValue(
       makeTask({
         assignees: [
@@ -708,6 +764,10 @@ describe("TasksService", () => {
   });
 
   it("lets a Department Manager who is the parent's own assignee create a subordinate task, inheriting its department", async () => {
+    permissions.getAccessContext.mockResolvedValue({
+      role: "DEPARTMENT_MANAGER",
+      department: null,
+    });
     grantOnly(["task.create", "DEPARTMENT"], ["task.read", "DEPARTMENT"]);
     repository.findById!.mockResolvedValueOnce(
       makeTask({
@@ -743,6 +803,10 @@ describe("TasksService", () => {
   });
 
   it("rejects a peer Department Manager who is not the parent's own assignee from creating a subordinate task", async () => {
+    permissions.getAccessContext.mockResolvedValue({
+      role: "DEPARTMENT_MANAGER",
+      department: null,
+    });
     grantOnly(["task.create", "DEPARTMENT"], ["task.read", "DEPARTMENT"]);
     repository.findById!.mockResolvedValueOnce(
       makeTask({
@@ -765,12 +829,16 @@ describe("TasksService", () => {
         { title: "Draft the social copy", parentTaskId: "parent-1" },
         "request-7",
       ),
-      "PERMISSION_DENIED",
+      "TASK_SUBTASK_NOT_ALLOWED",
     );
     expect(repository.create).not.toHaveBeenCalled();
   });
 
   it("lets an organization-scoped caller create a subordinate task under any parent regardless of its assignees", async () => {
+    permissions.getAccessContext.mockResolvedValue({
+      role: "SUPER_ADMIN",
+      department: null,
+    });
     grantOnly(["task.create", "ORGANIZATION"], ["task.read", "ORGANIZATION"]);
     repository.findById!.mockResolvedValueOnce(
       makeTask({
@@ -814,5 +882,168 @@ describe("TasksService", () => {
     ).resolves.toEqual([
       { id: "user-1", email: "u@example.com", firstName: null, lastName: null },
     ]);
+  });
+
+  describe("designated reviewer and review rules", () => {
+    const reviewerRecord = (id: string, overrides = {}) => ({
+      id,
+      active: true,
+      role: "ADMIN",
+      departmentId: "department-1",
+      ...overrides,
+    });
+    const reviewerPerson = (id: string) => ({
+      id,
+      email: id + "@example.com",
+      firstName: null,
+      lastName: null,
+    });
+
+    it("does not let Super Admin approve a task it does not designate", async () => {
+      grantOnly(["task.review", "ORGANIZATION"]);
+      repository.findRecipientCandidate!.mockResolvedValue(
+        reviewerRecord("admin-1"),
+      );
+      repository.findVisibleById!.mockResolvedValue(
+        makeTask({
+          status: TaskStatus.UNDER_REVIEW,
+          reportTo: reviewerPerson("admin-1"),
+        }),
+      );
+      await expect(
+        service.review(
+          ACTOR,
+          "task-1",
+          { outcome: TaskReviewOutcome.APPROVED },
+          "request-9",
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(repository.review).not.toHaveBeenCalled();
+    });
+
+    it("blocks everyone on a task with no eligible reviewer", async () => {
+      grantOnly(["task.review", "ORGANIZATION"]);
+      repository.findVisibleById!.mockResolvedValue(
+        makeTask({
+          status: TaskStatus.UNDER_REVIEW,
+          reportTo: null,
+          createdBy: null,
+        }),
+      );
+      await expectCode(
+        service.review(
+          ACTOR,
+          "task-1",
+          { outcome: TaskReviewOutcome.APPROVED },
+          "request-10",
+        ),
+        "TASK_REVIEWER_UNRESOLVED",
+      );
+      expect(repository.review).not.toHaveBeenCalled();
+    });
+
+    it("never moves the reviewer when an assignee is added", async () => {
+      grantOnly(["task.assign", "ORGANIZATION"]);
+      repository.addAssignee!.mockResolvedValue(makeTask({ id: "task-1" }));
+      await service.addAssignee(ACTOR, "task-1", "new-person", "request-11");
+      expect(repository.setReportTo).not.toHaveBeenCalled();
+    });
+
+    it("lets only Super Admin change the reviewer, with a reason", async () => {
+      grantOnly(["task.review", "ORGANIZATION"]);
+      permissions.getAccessContext.mockResolvedValue({
+        role: "ADMIN",
+        department: null,
+      });
+      await expect(
+        service.changeReviewer(
+          ACTOR,
+          "task-1",
+          { reviewerId: "admin-2", reason: "Cover" },
+          "request-12",
+        ),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(repository.setReportTo).not.toHaveBeenCalled();
+    });
+
+    it("rejects a new reviewer who is an assignee of the task", async () => {
+      permissions.getAccessContext.mockResolvedValue({
+        role: "SUPER_ADMIN",
+        department: null,
+      });
+      grantOnly(["task.review", "ORGANIZATION"]);
+      repository.findVisibleById!.mockResolvedValue(
+        makeTask({
+          status: TaskStatus.UNDER_REVIEW,
+          assignees: [{ ...reviewerPerson("admin-2"), assignedAt: new Date() }],
+        }),
+      );
+      repository.findRecipientCandidate!.mockResolvedValue(
+        reviewerRecord("admin-2"),
+      );
+      await expectCode(
+        service.changeReviewer(
+          ACTOR,
+          "task-1",
+          { reviewerId: "admin-2", reason: "Cover" },
+          "request-13",
+        ),
+        "TASK_REVIEWER_INVALID",
+      );
+    });
+
+    it("records the reason when Super Admin changes an eligible reviewer", async () => {
+      permissions.getAccessContext.mockResolvedValue({
+        role: "SUPER_ADMIN",
+        department: null,
+      });
+      grantOnly(["task.review", "ORGANIZATION"]);
+      repository.findVisibleById!.mockResolvedValue(
+        makeTask({ status: TaskStatus.UNDER_REVIEW }),
+      );
+      repository.findRecipientCandidate!.mockResolvedValue(
+        reviewerRecord("admin-2"),
+      );
+      repository.setReportTo!.mockResolvedValue(
+        makeTask({ status: TaskStatus.UNDER_REVIEW }),
+      );
+      await service.changeReviewer(
+        ACTOR,
+        "task-1",
+        { reviewerId: "admin-2", reason: "  Covering leave  " },
+        "request-14",
+      );
+      expect(repository.setReportTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reportToId: "admin-2",
+          pinned: true,
+          reason: "Covering leave",
+        }),
+      );
+    });
+
+    it("maps a checklist write the transaction refused as locked", async () => {
+      grantOnly(["task.update", "ORGANIZATION"]);
+      repository.findVisibleById!.mockResolvedValue(
+        makeTask({ status: TaskStatus.IN_PROGRESS }),
+      );
+      repository.createChecklistItem!.mockResolvedValue("locked");
+      await expectCode(
+        service.addChecklistItem(ACTOR, "task-1", { description: "Raced" }),
+        "TASK_CHECKLIST_LOCKED",
+      );
+    });
+
+    it("locks checklist changes while the task is under review", async () => {
+      grantOnly(["task.update", "ORGANIZATION"]);
+      repository.findVisibleById!.mockResolvedValue(
+        makeTask({ status: TaskStatus.UNDER_REVIEW }),
+      );
+      await expectCode(
+        service.addChecklistItem(ACTOR, "task-1", { description: "Late item" }),
+        "TASK_CHECKLIST_LOCKED",
+      );
+      expect(repository.createChecklistItem).not.toHaveBeenCalled();
+    });
   });
 });

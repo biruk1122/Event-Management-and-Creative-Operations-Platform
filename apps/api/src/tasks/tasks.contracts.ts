@@ -72,9 +72,41 @@ export class TaskSubtaskSummaryResponse {
   remaining!: number;
 }
 
+export interface TaskParentSummary {
+  id: string;
+  identifier: string;
+  title: string;
+  status: string;
+}
+
 export class TaskResponse {
   @ApiProperty({ format: "uuid" })
   id!: string;
+
+  @ApiProperty({
+    type: Boolean,
+    nullable: true,
+    description:
+      "True when the task has no eligible designated reviewer and needs a Super Admin to name one. Null on lists.",
+  })
+  reviewerUnresolved!: boolean | null;
+
+  @ApiProperty({ example: "TSK-042" })
+  identifier!: string;
+
+  @ApiProperty({
+    type: Object,
+    nullable: true,
+    description:
+      "The parent task, when this task is a subtask and the viewer can see the parent. Null otherwise.",
+  })
+  parentTask!: TaskParentSummary | null;
+
+  @ApiProperty({ type: Object, nullable: true })
+  relatedEvent!: { id: string; name: string } | null;
+
+  @ApiProperty({ type: Object, nullable: true })
+  relatedCampaign!: { id: string; name: string } | null;
 
   @ApiProperty({ type: String, format: "uuid", nullable: true })
   workspaceId!: string | null;
