@@ -430,11 +430,13 @@ export async function removeTaskAssignee(
   return data;
 }
 
+/** People a task assignee picker can offer. Super Admin accounts are left out:
+ * the API never lets anyone assign work to a Super Admin. */
 export async function listAssignableTaskUsers(signal?: AbortSignal) {
   const { data, error, response } = await listAllUsers(signal);
   if (!data)
     fail(response.status, error, "The user directory could not be loaded.");
-  return data.items;
+  return data.items.filter((user) => user.role?.name !== "Super Admin");
 }
 
 export interface AssignableDepartment {
