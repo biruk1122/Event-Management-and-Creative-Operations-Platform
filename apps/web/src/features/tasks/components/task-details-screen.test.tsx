@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -241,6 +241,43 @@ describe("activity sentences", () => {
   it("keeps an unknown recorded type truthful instead of inventing text", () => {
     expect(activityLine(entry("SOMETHING_NEW" as TaskActivity["type"]))).toBe(
       "something new",
+    );
+  });
+
+  it("renders the timeline newest first with the actor and a capitalised sentence", async () => {
+    givenAccess("SUPER_ADMIN", [["task.read", "ORGANIZATION"]], "creator-1");
+    renderDetails(taskWith(), [
+      {
+        ...entry("STATUS_CHANGED", { from: "IN_PROGRESS", to: "UNDER_REVIEW" }),
+        id: "older",
+        actor: {
+          id: "m",
+          email: "m@x.com",
+          firstName: "Marketing",
+          lastName: "Manager",
+        },
+        occurredAt: "2026-10-28T11:18:00.000Z",
+      } as TaskActivity,
+      {
+        ...entry("REVIEW_RECORDED", { outcome: "APPROVED" }),
+        id: "newer",
+        actor: {
+          id: "d",
+          email: "d@x.com",
+          firstName: "Dev",
+          lastName: "Admin",
+        },
+        occurredAt: "2026-10-28T12:42:00.000Z",
+      } as TaskActivity,
+    ]);
+    const timeline = await screen.findByRole("region", { name: "Activity" });
+    expect(within(timeline).getByText("Latest updates")).toBeInTheDocument();
+    const rows = within(timeline).getAllByRole("listitem");
+    expect(rows[0]).toHaveTextContent("Dev Admin");
+    expect(rows[0]).toHaveTextContent("Approved the work");
+    expect(rows[1]).toHaveTextContent("Marketing Manager");
+    expect(rows[1]).toHaveTextContent(
+      `Changed the status from ${TASK_STATUS_LABELS.IN_PROGRESS} to ${TASK_STATUS_LABELS.UNDER_REVIEW}`,
     );
   });
 });
