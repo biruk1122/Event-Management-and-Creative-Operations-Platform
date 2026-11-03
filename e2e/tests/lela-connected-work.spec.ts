@@ -180,6 +180,30 @@ test.describe("Lela connected work presentation", () => {
         }
       }
       await page.setViewportSize({ width: 360, height: 800 });
+      if (route === "/tasks") {
+        // A task title opens its details page; the list no longer shows a popup.
+        const found = (await (
+          await page.request.get(
+            `${apiBaseUrl}/api/v1/tasks?search=${encodeURIComponent(title)}&pageSize=5`,
+          )
+        ).json()) as { items: { id: string; title: string }[] };
+        const id = found.items.find((item) => item.title === title)!.id;
+        await page.goto(`/tasks/${id}`);
+        await expect(
+          page.getByRole("heading", { level: 1, name: title }),
+        ).toBeVisible();
+        await expectNoWcag22AaViolations(page, "tasks details");
+        expect(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= innerWidth,
+          ),
+        ).toBe(true);
+        await page.screenshot({
+          path: testInfo.outputPath("tasks-details.png"),
+          fullPage: true,
+        });
+        continue;
+      }
       const opener =
         route === "/tasks"
           ? page.getByRole("button", { name: title, exact: true })

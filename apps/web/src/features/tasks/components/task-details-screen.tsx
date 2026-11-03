@@ -27,6 +27,7 @@ import { listEvents } from "@/features/events/api/events-gateway";
 import { taskKeys, useTaskMutations } from "../api/tasks-queries";
 import {
   canActOnAssignedTask,
+  canManageAssigneesFor,
   creatorGatedFor,
   hasGrant,
   isAssignee,
@@ -354,6 +355,27 @@ function LoadedTaskDetails({
 
         <aside className="min-w-0 space-y-6">
           <TaskOverview task={task} />
+
+          <Panel>
+            <AssigneesPanel
+              task={task}
+              canManage={canManageAssigneesFor(access)(task)}
+              busy={
+                mutations.addAssignee.isPending ||
+                mutations.removeAssignee.isPending
+              }
+              onAdd={(userId) =>
+                run(() =>
+                  mutations.addAssignee.mutateAsync({ id: task.id, userId }),
+                )
+              }
+              onRemove={(userId) =>
+                run(() =>
+                  mutations.removeAssignee.mutateAsync({ id: task.id, userId }),
+                )
+              }
+            />
+          </Panel>
 
           {access.role === "SUPER_ADMIN" ? (
             <Panel>
@@ -1121,6 +1143,115 @@ function ReviewerChangePanel({
       >
         Change reviewer
       </Button>
+    </section>
+  );
+}
+
+/**
+ * Who works on the task. Adding or removing assignees follows the same rules
+ * as before: only people allowed to manage assignees see the controls, and the
+ * server enforces the department and role limits.
+ */
+function AssigneesPanel({
+  task,
+  canManage,
+  busy,
+  onAdd,
+  onRemove,
+}: {
+  task: Task;
+  canManage: boolean;
+  busy: boolean;
+  onAdd: (userId: string) => Promise<void>;
+  onRemove: (userId: string) => Promise<void>;
+}) {
+  const assignedIds = new Set(task.assignees.map((person) => person.id));
+  const candidates = useQuery({
+    queryKey: ["task-assignee-candidates", task.departmentId],
+    // A task in a department offers that department's staff; a task that is
+    // only connected to a workspace offers the directory, as the dialog did.
+    queryFn: async ({ signal }) =>
+      task.departmentId
+        ? gateway.listEligibleAssignees(task.departmentId, signal)
+        : (await gateway.listAssignableTaskUsers(signal)).map((user) => ({
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          })),
+    enabled: canManage,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const options = (candidates.data ?? []).filter(
+    (person) => !assignedIds.has(person.id),
+  );
+  return (
+    <section aria-labelledby="assignees-heading" className="space-y-3">
+      <h2
+        id="assignees-heading"
+        className="text-muted-foreground text-xs font-semibold tracking-wide uppercase"
+      >
+        Assignees
+      </h2>
+      {task.assignees.length === 0 ? (
+        <p className="text-muted-foreground text-sm">Nobody is assigned yet.</p>
+      ) : (
+        <ul className="space-y-2 text-sm">
+          {task.assignees.map((person) => (
+            <li
+              key={person.id}
+              className="flex items-center justify-between gap-2"
+            >
+              <span className="font-medium">{personName(person)}</span>
+              {canManage ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  aria-label={`Remove ${personName(person)}`}
+                  onClick={() => void onRemove(person.id)}
+                >
+                  Remove
+                </Button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {canManage ? (
+        <div className="space-y-2">
+          <Label htmlFor="add-assignee">Add assignee</Label>
+          <Select
+            value=""
+            onValueChange={(value) => void onAdd(value)}
+            disabled={busy || options.length === 0}
+          >
+            <SelectTrigger
+              id="add-assignee"
+              aria-label="Add assignee"
+              className="w-full"
+            >
+              <SelectValue
+                placeholder={
+                  candidates.isPending
+                    ? "Loading people…"
+                    : options.length === 0
+                      ? "No one else can be added"
+                      : "Choose a person"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((person) => (
+                <SelectItem key={person.id} value={person.id}>
+                  {personName(person)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
     </section>
   );
 }
