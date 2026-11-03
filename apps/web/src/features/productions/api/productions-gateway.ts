@@ -1,6 +1,7 @@
 import type { components, operations } from "@event-platform/api-client";
 
 import { browserApi } from "@/lib/api/browser";
+import { listAllUsers } from "@/lib/api/user-directory";
 import { readCsrfToken } from "@/lib/api/csrf";
 
 import type { ProductionValues } from "../components/production-form";
@@ -121,11 +122,7 @@ export async function getProduction(
 export async function listProductionPeople(
   signal?: AbortSignal,
 ): Promise<ProductionPerson[]> {
-  const { data, response } = await browserApi.GET("/api/v1/users", {
-    params: { query: { pageSize: 100 } as never },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data, response } = await listAllUsers(signal);
   if (!data) throw new ProductionRequestError(response.status);
   return data.items.map(({ id, email, firstName, lastName }) => ({
     id,

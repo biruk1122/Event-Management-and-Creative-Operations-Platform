@@ -1,6 +1,7 @@
 import type { operations } from "@event-platform/api-client";
 
 import { browserApi } from "@/lib/api/browser";
+import { listAllUsers } from "@/lib/api/user-directory";
 import { readCsrfToken } from "@/lib/api/csrf";
 import { fieldErrorsOf, isProblemDetails } from "@/lib/api/problem-details";
 
@@ -338,11 +339,7 @@ export const getTalent: GetTalent = async (id, signal?: AbortSignal) => {
 export async function listAssignableUsers(
   signal?: AbortSignal,
 ): Promise<AssignableUser[]> {
-  const { data } = await browserApi.GET("/api/v1/users", {
-    params: { query: { pageSize: 100 } as never },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data } = await listAllUsers(signal);
   return (data?.items ?? []).map((user) => ({
     id: user.id,
     email: user.email,

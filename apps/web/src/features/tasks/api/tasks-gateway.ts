@@ -1,6 +1,7 @@
 import type { operations } from "@event-platform/api-client";
 
 import { browserApi } from "@/lib/api/browser";
+import { listAllUsers } from "@/lib/api/user-directory";
 import { readCsrfToken } from "@/lib/api/csrf";
 import { isProblemDetails } from "@/lib/api/problem-details";
 
@@ -430,11 +431,7 @@ export async function removeTaskAssignee(
 }
 
 export async function listAssignableTaskUsers(signal?: AbortSignal) {
-  const { data, error, response } = await browserApi.GET("/api/v1/users", {
-    params: { query: { page: 1, pageSize: 100 } as never },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data, error, response } = await listAllUsers(signal);
   if (!data)
     fail(response.status, error, "The user directory could not be loaded.");
   return data.items;

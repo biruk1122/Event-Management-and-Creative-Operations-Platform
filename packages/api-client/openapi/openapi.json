@@ -2573,7 +2573,7 @@
           },
           "sizeBytes": {
             "example": 1048576,
-            "maximum": 10485760,
+            "maximum": 104857600,
             "minimum": 1,
             "type": "number"
           }
