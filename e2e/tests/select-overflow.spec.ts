@@ -60,7 +60,11 @@ test("long assignee menus stay bounded and their last option is selectable", asy
     const option = menu.getByRole("option").last();
     const label = await option.innerText();
     await option.click();
-    await expect(trigger).toContainText(label);
+    // Picking a person adds them as an assignee and drops them from the menu,
+    // so the proof of selection is the assignee's remove control.
+    await expect(
+      page.getByRole("button", { name: `Remove ${label}` }),
+    ).toBeVisible();
     await expect(menu).toHaveCount(0);
   }
 });
