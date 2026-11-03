@@ -4,6 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 import type { Route } from "next";
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
+import {
+  Check,
+  GitBranch,
+  History,
+  ListChecks,
+  MessageSquare,
+  Paperclip,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Send,
+  Undo2,
+  UserCog,
+  UserMinus,
+  UserPlus,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -418,9 +435,7 @@ function LoadedTaskDetails({
             failed={history.isError}
           />
         </Panel>
-        <Panel>
-          <ActivityTimeline items={activity} />
-        </Panel>
+        <ActivityTimeline items={activity} />
       </div>
     </article>
   );
@@ -977,35 +992,111 @@ function FilesPanel({
   );
 }
 
+/** The icon that marks one kind of recorded activity on the timeline. */
+function activityIcon(item: TaskActivity): LucideIcon {
+  switch (item.type) {
+    case "CREATED":
+      return Plus;
+    case "UPDATED":
+      return Pencil;
+    case "ASSIGNEE_ADDED":
+      return UserPlus;
+    case "ASSIGNEE_REMOVED":
+      return UserMinus;
+    case "STATUS_CHANGED":
+      return RefreshCw;
+    case "SUBMITTED_FOR_REVIEW":
+      return Send;
+    case "REVIEW_RECORDED":
+      return (item.details as Record<string, unknown> | null)?.outcome ===
+        "APPROVED"
+        ? Check
+        : Undo2;
+    case "REPORT_TO_CHANGED":
+      return UserCog;
+    case "COMMENT_ADDED":
+      return MessageSquare;
+    case "ATTACHMENT_ADDED":
+      return Paperclip;
+    case "SUBTASK_ADDED":
+    case "SUBTASK_UPDATED":
+      return GitBranch;
+    case "PROGRESS_UPDATED":
+    case "CHECKLIST_ITEM_ADDED":
+    case "CHECKLIST_ITEM_UPDATED":
+    case "CHECKLIST_ITEM_COMPLETED":
+    case "CHECKLIST_ITEM_REOPENED":
+    case "CHECKLIST_ITEM_REMOVED":
+    case "CHECKLIST_ITEM_REORDERED":
+      return ListChecks;
+    default:
+      return History;
+  }
+}
+
+function activityTime(iso: string): string {
+  const time = new Date(iso).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${dateLabel(iso)} · ${time}`;
+}
+
 function ActivityTimeline({ items }: { items: readonly TaskActivity[] }) {
+  // Newest first, matching the "Latest updates" reading order.
+  const ordered = [...items].sort((a, b) =>
+    b.occurredAt.localeCompare(a.occurredAt),
+  );
   return (
-    <section aria-labelledby="activity-heading" className="space-y-5">
-      <h2 id="activity-heading" className="text-sm font-medium">
-        Activity
-      </h2>
-      {items.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
+    <section
+      aria-labelledby="activity-heading"
+      className="bg-card rounded-2xl border"
+    >
+      <header className="flex items-center justify-between gap-4 border-b px-6 py-4">
+        <h2 id="activity-heading" className="text-base font-semibold">
+          Activity
+        </h2>
+        <p className="text-muted-foreground text-sm">Latest updates</p>
+      </header>
+      {ordered.length === 0 ? (
+        <p className="text-muted-foreground px-6 py-5 text-sm">
           No activity recorded yet.
         </p>
       ) : (
-        <ol className="space-y-5 border-l pl-5 text-sm">
-          {items.map((item) => (
-            <li key={item.id} className="relative">
-              <span
-                aria-hidden="true"
-                className="bg-primary absolute top-1.5 -left-[21px] size-2 rounded-full"
-              />
-              <p>
-                <span className="font-medium">
-                  {item.actor ? personName(item.actor) : "System"}
-                </span>{" "}
-                {activityLine(item)}
-              </p>
-              <p className="text-muted-foreground">
-                {dateLabel(item.occurredAt)}
-              </p>
-            </li>
-          ))}
+        <ol className="px-6 py-5">
+          {ordered.map((item, index) => {
+            const Icon = activityIcon(item);
+            const sentence = activityLine(item);
+            return (
+              <li key={item.id} className="relative flex gap-4 pb-6 last:pb-0">
+                {index < ordered.length - 1 ? (
+                  <span
+                    aria-hidden="true"
+                    className="bg-border absolute top-9 bottom-0 left-4 w-px -translate-x-1/2"
+                  />
+                ) : null}
+                <span
+                  aria-hidden="true"
+                  className="bg-primary/10 text-primary relative inline-flex size-8 shrink-0 items-center justify-center rounded-full"
+                >
+                  <Icon className="size-4" />
+                </span>
+                <div className="min-w-0 space-y-1 pt-1">
+                  <p className="text-sm font-semibold wrap-anywhere">
+                    {item.actor ? personName(item.actor) : "System"}
+                  </p>
+                  <p className="text-muted-foreground text-sm wrap-anywhere">
+                    {sentence.charAt(0).toUpperCase() + sentence.slice(1)}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    <time dateTime={item.occurredAt}>
+                      {activityTime(item.occurredAt)}
+                    </time>
+                  </p>
+                </div>
+              </li>
+            );
+          })}
         </ol>
       )}
     </section>
