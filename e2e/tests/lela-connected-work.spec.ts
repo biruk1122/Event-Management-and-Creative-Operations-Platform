@@ -440,8 +440,12 @@ test.describe("Lela connected work presentation", () => {
           .getByRole("group", { name: "Task view" })
           .getByRole("button", { name: view })
           .click();
+        // List view links the title to the task details page; Board and
+        // Calendar still open the task from a button.
         await expect(
-          page.getByRole("button", { name: new RegExp(taskTitle) }),
+          page.getByRole(view === "List" ? "link" : "button", {
+            name: new RegExp(taskTitle),
+          }),
         ).toBeVisible();
         expect(
           await page.evaluate(
