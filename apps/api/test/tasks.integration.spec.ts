@@ -1946,7 +1946,6 @@ describe("task assignment and collaboration API", () => {
     }
   });
 
-
   it("refuses attachments and file listings to a manager of another department", async () => {
     const created = await as(management, "post", "/api/v1/tasks").send({
       title: "Attachment access check",
@@ -1960,13 +1959,20 @@ describe("task assignment and collaboration API", () => {
       otherDepartmentManager,
       "post",
       `/api/v1/tasks/${id}/files/upload-intents`,
-    ).send({ filename: "stolen.pdf", mediaType: "application/pdf", sizeBytes: 29 });
+    ).send({
+      filename: "stolen.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 29,
+    });
     expect(intent.status).toBe(403);
 
-    const listing = await as(otherDepartmentManager, "get", `/api/v1/tasks/${id}/files`);
+    const listing = await as(
+      otherDepartmentManager,
+      "get",
+      `/api/v1/tasks/${id}/files`,
+    );
     expect([403, 404]).toContain(listing.status);
   });
-
 
   it("saves the full edit payload the details form sends, with nulls for cleared fields", async () => {
     const created = await as(management, "post", "/api/v1/tasks").send({
@@ -1989,5 +1995,4 @@ describe("task assignment and collaboration API", () => {
     });
     expect(saved.status, JSON.stringify(saved.body)).toBe(200);
   });
-
 });

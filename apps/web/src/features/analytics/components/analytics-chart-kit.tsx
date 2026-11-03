@@ -271,7 +271,12 @@ export function CategoryBarChart({
         .map((row) => `${row.label}: ${row.detail}`)
         .join("; ")}
     >
-      <div role="img" aria-label={title} style={{ width: "100%", height }}>
+      <div
+        role="img"
+        aria-label={title}
+        className="max-w-full min-w-0 overflow-hidden"
+        style={{ width: "100%", height }}
+      >
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={rows}

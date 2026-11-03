@@ -650,5 +650,4 @@ describe("notifications API and delivery pipeline", () => {
       ),
     ).toBe(false);
   });
-
 });
