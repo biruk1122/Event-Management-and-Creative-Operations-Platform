@@ -1088,7 +1088,7 @@ function ActivityTimeline({ items }: { items: readonly TaskActivity[] }) {
                   <p className="text-muted-foreground text-sm wrap-anywhere">
                     {sentence.charAt(0).toUpperCase() + sentence.slice(1)}
                   </p>
-                  <p className="text-muted-foreground/80 text-xs">
+                  <p className="text-muted-foreground text-xs">
                     <time dateTime={item.occurredAt}>
                       {activityTime(item.occurredAt)}
                     </time>
