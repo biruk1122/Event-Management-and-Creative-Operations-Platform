@@ -55,7 +55,7 @@ describe("TaskWorkspace", () => {
 
     await user.click(
       screen.getAllByRole("button", {
-        name: "Confirm venue accessibility plan",
+        name: "Open Confirm venue accessibility plan",
       })[0]!,
     );
 
@@ -108,7 +108,7 @@ describe("TaskWorkspace", () => {
 
     await user.click(
       screen.getAllByRole("button", {
-        name: "Confirm venue accessibility plan",
+        name: "Open Confirm venue accessibility plan",
       })[0]!,
     );
 
@@ -125,7 +125,7 @@ describe("TaskWorkspace", () => {
 
     await user.click(
       screen.getAllByRole("button", {
-        name: "Confirm venue accessibility plan",
+        name: "Open Confirm venue accessibility plan",
       })[0]!,
     );
 

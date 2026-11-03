@@ -114,7 +114,9 @@ describe("departments gateway reads", () => {
     ]);
     expect(get).toHaveBeenCalledWith(
       "/api/v1/users",
-      expect.objectContaining({ params: { query: { pageSize: 100 } } }),
+      expect.objectContaining({
+        params: { query: { page: 1, pageSize: 100 } },
+      }),
     );
   });
 

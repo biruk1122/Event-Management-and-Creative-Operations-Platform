@@ -77,6 +77,7 @@ interface Principal {
 
 interface TaskBody {
   id: string;
+  reportTo?: { id: string } | null;
   departmentId: string | null;
   title: string;
   status: string;
@@ -1726,5 +1727,272 @@ describe("task assignment and collaboration API", () => {
     const asMember = await as(member, "get", `/api/v1/tasks/${subtask.id}`);
     expect(asMember.status).toBe(200);
     expect(body<{ parentTask: unknown }>(asMember).parentTask).toBeNull();
+  });
+
+  it("follows the assignee lifecycle table and refuses moves outside it", async () => {
+    const created = await as(management, "post", "/api/v1/tasks").send({
+      title: "Lifecycle table check",
+      departmentId,
+      assigneeId: member.id,
+    });
+    expect(created.status).toBe(201);
+    const id = body<TaskBody>(created).id;
+    const move = (status: string) =>
+      as(member, "post", `/api/v1/tasks/${id}/transition`).send({ status });
+
+    // TODO -> IN_PROGRESS -> BLOCKED -> TODO is valid; TODO -> COMPLETED is not.
+    expect((await move("IN_PROGRESS")).status).toBe(200);
+    expect((await move("BLOCKED")).status).toBe(200);
+    expect((await move("TODO")).status).toBe(200);
+    const skipped = await move("COMPLETED");
+    expect(skipped.status).toBe(409);
+    expect(body<{ code: string }>(skipped).code).toBe(
+      "TASK_INVALID_TRANSITION",
+    );
+    // Review is reached only by submitting, never by moving the status directly.
+    expect((await move("UNDER_REVIEW")).status).toBe(409);
+  });
+
+  it("refuses status moves and reviewer changes from people who may not make them", async () => {
+    const created = await as(management, "post", "/api/v1/tasks").send({
+      title: "Unauthorized moves check",
+      departmentId,
+      assigneeId: member.id,
+    });
+    const id = body<TaskBody>(created).id;
+
+    // Someone who is not the assignee cannot move the task.
+    const stranger = await as(
+      secondMember,
+      "post",
+      `/api/v1/tasks/${id}/transition`,
+    ).send({ status: "IN_PROGRESS" });
+    expect(stranger.status).toBe(403);
+
+    // Only Super Admin changes the reviewer, however the request is made.
+    for (const actor of [departmentManager, member]) {
+      const changed = await as(
+        actor,
+        "put",
+        `/api/v1/tasks/${id}/reviewer`,
+      ).send({
+        reviewerId: departmentManager.id,
+        reason: "Not mine to decide",
+      });
+      expect(changed.status).toBe(403);
+    }
+    const unchanged = await as(management, "get", `/api/v1/tasks/${id}`);
+    expect(body<TaskBody>(unchanged).reportTo?.id).toBe(management.id);
+  });
+
+  it("records a Super Admin reviewer change with its reason, and rejects a blank reason", async () => {
+    const created = await as(management, "post", "/api/v1/tasks").send({
+      title: "Reviewer audit check",
+      departmentId,
+      assigneeId: member.id,
+    });
+    const id = body<TaskBody>(created).id;
+
+    const blank = await as(
+      management,
+      "put",
+      `/api/v1/tasks/${id}/reviewer`,
+    ).send({
+      reviewerId: departmentManager.id,
+      reason: "   ",
+    });
+    expect(blank.status).toBe(400);
+
+    const changed = await as(
+      management,
+      "put",
+      `/api/v1/tasks/${id}/reviewer`,
+    ).send({
+      reviewerId: departmentManager.id,
+      reason: "Manager covers review this week",
+    });
+    expect(changed.status).toBe(200);
+    expect(body<TaskBody>(changed).reportTo?.id).toBe(departmentManager.id);
+
+    const history = await as(
+      management,
+      "get",
+      `/api/v1/tasks/${id}/review-history`,
+    );
+    const entry = body<{
+      items: Array<{ type: string; details: Record<string, unknown> }>;
+    }>(history)
+      .items.filter((item) => item.type === "REPORT_TO_CHANGED")
+      .at(-1);
+    expect(entry?.details).toMatchObject({
+      to: departmentManager.id,
+      reason: "Manager covers review this week",
+    });
+
+    const audit = await prisma.auditRecord.findFirst({
+      where: { action: "task.report_to_changed", resourceId: id },
+      orderBy: { occurredAt: "desc" },
+    });
+    expect(audit?.metadata).toMatchObject({ to: departmentManager.id });
+  });
+
+  it("links a related event and campaign, clears them, and refuses unknown links", async () => {
+    const created = await as(management, "post", "/api/v1/tasks").send({
+      title: "Related links check",
+      departmentId,
+    });
+    const id = body<TaskBody>(created).id;
+    const event = await prisma.event.findFirst({
+      select: { id: true, name: true },
+    });
+    if (!event) return;
+
+    const linked = await as(management, "patch", `/api/v1/tasks/${id}`).send({
+      relatedEventId: event.id,
+    });
+    expect(linked.status, JSON.stringify(linked.body)).toBe(200);
+    expect(
+      body<{ relatedEvent: { id: string; name: string } | null }>(linked)
+        .relatedEvent,
+    ).toEqual({
+      id: event.id,
+      name: event.name,
+    });
+
+    const cleared = await as(management, "patch", `/api/v1/tasks/${id}`).send({
+      relatedEventId: null,
+    });
+    expect(body<{ relatedEvent: unknown }>(cleared).relatedEvent).toBeNull();
+
+    const unknown = await as(management, "patch", `/api/v1/tasks/${id}`).send({
+      relatedEventId: "00000000-0000-4000-8000-000000000999",
+    });
+    expect(unknown.status).toBe(400);
+    expect(body<{ code: string }>(unknown).code).toBe("TASK_RELATED_NOT_FOUND");
+  });
+
+  it("pages the reviewer-needed list with an exact total and no repeats", async () => {
+    for (let index = 0; index < 3; index += 1) {
+      await prisma.task.create({
+        data: {
+          title: `Orphan ${index}`,
+          departmentId,
+          createdById: member.id,
+          reportToId: null,
+          assignments: {
+            create: [{ userId: member.id, assignedById: management.id }],
+          },
+        },
+      });
+    }
+    const first = await as(
+      management,
+      "get",
+      "/api/v1/tasks?reviewerUnresolved=true&pageSize=2&page=1",
+    );
+    const second = await as(
+      management,
+      "get",
+      "/api/v1/tasks?reviewerUnresolved=true&pageSize=2&page=2",
+    );
+    const firstBody = body<{ items: Array<{ id: string }>; total: number }>(
+      first,
+    );
+    const secondBody = body<{ items: Array<{ id: string }>; total: number }>(
+      second,
+    );
+    expect(firstBody.total).toBe(secondBody.total);
+    expect(firstBody.total).toBeGreaterThanOrEqual(3);
+    const ids = [...firstBody.items, ...secondBody.items].map(
+      (item) => item.id,
+    );
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("applies the full assignee lifecycle table to every pair of statuses", async () => {
+    // The server's lifecycle table, written out in full: each row is the set of
+    // statuses an assignee may move to. Every other pair must be refused.
+    const TABLE: Record<string, string[]> = {
+      TODO: ["IN_PROGRESS", "BLOCKED", "CANCELLED"],
+      IN_PROGRESS: ["BLOCKED", "CANCELLED"],
+      UNDER_REVIEW: [],
+      BLOCKED: ["TODO", "IN_PROGRESS", "CANCELLED"],
+      COMPLETED: [],
+      CANCELLED: [],
+    };
+    for (const from of Object.keys(TABLE)) {
+      for (const to of Object.keys(TABLE)) {
+        if (from === to) continue;
+        const created = await as(management, "post", "/api/v1/tasks").send({
+          title: `Table ${from} to ${to}`,
+          departmentId,
+          assigneeId: member.id,
+        });
+        expect(created.status).toBe(201);
+        const id = body<TaskBody>(created).id;
+        // Reach the starting status directly; the move under test is the request.
+        await prisma.task.update({
+          where: { id },
+          data: { status: from as never },
+        });
+        const response = await as(
+          member,
+          "post",
+          `/api/v1/tasks/${id}/transition`,
+        ).send({ status: to });
+        const allowed = TABLE[from]!.includes(to);
+        expect(response.status, `${from} -> ${to}`).toBe(allowed ? 200 : 409);
+      }
+    }
+  });
+
+  it("refuses attachments and file listings to a manager of another department", async () => {
+    const created = await as(management, "post", "/api/v1/tasks").send({
+      title: "Attachment access check",
+      departmentId,
+      assigneeId: member.id,
+    });
+    expect(created.status).toBe(201);
+    const id = body<TaskBody>(created).id;
+
+    const intent = await as(
+      otherDepartmentManager,
+      "post",
+      `/api/v1/tasks/${id}/files/upload-intents`,
+    ).send({
+      filename: "stolen.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 29,
+    });
+    expect(intent.status).toBe(403);
+
+    const listing = await as(
+      otherDepartmentManager,
+      "get",
+      `/api/v1/tasks/${id}/files`,
+    );
+    expect([403, 404]).toContain(listing.status);
+  });
+
+  it("saves the full edit payload the details form sends, with nulls for cleared fields", async () => {
+    const created = await as(management, "post", "/api/v1/tasks").send({
+      title: "Full edit payload check",
+      departmentId,
+    });
+    expect(created.status).toBe(201);
+    const id = body<TaskBody>(created).id;
+    const event = await prisma.event.findFirst({ select: { id: true } });
+    const campaign = await prisma.campaign.findFirst({ select: { id: true } });
+    const saved = await as(management, "patch", `/api/v1/tasks/${id}`).send({
+      title: "Full edit payload check, renamed",
+      description: null,
+      priority: "HIGH",
+      type: "GENERAL",
+      startAt: null,
+      dueAt: null,
+      relatedEventId: event?.id ?? null,
+      relatedCampaignId: campaign?.id ?? null,
+    });
+    expect(saved.status, JSON.stringify(saved.body)).toBe(200);
   });
 });

@@ -49,6 +49,24 @@ async function runOnce(url: string, text: string): Promise<void> {
   });
 }
 
+const DEADLOCK_DETECTED = "40P01";
+
+/** `DROP SCHEMA ... CASCADE` locks many catalog objects, so it can lose a
+ * deadlock to another test file's concurrent migrations. PostgreSQL rolls the
+ * victim back cleanly, so the drop is simply retried. */
+async function runRetryingDeadlocks(url: string, text: string): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await runOnce(url, text);
+      return;
+    } catch (error) {
+      const code = (error as { code?: unknown }).code;
+      if (code !== DEADLOCK_DETECTED || attempt >= 5) throw error;
+      await new Promise((settle) => setTimeout(settle, 200 * attempt));
+    }
+  }
+}
+
 async function withClient<T>(
   url: string,
   run: (client: Client) => Promise<T>,
@@ -142,7 +160,10 @@ export async function createIsolatedDatabase(
       });
     },
     async drop() {
-      await runOnce(adminUrl, `DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+      await runRetryingDeadlocks(
+        adminUrl,
+        `DROP SCHEMA IF EXISTS "${schema}" CASCADE`,
+      );
     },
   };
   // Application tests own their fixtures; migration seed data must not collide

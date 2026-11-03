@@ -1,6 +1,7 @@
 import type { operations } from "@event-platform/api-client";
 
 import { browserApi } from "@/lib/api/browser";
+import { listAllUsers } from "@/lib/api/user-directory";
 import { readCsrfToken } from "@/lib/api/csrf";
 import { fieldErrorsOf, isProblemDetails } from "@/lib/api/problem-details";
 
@@ -172,11 +173,7 @@ export async function getConversation(id: string, signal?: AbortSignal) {
 export type ListAssignablePeople = typeof listAssignablePeople;
 
 export async function listAssignablePeople(signal?: AbortSignal) {
-  const { data } = await browserApi.GET("/api/v1/users", {
-    params: { query: { pageSize: 100 } as never },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data } = await listAllUsers(signal);
   return (data?.items ?? []).map((user) => ({
     id: user.id,
     email: user.email,

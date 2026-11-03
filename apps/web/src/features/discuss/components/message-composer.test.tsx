@@ -89,6 +89,9 @@ describe("MessageComposer", () => {
       onSend,
       onUpload: vi.fn().mockRejectedValue(new Error("File rejected")),
     });
+    await user.click(
+      screen.getByRole("button", { name: "Attach file or image" }),
+    );
     await user.upload(
       screen.getByLabelText("Choose attachment"),
       new File(["unsafe content"], "rejected.txt", { type: "text/plain" }),
@@ -180,6 +183,9 @@ describe("MessageComposer", () => {
       .mockRejectedValueOnce(new Error("Upload failed"))
       .mockResolvedValue({});
     const { user } = setup({ onSend, onUpload });
+    await user.click(
+      screen.getByRole("button", { name: "Attach file or image" }),
+    );
     await user.upload(
       screen.getByLabelText("Choose attachment"),
       new File(["hello"], "notes.txt", { type: "text/plain" }),

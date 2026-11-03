@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { LoaderCircle, Paperclip, TriangleAlert } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { AttachmentDropzone } from "@/components/ui/attachment-dropzone";
 import { Input } from "@/components/ui/input";
 import { AdministrationDialogContent as DialogContent } from "@/components/ui/administration-dialog-content";
 import { Label } from "@/components/ui/label";
@@ -149,7 +150,6 @@ function DocumentDetailBody({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -218,8 +218,8 @@ function DocumentDetailBody({
     setDeleteError(ACTION_ERRORS[outcome.status] ?? ACTION_ERRORS.unexpected!);
   }
 
-  function pickFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  function pickFiles(files: File[]) {
+    const file = files[0];
     if (!file) return;
     const error = fileSelectionError(file);
     if (error) {
@@ -239,7 +239,6 @@ function DocumentDetailBody({
       const updated = await uploadDocumentFile(documentId, selectedFile);
       setDocument(updated);
       setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
       onChanged(updated);
     } catch (error) {
       setUploadError(
@@ -435,14 +434,20 @@ function DocumentDetailBody({
                 <AlertTitle>{uploadError}</AlertTitle>
               </Alert>
             ) : null}
+            <AttachmentDropzone
+              inputLabel="Choose document file"
+              disabled={uploadBusy}
+              accept={ACCEPTED_FILE_TYPES.join(",")}
+              multiple={false}
+              hint="PDF, images, text, CSV, or Office documents up to 100 MB."
+              onFiles={pickFiles}
+            />
             <div className="flex flex-wrap items-center gap-2">
-              <Input
-                ref={fileInputRef}
-                type="file"
-                accept={ACCEPTED_FILE_TYPES.join(",")}
-                onChange={pickFile}
-                className="max-w-xs"
-              />
+              {selectedFile ? (
+                <p className="text-muted-foreground min-w-0 truncate text-sm">
+                  {selectedFile.name}
+                </p>
+              ) : null}
               <Button
                 type="button"
                 variant="outline"

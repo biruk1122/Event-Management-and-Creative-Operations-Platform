@@ -7,7 +7,7 @@ import {
 } from "./support/database.js";
 
 const MISSING_UUID = "00000000-0000-0000-0000-000000000000";
-const TEN_MEBIBYTES = 10 * 1024 * 1024;
+const HUNDRED_MEBIBYTES = 100 * 1024 * 1024;
 
 interface ManagedFileRow {
   id: string;
@@ -155,7 +155,7 @@ describe("secure file management schema", () => {
         insertManagedFile({ declared_size_bytes: 0 }),
       ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
       await expect(
-        insertManagedFile({ declared_size_bytes: TEN_MEBIBYTES + 1 }),
+        insertManagedFile({ declared_size_bytes: HUNDRED_MEBIBYTES + 1 }),
       ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
     });
 

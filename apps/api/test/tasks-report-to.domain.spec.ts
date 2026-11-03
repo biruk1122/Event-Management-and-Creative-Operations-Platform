@@ -250,6 +250,12 @@ describe("canAssignRole", () => {
     expect(canAssignRole("DEPARTMENT_MEMBER", "DEPARTMENT_MEMBER")).toBe(false);
     expect(canAssignRole(null, "DEPARTMENT_MEMBER")).toBe(false);
   });
+
+  it("lets only Super Admin assign people who hold no platform role", () => {
+    expect(canAssignRole("SUPER_ADMIN", null)).toBe(true);
+    expect(canAssignRole("ADMIN", null)).toBe(false);
+    expect(canAssignRole("DEPARTMENT_MANAGER", null)).toBe(false);
+  });
 });
 
 describe("canCreateSubtaskUnder", () => {

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { expect, request, test, type Page } from "@playwright/test";
 
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
@@ -62,7 +63,9 @@ test.describe("Team administration — end to end", () => {
     }) => {
       const suffix = fixtureName("delivery");
       const csrf = await csrfToken(page);
-      const departmentName = `E2E Team Home ${suffix}`;
+      // A Playwright retry regenerates `fixtureName`, so the department name
+      // needs its own unique suffix to avoid a 409 on the retried attempt.
+      const departmentName = `E2E Team Home ${suffix}-${randomUUID().slice(0, 8)}`;
       const team = {
         name: `E2E Delivery Team ${suffix}`,
         description: "Delivers releases.",

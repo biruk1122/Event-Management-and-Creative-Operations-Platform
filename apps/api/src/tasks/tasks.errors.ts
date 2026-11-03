@@ -102,7 +102,7 @@ export function taskAssigneeNotEligible(): HttpException {
   return new BadRequestException({
     code: TASK_ERROR.assigneeNotEligible,
     error: "Bad Request",
-    detail: "Only Super Admin can assign work to an Admin account.",
+    detail: "Your role can't assign work to this person.",
   });
 }
 

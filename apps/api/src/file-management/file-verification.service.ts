@@ -24,7 +24,7 @@ export interface VerifiedFile {
   sizeBytes: number;
 }
 
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_FILE_BYTES = 100 * 1024 * 1024;
 const MAX_ZIP_ENTRIES = 1_000;
 const MAX_ZIP_UNCOMPRESSED_BYTES = 100 * 1024 * 1024;
 const PDF = Buffer.from("%PDF-");

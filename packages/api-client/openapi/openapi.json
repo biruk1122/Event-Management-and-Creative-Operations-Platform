@@ -2573,7 +2573,7 @@
           },
           "sizeBytes": {
             "example": 1048576,
-            "maximum": 10485760,
+            "maximum": 104857600,
             "minimum": 1,
             "type": "number"
           }
@@ -9051,6 +9051,47 @@
         "required": ["items"],
         "type": "object"
       },
+      "TaskLinkSummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
+        "type": "object"
+      },
+      "TaskParentSummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "identifier": {
+            "example": "TSK-007",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "TODO",
+              "IN_PROGRESS",
+              "UNDER_REVIEW",
+              "BLOCKED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "identifier", "title", "status"],
+        "type": "object"
+      },
       "TaskPersonSummary": {
         "properties": {
           "email": {
@@ -9123,6 +9164,11 @@
             "type": "string"
           },
           "parentTask": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaskParentSummary"
+              }
+            ],
             "description": "The parent task, when this task is a subtask and the viewer can see the parent. Null otherwise.",
             "nullable": true,
             "type": "object"
@@ -9145,10 +9191,20 @@
             "type": "number"
           },
           "relatedCampaign": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaskLinkSummary"
+              }
+            ],
             "nullable": true,
             "type": "object"
           },
           "relatedEvent": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TaskLinkSummary"
+              }
+            ],
             "nullable": true,
             "type": "object"
           },

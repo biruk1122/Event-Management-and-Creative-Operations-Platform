@@ -7907,6 +7907,26 @@ export interface components {
     TaskEligibleAssigneesResponse: {
       items: components["schemas"]["TaskPersonSummary"][];
     };
+    TaskLinkSummary: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    TaskParentSummary: {
+      /** Format: uuid */
+      id: string;
+      /** @example TSK-007 */
+      identifier: string;
+      /** @enum {string} */
+      status:
+        | "TODO"
+        | "IN_PROGRESS"
+        | "UNDER_REVIEW"
+        | "BLOCKED"
+        | "COMPLETED"
+        | "CANCELLED";
+      title: string;
+    };
     TaskPersonSummary: {
       /** Format: email */
       email: string;
@@ -7931,7 +7951,7 @@ export interface components {
       /** @example TSK-042 */
       identifier: string;
       /** @description The parent task, when this task is a subtask and the viewer can see the parent. Null otherwise. */
-      parentTask: Record<string, never> | null;
+      parentTask: components["schemas"]["TaskParentSummary"] | null;
       /**
        * Format: uuid
        * @description The higher-level task this was broken down from, or null for a top-level task.
@@ -7941,8 +7961,8 @@ export interface components {
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
       /** @description Server-computed from checklist items or, when subtasks exist, the mean of direct children's own progress (subtasks always win). Null means 'not tracked' - no checklist items and no subtasks. Never client-settable, and reaching 100 never implies review approval. */
       progress: number | null;
-      relatedCampaign: Record<string, never> | null;
-      relatedEvent: Record<string, never> | null;
+      relatedCampaign: components["schemas"]["TaskLinkSummary"] | null;
+      relatedEvent: components["schemas"]["TaskLinkSummary"] | null;
       /** @description Who receives this task's reports and decides its review. Null on tasks created before per-task recipients, which keep the earlier review rule. */
       reportTo: components["schemas"]["TaskPersonSummary"] | null;
       /** @description True when Super Admin explicitly chose the recipient, so a later assignment by someone else does not replace it. */

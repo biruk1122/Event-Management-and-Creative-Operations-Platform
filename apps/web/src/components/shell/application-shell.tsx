@@ -410,7 +410,7 @@ function ShellFrame({
         </header>
         <div className="shell-route-toolbar">
           <div className="min-w-0">
-            {nested ? (
+            {nested && !TASK_DETAIL_PATH.test(pathname) ? (
               <nav aria-label="Back navigation">
                 <Link
                   href={active.href}
@@ -567,6 +567,9 @@ function AuthorizedShell({
 
 /** One root shell; login and the kiosk device screen remain outside the
  * authenticated chrome - the kiosk has no personal login of its own. */
+/** Task details has its own in-page navigation; no shell back link there. */
+const TASK_DETAIL_PATH = /^\/tasks\/[^/]+$/;
+
 export function ApplicationShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   if (pathname === "/login" || pathname === "/kiosk") return children;

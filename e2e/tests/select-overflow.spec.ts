@@ -42,15 +42,14 @@ test("long assignee menus stay bounded and their last option is selectable", asy
     data: { title, workspaceId },
   });
   expect(task.status()).toBe(201);
-  await page.goto("/tasks");
-  await page.getByRole("button", { name: title, exact: true }).click();
-  const dialog = page.getByRole("dialog");
+  const { id: taskId } = (await task.json()) as { id: string };
+  await page.goto(`/tasks/${taskId}`);
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 360, height: 800 },
   ]) {
     await page.setViewportSize(viewport);
-    const trigger = dialog.getByRole("combobox", { name: "Add assignee" });
+    const trigger = page.getByRole("combobox", { name: "Add assignee" });
     await trigger.click();
     const menu = page.getByRole("listbox");
     await expect(menu).toBeVisible();
@@ -61,7 +60,11 @@ test("long assignee menus stay bounded and their last option is selectable", asy
     const option = menu.getByRole("option").last();
     const label = await option.innerText();
     await option.click();
-    await expect(trigger).toContainText(label);
+    // Picking a person adds them as an assignee and drops them from the menu,
+    // so the proof of selection is the assignee's remove control.
+    await expect(
+      page.getByRole("button", { name: `Remove ${label}` }),
+    ).toBeVisible();
     await expect(menu).toHaveCount(0);
   }
 });

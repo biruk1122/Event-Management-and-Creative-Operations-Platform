@@ -370,8 +370,12 @@ function visibleWhere(visibility: TaskVisibility): Prisma.TaskWhereInput {
   return alternatives.length ? { OR: alternatives } : { id: { in: [] } };
 }
 
-function updateData(fields: UpdateTaskFields): Prisma.TaskUpdateInput {
-  const data: Prisma.TaskUpdateInput = {};
+function updateData(
+  fields: UpdateTaskFields,
+): Prisma.TaskUncheckedUpdateManyInput {
+  // Scalar foreign keys, not relation connects: bulk updates (updateMany)
+  // accept only scalar fields.
+  const data: Prisma.TaskUncheckedUpdateManyInput = {};
   if (fields.title !== undefined) data.title = fields.title;
   if (fields.description !== undefined) data.description = fields.description;
   if (fields.priority !== undefined) data.priority = fields.priority;
@@ -379,15 +383,9 @@ function updateData(fields: UpdateTaskFields): Prisma.TaskUpdateInput {
   if (fields.startAt !== undefined) data.startAt = fields.startAt;
   if (fields.dueAt !== undefined) data.dueAt = fields.dueAt;
   if (fields.relatedEventId !== undefined)
-    data.relatedEvent =
-      fields.relatedEventId === null
-        ? { disconnect: true }
-        : { connect: { id: fields.relatedEventId } };
+    data.relatedEventId = fields.relatedEventId;
   if (fields.relatedCampaignId !== undefined)
-    data.relatedCampaign =
-      fields.relatedCampaignId === null
-        ? { disconnect: true }
-        : { connect: { id: fields.relatedCampaignId } };
+    data.relatedCampaignId = fields.relatedCampaignId;
   return data;
 }
 

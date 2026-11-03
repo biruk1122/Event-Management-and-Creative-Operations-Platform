@@ -53,7 +53,7 @@ describe("TasksManager", () => {
 
     expect(
       await screen.findByRole("button", {
-        name: "Confirm venue accessibility plan",
+        name: "Open Confirm venue accessibility plan",
       }),
     ).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Next" }));
@@ -210,7 +210,9 @@ describe("TasksManager", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(await screen.findByRole("button", { name: task.title }));
+    await user.click(
+      await screen.findByRole("button", { name: `Open ${task.title}` }),
+    );
 
     expect(
       await screen.findByRole("heading", { name: "Subtasks" }),
@@ -295,7 +297,9 @@ describe("TasksManager", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(await screen.findByRole("button", { name: task.title }));
+    await user.click(
+      await screen.findByRole("button", { name: `Open ${task.title}` }),
+    );
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toBeVisible();
 
@@ -367,7 +371,9 @@ describe("TasksManager", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(await screen.findByRole("button", { name: task.title }));
+    await user.click(
+      await screen.findByRole("button", { name: `Open ${task.title}` }),
+    );
     await screen.findByRole("dialog");
 
     // Super Admin created and assigned this task to the Manager already -
@@ -426,7 +432,9 @@ describe("TasksManager", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(await screen.findByRole("button", { name: task.title }));
+    await user.click(
+      await screen.findByRole("button", { name: `Open ${task.title}` }),
+    );
     await screen.findByRole("dialog");
 
     expect(
@@ -489,7 +497,9 @@ describe("TasksManager", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(await screen.findByRole("button", { name: task.title }));
+    await user.click(
+      await screen.findByRole("button", { name: `Open ${task.title}` }),
+    );
     await screen.findByRole("dialog");
 
     // Super Admin created this task and assigned it to the Manager - the
@@ -557,7 +567,9 @@ describe("TasksManager", () => {
       </QueryClientProvider>,
     );
 
-    await user.click(await screen.findByRole("button", { name: task.title }));
+    await user.click(
+      await screen.findByRole("button", { name: `Open ${task.title}` }),
+    );
     await screen.findByRole("dialog");
 
     expect(

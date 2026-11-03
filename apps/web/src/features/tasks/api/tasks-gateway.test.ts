@@ -6,6 +6,7 @@ import {
   createTaskComment,
   getTaskCollaboration,
   getTaskFileDownloadGrant,
+  listAssignableTaskUsers,
   listTasks,
   removeTaskChecklistItem,
   reorderTaskChecklistItems,
@@ -36,6 +37,27 @@ afterEach(() => {
 });
 
 describe("tasks gateway", () => {
+  it("never offers a Super Admin account as an assignee", async () => {
+    get.mockResolvedValue(
+      ok({
+        items: [
+          {
+            id: "sa",
+            email: "sa@x.com",
+            role: { id: "r1", name: "Super Admin" },
+          },
+          { id: "admin", email: "a@x.com", role: { id: "r2", name: "Admin" } },
+          { id: "custom", email: "c@x.com", role: null },
+        ],
+        page: 1,
+        pageSize: 100,
+        total: 3,
+      }),
+    );
+    const users = await listAssignableTaskUsers();
+    expect(users.map((user) => user.id)).toEqual(["admin", "custom"]);
+  });
+
   it("uses a scoped paginated query and omits blank filters", async () => {
     get.mockResolvedValue(ok({ items: [], page: 2, pageSize: 10, total: 0 }));
     await listTasks({

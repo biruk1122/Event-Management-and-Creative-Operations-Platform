@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
+import { AttachmentDropzone } from "@/components/ui/attachment-dropzone";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +37,7 @@ interface ReportDraftFormProps {
   onSave: (values: CreateReport, files: readonly File[]) => void;
 }
 
-const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
 
 export function ReportDraftForm({
   initial,
@@ -99,13 +100,12 @@ export function ReportDraftForm({
     );
   }
 
-  function addFiles(selected: FileList | null) {
-    if (!selected) return;
+  function addFiles(selected: File[]) {
     const next: File[] = [];
     const rejected: string[] = [];
-    for (const file of Array.from(selected)) {
+    for (const file of selected) {
       if (file.size > MAX_ATTACHMENT_BYTES) {
-        rejected.push(`${file.name} (larger than 25 MB)`);
+        rejected.push(`${file.name} (larger than 100 MB)`);
         continue;
       }
       next.push(file);
@@ -321,15 +321,11 @@ export function ReportDraftForm({
               {attachmentWarning}
             </p>
           ) : null}
-          <Label htmlFor={`${prefix}-attachments`}>Add attachments</Label>
-          <Input
-            id={`${prefix}-attachments`}
-            type="file"
-            multiple
-            onChange={(event) => {
-              addFiles(event.target.files);
-              event.target.value = "";
-            }}
+          <Label>Add attachments</Label>
+          <AttachmentDropzone
+            inputLabel="Add attachments"
+            disabled={busy}
+            onFiles={addFiles}
           />
           {files.length > 0 ? (
             <ul className="divide-border divide-y rounded-lg border">

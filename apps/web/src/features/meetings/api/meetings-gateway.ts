@@ -1,6 +1,7 @@
 import type { components } from "@event-platform/api-client";
 
 import { browserApi } from "@/lib/api/browser";
+import { listAllUsers } from "@/lib/api/user-directory";
 import { readCsrfToken } from "@/lib/api/csrf";
 
 export type Meeting = components["schemas"]["MeetingResponse"];
@@ -53,11 +54,7 @@ export interface AssignableMeetingPerson {
 export async function listAssignablePeople(
   signal?: AbortSignal,
 ): Promise<AssignableMeetingPerson[]> {
-  const { data } = await browserApi.GET("/api/v1/users", {
-    params: { query: { pageSize: 100 } as never },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data } = await listAllUsers(signal);
   return (data?.items ?? []).map((user) => ({
     id: user.id,
     email: user.email,

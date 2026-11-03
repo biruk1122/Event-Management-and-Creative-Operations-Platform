@@ -80,7 +80,9 @@ function renderManager(access: CurrentAccess, task: Task) {
 
 async function openDetail(task: Task) {
   const user = userEvent.setup();
-  await user.click(await screen.findByRole("button", { name: task.title }));
+  await user.click(
+    await screen.findByRole("button", { name: `Open ${task.title}` }),
+  );
   await screen.findByRole("dialog");
   return user;
 }
@@ -207,7 +209,7 @@ describe("task people section and recipient filter", () => {
     const task = underReview();
     renderManager(adminAccess, task);
     const user = userEvent.setup();
-    await screen.findByRole("button", { name: task.title });
+    await screen.findByRole("button", { name: `Open ${task.title}` });
     await user.click(screen.getByRole("button", { name: "Reporting to Me" }));
     await waitFor(() =>
       expect(get).toHaveBeenLastCalledWith(
@@ -302,6 +304,33 @@ describe("create task dialog - Reports to", () => {
     await waitFor(() =>
       expect(onCreate).toHaveBeenCalledWith(
         expect.objectContaining({ reportToId: OTHER_ADMIN.id }),
+      ),
+    );
+  });
+});
+
+describe("task list - details links and the reviewer-needed filter", () => {
+  it("links a task title to its details page instead of opening the popup", async () => {
+    const task = underReview();
+    renderManager(adminAccess, task);
+    const link = await screen.findByRole("link", { name: task.title });
+    expect(link).toHaveAttribute("href", `/tasks/${task.id}`);
+  });
+
+  it("sends the reviewer-needed filter to the server when it is turned on", async () => {
+    const task = underReview();
+    renderManager(adminAccess, task);
+    const user = userEvent.setup();
+    await screen.findByRole("link", { name: task.title });
+    await user.click(screen.getByRole("button", { name: "Reviewer needed" }));
+    await waitFor(() =>
+      expect(get).toHaveBeenLastCalledWith(
+        "/api/v1/tasks",
+        expect.objectContaining({
+          params: {
+            query: expect.objectContaining({ reviewerUnresolved: true }),
+          },
+        }),
       ),
     );
   });

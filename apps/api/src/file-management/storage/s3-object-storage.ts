@@ -18,7 +18,7 @@ import type {
 
 const UPLOAD_GRANT_SECONDS = 10 * 60;
 const DOWNLOAD_GRANT_SECONDS = 5 * 60;
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_FILE_BYTES = 100 * 1024 * 1024;
 
 function contentDisposition(filename: string): string {
   const fallback = filename.replaceAll(/[^A-Za-z0-9._-]/g, "_");

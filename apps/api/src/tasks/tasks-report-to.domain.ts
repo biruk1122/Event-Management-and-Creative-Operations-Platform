@@ -124,19 +124,20 @@ export function canReviewTask(input: {
 }
 
 /**
- * Who a role may assign work to. Super Admin assigns Admins, Managers and
- * Members (never another Super Admin); Admin assigns Managers and Members;
- * a Department Manager assigns Members only (their own department is checked
- * separately). Department Members assign nobody.
+ * Who a role may assign work to. Super Admin assigns anyone except another
+ * Super Admin, including people who hold only custom roles (no platform role);
+ * Admin assigns Managers and Members; a Department Manager assigns Members only
+ * (their own department is checked separately). Department Members assign
+ * nobody.
  */
 export function canAssignRole(
   actorRole: PlatformRole | null,
   candidateRole: PlatformRole | null,
 ): boolean {
-  if (candidateRole === null || candidateRole === "SUPER_ADMIN") return false;
+  if (candidateRole === "SUPER_ADMIN") return false;
+  if (actorRole === "SUPER_ADMIN") return true;
+  if (candidateRole === null) return false;
   switch (actorRole) {
-    case "SUPER_ADMIN":
-      return true;
     case "ADMIN":
       return (
         candidateRole === "DEPARTMENT_MANAGER" ||

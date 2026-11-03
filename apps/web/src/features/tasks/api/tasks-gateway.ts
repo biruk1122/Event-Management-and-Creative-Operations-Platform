@@ -1,6 +1,7 @@
 import type { operations } from "@event-platform/api-client";
 
 import { browserApi } from "@/lib/api/browser";
+import { listAllUsers } from "@/lib/api/user-directory";
 import { readCsrfToken } from "@/lib/api/csrf";
 import { isProblemDetails } from "@/lib/api/problem-details";
 
@@ -52,6 +53,8 @@ function headers() {
 }
 
 export interface ListTasksParams {
+  /** Only tasks with no eligible designated reviewer. */
+  reviewerUnresolved?: boolean;
   status?: TaskStatus | null;
   priority?: TaskPriority | null;
   search?: string | null;
@@ -86,6 +89,7 @@ export async function listTasks(params: ListTasksParams, signal?: AbortSignal) {
   if (params.departmentId) query.departmentId = params.departmentId;
   if (params.parentTaskId) query.parentTaskId = params.parentTaskId;
   if (params.assigneeId) query.assigneeId = params.assigneeId;
+  if (params.reviewerUnresolved) query.reviewerUnresolved = true;
   if (params.createdById) query.createdById = params.createdById;
   if (params.reportToId) query.reportToId = params.reportToId;
   if (params.overdue) query.overdue = params.overdue;
@@ -426,15 +430,13 @@ export async function removeTaskAssignee(
   return data;
 }
 
+/** People a task assignee picker can offer. Super Admin accounts are left out:
+ * the API never lets anyone assign work to a Super Admin. */
 export async function listAssignableTaskUsers(signal?: AbortSignal) {
-  const { data, error, response } = await browserApi.GET("/api/v1/users", {
-    params: { query: { page: 1, pageSize: 100 } as never },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
+  const { data, error, response } = await listAllUsers(signal);
   if (!data)
     fail(response.status, error, "The user directory could not be loaded.");
-  return data.items;
+  return data.items.filter((user) => user.role?.name !== "Super Admin");
 }
 
 export interface AssignableDepartment {
@@ -467,6 +469,11 @@ export interface CreateTaskParams {
   departmentId: string;
   assigneeId?: string;
   dueAt: string;
+  /** Optional planned start (ISO 8601). */
+  startAt?: string;
+  /** Optional related event and campaign. */
+  relatedEventId?: string;
+  relatedCampaignId?: string;
   /** Links the task to a connected workspace (e.g. a production's schedule)
    * in addition to its department - both may be set at once. */
   workspaceId?: string;
@@ -493,6 +500,13 @@ export async function createTask(params: CreateTaskParams): Promise<Task> {
       priority: params.priority,
       departmentId: params.departmentId,
       dueAt: params.dueAt,
+      ...(params.startAt ? { startAt: params.startAt } : {}),
+      ...(params.relatedEventId
+        ? { relatedEventId: params.relatedEventId }
+        : {}),
+      ...(params.relatedCampaignId
+        ? { relatedCampaignId: params.relatedCampaignId }
+        : {}),
       ...(params.assigneeId ? { assigneeId: params.assigneeId } : {}),
       ...(params.workspaceId ? { workspaceId: params.workspaceId } : {}),
       ...(params.parentTaskId ? { parentTaskId: params.parentTaskId } : {}),
@@ -551,6 +565,35 @@ export async function setTaskReportTo(
   );
   if (!data)
     fail(response.status, error, "The reviewer was not changed. Try again.");
+  return data;
+}
+
+export interface UpdateTaskParams {
+  title?: string;
+  description?: string | null;
+  priority?: TaskPriority;
+  type?: TaskType;
+  startAt?: string | null;
+  dueAt?: string | null;
+  relatedEventId?: string | null;
+  relatedCampaignId?: string | null;
+}
+
+/** Edits a task's own fields. Status, assignees and reviewer change elsewhere. */
+export async function updateTask(
+  id: string,
+  params: UpdateTaskParams,
+): Promise<Task> {
+  const { data, error, response } = await browserApi.PATCH(
+    "/api/v1/tasks/{id}",
+    {
+      params: { path: { id } },
+      body: params,
+      headers: headers(),
+    },
+  );
+  if (!data)
+    fail(response.status, error, "The task could not be saved. Try again.");
   return data;
 }
 
