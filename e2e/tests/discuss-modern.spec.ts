@@ -83,6 +83,7 @@ for (const kind of ["DIRECT", "CHANNEL"] as const) {
       ).toBeVisible();
 
       await page.bringToFront();
+      await page.getByRole("button", { name: "Attach file or image" }).click();
       await page.getByLabel("Choose attachment").setInputFiles({
         name: "unsafe.html",
         mimeType: "text/html",
@@ -127,6 +128,7 @@ for (const kind of ["DIRECT", "CHANNEL"] as const) {
           import.meta.url,
         ),
       );
+      await page.getByRole("button", { name: "Attach file or image" }).click();
       await page.getByLabel("Choose attachment").setInputFiles({
         name: "event-image.png",
         mimeType: "image/png",

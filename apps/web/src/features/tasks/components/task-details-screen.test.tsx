@@ -358,7 +358,7 @@ describe("stage 1 - reviewer change, status moves, edit, attachments", () => {
     vi.mocked(gateway.uploadTaskFile).mockResolvedValue({} as never);
     givenAccess(...SA);
     renderDetails(taskWith());
-    const input = await screen.findByLabelText("Add an attachment");
+    const input = await screen.findByLabelText("Choose files");
     const user = userEvent.setup();
     await user.upload(
       input,

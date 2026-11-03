@@ -9,8 +9,7 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AttachmentDropzone } from "@/components/ui/attachment-dropzone";
 import { useCurrentAccess } from "@/features/auth/api/access-queries";
 import { useEventFiles, useFileMutations } from "../api/files-queries";
 import {
@@ -196,19 +195,16 @@ export function EventFilesPanel({
         </ul>
       )}
       {canUpdate ? (
-        <div data-file-upload className="rounded-lg border border-dashed p-3">
-          <Label htmlFor={`${id}-upload`}>Add a file</Label>
-          <p className="text-muted-foreground mt-1 text-xs">
-            PDF, images, text, CSV, or Office documents up to 10 MB.
-          </p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-            <Input
-              id={`${id}-upload`}
-              type="file"
-              accept={ACCEPTED_FILE_TYPES.join(",")}
-              disabled={busy}
-              onChange={(event) => choose(event.target.files?.item(0) ?? null)}
-            />
+        <div data-file-upload className="space-y-3">
+          <AttachmentDropzone
+            inputLabel="Add a file"
+            disabled={busy}
+            accept={ACCEPTED_FILE_TYPES.join(",")}
+            multiple={false}
+            hint="PDF, images, text, CSV, or Office documents up to 100 MB."
+            onFiles={(files) => choose(files[0] ?? null)}
+          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button
               type="button"
               disabled={!selected || busy}

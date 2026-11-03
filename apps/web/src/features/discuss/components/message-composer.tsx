@@ -11,6 +11,7 @@ import {
 import { EmojiPicker } from "./emoji-picker";
 import styles from "./discuss.module.css";
 
+import { AttachmentDropzone } from "@/components/ui/attachment-dropzone";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -66,8 +67,8 @@ export function MessageComposer({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   const sending = useRef(false);
+  const [attachOpen, setAttachOpen] = useState(false);
   const persisted = useRef<Message | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -166,6 +167,21 @@ export function MessageComposer({
     } finally {
       sending.current = false;
       setSubmitting(false);
+    }
+  }
+
+  function stageFile(selected: File | undefined) {
+    if (!selected) return;
+    const invalid = fileSelectionError(selected);
+    setError(invalid);
+    if (!invalid) {
+      setFile(selected);
+      setPreview(
+        ["image/jpeg", "image/png", "image/webp"].includes(selected.type)
+          ? URL.createObjectURL(selected)
+          : null,
+      );
+      setAttachOpen(false);
     }
   }
 
@@ -269,6 +285,16 @@ export function MessageComposer({
           </Button>
         </div>
       ) : null}
+      {attachOpen && onUpload && !file ? (
+        <AttachmentDropzone
+          inputLabel="Choose attachment"
+          disabled={submitting || retryAttachment}
+          multiple={false}
+          accept={ACCEPTED_FILE_TYPES.join(",")}
+          hint="PDF, images, text, CSV, or Office documents up to 100 MB."
+          onFiles={(files) => stageFile(files[0])}
+        />
+      ) : null}
       <div className={styles.composerBox}>
         <EmojiPicker
           onSelect={insertEmoji}
@@ -304,39 +330,14 @@ export function MessageComposer({
         />
         {onUpload ? (
           <>
-            <input
-              ref={fileInput}
-              type="file"
-              aria-label="Choose attachment"
-              className="sr-only"
-              tabIndex={-1}
-              accept={ACCEPTED_FILE_TYPES.join(",")}
-              disabled={submitting || retryAttachment}
-              onChange={(event) => {
-                const selected = event.target.files?.[0];
-                event.target.value = "";
-                if (!selected) return;
-                const invalid = fileSelectionError(selected);
-                setError(invalid);
-                if (!invalid) {
-                  setFile(selected);
-                  setPreview(
-                    ["image/jpeg", "image/png", "image/webp"].includes(
-                      selected.type,
-                    )
-                      ? URL.createObjectURL(selected)
-                      : null,
-                  );
-                }
-              }}
-            />
             <Button
               type="button"
               variant="ghost"
               size="icon"
               aria-label="Attach file or image"
+              aria-expanded={attachOpen}
               disabled={submitting || retryAttachment}
-              onClick={() => fileInput.current?.click()}
+              onClick={() => setAttachOpen((open) => !open)}
             >
               <Paperclip aria-hidden="true" />
             </Button>

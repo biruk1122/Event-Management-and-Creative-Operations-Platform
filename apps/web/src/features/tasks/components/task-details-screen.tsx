@@ -22,6 +22,7 @@ import { useCurrentAccess } from "@/features/auth/api/access-queries";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 
 import * as gateway from "../api/tasks-gateway";
+import { AttachmentDropzone } from "@/components/ui/attachment-dropzone";
 import { listCampaigns } from "@/features/campaigns/api/campaigns-gateway";
 import { listEvents } from "@/features/events/api/events-gateway";
 import { taskKeys, useTaskMutations } from "../api/tasks-queries";
@@ -910,32 +911,32 @@ function FilesPanel({
   onUpload: (file: File) => Promise<void>;
 }) {
   const [error, setError] = useState<string | null>(null);
+
+  function queueFiles(picked: File[]) {
+    const problems = picked
+      .map((file) => attachmentProblem(file))
+      .filter((problem): problem is string => problem !== null);
+    if (problems.length > 0) {
+      setError(problems.join("; "));
+      return;
+    }
+    setError(null);
+    void (async () => {
+      for (const file of picked) await onUpload(file);
+    })();
+  }
+
   return (
     <section aria-labelledby="files-heading" className="space-y-2">
       <h2 id="files-heading" className="text-sm font-medium">
         Attachments
       </h2>
       {canUpload ? (
-        <div className="space-y-1">
-          <Label htmlFor="task-attachment">Add an attachment</Label>
-          <Input
-            id="task-attachment"
-            type="file"
-            disabled={uploading}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = "";
-              if (!file) return;
-              const problem = attachmentProblem(file);
-              if (problem) {
-                setError(problem);
-                return;
-              }
-              setError(null);
-              void onUpload(file);
-            }}
-          />
-        </div>
+        <AttachmentDropzone
+          inputLabel="Choose files"
+          disabled={uploading}
+          onFiles={queueFiles}
+        />
       ) : null}
       {error ? (
         <p role="alert" className="text-destructive text-sm">

@@ -1,5 +1,5 @@
 /** Attachment limits shared by the create dialog and the details page. */
-export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+export const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
 
 export const ALLOWED_ATTACHMENT_TYPES: ReadonlySet<string> = new Set([
   "image/png",
@@ -20,7 +20,7 @@ export function attachmentProblem(
   file: Pick<File, "name" | "size" | "type">,
 ): string | null {
   if (file.size > MAX_ATTACHMENT_BYTES)
-    return `${file.name} (larger than 25 MB)`;
+    return `${file.name} (larger than 100 MB)`;
   if (file.type && !ALLOWED_ATTACHMENT_TYPES.has(file.type))
     return `${file.name} (unsupported file type)`;
   return null;

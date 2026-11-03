@@ -40,6 +40,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AttachmentDropzone } from "@/components/ui/attachment-dropzone";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProgressBar } from "@/components/ui/progress-bar";
@@ -1298,16 +1299,19 @@ function TaskDetailDialog({
               </p>
               {collaboration?.canUpload ? (
                 <div className="mt-3 flex flex-wrap items-end gap-2">
-                  <div>
-                    <Label htmlFor="task-file">Add attachment</Label>
-                    <Input
-                      id="task-file"
-                      className="mt-1"
-                      type="file"
-                      onChange={(event) =>
-                        setFile(event.target.files?.[0] ?? null)
-                      }
+                  <div className="w-full space-y-2">
+                    <Label>Add attachment</Label>
+                    <AttachmentDropzone
+                      inputLabel="Add attachment"
+                      disabled={detail.isFetching}
+                      multiple={false}
+                      onFiles={(files) => setFile(files[0] ?? null)}
                     />
+                    {file ? (
+                      <p className="text-muted-foreground text-sm">
+                        {file.name}
+                      </p>
+                    ) : null}
                   </div>
                   <Button
                     type="button"

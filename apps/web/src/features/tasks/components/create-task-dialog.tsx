@@ -15,6 +15,7 @@ import {
 import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AttachmentDropzone } from "@/components/ui/attachment-dropzone";
 import {
   Select,
   SelectContent,
@@ -158,7 +159,6 @@ export function CreateTaskDialog({
   const startAtId = useId();
   const relatedEventId = useId();
   const relatedCampaignId = useId();
-  const fileId = useId();
   const checklistId = useId();
 
   const defaultDepartmentId =
@@ -252,13 +252,12 @@ export function CreateTaskDialog({
     }));
   }
 
-  function addFiles(selected: FileList | null) {
-    if (!selected) return;
+  function addFiles(selected: File[]) {
     const next: File[] = [];
     const rejected: string[] = [];
-    for (const file of Array.from(selected)) {
+    for (const file of selected) {
       if (file.size > MAX_ATTACHMENT_BYTES) {
-        rejected.push(`${file.name} (larger than 25 MB)`);
+        rejected.push(`${file.name} (larger than 100 MB)`);
         continue;
       }
       if (
@@ -723,16 +722,11 @@ export function CreateTaskDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor={fileId}>Attachments</Label>
-            <Input
-              id={fileId}
-              type="file"
-              multiple
+            <Label>Attachments</Label>
+            <AttachmentDropzone
+              inputLabel="Attachments"
               disabled={submitting}
-              onChange={(event) => {
-                addFiles(event.target.files);
-                event.target.value = "";
-              }}
+              onFiles={addFiles}
             />
             {files.length > 0 ? (
               <ul className="divide-border mt-2 divide-y rounded-lg border">

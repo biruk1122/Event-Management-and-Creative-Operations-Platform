@@ -15,10 +15,10 @@ export class CreateUploadIntentDto {
   @IsIn(SUPPORTED_MEDIA_TYPES)
   mediaType!: string;
 
-  @ApiProperty({ example: 1048576, minimum: 1, maximum: 10 * 1024 * 1024 })
+  @ApiProperty({ example: 1048576, minimum: 1, maximum: 100 * 1024 * 1024 })
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(10 * 1024 * 1024)
+  @Max(100 * 1024 * 1024)
   sizeBytes!: number;
 }
