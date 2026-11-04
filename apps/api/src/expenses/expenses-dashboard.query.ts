@@ -82,6 +82,7 @@ export class ExpensesDashboardQuery {
         FROM expenses WHERE event_id = e.id
       ) x ON true
       WHERE ${visible}
+        AND e.archived_at IS NULL
         AND (e.budget_amount IS NOT NULL OR x.actual_approved IS NOT NULL OR x.actual_pending IS NOT NULL)
       ORDER BY e.created_at DESC, e.id LIMIT ${w.limit + 1}`);
     return {

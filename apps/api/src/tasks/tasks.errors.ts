@@ -36,7 +36,8 @@ export function taskRelatedNotFound(): HttpException {
   return new BadRequestException({
     code: TASK_ERROR.relatedNotFound,
     error: "Bad Request",
-    detail: "The related event or campaign does not exist.",
+    detail:
+      "The related event or campaign does not exist or is archived. Pick an active one.",
   });
 }
 

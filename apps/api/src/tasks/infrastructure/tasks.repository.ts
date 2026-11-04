@@ -846,23 +846,26 @@ export class TasksRepository {
     });
   }
 
-  /** Whether the optional related event and campaign (when given) exist. */
+  /**
+   * Whether the optional related event and campaign (when given) exist and are
+   * not archived. Archived work cannot gain new links; existing links are kept.
+   */
   async relatedLinksExist(input: {
     eventId?: string | null | undefined;
     campaignId?: string | null | undefined;
   }): Promise<boolean> {
     if (input.eventId) {
       if (!isUuid(input.eventId)) return false;
-      const event = await this.db.event.findUnique({
-        where: { id: input.eventId },
+      const event = await this.db.event.findFirst({
+        where: { id: input.eventId, archivedAt: null },
         select: { id: true },
       });
       if (!event) return false;
     }
     if (input.campaignId) {
       if (!isUuid(input.campaignId)) return false;
-      const campaign = await this.db.campaign.findUnique({
-        where: { id: input.campaignId },
+      const campaign = await this.db.campaign.findFirst({
+        where: { id: input.campaignId, archivedAt: null },
         select: { id: true },
       });
       if (!campaign) return false;
