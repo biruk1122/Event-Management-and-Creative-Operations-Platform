@@ -1,4 +1,4 @@
-import { HttpException } from "@nestjs/common";
+import { ConflictException, HttpException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ProductionRecord } from "../src/productions/infrastructure/productions.repository.js";
@@ -55,8 +55,6 @@ describe("ProductionsService", () => {
     create: vi.fn(),
     update: vi.fn(),
     updateStatus: vi.fn(),
-    assignTalent: vi.fn(),
-    unassignTalent: vi.fn(),
     delete: vi.fn(),
     eventExists: vi.fn(),
     listByEventId: vi.fn(),
@@ -72,11 +70,17 @@ describe("ProductionsService", () => {
   };
   const permissions = { hasGrant: vi.fn() };
   const events = { get: vi.fn() };
+  const talentAssignments = {
+    archiveHook: vi.fn(() => () => Promise.resolve()),
+    create: vi.fn(),
+    cancelActiveForWork: vi.fn(),
+  };
   const service = new ProductionsService(
     repository as never,
     workspaces as never,
     permissions as never,
     events as never,
+    talentAssignments as never,
   );
 
   beforeEach(() => {
@@ -89,8 +93,8 @@ describe("ProductionsService", () => {
     repository.create.mockResolvedValue(record());
     repository.update.mockResolvedValue(record());
     repository.updateStatus.mockResolvedValue(record({ status: "ACTIVE" }));
-    repository.assignTalent.mockResolvedValue("assigned");
-    repository.unassignTalent.mockResolvedValue(true);
+    talentAssignments.create.mockResolvedValue({});
+    talentAssignments.cancelActiveForWork.mockResolvedValue({});
     repository.delete.mockResolvedValue("deleted");
     permissions.hasGrant.mockResolvedValue(true);
   });
@@ -145,14 +149,25 @@ describe("ProductionsService", () => {
     [
       "talent",
       "project.assign",
-      () => service.assignTalent(ACTOR, "production-1", "talent-1", "Lead"),
+      () =>
+        service.assignTalent(
+          ACTOR,
+          "production-1",
+          "talent-1",
+          "Lead",
+          "req-1",
+        ),
     ],
     [
       "unassign talent",
       "project.assign",
-      () => service.unassignTalent(ACTOR, "production-1", "talent-1"),
+      () => service.unassignTalent(ACTOR, "production-1", "talent-1", "req-1"),
     ],
-    ["delete", "project.delete", () => service.remove(ACTOR, "production-1")],
+    [
+      "delete",
+      "project.delete",
+      () => service.remove(ACTOR, "production-1", "req-1"),
+    ],
   ])("%s requires %s at organization scope", async (_label, key, call) => {
     permissions.hasGrant.mockResolvedValue(false);
     await expectCode(call(), "PERMISSION_DENIED");
@@ -300,15 +315,17 @@ describe("ProductionsService", () => {
   it("maps an in-use workspace deletion to a production conflict", async () => {
     repository.delete.mockResolvedValue("in_use");
     await expectCode(
-      service.remove(ACTOR, "production-1"),
+      service.remove(ACTOR, "production-1", "req-1"),
       "PRODUCTION_WORKSPACE_IN_USE",
     );
   });
 
   it("reports duplicate talent assignment as a conflict", async () => {
-    repository.assignTalent.mockResolvedValue("already_assigned");
+    talentAssignments.create.mockRejectedValue(
+      new ConflictException({ code: "TALENT_ASSIGNMENT_DUPLICATE" }),
+    );
     await expectCode(
-      service.assignTalent(ACTOR, "production-1", "talent-1", "Lead"),
+      service.assignTalent(ACTOR, "production-1", "talent-1", "Lead", "req-1"),
       "PRODUCTION_TALENT_ALREADY_ASSIGNED",
     );
   });

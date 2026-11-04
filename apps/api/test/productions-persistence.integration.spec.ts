@@ -1,4 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
+import { recordArchives } from "./support/archive-hook.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { PrismaClient } from "../src/generated/prisma/client.js";
@@ -65,7 +66,9 @@ describe("production management persistence", () => {
       ).total,
     ).toBe(1);
 
-    expect(await repository.delete(created.id)).toBe("deleted");
+    expect(await repository.delete(created.id, recordArchives().hook)).toBe(
+      "deleted",
+    );
     expect(
       await prisma.workspace.findUnique({ where: { id: created.workspaceId } }),
     ).toBeNull();
@@ -82,17 +85,33 @@ describe("production management persistence", () => {
       data: { fullName: "Ada Artist", type: "ARTIST" },
     });
 
-    expect(await repository.assignTalent(created.id, talent.id, "Lead")).toBe(
-      "assigned",
-    );
-    expect(await repository.assignTalent(created.id, talent.id, "Lead")).toBe(
-      "already_assigned",
-    );
+    await prisma.productionTalent.create({
+      data: { productionId: created.id, talentId: talent.id, role: "Lead" },
+    });
+    // One active assignment per talent and production; a second is refused by the database.
+    await expect(
+      prisma.productionTalent.create({
+        data: { productionId: created.id, talentId: talent.id, role: "Lead" },
+      }),
+    ).rejects.toMatchObject({ code: "P2002" });
     expect((await repository.findById(created.id))?.talents[0]?.talent.id).toBe(
       talent.id,
     );
-    expect(await repository.unassignTalent(created.id, talent.id)).toBe(true);
-    expect(await repository.unassignTalent(created.id, talent.id)).toBe(false);
+    // Removal cancels the active row and keeps it as history.
+    const cancelled = await prisma.productionTalent.updateMany({
+      where: {
+        productionId: created.id,
+        talentId: talent.id,
+        status: "ASSIGNED",
+      },
+      data: { status: "CANCELLED", cancelledAt: new Date() },
+    });
+    expect(cancelled.count).toBe(1);
+    expect(
+      await prisma.productionTalent.count({
+        where: { productionId: created.id, talentId: talent.id },
+      }),
+    ).toBe(1);
   });
 
   it("uses a compare-and-swap lifecycle write", async () => {
@@ -154,26 +173,33 @@ describe("production management persistence", () => {
     const talent = await prisma.talent.create({
       data: { fullName: "Relation Artist", type: "ARTIST" },
     });
-    expect(await repository.assignTalent(created.id, MISSING_ID, "Lead")).toBe(
-      "talent_not_found",
-    );
     await expect(
-      repository.assignTalent(created.id, talent.id, "  "),
+      prisma.productionTalent.create({
+        data: { productionId: created.id, talentId: MISSING_ID, role: "Lead" },
+      }),
+    ).rejects.toMatchObject({ code: "P2003" });
+    await expect(
+      prisma.productionTalent.create({
+        data: { productionId: created.id, talentId: talent.id, role: "  " },
+      }),
     ).rejects.toThrow();
     expect(
       await prisma.productionTalent.count({
         where: { productionId: created.id },
       }),
     ).toBe(0);
-    expect(await repository.assignTalent(created.id, talent.id, "Lead")).toBe(
-      "assigned",
-    );
-    await prisma.talent.delete({ where: { id: talent.id } });
+    await prisma.productionTalent.create({
+      data: { productionId: created.id, talentId: talent.id, role: "Lead" },
+    });
+    // Talent with assignment history cannot be deleted; the assignment is kept.
+    await expect(
+      prisma.talent.delete({ where: { id: talent.id } }),
+    ).rejects.toThrow();
     expect(
       await prisma.productionTalent.count({
         where: { productionId: created.id },
       }),
-    ).toBe(0);
+    ).toBe(1);
   });
 
   it("keeps the production and workspace when a connected task blocks deletion", async () => {
@@ -186,7 +212,9 @@ describe("production management persistence", () => {
     const task = await prisma.task.create({
       data: { title: "Prepare set", workspaceId: created.workspaceId },
     });
-    expect(await repository.delete(created.id)).toBe("in_use");
+    expect(await repository.delete(created.id, recordArchives().hook)).toBe(
+      "in_use",
+    );
     expect(
       await prisma.production.findUnique({ where: { id: created.id } }),
     ).not.toBeNull();
@@ -194,7 +222,9 @@ describe("production management persistence", () => {
       await prisma.workspace.findUnique({ where: { id: created.workspaceId } }),
     ).not.toBeNull();
     await prisma.task.delete({ where: { id: task.id } });
-    expect(await repository.delete(created.id)).toBe("deleted");
+    expect(await repository.delete(created.id, recordArchives().hook)).toBe(
+      "deleted",
+    );
   });
 
   it("permits exactly one concurrent lifecycle update", async () => {
@@ -231,8 +261,9 @@ describe("production management persistence", () => {
         "productions_production_type_status_idx",
         "productions_deadline_at_idx",
         "productions_created_by_id_idx",
-        "production_talents_production_id_talent_id_key",
+        "production_talents_production_id_talent_id_active_slot_key",
         "production_talents_talent_id_idx",
+        "production_talents_production_id_status_idx",
       ]),
     );
   });

@@ -49,11 +49,12 @@ describe("promotion operations schema", () => {
     expect(
       byName.get("promotion_activities_campaign_id_channel_idx"),
     ).toContain("(campaign_id, channel)");
+    // Prisma's derived name is truncated to PostgreSQL's 63-byte identifier limit.
     expect(
       byName.get(
-        "promotion_activity_talents_campaign_activity_id_talent_id_key",
+        "promotion_activity_talents_campaign_activity_id_talent_id_a_key",
       ),
-    ).toContain("(campaign_activity_id, talent_id)");
+    ).toContain("(campaign_activity_id, talent_id, active_slot)");
     expect(byName.get("promotion_activity_talents_talent_id_idx")).toContain(
       "(talent_id)",
     );
@@ -188,7 +189,7 @@ describe("promotion operations schema", () => {
     ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
   });
 
-  it("enforces explicit talent assignments and cascades them with the activity", async () => {
+  it("enforces explicit talent assignments and keeps them when the activity cannot be deleted under them", async () => {
     const owner = await campaign();
     const id = await activity(owner.id);
     await promote(id, owner.id, "INFLUENCER_MARKETING");
@@ -216,13 +217,16 @@ describe("promotion operations schema", () => {
         [id],
       ),
     ).rejects.toMatchObject({ code: PG_ERROR.checkViolation });
-    await db.query("DELETE FROM campaign_activities WHERE id = $1", [id]);
+    // Assignment history references the activity, so the activity cannot be deleted under it.
+    await expect(
+      db.query("DELETE FROM campaign_activities WHERE id = $1", [id]),
+    ).rejects.toMatchObject({ code: PG_ERROR.restrictViolation });
     expect(
       await db.query(
         "SELECT id FROM promotion_activity_talents WHERE talent_id = $1",
         [talent!.id],
       ),
-    ).toHaveLength(0);
+    ).toHaveLength(1);
     expect(
       await db.query("SELECT id FROM talents WHERE id = $1", [talent!.id]),
     ).toHaveLength(1);
@@ -232,19 +236,22 @@ describe("promotion operations schema", () => {
       "INSERT INTO promotion_activity_talents (campaign_activity_id, talent_id, role) VALUES ($1, $2, 'Presenter')",
       [second, talent!.id],
     );
-    await db.query("DELETE FROM campaigns WHERE id = $1", [owner.id]);
+    // The campaign with assignment history is kept; its activities and links are too.
+    await expect(
+      db.query("DELETE FROM campaigns WHERE id = $1", [owner.id]),
+    ).rejects.toMatchObject({ code: PG_ERROR.restrictViolation });
     expect(
       await db.query(
         "SELECT campaign_activity_id FROM promotion_activities WHERE campaign_id = $1",
         [owner.id],
       ),
-    ).toHaveLength(0);
+    ).toHaveLength(2);
     expect(
       await db.query(
         "SELECT id FROM promotion_activity_talents WHERE talent_id = $1",
         [talent!.id],
       ),
-    ).toHaveLength(0);
+    ).toHaveLength(2);
     expect(
       await db.query("SELECT id FROM talents WHERE id = $1", [talent!.id]),
     ).toHaveLength(1);

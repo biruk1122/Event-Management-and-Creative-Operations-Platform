@@ -1,4 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
+import { recordArchives } from "./support/archive-hook.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -612,9 +613,13 @@ describe("campaign platform persistence", () => {
       expect(
         await repository.updateActivity(other.id, created.id, { name: "x" }),
       ).toBe("not_found");
-      expect(await repository.deleteActivity(other.id, created.id)).toBe(
-        "not_found",
-      );
+      expect(
+        await repository.deleteActivity(
+          other.id,
+          created.id,
+          recordArchives().hook,
+        ),
+      ).toBe("not_found");
       expect(
         await repository.findActivity(owner.id, created.id),
       ).not.toBeNull();
@@ -666,12 +671,20 @@ describe("campaign platform persistence", () => {
       const campaign = await create();
       const created = await activity(campaign.id);
 
-      expect(await repository.deleteActivity(campaign.id, created.id)).toBe(
-        "deleted",
-      );
-      expect(await repository.deleteActivity(campaign.id, created.id)).toBe(
-        "not_found",
-      );
+      expect(
+        await repository.deleteActivity(
+          campaign.id,
+          created.id,
+          recordArchives().hook,
+        ),
+      ).toBe("deleted");
+      expect(
+        await repository.deleteActivity(
+          campaign.id,
+          created.id,
+          recordArchives().hook,
+        ),
+      ).toBe("not_found");
     });
 
     it("treats malformed ids as not found", async () => {
@@ -683,9 +696,13 @@ describe("campaign platform persistence", () => {
           name: "x",
         }),
       ).toBe("not_found");
-      expect(await repository.deleteActivity(MISSING_UUID, "not-a-uuid")).toBe(
-        "not_found",
-      );
+      expect(
+        await repository.deleteActivity(
+          MISSING_UUID,
+          "not-a-uuid",
+          recordArchives().hook,
+        ),
+      ).toBe("not_found");
       expect(
         await repository.listActivities("not-a-uuid", { page: 1, pageSize: 5 }),
       ).toEqual({ items: [], total: 0 });
@@ -848,7 +865,9 @@ describe("campaign platform persistence", () => {
       await activity(campaign.id);
       await activity(campaign.id);
 
-      expect(await repository.delete(campaign.id)).toBe("deleted");
+      expect(await repository.delete(campaign.id, recordArchives().hook)).toBe(
+        "deleted",
+      );
 
       expect(
         await prisma.campaign.findUnique({ where: { id: campaign.id } }),
@@ -870,7 +889,7 @@ describe("campaign platform persistence", () => {
       const survivor = await create();
       await activity(survivor.id);
 
-      await repository.delete(doomed.id);
+      await repository.delete(doomed.id, recordArchives().hook);
 
       expect(await repository.findById(survivor.id)).not.toBeNull();
       expect(
@@ -880,8 +899,12 @@ describe("campaign platform persistence", () => {
     });
 
     it("reports not_found for an unknown or malformed id", async () => {
-      expect(await repository.delete(MISSING_UUID)).toBe("not_found");
-      expect(await repository.delete("not-a-uuid")).toBe("not_found");
+      expect(await repository.delete(MISSING_UUID, recordArchives().hook)).toBe(
+        "not_found",
+      );
+      expect(await repository.delete("not-a-uuid", recordArchives().hook)).toBe(
+        "not_found",
+      );
     });
 
     it("clears an UNAVAILABLE managed file's intent link, then deletes cleanly", async () => {
@@ -900,7 +923,9 @@ describe("campaign platform persistence", () => {
         },
       });
 
-      expect(await repository.delete(campaign.id)).toBe("deleted");
+      expect(await repository.delete(campaign.id, recordArchives().hook)).toBe(
+        "deleted",
+      );
       expect(
         await prisma.workspace.findUnique({
           where: { id: campaign.workspaceId },
@@ -938,7 +963,9 @@ describe("campaign platform persistence", () => {
         });
       });
 
-      expect(await repository.delete(campaign.id)).toBe("has_managed_files");
+      expect(await repository.delete(campaign.id, recordArchives().hook)).toBe(
+        "has_managed_files",
+      );
       expect(await repository.findById(campaign.id)).not.toBeNull();
       expect(
         (await repository.listActivities(campaign.id, { page: 1, pageSize: 5 }))
@@ -1130,7 +1157,9 @@ describe("campaign platform persistence", () => {
         data: { workspaceId: campaign.workspaceId, userId: participantId },
       });
 
-      expect(await repository.delete(campaign.id)).toBe("deleted");
+      expect(await repository.delete(campaign.id, recordArchives().hook)).toBe(
+        "deleted",
+      );
 
       expect(
         await prisma.event.findUnique({ where: { id: eventId } }),
@@ -1195,7 +1224,9 @@ describe("campaign platform persistence", () => {
         });
       });
 
-      expect(await repository.delete(campaign.id)).toBe("has_managed_files");
+      expect(await repository.delete(campaign.id, recordArchives().hook)).toBe(
+        "has_managed_files",
+      );
 
       // The campaign, its activity, and its team assignment all survive: the
       // failed workspace delete rolled back the campaign delete too.
@@ -1211,8 +1242,8 @@ describe("campaign platform persistence", () => {
       const campaign = await create();
 
       const results = await Promise.all([
-        repository.delete(campaign.id),
-        repository.delete(campaign.id),
+        repository.delete(campaign.id, recordArchives().hook),
+        repository.delete(campaign.id, recordArchives().hook),
       ]);
 
       expect([...results].sort()).toEqual(["deleted", "not_found"]);

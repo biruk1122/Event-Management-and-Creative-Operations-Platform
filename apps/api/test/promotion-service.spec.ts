@@ -1,4 +1,8 @@
-import { HttpException } from "@nestjs/common";
+import {
+  ConflictException,
+  HttpException,
+  NotFoundException,
+} from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PromotionService } from "../src/promotion/promotion.service.js";
@@ -45,6 +49,11 @@ describe("PromotionService", () => {
   });
   const campaigns = { get: vi.fn(), getActivity: vi.fn() };
   const permissions = { hasGrant: vi.fn() };
+  const talentAssignments = {
+    archiveHook: vi.fn(() => () => Promise.resolve()),
+    create: vi.fn(),
+    cancelActiveForWork: vi.fn(),
+  };
   const repository = {
     list: vi.fn(),
     find: vi.fn(),
@@ -68,6 +77,7 @@ describe("PromotionService", () => {
       campaigns as never,
       permissions as never,
       repository as never,
+      talentAssignments as never,
     );
   });
 
@@ -147,10 +157,10 @@ describe("PromotionService", () => {
 
   it("returns a stable not-found for an invalid unassignment id", async () => {
     await expectCode(
-      service.unassignTalent(ACTOR, CAMPAIGN, ACTIVITY, "not-a-uuid"),
+      service.unassignTalent(ACTOR, CAMPAIGN, ACTIVITY, "not-a-uuid", "req-1"),
       "PROMOTION_ASSIGNMENT_NOT_FOUND",
     );
-    expect(repository.unassign).not.toHaveBeenCalled();
+    expect(talentAssignments.cancelActiveForWork).not.toHaveBeenCalled();
   });
 
   it("requires talent.assign before writing an initial talent assignment", async () => {
@@ -180,7 +190,7 @@ describe("PromotionService", () => {
 
   it("maps failed channel changes and removals to stable not-found errors", async () => {
     repository.updateChannel.mockResolvedValue(null);
-    repository.remove.mockResolvedValue(false);
+    repository.remove.mockResolvedValue("not_found");
     await expectCode(
       service.updateChannel(ACTOR, CAMPAIGN, ACTIVITY, {
         channel: "SOCIAL_MEDIA",
@@ -188,45 +198,57 @@ describe("PromotionService", () => {
       "PROMOTION_ACTIVITY_NOT_FOUND",
     );
     await expectCode(
-      service.remove(ACTOR, CAMPAIGN, ACTIVITY),
+      service.remove(ACTOR, CAMPAIGN, ACTIVITY, "req-1"),
       "PROMOTION_ACTIVITY_NOT_FOUND",
     );
   });
 
   it("maps missing and duplicate talents without swallowing unrelated failures", async () => {
-    repository.assign
+    talentAssignments.create
       .mockRejectedValueOnce(
-        new Prisma.PrismaClientKnownRequestError("missing", {
-          code: "P2003",
-          clientVersion: "7.10.0",
-        }),
+        new NotFoundException({ code: "TALENT_NOT_FOUND" }),
       )
       .mockRejectedValueOnce(
-        new Prisma.PrismaClientKnownRequestError("duplicate", {
-          code: "P2002",
-          clientVersion: "7.10.0",
-        }),
+        new ConflictException({ code: "TALENT_ASSIGNMENT_DUPLICATE" }),
       )
       .mockRejectedValueOnce(new Error("database unavailable"));
     await expectCode(
-      service.assignTalent(ACTOR, CAMPAIGN, ACTIVITY, {
-        talentId: TALENT,
-        role: "Host",
-      }),
+      service.assignTalent(
+        ACTOR,
+        CAMPAIGN,
+        ACTIVITY,
+        {
+          talentId: TALENT,
+          role: "Host",
+        },
+        "req-1",
+      ),
       "TALENT_NOT_FOUND",
     );
     await expectCode(
-      service.assignTalent(ACTOR, CAMPAIGN, ACTIVITY, {
-        talentId: TALENT,
-        role: "Host",
-      }),
+      service.assignTalent(
+        ACTOR,
+        CAMPAIGN,
+        ACTIVITY,
+        {
+          talentId: TALENT,
+          role: "Host",
+        },
+        "req-1",
+      ),
       "PROMOTION_ASSIGNMENT_CONFLICT",
     );
     await expect(
-      service.assignTalent(ACTOR, CAMPAIGN, ACTIVITY, {
-        talentId: TALENT,
-        role: "Host",
-      }),
+      service.assignTalent(
+        ACTOR,
+        CAMPAIGN,
+        ACTIVITY,
+        {
+          talentId: TALENT,
+          role: "Host",
+        },
+        "req-1",
+      ),
     ).rejects.toThrow("database unavailable");
   });
 });
