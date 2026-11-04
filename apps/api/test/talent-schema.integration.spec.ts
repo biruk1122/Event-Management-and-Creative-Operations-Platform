@@ -356,9 +356,16 @@ describe("talent management schema", () => {
       for (const status of ["ASSIGNED", "COMPLETED", "CANCELLED"]) {
         await expect(
           db.query(
-            `INSERT INTO event_talents (event_id, talent_id, role, status)
-             VALUES ($1, $2, $3, $4)`,
-            [await insertEvent(), (await insertTalent()).id, "Guest", status],
+            `INSERT INTO event_talents (event_id, talent_id, role, status, completed_at, cancelled_at)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              await insertEvent(),
+              (await insertTalent()).id,
+              "Guest",
+              status,
+              status === "COMPLETED" ? new Date() : null,
+              status === "CANCELLED" ? new Date() : null,
+            ],
           ),
         ).resolves.toBeTruthy();
       }

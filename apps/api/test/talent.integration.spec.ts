@@ -81,6 +81,8 @@ interface PageBody {
 }
 
 const TALENT_KEYS = [
+  "activeAssignmentCount",
+  "currentAssignment",
   "availability",
   "biography",
   "createdAt",
@@ -91,6 +93,7 @@ const TALENT_KEYS = [
   "manager",
   "phone",
   "profileImageId",
+  "profileImageUrl",
   "schedules",
   "socialLinks",
   "type",
@@ -346,6 +349,50 @@ describe("talent management API", () => {
   });
 
   describe("create, read, and list", () => {
+    it("starts a profile with the chosen availability and its first social link", async () => {
+      const response = await as(superAdmin, "post", "/api/v1/talents").send({
+        fullName: "Selam Girma",
+        type: "PRESENTER",
+        availability: "UNAVAILABLE",
+        socialLink: { label: "Instagram", url: "https://instagram.com/selam" },
+      });
+      expect(response.status).toBe(201);
+      const created = body<TalentBody>(response);
+      expect(created.availability).toBe("UNAVAILABLE");
+      expect(created.socialLinks).toEqual([
+        expect.objectContaining({
+          label: "Instagram",
+          url: "https://instagram.com/selam",
+        }),
+      ]);
+    });
+
+    it("refuses a phone number with letters, and a starting state a new profile cannot take", async () => {
+      const badPhone = await as(superAdmin, "post", "/api/v1/talents").send({
+        fullName: "Selam Girma",
+        type: "PRESENTER",
+        phone: "call me",
+      });
+      expect(badPhone.status).toBe(400);
+
+      const badState = await as(superAdmin, "post", "/api/v1/talents").send({
+        fullName: "Selam Girma",
+        type: "PRESENTER",
+        availability: "ASSIGNED",
+      });
+      expect(badState.status).toBe(400);
+    });
+
+    it("starts a profile as Inactive when the status is chosen that way", async () => {
+      const response = await as(superAdmin, "post", "/api/v1/talents").send({
+        fullName: "Selam Girma",
+        type: "PRESENTER",
+        availability: "INACTIVE",
+      });
+      expect(response.status).toBe(201);
+      expect(body<TalentBody>(response).availability).toBe("INACTIVE");
+    });
+
     it("creates a talent, normalizes fields, and returns only the public contract", async () => {
       const managerId = await createUser();
       const response = await as(superAdmin, "post", "/api/v1/talents").send({
@@ -866,9 +913,8 @@ describe("talent management API", () => {
         `/api/v1/talents/${created.id}/event-assignments/${assignment.id}/transition`,
       ).send({ status: "CANCELLED" });
       expect(reopen.status).toBe(409);
-      expect(body<ProblemBody>(reopen).code).toBe(
-        "TALENT_ASSIGNMENT_TRANSITION_INVALID",
-      );
+      // A completed assignment is history: it cannot change at all.
+      expect(body<ProblemBody>(reopen).code).toBe("TALENT_ASSIGNMENT_TERMINAL");
     });
 
     it("404s transitioning an unknown assignment", async () => {
