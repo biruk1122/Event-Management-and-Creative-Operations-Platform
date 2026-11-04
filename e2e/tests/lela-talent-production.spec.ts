@@ -185,9 +185,10 @@ test.describe("Production Manager talent journeys", () => {
     const history = page
       .getByRole("heading", { name: "History", exact: true })
       .locator("..");
+    // The history reloads after the cancellation is saved, so allow for that round trip.
     await expect(
       history.getByText("Assignment cancelled", { exact: true }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
   });
 
   test("a conflicting window needs an explicit acknowledgement before it is saved", async ({
@@ -310,8 +311,14 @@ test.describe("Talent profile photo", () => {
       });
     await page.keyboard.press("Escape");
 
+    // The upload is scanned before it is attached, so wait for its success message
+    // before expecting the photo to render.
+    // The dialog hides the page from the accessibility tree, so match the live region by attribute.
+    await expect(
+      page.locator('[role="status"]', { hasText: "Profile photo updated." }),
+    ).toBeAttached({ timeout: 60_000 });
     const photo = page.locator('img[src*="/profile-image/content"]');
-    await expect(photo).toBeVisible();
+    await expect(photo).toBeVisible({ timeout: 30_000 });
     await expect(photo).toHaveAttribute("src", /\/profile-image\/content\?v=/);
   });
 });
