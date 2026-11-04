@@ -34,6 +34,7 @@ import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import {
   PaginatedTalentsResponse,
   TalentResponse,
+  TalentSummaryResponse,
 } from "./talent.contracts.js";
 import { TalentService } from "./talent.service.js";
 import { CreateEventTalentAssignmentDto } from "./dto/create-event-talent-assignment.dto.js";
@@ -59,14 +60,19 @@ function actor(request: RequestWithContext): string {
 export class TalentController {
   constructor(private readonly talent: TalentService) {}
   @Get()
-  @RequirePermissions("talent.read")
   @ApiOperation({ summary: "List talent profiles" })
   @ApiOkResponse({ type: PaginatedTalentsResponse })
   list(@Req() r: RequestWithContext, @Query() q: ListTalentsQueryDto) {
     return this.talent.list(actor(r), q);
   }
+  @Get("summary")
+  @ApiOperation({ summary: "Talent directory summary counts" })
+  @ApiOkResponse({ type: TalentSummaryResponse })
+  summary(@Req() r: RequestWithContext) {
+    return this.talent.summary(actor(r));
+  }
+
   @Get(":id")
-  @RequirePermissions("talent.read")
   @ApiOperation({
     summary: "Get a talent profile, schedule, and event assignments",
   })
@@ -182,20 +188,18 @@ export class TalentController {
   @Post(":id/event-assignments")
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
-  @RequirePermissions("talent.assign")
   @ApiCreatedResponse({ type: TalentResponse })
   assign(
     @Req() r: RequestWithContext,
     @Param("id") id: string,
     @Body() b: CreateEventTalentAssignmentDto,
   ) {
-    return this.talent.assignEvent(actor(r), id, b);
+    return this.talent.assignEvent(actor(r), id, b, r.id);
   }
   @Post(":id/event-assignments/:assignmentId/transition")
   @HttpCode(HttpStatus.OK)
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
-  @RequirePermissions("talent.assign")
   assignmentTransition(
     @Req() r: RequestWithContext,
     @Param("id") id: string,
@@ -207,6 +211,8 @@ export class TalentController {
       id,
       assignmentId,
       b.status,
+      b.reason,
+      r.id,
     );
   }
 }
