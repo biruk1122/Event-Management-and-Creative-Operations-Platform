@@ -229,7 +229,13 @@ export class ProductionsController {
     @Param("talentId") talentId: string,
     @Body() body: AssignProductionTalentDto,
   ) {
-    return this.service.assignTalent(actor(request), id, talentId, body.role);
+    return this.service.assignTalent(
+      actor(request),
+      id,
+      talentId,
+      body.role,
+      request.id,
+    );
   }
 
   @Delete(":id/talents/:talentId")
@@ -244,7 +250,12 @@ export class ProductionsController {
     @Param("id") id: string,
     @Param("talentId") talentId: string,
   ) {
-    return this.service.unassignTalent(actor(request), id, talentId);
+    return this.service.unassignTalent(
+      actor(request),
+      id,
+      talentId,
+      request.id,
+    );
   }
 
   @Get(":id/budget")
@@ -291,6 +302,6 @@ export class ProductionsController {
   @ApiOperation({ summary: "Delete a production and its workspace" })
   @ApiNoContentResponse()
   async remove(@Req() request: RequestWithContext, @Param("id") id: string) {
-    await this.service.remove(actor(request), id);
+    await this.service.remove(actor(request), id, request.id);
   }
 }

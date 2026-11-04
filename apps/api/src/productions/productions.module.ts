@@ -1,3 +1,4 @@
+import { TalentModule } from "../talent/talent.module.js";
 import { Module } from "@nestjs/common";
 import { ProductionsAnalyticsQuery } from "./productions-analytics.query.js";
 import { AuthModule } from "../auth/auth.module.js";
@@ -8,7 +9,13 @@ import { ProductionsController } from "./productions.controller.js";
 import { ProductionsService } from "./productions.service.js";
 import { ProductionsRepository } from "./infrastructure/productions.repository.js";
 @Module({
-  imports: [AuthModule, EventsModule, PermissionsModule, WorkspacesModule],
+  imports: [
+    AuthModule,
+    EventsModule,
+    PermissionsModule,
+    TalentModule,
+    WorkspacesModule,
+  ],
   controllers: [ProductionsController],
   providers: [
     ProductionsService,

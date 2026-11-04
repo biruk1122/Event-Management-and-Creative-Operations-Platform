@@ -264,12 +264,16 @@ export class PartnersRepository {
 
   private async campaignExists(id: string): Promise<boolean> {
     if (!isUuid(id)) return false;
-    return (await this.db.campaign.count({ where: { id } })) === 1;
+    return (
+      (await this.db.campaign.count({ where: { id, archivedAt: null } })) === 1
+    );
   }
 
   private async eventExists(id: string): Promise<boolean> {
     if (!isUuid(id)) return false;
-    return (await this.db.event.count({ where: { id } })) === 1;
+    return (
+      (await this.db.event.count({ where: { id, archivedAt: null } })) === 1
+    );
   }
 
   async findById(id: string): Promise<PartnerRecord | null> {
@@ -356,9 +360,17 @@ export class PartnersRepository {
     PartnerRecord | "not_found" | "campaign_not_found" | "event_not_found"
   > {
     if (!isUuid(id)) return "not_found";
+    const current = await this.db.partner.findUnique({
+      where: { id },
+      select: { campaignId: true, eventId: true },
+    });
+    if (!current) return "not_found";
+    // Only a link being added or moved is checked. An existing link to archived
+    // work stays as it is, so editing the partner never silently breaks it.
     if (
       fields.campaignId !== undefined &&
       fields.campaignId !== null &&
+      fields.campaignId !== current.campaignId &&
       !(await this.campaignExists(fields.campaignId))
     ) {
       return "campaign_not_found";
@@ -366,6 +378,7 @@ export class PartnersRepository {
     if (
       fields.eventId !== undefined &&
       fields.eventId !== null &&
+      fields.eventId !== current.eventId &&
       !(await this.eventExists(fields.eventId))
     ) {
       return "event_not_found";

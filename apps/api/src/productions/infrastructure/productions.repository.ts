@@ -4,6 +4,7 @@ import {
   WorkspaceKind,
   type ProductionStatus,
 } from "../../generated/prisma/client.js";
+import type { ArchiveHook } from "../../common/archive/archive-hook.js";
 import { DatabaseService } from "../../database/database.service.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,6 +39,7 @@ const SELECT = {
     },
   },
   talents: {
+    where: { status: "ASSIGNED" as const },
     select: {
       id: true,
       role: true,
@@ -116,7 +118,9 @@ export class ProductionsRepository {
   constructor(private readonly db: DatabaseService) {}
   async eventExists(id: string): Promise<boolean> {
     if (!UUID.test(id)) return false;
-    return (await this.db.event.count({ where: { id } })) === 1;
+    return (
+      (await this.db.event.count({ where: { id, archivedAt: null } })) === 1
+    );
   }
   async departmentExists(id: string): Promise<boolean> {
     if (!UUID.test(id)) return false;
@@ -137,7 +141,7 @@ export class ProductionsRepository {
   async listByEventId(eventId: string): Promise<ProductionRecord[]> {
     if (!UUID.test(eventId)) return [];
     const items = await this.db.production.findMany({
-      where: { eventId },
+      where: { eventId, archivedAt: null },
       select: SELECT,
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
@@ -155,6 +159,7 @@ export class ProductionsRepository {
       AND: [
         visibleWhere(input.visibility),
         {
+          archivedAt: null,
           ...(input.status ? { status: input.status } : {}),
           ...(input.departmentId ? { departmentId: input.departmentId } : {}),
           ...(input.search
@@ -177,8 +182,8 @@ export class ProductionsRepository {
   }
   async findById(id: string): Promise<ProductionRecord | null> {
     if (!UUID.test(id)) return null;
-    const raw = await this.db.production.findUnique({
-      where: { id },
+    const raw = await this.db.production.findFirst({
+      where: { id, archivedAt: null },
       select: SELECT,
     });
     return raw ? toRecord(raw) : null;
@@ -189,7 +194,7 @@ export class ProductionsRepository {
   ): Promise<ProductionRecord | null> {
     if (!UUID.test(id)) return null;
     const raw = await this.db.production.findFirst({
-      where: { AND: [{ id }, visibleWhere(visibility)] },
+      where: { AND: [{ id, archivedAt: null }, visibleWhere(visibility)] },
       select: SELECT,
     });
     return raw ? toRecord(raw) : null;
@@ -210,8 +215,8 @@ export class ProductionsRepository {
    */
   async budgetSummary(id: string): Promise<ProductionBudgetSummary | null> {
     if (!UUID.test(id)) return null;
-    const production = await this.db.production.findUnique({
-      where: { id },
+    const production = await this.db.production.findFirst({
+      where: { id, archivedAt: null },
       select: { budgetAmount: true, budgetCurrency: true, eventId: true },
     });
     if (!production) return null;
@@ -247,7 +252,7 @@ export class ProductionsRepository {
     try {
       return toRecord(
         await this.db.production.update({
-          where: { id },
+          where: { id, archivedAt: null },
           data: { budgetAmount: amount, budgetCurrency: currency },
           select: SELECT,
         }),
@@ -310,7 +315,7 @@ export class ProductionsRepository {
     try {
       return toRecord(
         await this.db.production.update({
-          where: { id },
+          where: { id, archivedAt: null },
           data: fields,
           select: SELECT,
         }),
@@ -327,50 +332,48 @@ export class ProductionsRepository {
   ): Promise<ProductionRecord | "not_found" | "status_changed"> {
     if (!UUID.test(id)) return "not_found";
     const changed = await this.db.production.updateMany({
-      where: { id, status: expected },
+      where: { id, status: expected, archivedAt: null },
       data: { status },
     });
     const record = await this.findById(id);
     if (!record) return "not_found";
     return changed.count ? record : "status_changed";
   }
-  async assignTalent(
-    productionId: string,
-    talentId: string,
-    role: string,
-  ): Promise<"assigned" | "talent_not_found" | "already_assigned"> {
-    if (!UUID.test(productionId) || !UUID.test(talentId))
-      return "talent_not_found";
-    try {
-      await this.db.productionTalent.create({
-        data: { productionId, talentId, role },
-      });
-      return "assigned";
-    } catch (error) {
-      if (prismaError(error, "P2002")) return "already_assigned";
-      if (prismaError(error, "P2003")) return "talent_not_found";
-      throw error;
-    }
-  }
-  async unassignTalent(productionId: string, talentId: string) {
-    if (!UUID.test(productionId) || !UUID.test(talentId)) return false;
-    return (
-      (
-        await this.db.productionTalent.deleteMany({
-          where: { productionId, talentId },
-        })
-      ).count === 1
-    );
-  }
-  async delete(id: string): Promise<"deleted" | "not_found" | "in_use"> {
+  /**
+   * Deletes the production and its workspace. A production with talent
+   * assignment history is archived instead: the row, its workspace and its
+   * assignments stay as they are, and reads stop returning it.
+   */
+  async delete(
+    id: string,
+    archive: ArchiveHook,
+  ): Promise<"deleted" | "archived" | "not_found" | "in_use"> {
     if (!UUID.test(id)) return "not_found";
     try {
       return await this.db.$transaction(async (tx) => {
-        const row = await tx.production.findUnique({
-          where: { id },
-          select: { workspaceId: true },
+        const row = await tx.production.findFirst({
+          where: { id, archivedAt: null },
+          select: {
+            workspaceId: true,
+            name: true,
+            workspace: { select: { managerId: true } },
+          },
         });
         if (!row) return "not_found";
+        if (
+          (await tx.productionTalent.count({ where: { productionId: id } })) > 0
+        ) {
+          await tx.production.update({
+            where: { id },
+            data: { archivedAt: new Date() },
+          });
+          await archive(tx, {
+            label: row.name,
+            workspaceManagerId: row.workspace.managerId,
+            works: [{ kind: "PRODUCTION", workId: id, workName: row.name }],
+          });
+          return "archived";
+        }
         await tx.managedFile.updateMany({
           where: { intentWorkspaceId: row.workspaceId, state: "UNAVAILABLE" },
           data: { intentWorkspaceId: null },
