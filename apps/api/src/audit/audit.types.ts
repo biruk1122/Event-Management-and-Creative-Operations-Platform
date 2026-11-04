@@ -9,6 +9,12 @@ export type SupportedAuditAction =
   | "task.assignee_removed"
   | "task.submitted_for_review"
   | "task.report_to_changed"
+  | "talent.assignment.created"
+  | "talent.assignment.updated"
+  | "talent.assignment.completed"
+  | "talent.assignment.cancelled"
+  | "talent.conflict_overridden"
+  | "talent.profile_image.changed"
   | "report.recipient_changed"
   | "task.review.approved"
   | "task.review.changes_requested"
@@ -65,6 +71,7 @@ export interface AppendAuditRecordInput {
   action: SupportedAuditAction;
   resourceType:
     | "task"
+    | "talent"
     | "managed_file"
     | "report"
     | "expense"

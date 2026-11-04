@@ -11,6 +11,8 @@ export type SupportedOutboxEventName =
   | "task.submitted"
   | "task.report_to_assigned"
   | "task.reviewer_changed"
+  | "talent.assigned"
+  | "talent.assignment_cancelled"
   | "task.blocked"
   | "discuss.message.created"
   | "meeting.participant.invited"
@@ -144,6 +146,7 @@ export interface AppendOutboxEventInput {
   correlationId?: string;
   resourceType:
     | "task"
+    | "talent"
     | "message"
     | "meeting"
     | "expense"

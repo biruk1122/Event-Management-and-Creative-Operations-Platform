@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -38,14 +39,27 @@ export class ListTalentsQueryDto {
   @MaxLength(200)
   search?: string;
 
-  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  /** "assigned" keeps talent with an active assignment; "unassigned" keeps the rest. */
+  @ApiPropertyOptional({ enum: ["assigned", "unassigned"] })
+  @IsOptional()
+  @IsIn(["assigned", "unassigned"])
+  assignment?: "assigned" | "unassigned";
+
+  @ApiPropertyOptional({
+    enum: ["name", "newest", "availability"],
+  })
+  @IsOptional()
+  @IsIn(["name", "newest", "availability"])
+  sort?: "name" | "newest" | "availability";
+
+  @ApiPropertyOptional({ type: Number, minimum: 1, default: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   page = 1;
 
-  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 25 })
+  @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 100, default: 25 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

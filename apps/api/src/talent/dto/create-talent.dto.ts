@@ -1,18 +1,40 @@
+import { Type } from "class-transformer";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsEmail,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from "class-validator";
 
 import { TalentType } from "../../generated/prisma/client.js";
+import { CreateTalentSocialLinkDto } from "./create-talent-social-link.dto.js";
 
 const NOT_BLANK = /\S/;
+
+/**
+ * Digits with an optional leading plus and common separators, allowing the
+ * surrounding whitespace the service trims away. Mirrored by the web form.
+ */
+export const PHONE_PATTERN = /^\s*\+?[0-9(][0-9 ()\-.]{3,24}\s*$/;
+
+/**
+ * The states a new profile may start in. The web form calls this field
+ * "Status". `ASSIGNED` only comes from assigning work, so it is never a
+ * starting state. `INACTIVE` is allowed because a profile can be created
+ * already archived, with no work to block it.
+ */
+export const STARTING_AVAILABILITY = [
+  "AVAILABLE",
+  "UNAVAILABLE",
+  "INACTIVE",
+] as const;
 
 export class CreateTalentDto {
   @ApiProperty({ example: "Amina Tesfaye", minLength: 1, maxLength: 200 })
@@ -37,6 +59,9 @@ export class CreateTalentDto {
   @IsString()
   @MaxLength(50)
   @Matches(NOT_BLANK, { message: "phone must not be blank" })
+  @Matches(PHONE_PATTERN, {
+    message: "phone must contain digits, spaces or + only",
+  })
   phone?: string;
 
   @ApiPropertyOptional({
@@ -53,4 +78,17 @@ export class CreateTalentDto {
   @IsOptional()
   @IsUUID()
   managerId?: string;
+
+  /** Starting status, stored in the same column as availability. Defaults to AVAILABLE. */
+  @ApiPropertyOptional({ enum: STARTING_AVAILABILITY })
+  @IsOptional()
+  @IsIn(STARTING_AVAILABILITY)
+  availability?: (typeof STARTING_AVAILABILITY)[number];
+
+  /** The first social link, saved with the profile in the same write. */
+  @ApiPropertyOptional({ type: () => CreateTalentSocialLinkDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateTalentSocialLinkDto)
+  socialLink?: CreateTalentSocialLinkDto;
 }
