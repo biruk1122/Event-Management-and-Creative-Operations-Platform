@@ -1,20 +1,15 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { WorkSurface } from "@/components/ui/work-surface";
-
 import { createServerApi } from "@/lib/api/server";
 import { TalentScreen } from "@/features/talent";
+import { TalentPageHero } from "@/features/talent/components/talent-page-hero";
+import {
+  canReadTalent,
+  talentAbilities,
+} from "@/features/talent/lib/talent-access";
 
 export const metadata: Metadata = { title: "Talent" };
-
-/**
- * Reading talent profiles is gated by `talent.read` at organization scope -
- * the same rule `TalentService` enforces. This server check is the first
- * gate; the client `TalentScreen` re-checks and keeps the grant fresh.
- */
-const READ_KEY = "talent.read";
 
 export default async function TalentPage() {
   const api = createServerApi({ cookie: (await cookies()).toString() });
@@ -23,34 +18,27 @@ export default async function TalentPage() {
   });
   if (response.status === 401) redirect("/login?next=%2Ftalent");
   if (!data) throw new Error("We could not check your permissions. Try again.");
-  const allowed = data.grants.some(
-    (grant) =>
-      grant.permissionKey === READ_KEY && grant.scope === "ORGANIZATION",
-  );
+  // Organization `talent.read`, or the Production Manager who sees the
+  // directory with contact details masked. The client screen re-checks it.
+  const allowed = canReadTalent(data);
+  const manages = talentAbilities(data).canCreate;
 
   return (
-    <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
-      <Link href="/" className="text-sm underline underline-offset-4">
-        Back to home
-      </Link>
-      <WorkSurface
-        title="Talent"
-        description={
-          allowed
-            ? "Review talent profiles, create one, edit contact details and biography, move availability through its lifecycle, manage schedules and social links, assign a manager, and assign talent to events."
-            : undefined
-        }
-      >
-        {allowed ? (
-          <div>
-            <TalentScreen />
-          </div>
-        ) : (
-          <p role="alert" className="mt-6">
-            You do not have access to this area.
-          </p>
-        )}
-      </WorkSurface>
+    <main className="@container mx-auto max-w-7xl space-y-6 px-5 py-8 sm:px-8">
+      {allowed ? (
+        <>
+          <TalentPageHero
+            description={
+              manages
+                ? "Manage your talent profiles, track assignments, and keep all talent information in one place."
+                : "Review talent profiles and assign talent to your department's events and productions. Contact details are masked."
+            }
+          />
+          <TalentScreen />
+        </>
+      ) : (
+        <p role="alert">You do not have access to this area.</p>
+      )}
     </main>
   );
 }

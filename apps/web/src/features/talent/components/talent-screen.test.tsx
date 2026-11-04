@@ -6,6 +6,9 @@ import type { CurrentAccess } from "@/features/auth/api/access-queries";
 import { TalentScreen } from "./talent-screen";
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
 vi.mock("@/lib/api/browser", () => ({
   browserApi: {
     GET: get,
@@ -40,7 +43,23 @@ beforeEach(() => {
     }
     if (path === "/api/v1/talents") {
       return {
-        data: { items: [], page: 1, pageSize: 10, total: 0 },
+        data: { items: [], page: 1, pageSize: 12, total: 0 },
+        response: { ok: true, status: 200 },
+      };
+    }
+    if (path === "/api/v1/talents/summary") {
+      return {
+        data: {
+          total: 0,
+          assignedTalents: 0,
+          activeAssignments: 0,
+          byAvailability: {
+            AVAILABLE: 0,
+            ASSIGNED: 0,
+            UNAVAILABLE: 0,
+            INACTIVE: 0,
+          },
+        },
         response: { ok: true, status: 200 },
       };
     }
