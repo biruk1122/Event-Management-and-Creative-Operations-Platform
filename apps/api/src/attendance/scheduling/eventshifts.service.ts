@@ -14,6 +14,7 @@ import { LeaveRepository } from "../../leave/infrastructure/leave.repository.js"
 import {
   attendanceAssignmentNotFound,
   attendanceEmployeeNotFound,
+  attendanceEventArchived,
   attendanceEventNotFound,
   attendanceInvalidSchedule,
   attendanceLeaveConflict,
@@ -127,7 +128,12 @@ export class EventShiftsService {
 
   private async requireEvent(
     eventId: string,
-  ): Promise<{ id: string; name: string; departmentId: string | null }> {
+  ): Promise<{
+    id: string;
+    name: string;
+    departmentId: string | null;
+    archivedAt: Date | null;
+  }> {
     const event = await this.repository.findEventContext(eventId);
     if (!event) throw attendanceEventNotFound();
     return event;
@@ -154,6 +160,7 @@ export class EventShiftsService {
   ): Promise<EventShiftResponse> {
     const event = await this.requireEvent(eventId);
     await this.requireManage(actingUserId, event.departmentId);
+    if (event.archivedAt) throw attendanceEventArchived();
 
     const plannedStartAt = new Date(dto.plannedStartAt);
     const plannedEndAt = new Date(dto.plannedEndAt);

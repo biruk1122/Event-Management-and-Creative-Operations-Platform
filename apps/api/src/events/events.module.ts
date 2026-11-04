@@ -1,3 +1,4 @@
+import { TalentModule } from "../talent/talent.module.js";
 import { Module } from "@nestjs/common";
 import { EventsDashboardQuery } from "./events-dashboard.query.js";
 import { EventsAnalyticsQuery } from "./events-analytics.query.js";
@@ -14,7 +15,13 @@ import { EventsRepository } from "./infrastructure/events.repository.js";
 import { EventsSchedulerRepository } from "./infrastructure/events-scheduler.repository.js";
 
 @Module({
-  imports: [AuthModule, OutboxModule, PermissionsModule, WorkspacesModule],
+  imports: [
+    AuthModule,
+    OutboxModule,
+    PermissionsModule,
+    TalentModule,
+    WorkspacesModule,
+  ],
   controllers: [EventsController],
   exports: [
     EventsDashboardQuery,

@@ -31,6 +31,7 @@ export const ATTENDANCE_ERROR = {
   assignmentNotFound: "ATTENDANCE_ASSIGNMENT_NOT_FOUND",
   invalidSchedule: "ATTENDANCE_INVALID_SCHEDULE",
   eventNotFound: "ATTENDANCE_EVENT_NOT_FOUND",
+  eventArchived: "ATTENDANCE_EVENT_ARCHIVED",
   shiftEventMismatch: "ATTENDANCE_SHIFT_EVENT_MISMATCH",
   leaveConflict: "ATTENDANCE_LEAVE_CONFLICT",
   holidayNotFound: "ATTENDANCE_HOLIDAY_NOT_FOUND",
@@ -212,6 +213,15 @@ export function attendanceEventNotFound(): HttpException {
     code: ATTENDANCE_ERROR.eventNotFound,
     error: "Not Found",
     detail: "No event exists with that id.",
+  });
+}
+
+/** Archived events take no new shifts; their existing schedule stays readable. */
+export function attendanceEventArchived(): HttpException {
+  return new ConflictException({
+    code: ATTENDANCE_ERROR.eventArchived,
+    error: "Conflict",
+    detail: "This event is archived, so it cannot take new shifts.",
   });
 }
 

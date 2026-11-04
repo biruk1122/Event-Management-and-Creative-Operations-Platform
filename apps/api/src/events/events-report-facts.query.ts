@@ -12,7 +12,9 @@ export class EventsReportFactsQuery {
 
   async forWorkspace(workspaceId: string) {
     const exists =
-      (await this.db.event.count({ where: { workspaceId } })) === 1;
+      (await this.db.event.count({
+        where: { workspaceId, archivedAt: null },
+      })) === 1;
     if (!exists) return null;
     const [totalTasksNow, completedTasksNow] = await Promise.all([
       this.db.task.count({ where: { workspaceId } }),

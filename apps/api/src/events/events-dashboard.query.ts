@@ -28,7 +28,7 @@ export class EventsDashboardQuery {
       SELECT count(*)::int AS "totalEvents",
       count(*) FILTER (WHERE e.status IN (\'PLANNING\',\'READY\') AND e.start_at >= ${w.from} AND e.start_at < ${w.to})::int AS "upcomingEvents",
       count(*) FILTER (WHERE e.status = \'COMPLETED\')::int AS "completedEvents"
-      FROM events e WHERE ${visible}`);
+      FROM events e WHERE ${visible} AND e.archived_at IS NULL`);
     return { scope, data: data! };
   }
   async list(ctx: ReadContext, deadline: boolean, w: ReadWindow) {
@@ -47,7 +47,7 @@ export class EventsDashboardQuery {
         Prisma.sql`
       SELECT jsonb_build_object('id',e.id,'title',e.name,'kind','EVENT','status',e.status,
         'startAt',e.start_at,'endAt',e.end_at) AS item
-      FROM events e WHERE e.status <> 'CANCELLED' AND ${visible} AND ${time}
+      FROM events e WHERE e.status <> 'CANCELLED' AND e.archived_at IS NULL AND ${visible} AND ${time}
       ORDER BY ${deadline ? Prisma.sql`e.end_at` : Prisma.sql`e.start_at`},e.id LIMIT ${w.limit + 1}`,
         w.limit,
       ),
