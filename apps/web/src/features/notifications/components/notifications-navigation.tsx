@@ -203,7 +203,7 @@ export function NotificationsBell({
                     ? "Notifications could not load."
                     : unreadCount === 0
                       ? "No unread notifications"
-                      : `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}`}
+                      : `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}.`}
               </p>
             </div>
           </div>

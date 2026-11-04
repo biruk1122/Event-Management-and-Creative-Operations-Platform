@@ -110,7 +110,9 @@ test.describe("Production Manager talent journeys", () => {
 
     // Contact details are masked for the Production Manager, and the profile is read-only.
     await expect(page.getByText(email, { exact: true })).toHaveCount(0);
-    await expect(page.getByText(/read-only access/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Edit profile", exact: true }),
+    ).toHaveCount(0);
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -120,10 +122,10 @@ test.describe("Production Manager talent journeys", () => {
 
     // Work options are limited to the Production department.
     await page
-      .getByRole("button", { name: "Assign to work", exact: true })
+      .getByRole("button", { name: "Assign talent", exact: true })
       .click();
     const form = page.getByRole("form", { name: "Assign talent", exact: true });
-    await form.getByRole("combobox", { name: "Work", exact: true }).click();
+    await form.getByRole("combobox", { name: /Related work/ }).click();
     await expect(
       page.getByRole("option", { name: ownEvent.name, exact: true }),
     ).toBeVisible();
@@ -149,9 +151,9 @@ test.describe("Production Manager talent journeys", () => {
 
     // Assign own-department work.
     await page
-      .getByRole("button", { name: "Assign to work", exact: true })
+      .getByRole("button", { name: "Assign talent", exact: true })
       .click();
-    await form.getByRole("combobox", { name: "Work", exact: true }).click();
+    await form.getByRole("combobox", { name: /Related work/ }).click();
     await page
       .getByRole("option", { name: ownEvent.name, exact: true })
       .click();
@@ -223,10 +225,10 @@ test.describe("Production Manager talent journeys", () => {
 
     await openProfile(page, name);
     await page
-      .getByRole("button", { name: "Assign to work", exact: true })
+      .getByRole("button", { name: "Assign talent", exact: true })
       .click();
     const form = page.getByRole("form", { name: "Assign talent", exact: true });
-    await form.getByRole("combobox", { name: "Work", exact: true }).click();
+    await form.getByRole("combobox", { name: /Related work/ }).click();
     await page.getByRole("option", { name: event.name, exact: true }).click();
     await form.getByLabel("Role", { exact: true }).fill("Headliner");
 
@@ -267,7 +269,7 @@ test.describe("Admin talent access", () => {
 
     await page.goto("/talent");
     await expect(
-      page.getByRole("button", { name: "New talent", exact: true }),
+      page.getByRole("button", { name: "Add talent", exact: true }),
     ).toBeVisible();
     await openProfile(page, name);
     await expect(page.getByText(email, { exact: true })).toBeVisible();
@@ -301,6 +303,10 @@ test.describe("Talent profile photo", () => {
     await createTalent(superAdmin, name, `photo-${id}@e2e.test`);
 
     await openProfile(page, name);
+    // The photo is changed from the Edit profile dialog.
+    await page
+      .getByRole("button", { name: "Edit profile", exact: true })
+      .click();
     await page
       .getByLabel("Choose a profile photo", { exact: true })
       .setInputFiles({
@@ -308,6 +314,7 @@ test.describe("Talent profile photo", () => {
         mimeType: "image/png",
         buffer: PNG,
       });
+    await page.keyboard.press("Escape");
 
     const photo = page.locator('img[src*="/profile-image/content"]');
     await expect(photo).toBeVisible();

@@ -171,11 +171,11 @@ test.describe("Promotion operations — real-service workflow", () => {
         .getByRole("button", { name: "Remove promotion detail" })
         .click();
       await reopened.getByRole("button", { name: "Confirm removal" }).click();
+      // The activity had talent history, so its promotion detail is archived
+      // rather than deleted; the removal control no longer offers the detail.
       await expect(
-        reopened.getByText(
-          "This activity does not have a promotion channel yet.",
-        ),
-      ).toBeVisible();
+        reopened.getByRole("button", { name: "Remove promotion detail" }),
+      ).toHaveCount(0);
 
       const remaining = await page.request.get(endpoint);
       expect(((await remaining.json()) as { total: number }).total).toBe(0);

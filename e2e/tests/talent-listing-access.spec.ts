@@ -55,7 +55,7 @@ test.describe("Talent listing for an organization-wide reader", () => {
       );
 
       const newTalent = page.getByRole("button", {
-        name: "New talent",
+        name: "Add talent",
         exact: true,
       });
       await newTalent.click();
@@ -91,7 +91,7 @@ test.describe("Talent listing for a Production Manager", () => {
       page.getByText("Talent profiles", { exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "New talent", exact: true }),
+      page.getByRole("button", { name: "Add talent", exact: true }),
     ).toHaveCount(0);
     await expect(
       page.getByText("Contact details are masked", { exact: false }),
@@ -104,8 +104,9 @@ test.describe("Talent listing for a member without talent access", () => {
 
   test("is refused the talent area", async ({ page }) => {
     await page.goto("/talent");
-    await expect(page.getByRole("alert")).toContainText(
-      "You do not have access to this area.",
-    );
+    // The route announcer is also an alert, so match the message text itself.
+    await expect(
+      page.getByText("You do not have access to this area.", { exact: true }),
+    ).toBeVisible();
   });
 });

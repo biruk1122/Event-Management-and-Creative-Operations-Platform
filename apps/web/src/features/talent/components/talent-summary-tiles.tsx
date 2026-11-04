@@ -44,24 +44,24 @@ export function TalentSummaryTiles({
   return (
     <dl aria-busy={pending} className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {tiles.map((tile) => (
+        // A definition-list group holds its dt and dd directly; the icon sits
+        // beside the card's text through its own grid cell, not a wrapper.
         <div
           key={tile.label}
-          className="border-border bg-card flex items-center gap-4 rounded-2xl border p-5 shadow-sm"
+          className="border-border bg-card grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-1 rounded-2xl border p-5 shadow-sm"
         >
           <span
             aria-hidden="true"
-            className={`${tile.tint} inline-flex size-11 shrink-0 items-center justify-center rounded-xl`}
+            className={`${tile.tint} row-span-2 inline-flex size-11 items-center justify-center rounded-xl`}
           >
             <tile.icon className="size-5" />
           </span>
-          <div className="min-w-0">
-            <dt className="text-muted-foreground truncate text-xs font-medium">
-              {tile.label}
-            </dt>
-            <dd className="mt-0.5 text-2xl font-semibold tabular-nums">
-              {tile.value ?? PLACEHOLDER}
-            </dd>
-          </div>
+          <dt className="text-muted-foreground truncate text-xs font-medium">
+            {tile.label}
+          </dt>
+          <dd className="text-2xl font-semibold tabular-nums">
+            {tile.value ?? PLACEHOLDER}
+          </dd>
         </div>
       ))}
     </dl>

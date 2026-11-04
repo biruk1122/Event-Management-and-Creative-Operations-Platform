@@ -134,7 +134,7 @@ describe("NotificationsNavigation", () => {
     await user.click(
       await screen.findByRole("button", { name: "Open notifications" }),
     );
-    expect(await screen.findByText("2 unread notifications")).toBeVisible();
+    expect(await screen.findByText("2 unread notifications.")).toBeVisible();
     expect(screen.getByText("You were assigned a task")).toBeVisible();
   });
   it("hides read notifications from the bell and shows the caught-up state", async () => {

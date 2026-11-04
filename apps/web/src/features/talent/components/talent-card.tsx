@@ -89,7 +89,7 @@ export function TalentCard({
         </div>
       </dl>
 
-      <div className="mt-auto grid grid-cols-2 gap-3">
+      <div className="mt-auto grid gap-3 sm:grid-cols-2">
         <Button
           type="button"
           variant="outline"
