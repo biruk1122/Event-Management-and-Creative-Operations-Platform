@@ -174,10 +174,14 @@ test.describe("Talent management — end to end", () => {
       // Open the detail dialog. (The list renders both a desktop row and a
       // mobile card; only one is in the a11y tree at the test viewport, but
       // `.first()` keeps this stable regardless.)
-      await page.getByRole("button", { name: talentName }).first().click();
-      const detail = page.getByRole("dialog");
+      await page
+        .getByRole("button", { name: `View profile of ${talentName}` })
+        .first()
+        .click();
+      await page.waitForURL(new RegExp("/talent/[0-9a-f-]+$"));
+      const detail = page;
       await expect(
-        detail.getByRole("heading", { name: talentName }),
+        detail.getByRole("heading", { name: talentName, level: 2 }),
       ).toBeVisible();
       await expectNoWcag22AaViolations(page, "talent detail dialog");
 
@@ -238,20 +242,18 @@ test.describe("Talent management — end to end", () => {
       );
       expect(scheduleRows).toEqual([{ title: "Sound check" }]);
 
-      // Assign the talent to the event created above.
-      await detail.getByRole("button", { name: "Assign to an event" }).click();
-      const assignForm = detail.getByRole("form", {
-        name: "Assign to an event",
-      });
-      await assignForm.getByRole("combobox", { name: "Event" }).click();
+      // Assign the talent to the event created above, through the Assign dialog.
+      await detail.getByRole("button", { name: "Assign to work" }).click();
+      const assignForm = page.getByRole("form", { name: "Assign talent" });
+      await assignForm.getByRole("combobox", { name: "Work" }).click();
       await page.getByRole("option", { name: eventName, exact: true }).click();
       await assignForm.getByLabel("Role").fill("Headliner");
-      await assignForm.getByRole("button", { name: "Assign" }).click();
-      // The form's own Select shows the chosen event's name as its closed
-      // value, which is exact-text-identical to the new row `Assign` is
-      // about to add - wait for the form to actually unmount before
-      // asserting on that text, or the two can transiently coexist and
-      // violate Playwright's strict mode.
+      await expect(
+        assignForm.getByText("No conflicts in this window."),
+      ).toBeVisible();
+      await assignForm
+        .getByRole("button", { name: "Confirm assignment", exact: true })
+        .click();
       await expect(assignForm).toHaveCount(0);
       await expect(detail.getByText(eventName, { exact: true })).toBeVisible();
 
@@ -268,13 +270,9 @@ test.describe("Talent management — end to end", () => {
         { event_id: eventId, role: "Headliner", status: "ASSIGNED" },
       ]);
 
-      // Move the assignment to COMPLETED, a terminal state: the status
-      // control disappears once there are no further moves.
+      // Mark the assignment complete, a terminal state: the row offers no further change.
       await detail
-        .getByRole("combobox", { name: `Move ${eventName} assignment to` })
-        .click();
-      await page
-        .getByRole("option", { name: "Completed", exact: true })
+        .getByRole("button", { name: "Mark complete", exact: true })
         .click();
       await expect
         .poll(async () => {
@@ -286,9 +284,7 @@ test.describe("Talent management — end to end", () => {
         })
         .toBe("COMPLETED");
       await expect(
-        detail.getByRole("combobox", {
-          name: `Move ${eventName} assignment to`,
-        }),
+        detail.getByRole("button", { name: "Mark complete", exact: true }),
       ).toHaveCount(0);
 
       // Move through the availability lifecycle graph, cross-checking the
@@ -345,10 +341,14 @@ test.describe("Talent management — end to end", () => {
       await expect(
         page.getByText(talentCount(baseline + 1), { exact: true }),
       ).toBeVisible();
-      await page.getByRole("button", { name: talentName }).first().click();
-      const reopened = page.getByRole("dialog");
+      await page
+        .getByRole("button", { name: `View profile of ${talentName}` })
+        .first()
+        .click();
+      await page.waitForURL(new RegExp("/talent/[0-9a-f-]+$"));
+      const reopened = page;
       await expect(
-        reopened.getByRole("heading", { name: talentName }),
+        reopened.getByRole("heading", { name: talentName, level: 2 }),
       ).toBeVisible();
       await expect(
         reopened.getByText("Inactive is a final state.", { exact: true }),

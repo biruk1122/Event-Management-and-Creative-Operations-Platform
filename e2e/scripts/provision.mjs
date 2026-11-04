@@ -40,6 +40,12 @@ const TEST_USERS = [
   { email: "dept-manager@e2e.test", role: "Department Manager" },
   { email: "talent-manager@e2e.test", role: "Super Admin" },
   { email: "admin@e2e.test", role: "Admin" },
+  // The Production department's own manager: the talent rules for Production Managers.
+  {
+    email: "production-manager@e2e.test",
+    role: "Department Manager",
+    department: "Production",
+  },
 ];
 
 function baseDatabaseUrl() {
@@ -114,20 +120,21 @@ async function main() {
 
   await withClient(scopedUrl, async (client) => {
     await client.query(`SET search_path TO "${schema}"`);
-    for (const { email, role } of TEST_USERS) {
+    for (const { email, role, department } of TEST_USERS) {
       const passwordHash = await hash(TEST_USER_PASSWORD);
       const { rows } = await client.query(
         `INSERT INTO users (email, status, department_id)
          VALUES ($1, 'ACTIVE', (SELECT id FROM departments WHERE name = $2)) RETURNING id`,
         [
           email.toLowerCase(),
-          role === "Super Admin"
-            ? null
-            : role === "Admin"
-              ? "Manager / Event & Office Manager"
-              : role === "Department Manager"
-                ? "Marketing"
-                : "Production",
+          department ??
+            (role === "Super Admin"
+              ? null
+              : role === "Admin"
+                ? "Manager / Event & Office Manager"
+                : role === "Department Manager"
+                  ? "Marketing"
+                  : "Production"),
         ],
       );
       const id = rows[0]?.id;

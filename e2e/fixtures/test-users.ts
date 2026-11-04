@@ -22,6 +22,8 @@ export interface TestUser {
    */
   readonly role:
     "Super Admin" | "Admin" | "Department Manager" | "Department Member";
+  /** The department the account belongs to, when it is not the role's default. */
+  readonly department?: string;
   readonly firstName: string;
   readonly lastName: string;
 }
@@ -68,6 +70,16 @@ export const TEST_USERS: readonly TestUser[] = [
     role: "Department Manager",
     firstName: "Dana",
     lastName: "Okafor",
+  },
+  {
+    // The Production department's manager: the Production Manager talent rules.
+    key: "productionManager",
+    email: "production-manager@e2e.test",
+    password: TEST_USER_PASSWORD,
+    role: "Department Manager",
+    department: "Production",
+    firstName: "Priya",
+    lastName: "Lemma",
   },
   {
     // The operational coordinator: a real employee (department-bound) with
