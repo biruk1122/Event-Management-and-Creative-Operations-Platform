@@ -181,6 +181,20 @@ export function notificationAppearance(type: NotificationType) {
         action: "View task",
         description: "When a task you are on gets a new reviewer",
       };
+    case "TALENT_ASSIGNED":
+      return {
+        icon: ClipboardCheck,
+        tone: "gold",
+        action: "View talent",
+        description: "When a talent you manage is assigned to work",
+      };
+    case "TALENT_ASSIGNMENT_CANCELLED":
+      return {
+        icon: ClipboardCheck,
+        tone: "gold",
+        action: "View talent",
+        description: "When an assignment for a talent you manage is cancelled",
+      };
     case "TASK_BLOCKED":
       return {
         icon: TriangleAlert,

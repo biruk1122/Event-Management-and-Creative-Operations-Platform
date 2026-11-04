@@ -44,6 +44,7 @@ function notification(
     body: "Confirm venue permits",
     createdAt: "2026-09-16T07:30:00.000Z",
     readAt: null,
+    senderName: null,
     taskId: null,
     messageId: null,
     eventId: null,

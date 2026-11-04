@@ -25,6 +25,15 @@
   color: var(--muted-foreground);
   font-size: 0.875rem;
 }
+.clearAll {
+  border-radius: 999px;
+  border-color: color-mix(in oklab, var(--destructive) 30%, transparent);
+  color: var(--destructive);
+  background: transparent;
+  font-size: 0.8rem;
+  box-shadow: none;
+  flex-shrink: 0;
+}
 .markAll {
   border-radius: 999px;
   border-color: color-mix(in oklab, var(--border) 65%, var(--card));
