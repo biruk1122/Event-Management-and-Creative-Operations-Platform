@@ -1,13 +1,16 @@
 import type { TalentFieldValues } from "./talent-form";
-import type {
-  Talent,
-  TalentAssignmentStatus,
-  TalentAvailability,
-} from "./talent-types";
+import type { Talent, TalentAvailability } from "./talent-types";
+
+/** The states a profile can be created in. Mirrors the API `STARTING_AVAILABILITY` list. */
+export type StartingStatus = Exclude<TalentAvailability, "ASSIGNED">;
 
 /** The fields the create form collects: the shared fields plus an optional manager. */
 export interface CreateTalentValues extends TalentFieldValues {
   managerId: string | null;
+  /** Starting status, saved as availability. ASSIGNED only comes from assigning work. */
+  availability: StartingStatus;
+  /** The first social link, or none. Both fields are set together. */
+  socialLink: TalentSocialLinkValues | null;
 }
 
 export type EditTalentValues = TalentFieldValues;
@@ -46,6 +49,8 @@ export type UpdateTalent = (
 export type TransitionTalentOutcome =
   | { status: "success"; talent: Talent }
   | { status: "invalid_transition" }
+  /** Archiving is blocked while the talent has active assignments. */
+  | { status: "has_active_assignments" }
   | { status: "not_found" }
   | { status: "permission_denied" }
   | { status: "unexpected" };
@@ -145,43 +150,8 @@ export type RemoveSchedule = (
   scheduleId: string,
 ) => Promise<RemoveScheduleOutcome>;
 
-/** The fields the event-assignment form collects. */
-export interface TalentAssignmentValues {
-  eventId: string;
-  role: string;
-}
-
-/** Result of `POST /talents/:id/event-assignments`. */
-export type AssignEventOutcome =
-  | { status: "success"; talent: Talent }
-  | { status: "conflict" }
-  | { status: "event_not_found" }
-  | {
-      status: "field_errors";
-      fieldErrors: FieldErrors<keyof TalentAssignmentValues>;
-    }
-  | { status: "not_found" }
-  | { status: "permission_denied" }
-  | { status: "unexpected" };
-
-export type AssignEvent = (
-  talentId: string,
-  values: TalentAssignmentValues,
-) => Promise<AssignEventOutcome>;
-
-/** Result of `POST /talents/:id/event-assignments/:assignmentId/transition`. */
-export type TransitionAssignmentOutcome =
-  | { status: "success"; talent: Talent }
-  | { status: "invalid_transition" }
-  | { status: "not_found" }
-  | { status: "permission_denied" }
-  | { status: "unexpected" };
-
-export type TransitionAssignment = (
-  talentId: string,
-  assignmentId: string,
-  status: TalentAssignmentStatus,
-) => Promise<TransitionAssignmentOutcome>;
-
-/** Loads one talent for the detail dialog; resolves `null` when it cannot. */
-export type GetTalent = (id: string) => Promise<Talent | null>;
+/** Loads one talent for the profile page; resolves `null` when it cannot. */
+export type GetTalent = (
+  id: string,
+  signal?: AbortSignal,
+) => Promise<Talent | null>;

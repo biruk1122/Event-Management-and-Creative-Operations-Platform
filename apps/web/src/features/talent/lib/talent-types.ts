@@ -9,12 +9,35 @@ export type TalentSocialLink =
 export type TalentEventAssignment =
   components["schemas"]["TalentEventAssignmentResponse"];
 export type TalentPersonSummary = components["schemas"]["TalentUserSummary"];
+export type TalentSummary = components["schemas"]["TalentSummaryResponse"];
+
+/** The directory's assignment filter. Mirrors the API `assignment` query. */
+export type TalentAssignmentFilter = "assigned" | "unassigned";
+
+/** The directory's sort order. Mirrors the API `sort` query. */
+export type TalentSort = "name" | "newest" | "availability";
+
+export const TALENT_SORT_LABELS: Record<TalentSort, string> = {
+  name: "Name (A to Z)",
+  newest: "Newest first",
+  availability: "Availability",
+};
 
 /** The talent's discipline. Mirrors the API `type` enum. */
 export type TalentType = Talent["type"];
 
 /** The talent's availability state. Mirrors the API `availability` enum. */
 export type TalentAvailability = Talent["availability"];
+
+/** The assignment a talent is working on now or next. */
+export type TalentCurrentAssignment = NonNullable<Talent["currentAssignment"]>;
+
+/** The kind of work an assignment is for. Mirrors the API `kind` enum. */
+export type TalentAssignmentKind = "EVENT" | "PRODUCTION" | "PROMOTION";
+
+/** One reason an assignment window cannot be booked as-is. */
+export type TalentAssignmentConflict =
+  components["schemas"]["TalentAssignmentConflictResponse"];
 
 /** The state of one event assignment. Mirrors the API assignment `status` enum. */
 export type TalentAssignmentStatus = TalentEventAssignment["status"];
@@ -121,6 +144,29 @@ export function personName(
 export function talentTypeLabel(type: TalentType): string {
   return TALENT_TYPE_LABELS[type];
 }
+
+/** The states offered when creating a profile, with the line shown under each choice. */
+export const STARTING_STATUS_OPTIONS: readonly {
+  value: Exclude<TalentAvailability, "ASSIGNED">;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "AVAILABLE",
+    label: "Available",
+    description: "Open to new work.",
+  },
+  {
+    value: "UNAVAILABLE",
+    label: "Unavailable",
+    description: "Not taking work right now.",
+  },
+  {
+    value: "INACTIVE",
+    label: "Inactive",
+    description: "Archived. Hidden from new work.",
+  },
+];
 
 /** The human label for an availability state. */
 export function availabilityLabel(availability: TalentAvailability): string {

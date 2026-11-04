@@ -36,9 +36,12 @@ export function makeTalent(overrides: Partial<Talent> = {}): Talent {
     fullName: "Amina Tesfaye",
     type: "MUSICIAN",
     profileImageId: null,
+    profileImageUrl: null,
     email: "amina@example.com",
     phone: null,
     biography: "Singer and live performer.",
+    activeAssignmentCount: 0,
+    currentAssignment: null,
     availability: "AVAILABLE",
     manager: null,
     socialLinks: [],
@@ -61,4 +64,5 @@ export const ALL_ABILITIES: TalentAbilities = {
   canTransition: true,
   canAssign: true,
   canManageActivities: true,
+  contactMasked: false,
 };
