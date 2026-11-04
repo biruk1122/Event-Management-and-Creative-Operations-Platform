@@ -4,6 +4,11 @@ import { Inject, Injectable } from "@nestjs/common";
 
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
+import { TalentAccessService } from "../talent/talent-access.service.js";
+import {
+  talentNotFound,
+  talentProfileImageTypeNotAllowed,
+} from "../talent/talent.errors.js";
 import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { DatabaseService } from "../database/database.service.js";
 import { DiscussService } from "../discuss/discuss.service.js";
@@ -106,6 +111,7 @@ export class FileManagementService {
     private readonly reports: ReportsService,
     private readonly sharedRecords: SharedRecordsService,
     private readonly tasks: TasksService,
+    private readonly talentAccess: TalentAccessService,
     private readonly verification: FileVerificationService,
     @Inject(FILE_OBJECT_STORAGE) private readonly storage: ObjectStorage,
     @Inject(FILE_SCANNER) private readonly scanner: FileScanner,
@@ -405,6 +411,231 @@ export class FileManagementService {
     const available = await this.files.findAvailableById(file.id);
     if (!available) throw fileStateConflict();
     return toResponse(available);
+  }
+
+  /** Profile photos are images only; the general 100 MB object limit still applies. */
+  private static readonly PROFILE_IMAGE_TYPES = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+  ]);
+
+  private async authorizeTalentPhoto(actingUserId: string): Promise<void> {
+    if (
+      !(await this.talentAccess.hasOrganizationGrant(
+        actingUserId,
+        "talent.update",
+      ))
+    ) {
+      throw permissionDenied();
+    }
+  }
+
+  private async talentOrThrow(talentId: string) {
+    const talent = await this.db.talent.findUnique({
+      where: { id: talentId },
+      select: { id: true, profileImageId: true },
+    });
+    if (!talent) throw talentNotFound();
+    return talent;
+  }
+
+  async createTalentImageUploadIntent(
+    actingUserId: string,
+    talentId: string,
+    dto: CreateUploadIntentDto,
+  ): Promise<UploadIntentResponse> {
+    await this.authorizeTalentPhoto(actingUserId);
+    await this.talentOrThrow(talentId);
+    if (!FileManagementService.PROFILE_IMAGE_TYPES.has(dto.mediaType)) {
+      throw talentProfileImageTypeNotAllowed();
+    }
+    const filename = validateFilename(dto.filename);
+    const intentExpiresAt = new Date(Date.now() + INTENT_TTL_MS);
+    const file = await this.files.createPending({
+      initiatedById: actingUserId,
+      intentExpiresAt,
+      intentTalentId: talentId,
+      mediaType: dto.mediaType,
+      originalFilename: filename,
+      sizeBytes: dto.sizeBytes,
+      storageKey: `files/${randomUUID()}`,
+    });
+    try {
+      const upload = await this.storage.createUploadGrant({
+        key: file.storageKey,
+        mediaType: file.declaredMediaType,
+        sizeBytes: file.declaredSizeBytes,
+      });
+      return {
+        ...toResponse(file),
+        intentExpiresAt: file.intentExpiresAt.toISOString(),
+        upload,
+      };
+    } catch (error) {
+      await this.files.deletePending(file.id);
+      throw error;
+    }
+  }
+
+  /**
+   * Verifies, scans and attaches a profile photo. The photo, the talent's
+   * reference to it, and the history entry commit together. The previous photo
+   * is kept for retention cleanup rather than deleted.
+   */
+  async finalizeTalentImage(
+    actingUserId: string,
+    talentId: string,
+    fileId: string,
+    requestId: string,
+  ): Promise<ManagedFileResponse> {
+    await this.authorizeTalentPhoto(actingUserId);
+    const talent = await this.talentOrThrow(talentId);
+    const file = await this.files.findPendingForTalent(fileId, talentId);
+    if (!file) throw fileNotFound();
+    const now = new Date();
+    if (file.intentExpiresAt <= now) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileIntentExpired();
+    }
+    const object = await this.storage.readObject(file.storageKey);
+    if (!object) throw fileUploadNotFound();
+    const verified = await this.verification.verify(
+      file.declaredMediaType,
+      object.bytes,
+    );
+    if (
+      !verified ||
+      !FileManagementService.PROFILE_IMAGE_TYPES.has(verified.mediaType) ||
+      object.sizeBytes !== file.declaredSizeBytes
+    ) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    const scan = await this.scanner.scan({
+      bytes: object.bytes,
+      mediaType: verified.mediaType,
+    });
+    if (scan !== "clean") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      if (scan === "unavailable") throw fileScannerUnavailable();
+      throw fileVerificationFailed();
+    }
+    const previous = talent.profileImageId;
+    const finalized = await this.db.$transaction(async (tx) => {
+      const finalizedAt = new Date();
+      const updated = await tx.managedFile.updateMany({
+        where: {
+          id: file.id,
+          intentExpiresAt: { gt: finalizedAt },
+          intentTalentId: talentId,
+          state: "PENDING",
+        },
+        data: {
+          availableAt: finalizedAt,
+          state: "AVAILABLE",
+          uploadedAt: finalizedAt,
+          verifiedMediaType: verified.mediaType,
+          verifiedSizeBytes: verified.sizeBytes,
+        },
+      });
+      if (updated.count !== 1) return "conflict" as const;
+      // The previous photo is retired in the same transaction, so the attachment rule holds at commit.
+      if (previous && previous !== file.id) {
+        await tx.managedFile.updateMany({
+          where: { id: previous, state: "AVAILABLE" },
+          data: {
+            state: "UNAVAILABLE",
+            unavailableAt: finalizedAt,
+            cleanupAfter: new Date(
+              finalizedAt.getTime() + REJECTED_OBJECT_RETENTION_MS,
+            ),
+          },
+        });
+      }
+      await tx.talent.update({
+        where: { id: talentId },
+        data: { profileImageId: file.id },
+      });
+      await tx.talentActivity.create({
+        data: {
+          talentId,
+          type: "PROFILE_IMAGE_CHANGED",
+          actorId: actingUserId,
+          details: { previousFileId: previous, fileId: file.id },
+        },
+      });
+      await this.audit.append(tx, {
+        action: "talent.profile_image.changed",
+        actorKind: AuditActorKind.USER,
+        actorUserId: actingUserId,
+        requestId,
+        outcome: AuditOutcome.SUCCEEDED,
+        resourceType: "talent",
+        resourceId: talentId,
+        metadata: { fileId: file.id, replacedPrevious: previous !== null },
+      });
+      return "available" as const;
+    });
+    if (finalized === "conflict") throw fileStateConflict();
+    const available = await this.files.findAvailableById(file.id);
+    if (!available) throw fileStateConflict();
+    return toResponse(available);
+  }
+
+  /** Anyone who can read the talent directory may view a photo, through a short-lived grant. */
+  /**
+   * The profile photo's bytes for a directory reader to display. It follows the
+   * same rule as the download grant: any directory reader may see a photo, and
+   * the stored key never leaves the server.
+   */
+  async talentImageContent(
+    actingUserId: string,
+    talentId: string,
+  ): Promise<{ bytes: Uint8Array; mediaType: string }> {
+    if (!(await this.talentAccess.directoryMode(actingUserId))) {
+      throw permissionDenied();
+    }
+    const talent = await this.talentOrThrow(talentId);
+    if (!talent.profileImageId) throw fileNotFound();
+    const file = await this.files.findAvailableById(talent.profileImageId);
+    if (!file || !file.verifiedMediaType) throw fileNotFound();
+    const object = await this.storage.readObject(file.storageKey);
+    if (!object) throw fileNotFound();
+    return { bytes: object.bytes, mediaType: file.verifiedMediaType };
+  }
+
+  async talentImageDownloadGrant(
+    actingUserId: string,
+    talentId: string,
+  ): Promise<DownloadGrantResponse> {
+    if (!(await this.talentAccess.directoryMode(actingUserId))) {
+      throw permissionDenied();
+    }
+    const talent = await this.talentOrThrow(talentId);
+    if (!talent.profileImageId) throw fileNotFound();
+    const file = await this.files.findAvailableById(talent.profileImageId);
+    if (!file || !file.verifiedMediaType) throw fileNotFound();
+    const grant = await this.storage.createDownloadGrant({
+      filename: file.originalFilename,
+      key: file.storageKey,
+      mediaType: file.verifiedMediaType,
+    });
+    return {
+      expiresAt: grant.expiresAt.toISOString(),
+      filename: file.originalFilename,
+      mediaType: file.verifiedMediaType,
+      url: grant.url,
+    };
   }
 
   async listTaskFiles(

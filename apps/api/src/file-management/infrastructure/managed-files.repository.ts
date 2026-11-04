@@ -73,6 +73,17 @@ export class ManagedFilesRepository {
           intentReportId?: never;
           intentLetterId?: never;
           intentDocumentId?: never;
+          intentTalentId?: never;
+        }
+      | {
+          intentTalentId: string;
+          intentWorkspaceId?: never;
+          intentTaskId?: never;
+          intentConversationId?: never;
+          intentExpenseId?: never;
+          intentReportId?: never;
+          intentLetterId?: never;
+          intentDocumentId?: never;
         }
       | {
           intentTaskId: string;
@@ -82,6 +93,7 @@ export class ManagedFilesRepository {
           intentReportId?: never;
           intentLetterId?: never;
           intentDocumentId?: never;
+          intentTalentId?: never;
         }
       | {
           intentConversationId: string;
@@ -91,6 +103,7 @@ export class ManagedFilesRepository {
           intentReportId?: never;
           intentLetterId?: never;
           intentDocumentId?: never;
+          intentTalentId?: never;
         }
       | {
           intentExpenseId: string;
@@ -100,6 +113,7 @@ export class ManagedFilesRepository {
           intentReportId?: never;
           intentLetterId?: never;
           intentDocumentId?: never;
+          intentTalentId?: never;
         }
       | {
           intentReportId: string;
@@ -109,6 +123,7 @@ export class ManagedFilesRepository {
           intentExpenseId?: never;
           intentLetterId?: never;
           intentDocumentId?: never;
+          intentTalentId?: never;
         }
       | {
           intentLetterId: string;
@@ -118,6 +133,7 @@ export class ManagedFilesRepository {
           intentExpenseId?: never;
           intentReportId?: never;
           intentDocumentId?: never;
+          intentTalentId?: never;
         }
       | {
           intentDocumentId: string;
@@ -127,6 +143,7 @@ export class ManagedFilesRepository {
           intentExpenseId?: never;
           intentReportId?: never;
           intentLetterId?: never;
+          intentTalentId?: never;
         }
     ),
   ): Promise<ManagedFileRecord> {
@@ -140,6 +157,9 @@ export class ManagedFilesRepository {
           ? { intentWorkspaceId: input.intentWorkspaceId }
           : {}),
         ...(input.intentTaskId ? { intentTaskId: input.intentTaskId } : {}),
+        ...(input.intentTalentId
+          ? { intentTalentId: input.intentTalentId }
+          : {}),
         ...(input.intentConversationId
           ? { intentConversationId: input.intentConversationId }
           : {}),
@@ -193,6 +213,21 @@ export class ManagedFilesRepository {
       where: {
         id,
         intentTaskId: taskId,
+        state: ManagedFileState.PENDING,
+      },
+      select: FILE_SELECT,
+    });
+  }
+
+  async findPendingForTalent(
+    id: string,
+    talentId: string,
+  ): Promise<ManagedFileRecord | null> {
+    if (!isUuid(id) || !isUuid(talentId)) return null;
+    return this.db.managedFile.findFirst({
+      where: {
+        id,
+        intentTalentId: talentId,
         state: ManagedFileState.PENDING,
       },
       select: FILE_SELECT,
