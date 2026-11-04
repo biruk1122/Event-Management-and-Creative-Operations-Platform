@@ -33,6 +33,7 @@ import { RequirePermissions } from "../common/security/permissions.decorator.js"
 import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import { ListNotificationsQueryDto } from "./dto/list-notifications-query.dto.js";
 import {
+  MarkAllReadResponse,
   NotificationFeedResponse,
   NotificationPreferencesResponse,
   NotificationResponse,
@@ -98,6 +99,21 @@ export class NotificationsController {
     @Param("id") id: string,
   ): Promise<NotificationResponse> {
     return this.notifications.markRead(actingUserId(request), id);
+  }
+
+  @Put("read-all")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @ApiOperation({
+    summary:
+      "Mark every unread notification in the caller's feed as read. Nothing is removed.",
+  })
+  @ApiOkResponse({ type: MarkAllReadResponse })
+  async markAllRead(
+    @Req() request: RequestWithContext,
+  ): Promise<MarkAllReadResponse> {
+    return this.notifications.markAllRead(actingUserId(request));
   }
 
   @Delete(":id")

@@ -15,6 +15,10 @@ export class NotificationResponse {
   @ApiProperty({ example: "Confirm the venue booking" })
   body!: string;
 
+  /** The person who caused the notification, or null for system messages. */
+  @ApiProperty({ type: String, nullable: true, example: "Amina Tesfaye" })
+  senderName!: string | null;
+
   @ApiProperty({ type: String, format: "uuid", nullable: true })
   taskId!: string | null;
 
@@ -66,6 +70,12 @@ export class UnreadCountResponse {
   unreadCount!: number;
 }
 
+export class MarkAllReadResponse {
+  /** How many of the caller's unread notifications were marked read. */
+  @ApiProperty({ minimum: 0 })
+  markedCount!: number;
+}
+
 export class NotificationPreferenceResponse {
   @ApiProperty({
     enum: NotificationType,
@@ -89,6 +99,7 @@ export class NotificationPreferencesResponse {
  * itself.
  */
 export interface NotificationInvalidatedPayload {
-  notificationId: string;
-  type: NotificationType;
+  /** `null` when the caller cleared their whole feed at once. */
+  notificationId: string | null;
+  type: NotificationType | null;
 }

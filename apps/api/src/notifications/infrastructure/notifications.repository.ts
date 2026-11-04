@@ -38,6 +38,8 @@ export interface NotificationRecord {
   documentId: string | null;
   createdAt: Date;
   readAt: Date | null;
+  /** The user who caused the notification; null for system-generated events. */
+  sourceEvent: { actorUserId: string | null };
 }
 
 const NOTIFICATION_SELECT = {
@@ -56,6 +58,7 @@ const NOTIFICATION_SELECT = {
   documentId: true,
   createdAt: true,
   readAt: true,
+  sourceEvent: { select: { actorUserId: true } },
 } as const;
 
 export interface CreateNotificationInput {
@@ -74,6 +77,7 @@ export interface CreateNotificationInput {
   partnerId?: string;
   letterId?: string;
   documentId?: string;
+  talentId?: string;
 }
 
 interface FeedCursor {
@@ -152,6 +156,7 @@ export class NotificationsRepository {
           ...(input.partnerId ? { partnerId: input.partnerId } : {}),
           ...(input.letterId ? { letterId: input.letterId } : {}),
           ...(input.documentId ? { documentId: input.documentId } : {}),
+          ...(input.talentId ? { talentId: input.talentId } : {}),
         },
         select: NOTIFICATION_SELECT,
       });
@@ -236,6 +241,36 @@ export class NotificationsRepository {
       where: { id },
       select: NOTIFICATION_SELECT,
     });
+  }
+
+  /**
+   * Marks every unread notification the recipient can see as read. Nothing is
+   * removed: read notifications stay in the full history. Returns how many changed.
+   */
+  async markAllUnreadRead(recipientUserId: string): Promise<number> {
+    const result = await this.db.notification.updateMany({
+      where: {
+        AND: [visibleToRecipient(recipientUserId), { readAt: null }],
+      },
+      data: { readAt: new Date() },
+    });
+    return result.count;
+  }
+
+  /** Display names for the given users; a user without a name has no entry. */
+  async findSenderNames(userIds: string[]): Promise<Map<string, string>> {
+    const users = await this.db.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const names = new Map<string, string>();
+    for (const user of users) {
+      const name = [user.firstName, user.lastName]
+        .filter((part): part is string => Boolean(part?.trim()))
+        .join(" ");
+      if (name) names.set(user.id, name);
+    }
+    return names;
   }
 
   async dismiss(

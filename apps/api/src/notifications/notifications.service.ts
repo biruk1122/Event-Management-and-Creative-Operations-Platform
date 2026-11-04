@@ -36,6 +36,7 @@ import {
 } from "./notifications.errors.js";
 import type {
   NotificationFeedResponse,
+  MarkAllReadResponse,
   NotificationInvalidatedPayload,
   NotificationPreferencesResponse,
   NotificationResponse,
@@ -117,7 +118,11 @@ export class NotificationsService {
       query.cursor,
       query.limit,
     );
-    return { items: items.map(toNotificationResponse), nextCursor };
+    const senders = await this.senderNames(items);
+    return {
+      items: items.map((item) => toNotificationResponse(item, senders)),
+      nextCursor,
+    };
   }
 
   async unreadCount(actingUserId: string): Promise<UnreadCountResponse> {
@@ -132,7 +137,36 @@ export class NotificationsService {
     await this.assertSelfGrant(actingUserId);
     const result = await this.repository.markRead(actingUserId, id);
     if (result === "not_found") throw notificationNotFound();
-    return toNotificationResponse(result);
+    return toNotificationResponse(result, await this.senderNames([result]));
+  }
+
+  /** Marks the caller's unread notifications read. Read history is kept; nothing is removed. */
+  async markAllRead(actingUserId: string): Promise<MarkAllReadResponse> {
+    await this.assertSelfGrant(actingUserId);
+    const markedCount = await this.repository.markAllUnreadRead(actingUserId);
+    if (markedCount > 0) {
+      this.realtime.publish<NotificationInvalidatedPayload>(
+        roomName("user", actingUserId),
+        "notification.invalidated",
+        1,
+        { notificationId: null, type: null },
+      );
+    }
+    return { markedCount };
+  }
+
+  /** Display names of the people behind these notifications, keyed by user id. */
+  private async senderNames(
+    records: readonly NotificationRecord[],
+  ): Promise<Map<string, string>> {
+    const ids = [
+      ...new Set(
+        records
+          .map((record) => record.sourceEvent.actorUserId)
+          .filter((id): id is string => id !== null),
+      ),
+    ];
+    return ids.length === 0 ? new Map() : this.repository.findSenderNames(ids);
   }
 
   async remove(actingUserId: string, id: string): Promise<void> {
@@ -202,6 +236,10 @@ export class NotificationsService {
         return;
       case "task.reviewer_changed":
         await this.processTaskParticipantEvent(event);
+        return;
+      case "talent.assigned":
+      case "talent.assignment_cancelled":
+        await this.processTalentAssignmentEvent(event);
         return;
       case "task.blocked":
         await this.processTaskRecipientEvent(
@@ -372,6 +410,45 @@ export class NotificationsService {
       title: content.title,
       body: content.body,
       taskId: event.resourceId,
+    });
+  }
+
+  /**
+   * Talent assignment and cancellation reach one recipient per outbox event (the
+   * writer fans out and de-duplicates), so the notification is keyed on the
+   * outbox event id. Names come from the payload captured when the change was
+   * recorded, so a later rename never rewrites what was sent.
+   */
+  private async processTalentAssignmentEvent(
+    event: OutboxEventEnvelope,
+  ): Promise<void> {
+    const payload = event.payload as {
+      recipientUserId?: string;
+      talentName?: string;
+      workName?: string;
+      role?: string;
+      eventId?: string;
+    } | null;
+    const recipientUserId = payload?.recipientUserId;
+    if (!recipientUserId || !event.resourceId) return;
+    if (recipientUserId === event.actorUserId) return;
+    if (!(await this.repository.isUserActive(recipientUserId))) return;
+    const cancelled = event.name === "talent.assignment_cancelled";
+    const talentName = payload?.talentName ?? "A talent";
+    const workName = payload?.workName ?? "a work item";
+    await this.createAndPublish({
+      recipientUserId,
+      type: cancelled
+        ? NotificationType.TALENT_ASSIGNMENT_CANCELLED
+        : NotificationType.TALENT_ASSIGNED,
+      sourceEventId: event.id,
+      occurrenceKey: event.id,
+      title: cancelled ? "Talent assignment cancelled" : "Talent assigned",
+      body: cancelled
+        ? `${talentName}'s assignment to ${workName} was cancelled.`
+        : `${talentName} was assigned to ${workName}${payload?.role ? ` as ${payload.role}` : ""}.`,
+      talentId: event.resourceId,
+      ...(payload?.eventId ? { eventId: payload.eventId } : {}),
     });
   }
 
@@ -1146,12 +1223,15 @@ function isNotificationType(value: string): value is NotificationType {
 
 function toNotificationResponse(
   record: NotificationRecord,
+  senders: ReadonlyMap<string, string>,
 ): NotificationResponse {
+  const actorUserId = record.sourceEvent.actorUserId;
   return {
     id: record.id,
     type: record.type,
     title: record.title,
     body: record.body,
+    senderName: actorUserId ? (senders.get(actorUserId) ?? null) : null,
     taskId: record.taskId,
     messageId: record.messageId,
     eventId: record.eventId,
