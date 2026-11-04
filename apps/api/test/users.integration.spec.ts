@@ -665,8 +665,19 @@ describe("user and profile administration API", () => {
         }),
       ]);
 
-      expect(first.status).toBe(200);
-      expect(second.status).toBe(200);
+      // The two writes race on the user's current role. Whichever commits
+      // first wins; if it sets Super Admin, the other is refused by the rule
+      // that preserves an existing Super Admin. Either outcome keeps one role.
+      const outcomes = [first, second];
+      expect(outcomes.some((response) => response.status === 200)).toBe(true);
+      for (const response of outcomes) {
+        if (response.status !== 200) {
+          expect(response.status).toBe(400);
+          expect(response.body).toMatchObject({
+            code: "USER_ASSIGNMENT_INVALID",
+          });
+        }
+      }
       const assignments = await prisma.userRoleAssignment.findMany({
         where: { userId: created.id },
       });
