@@ -147,6 +147,17 @@ model User {
   organizedMeetings            Meeting[]                    @relation("MeetingOrganizer")
   meetingParticipations        MeetingParticipant[]
   managedTalents               Talent[]                     @relation("TalentManager")
+  eventTalentsAssigned         EventTalent[]                @relation("EventTalentAssignedBy")
+  eventTalentsCompleted        EventTalent[]                @relation("EventTalentCompletedBy")
+  eventTalentsCancelled        EventTalent[]                @relation("EventTalentCancelledBy")
+  productionTalentsAssigned    ProductionTalent[]           @relation("ProductionTalentAssignedBy")
+  productionTalentsCompleted   ProductionTalent[]           @relation("ProductionTalentCompletedBy")
+  productionTalentsCancelled   ProductionTalent[]           @relation("ProductionTalentCancelledBy")
+  promotionTalentsAssigned     PromotionActivityTalent[]    @relation("PromotionActivityTalentAssignedBy")
+  promotionTalentsCompleted    PromotionActivityTalent[]    @relation("PromotionActivityTalentCompletedBy")
+  promotionTalentsCancelled    PromotionActivityTalent[]    @relation("PromotionActivityTalentCancelledBy")
+  talentActivities             TalentActivity[]             @relation("TalentActivityActor")
+  talentConflictOverrides      TalentConflictOverride[]     @relation("TalentConflictOverrideAuthorizer")
   authoredReports              Report[]                     @relation("ReportAuthor")
   reviewedReports              Report[]                     @relation("ReportCurrentReviewer")
   reportReviews                ReportReview[]               @relation("ReportReviewActor")
@@ -1110,6 +1121,8 @@ model Event {
   createdById    String?     @map("created_by_id") @db.Uuid
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Set when a parent with talent assignment history is archived instead of deleted. Archived rows keep their history and stay out of list, detail, lookup and analytics reads.
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
 
   workspace         Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   department        Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
@@ -1207,6 +1220,9 @@ model Talent {
   productionAssignments ProductionTalent[]
   promotionAssignments  PromotionActivityTalent[]
   fileUploadIntents     ManagedFile[]             @relation("ManagedFileIntentTalent")
+  activities            TalentActivity[]
+  conflictOverrides     TalentConflictOverride[]
+  notifications         Notification[]
 
   // Talent directories filter by type/state and manager; name and email
   // support deterministic administration lookups.
@@ -1255,18 +1271,35 @@ model TalentSchedule {
 /// The SRS EventTalent relationship, with engagement-specific role and
 /// lifecycle state kept on the join rather than the Talent profile or Event.
 model EventTalent {
-  id         String                 @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  eventId    String                 @map("event_id") @db.Uuid
-  talentId   String                 @map("talent_id") @db.Uuid
-  role       String
-  status     TalentAssignmentStatus @default(ASSIGNED)
-  assignedAt DateTime               @default(now()) @map("assigned_at") @db.Timestamptz(6)
-  updatedAt  DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String                 @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  eventId       String                 @map("event_id") @db.Uuid
+  workName      String?                @map("work_name")
+  talentId      String                 @map("talent_id") @db.Uuid
+  role          String
+  status        TalentAssignmentStatus @default(ASSIGNED)
+  assignedAt    DateTime               @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  updatedAt     DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  startAt       DateTime?              @map("start_at") @db.Timestamptz(6)
+  endAt         DateTime?              @map("end_at") @db.Timestamptz(6)
+  notes         String?
+  assignedById  String?                @map("assigned_by_id") @db.Uuid
+  completedAt   DateTime?              @map("completed_at") @db.Timestamptz(6)
+  completedById String?                @map("completed_by_id") @db.Uuid
+  cancelledAt   DateTime?              @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById String?                @map("cancelled_by_id") @db.Uuid
+  cancelReason  String?                @map("cancel_reason")
+  /// 1 only while ASSIGNED, maintained by the `talent_assignment_lifecycle`
+  /// trigger. The unique key below then allows one active row per talent and
+  /// event while keeping every cancelled or completed row as history.
+  activeSlot    Int?                   @map("active_slot") @db.SmallInt
 
-  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  talent Talent @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  event       Event  @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  talent      Talent @relation(fields: [talentId], references: [id], onDelete: Restrict)
+  assignedBy  User?  @relation("EventTalentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  completedBy User?  @relation("EventTalentCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  cancelledBy User?  @relation("EventTalentCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
 
-  @@unique([eventId, talentId])
+  @@unique([eventId, talentId, activeSlot])
   @@index([eventId, status])
   @@index([talentId, status])
   @@map("event_talents")
@@ -1323,6 +1356,8 @@ model Production {
   createdById    String?          @map("created_by_id") @db.Uuid
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Set when a parent with talent assignment history is archived instead of deleted. Archived rows keep their history and stay out of list, detail, lookup and analytics reads.
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
 
   workspace  Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   event      Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
@@ -1368,18 +1403,35 @@ model ProductionLocation {
 }
 
 model ProductionTalent {
-  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  productionId String   @map("production_id") @db.Uuid
-  talentId     String   @map("talent_id") @db.Uuid
-  role         String
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String                 @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  productionId  String                 @map("production_id") @db.Uuid
+  workName      String?                @map("work_name")
+  talentId      String                 @map("talent_id") @db.Uuid
+  role          String
+  status        TalentAssignmentStatus @default(ASSIGNED)
+  createdAt     DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  startAt       DateTime?              @map("start_at") @db.Timestamptz(6)
+  endAt         DateTime?              @map("end_at") @db.Timestamptz(6)
+  notes         String?
+  assignedById  String?                @map("assigned_by_id") @db.Uuid
+  completedAt   DateTime?              @map("completed_at") @db.Timestamptz(6)
+  completedById String?                @map("completed_by_id") @db.Uuid
+  cancelledAt   DateTime?              @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById String?                @map("cancelled_by_id") @db.Uuid
+  cancelReason  String?                @map("cancel_reason")
+  /// See `EventTalent.activeSlot`.
+  activeSlot    Int?                   @map("active_slot") @db.SmallInt
 
-  production Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
-  talent     Talent     @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  production  Production @relation(fields: [productionId], references: [id], onDelete: Restrict)
+  talent      Talent     @relation(fields: [talentId], references: [id], onDelete: Restrict)
+  assignedBy  User?      @relation("ProductionTalentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  completedBy User?      @relation("ProductionTalentCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  cancelledBy User?      @relation("ProductionTalentCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
 
-  @@unique([productionId, talentId])
+  @@unique([productionId, talentId, activeSlot])
   @@index([talentId])
+  @@index([productionId, status])
   @@map("production_talents")
 }
 
@@ -1573,6 +1625,8 @@ model Campaign {
   createdById    String?        @map("created_by_id") @db.Uuid
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Set when a parent with talent assignment history is archived instead of deleted. Archived rows keep their history and stay out of list, detail, lookup and analytics reads.
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
 
   workspace           Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   event               Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
@@ -1614,6 +1668,8 @@ model CampaignActivity {
   status      CampaignActivityStatus @default(PLANNED)
   createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  /// Set when a parent with talent assignment history is archived instead of deleted. Archived rows keep their history and stay out of list, detail, lookup and analytics reads.
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
 
   campaign  Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   promotion PromotionActivity?
@@ -1681,18 +1737,104 @@ model PromotionActivity {
 /// Explicit talent engagements in a promotion activity. A talent can fill
 /// one role in an activity; other activities may assign that talent again.
 model PromotionActivityTalent {
-  id                 String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  campaignActivityId String   @map("campaign_activity_id") @db.Uuid
-  talentId           String   @map("talent_id") @db.Uuid
+  id                 String                 @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  campaignActivityId String                 @map("campaign_activity_id") @db.Uuid
+  workName           String?                @map("work_name")
+  talentId           String                 @map("talent_id") @db.Uuid
   role               String
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  status             TalentAssignmentStatus @default(ASSIGNED)
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  startAt            DateTime?              @map("start_at") @db.Timestamptz(6)
+  endAt              DateTime?              @map("end_at") @db.Timestamptz(6)
+  notes              String?
+  assignedById       String?                @map("assigned_by_id") @db.Uuid
+  completedAt        DateTime?              @map("completed_at") @db.Timestamptz(6)
+  completedById      String?                @map("completed_by_id") @db.Uuid
+  cancelledAt        DateTime?              @map("cancelled_at") @db.Timestamptz(6)
+  cancelledById      String?                @map("cancelled_by_id") @db.Uuid
+  cancelReason       String?                @map("cancel_reason")
+  /// See `EventTalent.activeSlot`.
+  activeSlot         Int?                   @map("active_slot") @db.SmallInt
 
-  promotionActivity PromotionActivity @relation(fields: [campaignActivityId], references: [campaignActivityId], onDelete: Cascade)
-  talent            Talent            @relation(fields: [talentId], references: [id], onDelete: Cascade)
+  promotionActivity PromotionActivity @relation(fields: [campaignActivityId], references: [campaignActivityId], onDelete: Restrict)
+  talent            Talent            @relation(fields: [talentId], references: [id], onDelete: Restrict)
+  assignedBy        User?             @relation("PromotionActivityTalentAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  completedBy       User?             @relation("PromotionActivityTalentCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+  cancelledBy       User?             @relation("PromotionActivityTalentCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
 
-  @@unique([campaignActivityId, talentId])
+  @@unique([campaignActivityId, talentId, activeSlot])
   @@index([talentId])
+  @@index([campaignActivityId, status])
   @@map("promotion_activity_talents")
+}
+
+/// Append-only history of talent profile and assignment changes. Rows are
+/// written in the same transaction as the change they describe and are never
+/// updated (see the `talent_history_append_only` trigger).
+model TalentActivity {
+  id             String                @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  talentId       String                @map("talent_id") @db.Uuid
+  type           TalentActivityType
+  /// Polymorphic reference to the assignment this entry concerns, when there
+  /// is one. Stored as kind + id without a foreign key because the three
+  /// assignment tables are separate; the kind tells which table to read.
+  assignmentKind TalentAssignmentKind? @map("assignment_kind")
+  assignmentId   String?               @map("assignment_id") @db.Uuid
+  actorId        String?               @map("actor_id") @db.Uuid
+  details        Json                  @db.JsonB
+  occurredAt     DateTime              @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  talent Talent @relation(fields: [talentId], references: [id], onDelete: Restrict)
+  actor  User?  @relation("TalentActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([talentId, occurredAt])
+  @@index([assignmentKind, assignmentId])
+  @@map("talent_activities")
+}
+
+/// One row per authorized conflict override. Written together with the
+/// assignment it allowed and never edited afterwards.
+model TalentConflictOverride {
+  id             String                 @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  talentId       String                 @map("talent_id") @db.Uuid
+  assignmentKind TalentAssignmentKind   @map("assignment_kind")
+  assignmentId   String                 @map("assignment_id") @db.Uuid
+  authorizedById String?                @map("authorized_by_id") @db.Uuid
+  authorizedAt   DateTime               @default(now()) @map("authorized_at") @db.Timestamptz(6)
+  reason         String?
+  /// The exact conflicts the server found when the override was authorized.
+  conflicts      Json                   @db.JsonB
+
+  talent     Talent @relation(fields: [talentId], references: [id], onDelete: Restrict)
+  authorizedBy User? @relation("TalentConflictOverrideAuthorizer", fields: [authorizedById], references: [id], onDelete: SetNull)
+
+  @@index([talentId, authorizedAt])
+  @@index([assignmentKind, assignmentId])
+  @@map("talent_conflict_overrides")
+}
+
+enum TalentAssignmentKind {
+  EVENT
+  PRODUCTION
+  PROMOTION
+
+  @@map("talent_assignment_kind")
+}
+
+enum TalentActivityType {
+  CREATED
+  UPDATED
+  AVAILABILITY_CHANGED
+  MANAGER_CHANGED
+  PROFILE_IMAGE_CHANGED
+  ASSIGNMENT_CREATED
+  ASSIGNMENT_UPDATED
+  ASSIGNMENT_COMPLETED
+  ASSIGNMENT_CANCELLED
+  CONFLICT_OVERRIDDEN
+
+  @@map("talent_activity_type")
 }
 
 /// The approved meeting-type vocabulary used by the meeting domain and API.
@@ -2133,6 +2275,11 @@ enum NotificationType {
   /// The designated reviewer of a task changed (Super Admin's explicit action).
   /// Sent to the new reviewer and to the task's other participants.
   TASK_REVIEWER_CHANGED
+  /// TAL-ASSIGN: a talent was assigned to an event, production, or promotional
+  /// activity. Sent to the talent's manager and the responsible workspace manager.
+  TALENT_ASSIGNED
+  /// TAL-ASSIGN: an active talent assignment was cancelled.
+  TALENT_ASSIGNMENT_CANCELLED
 
   @@map("notification_type")
 }
@@ -2277,6 +2424,7 @@ model Notification {
   reportId        String?          @map("report_id") @db.Uuid
   /// The seventh typed target, added for PARTNER_FOLLOW_UP_DUE.
   partnerId       String?          @map("partner_id") @db.Uuid
+  talentId        String?          @map("talent_id") @db.Uuid
   /// The eighth typed target, added for LETTER_SHARED.
   letterId        String?          @map("letter_id") @db.Uuid
   /// The ninth typed target, added for DOCUMENT_SHARED.
@@ -2295,6 +2443,7 @@ model Notification {
   expense     Expense?    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
   report      Report?     @relation(fields: [reportId], references: [id], onDelete: Cascade)
   partner     Partner?    @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  talent      Talent?     @relation(fields: [talentId], references: [id], onDelete: Cascade)
   letter      Letter?     @relation(fields: [letterId], references: [id], onDelete: Cascade)
   document    Document?   @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
@@ -2303,6 +2452,7 @@ model Notification {
   @@unique([recipientUserId, type, occurrenceKey])
   @@index([recipientUserId, createdAt, id])
   @@index([recipientUserId, readAt])
+  @@index([talentId])
   @@map("notifications")
 }
 
