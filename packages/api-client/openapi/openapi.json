@@ -33976,7 +33976,7 @@
             "access_token": []
           }
         ],
-        "summary": "List a talent's history (organization talent readers only)",
+        "summary": "List a talent's history. Organization readers see all of it; a Production Manager sees the assignments for their own department's work.",
         "tags": ["Talent management"]
       }
     },

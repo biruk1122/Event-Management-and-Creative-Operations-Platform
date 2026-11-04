@@ -3486,7 +3486,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List a talent's history (organization talent readers only) */
+    /** List a talent's history. Organization readers see all of it; a Production Manager sees the assignments for their own department's work. */
     get: operations["TalentAssignments_activity_v1"];
     put?: never;
     post?: never;
