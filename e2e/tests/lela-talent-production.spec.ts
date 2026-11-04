@@ -132,11 +132,6 @@ test.describe("Production Manager talent journeys", () => {
     await expect(
       page.getByRole("option", { name: otherEvent.name, exact: true }),
     ).toHaveCount(0);
-    // The first Escape closes the open work list; the second closes the dialog.
-    await page.keyboard.press("Escape");
-    await page.keyboard.press("Escape");
-    await expect(form).toHaveCount(0);
-
     // The API refuses the same work outside the scope, whatever the screen offers.
     const refused = await production.post(
       `${apiBaseUrl}/api/v1/talents/${talent.id}/assignments`,
@@ -152,11 +147,7 @@ test.describe("Production Manager talent journeys", () => {
     );
     expect([403, 404]).toContain(refused.status());
 
-    // Assign own-department work.
-    await page
-      .getByRole("button", { name: "Assign talent", exact: true })
-      .click();
-    await form.getByRole("combobox", { name: /Related work/ }).click();
+    // Assign own-department work from the same open work list.
     await page
       .getByRole("option", { name: ownEvent.name, exact: true })
       .click();

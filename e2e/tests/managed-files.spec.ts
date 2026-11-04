@@ -154,6 +154,7 @@ test.describe("Secure event-file management — end to end", () => {
       // The browser reload proves the UI rehydrates from the API rather than
       // keeping the just-uploaded item only in client state.
       await page.reload();
+      await page.getByLabel("Search", { exact: true }).fill(eventName);
       await page.getByRole("button", { name: eventName }).first().click();
       const reopened = page.getByRole("dialog");
       await expect(reopened.getByText(filename, { exact: true })).toBeVisible();
