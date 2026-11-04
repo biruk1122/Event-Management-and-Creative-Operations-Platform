@@ -5,6 +5,7 @@ import {
   type CampaignActivityStatus,
   type PromotionChannel,
 } from "../../generated/prisma/client.js";
+import type { ArchiveHook } from "../../common/archive/archive-hook.js";
 import { DatabaseService } from "../../database/database.service.js";
 
 const SELECT = {
@@ -25,6 +26,7 @@ const SELECT = {
     },
   },
   talents: {
+    where: { status: "ASSIGNED" as const },
     select: { id: true, talentId: true, role: true, createdAt: true },
     orderBy: { id: "asc" },
   },
@@ -49,7 +51,7 @@ export class PromotionRepository {
   ) {
     const where: Prisma.PromotionActivityWhereInput = {
       campaignId,
-      ...(status ? { activity: { status } } : {}),
+      activity: { archivedAt: null, ...(status ? { status } : {}) },
     };
     const [items, total] = await Promise.all([
       this.db.promotionActivity.findMany({
@@ -73,7 +75,11 @@ export class PromotionRepository {
   ): Promise<PromotionRecord | null> {
     if (!isUuid(campaignId) || !isUuid(activityId)) return null;
     return this.db.promotionActivity.findFirst({
-      where: { campaignId, campaignActivityId: activityId },
+      where: {
+        campaignId,
+        campaignActivityId: activityId,
+        activity: { archivedAt: null },
+      },
       select: SELECT,
     });
   }
@@ -107,29 +113,58 @@ export class PromotionRepository {
     channel: PromotionChannel,
   ) {
     const result = await this.db.promotionActivity.updateMany({
-      where: { campaignId, campaignActivityId: activityId },
+      where: {
+        campaignId,
+        campaignActivityId: activityId,
+        activity: { archivedAt: null },
+      },
       data: { channel },
     });
     return result.count === 0 ? null : this.find(campaignId, activityId);
   }
 
-  async remove(campaignId: string, activityId: string) {
-    const result = await this.db.promotionActivity.deleteMany({
-      where: { campaignId, campaignActivityId: activityId },
+  /**
+   * Removes the promotion extension. An activity with talent assignment history
+   * is archived instead, so its assignments and work-item name snapshots stay.
+   */
+  async remove(
+    campaignId: string,
+    activityId: string,
+    archive: ArchiveHook,
+  ): Promise<"deleted" | "archived" | "not_found"> {
+    return this.db.$transaction(async (tx) => {
+      if (
+        (await tx.promotionActivityTalent.count({
+          where: { campaignActivityId: activityId },
+        })) > 0
+      ) {
+        const activity = await tx.campaignActivity.findFirst({
+          where: { id: activityId, campaignId, archivedAt: null },
+          select: {
+            name: true,
+            campaign: {
+              select: { workspace: { select: { managerId: true } } },
+            },
+          },
+        });
+        if (!activity) return "not_found";
+        await tx.campaignActivity.update({
+          where: { id: activityId },
+          data: { archivedAt: new Date() },
+        });
+        await archive(tx, {
+          label: activity.name,
+          workspaceManagerId: activity.campaign.workspace.managerId,
+          works: [
+            { kind: "PROMOTION", workId: activityId, workName: activity.name },
+          ],
+        });
+        return "archived";
+      }
+      const result = await tx.promotionActivity.deleteMany({
+        where: { campaignId, campaignActivityId: activityId },
+      });
+      return result.count > 0 ? "deleted" : "not_found";
     });
-    return result.count > 0;
-  }
-
-  async assign(activityId: string, talentId: string, role: string) {
-    await this.db.promotionActivityTalent.create({
-      data: { campaignActivityId: activityId, talentId, role },
-    });
-  }
-
-  async unassign(activityId: string, talentId: string) {
-    const result = await this.db.promotionActivityTalent.deleteMany({
-      where: { campaignActivityId: activityId, talentId },
-    });
-    return result.count > 0;
   }
 }

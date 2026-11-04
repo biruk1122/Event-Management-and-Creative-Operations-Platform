@@ -146,7 +146,12 @@ export class PromotionController {
     @Param("campaignId") campaignId: string,
     @Param("activityId") activityId: string,
   ) {
-    return this.promotion.remove(user(request), campaignId, activityId);
+    return this.promotion.remove(
+      user(request),
+      campaignId,
+      activityId,
+      request.id,
+    );
   }
 
   @Post(":activityId/talents")
@@ -167,6 +172,7 @@ export class PromotionController {
       campaignId,
       activityId,
       body,
+      request.id,
     );
   }
 
@@ -188,6 +194,7 @@ export class PromotionController {
       campaignId,
       activityId,
       talentId,
+      request.id,
     );
   }
 }

@@ -7,6 +7,7 @@ import {
   type CampaignStatus,
   type CampaignType,
 } from "../../generated/prisma/client.js";
+import type { ArchiveHook } from "../../common/archive/archive-hook.js";
 import { DatabaseService } from "../../database/database.service.js";
 
 export interface CampaignPersonRecord {
@@ -343,7 +344,7 @@ export class CampaignsRepository {
     }
     const groups = await this.db.campaignActivity.groupBy({
       by: ["campaignId", "status"],
-      where: { campaignId: { in: campaignIds } },
+      where: { campaignId: { in: campaignIds }, archivedAt: null },
       _count: { _all: true },
     });
     const counts = new Map<
@@ -383,7 +384,7 @@ export class CampaignsRepository {
         : undefined;
 
     const where: Prisma.CampaignWhereInput = {
-      AND: [visibleWhere(input.visibility)],
+      AND: [visibleWhere(input.visibility), { archivedAt: null }],
       ...(input.status ? { status: input.status } : {}),
       ...(input.campaignType ? { campaignType: input.campaignType } : {}),
       ...(input.eventId ? { eventId: input.eventId } : {}),
@@ -421,8 +422,8 @@ export class CampaignsRepository {
     if (!isUuid(id)) {
       return null;
     }
-    const raw = await this.db.campaign.findUnique({
-      where: { id },
+    const raw = await this.db.campaign.findFirst({
+      where: { id, archivedAt: null },
       select: CAMPAIGN_SELECT,
     });
     return raw ? this.readRecord(raw) : null;
@@ -432,8 +433,8 @@ export class CampaignsRepository {
     if (!isUuid(id)) {
       return false;
     }
-    const event = await this.db.event.findUnique({
-      where: { id },
+    const event = await this.db.event.findFirst({
+      where: { id, archivedAt: null },
       select: { id: true },
     });
     return event !== null;
@@ -516,16 +517,25 @@ export class CampaignsRepository {
     if (!isUuid(id)) {
       return "not_found";
     }
+    // Only a link being added or moved is checked; an existing archived link is kept.
+    const current = await this.db.campaign.findFirst({
+      where: { id, archivedAt: null },
+      select: { eventId: true },
+    });
+    if (!current) {
+      return "not_found";
+    }
     if (
       fields.eventId !== undefined &&
       fields.eventId !== null &&
+      fields.eventId !== current.eventId &&
       !(await this.eventExists(fields.eventId))
     ) {
       return "event_not_found";
     }
     try {
       const updated = await this.db.campaign.update({
-        where: { id },
+        where: { id, archivedAt: null },
         data: updateData(fields),
         select: CAMPAIGN_SELECT,
       });
@@ -555,7 +565,7 @@ export class CampaignsRepository {
       return "not_found";
     }
     const { count } = await this.db.campaign.updateMany({
-      where: { id, status: expectedStatus },
+      where: { id, status: expectedStatus, archivedAt: null },
       data: { status },
     });
     const record = await this.findById(id);
@@ -575,7 +585,7 @@ export class CampaignsRepository {
     }
     try {
       const updated = await this.db.campaign.update({
-        where: { id },
+        where: { id, archivedAt: null },
         data: { budgetAmount: amount, budgetCurrency: currency },
         select: CAMPAIGN_SELECT,
       });
@@ -597,17 +607,47 @@ export class CampaignsRepository {
    */
   async delete(
     id: string,
-  ): Promise<"deleted" | "not_found" | "has_managed_files"> {
+    archive: ArchiveHook,
+  ): Promise<"deleted" | "archived" | "not_found" | "has_managed_files"> {
     if (!isUuid(id)) {
       return "not_found";
     }
     try {
       return await this.db.$transaction(async (tx) => {
-        const campaign = await tx.campaign.findUnique({
-          where: { id },
-          select: { workspaceId: true },
+        const campaign = await tx.campaign.findFirst({
+          where: { id, archivedAt: null },
+          select: {
+            workspaceId: true,
+            name: true,
+            workspace: { select: { managerId: true } },
+          },
         });
         if (!campaign) return "not_found";
+        // Talent assignment history references the campaign's activities; the campaign is kept, so it is archived instead of deleted.
+        if (
+          (await tx.promotionActivityTalent.count({
+            where: { promotionActivity: { campaignId: id } },
+          })) > 0
+        ) {
+          await tx.campaign.update({
+            where: { id },
+            data: { archivedAt: new Date() },
+          });
+          const activities = await tx.campaignActivity.findMany({
+            where: { campaignId: id, promotion: { isNot: null } },
+            select: { id: true, name: true },
+          });
+          await archive(tx, {
+            label: campaign.name,
+            workspaceManagerId: campaign.workspace.managerId,
+            works: activities.map((activity) => ({
+              kind: "PROMOTION" as const,
+              workId: activity.id,
+              workName: activity.name,
+            })),
+          });
+          return "archived";
+        }
         // A detached/rejected file remains for retention cleanup, but no
         // longer needs to retain a campaign workspace that is being removed.
         await tx.managedFile.updateMany({
@@ -641,6 +681,7 @@ export class CampaignsRepository {
     }
     const where: Prisma.CampaignActivityWhereInput = {
       campaignId,
+      archivedAt: null,
       ...(input.status ? { status: input.status } : {}),
     };
     const [items, total] = await Promise.all([
@@ -670,7 +711,7 @@ export class CampaignsRepository {
       return null;
     }
     return this.db.campaignActivity.findFirst({
-      where: { id: activityId, campaignId },
+      where: { id: activityId, campaignId, archivedAt: null },
       select: ACTIVITY_SELECT,
     });
   }
@@ -714,7 +755,7 @@ export class CampaignsRepository {
     }
     try {
       return await this.db.campaignActivity.update({
-        where: { id: activityId, campaignId },
+        where: { id: activityId, campaignId, archivedAt: null },
         data: activityUpdateData(fields),
         select: ACTIVITY_SELECT,
       });
@@ -726,18 +767,57 @@ export class CampaignsRepository {
     }
   }
 
+  /**
+   * Deletes an activity. An activity with talent assignment history is archived
+   * instead, so the assignments and their work-item name snapshots are kept.
+   */
   async deleteActivity(
     campaignId: string,
     activityId: string,
-  ): Promise<"deleted" | "not_found"> {
+    archive: ArchiveHook,
+  ): Promise<"deleted" | "archived" | "not_found"> {
     if (!isUuid(campaignId) || !isUuid(activityId)) {
       return "not_found";
     }
     try {
-      await this.db.campaignActivity.delete({
-        where: { id: activityId, campaignId },
+      return await this.db.$transaction(async (tx) => {
+        const activity = await tx.campaignActivity.findFirst({
+          where: { id: activityId, campaignId, archivedAt: null },
+          select: {
+            name: true,
+            campaign: {
+              select: { workspace: { select: { managerId: true } } },
+            },
+          },
+        });
+        if (!activity) return "not_found";
+        if (
+          (await tx.promotionActivityTalent.count({
+            where: { campaignActivityId: activityId },
+          })) > 0
+        ) {
+          await tx.campaignActivity.update({
+            where: { id: activityId },
+            data: { archivedAt: new Date() },
+          });
+          await archive(tx, {
+            label: activity.name,
+            workspaceManagerId: activity.campaign.workspace.managerId,
+            works: [
+              {
+                kind: "PROMOTION",
+                workId: activityId,
+                workName: activity.name,
+              },
+            ],
+          });
+          return "archived";
+        }
+        await tx.campaignActivity.delete({
+          where: { id: activityId, campaignId },
+        });
+        return "deleted";
       });
-      return "deleted";
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
         return "not_found";

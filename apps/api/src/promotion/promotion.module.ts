@@ -1,3 +1,4 @@
+import { TalentModule } from "../talent/talent.module.js";
 import { Module } from "@nestjs/common";
 import { PromotionAnalyticsQuery } from "./promotion-analytics.query.js";
 
@@ -9,7 +10,7 @@ import { PromotionController } from "./promotion.controller.js";
 import { PromotionService } from "./promotion.service.js";
 
 @Module({
-  imports: [AuthModule, CampaignsModule, PermissionsModule],
+  imports: [AuthModule, CampaignsModule, PermissionsModule, TalentModule],
   controllers: [PromotionController],
   providers: [PromotionService, PromotionRepository, PromotionAnalyticsQuery],
   exports: [PromotionAnalyticsQuery],
