@@ -171,14 +171,21 @@ export class TalentAssignmentsService {
     return visible.map((row) => toView(row));
   }
 
-  /** Talent history. Organization talent readers only: it includes profile changes. */
+  /**
+   * Talent history. Organization talent readers see every entry, which includes
+   * profile changes. A Production Manager sees only the assignment entries for
+   * work they can manage, so profile changes and other departments stay hidden.
+   */
   async history(userId: string, talentId: string) {
-    if ((await this.access.directoryMode(userId)) !== "full") {
-      throw permissionDenied();
-    }
+    const mode = await this.access.directoryMode(userId);
+    if (!mode) throw permissionDenied();
     await this.loadTalent(talentId);
     const entries = await this.repository.activityForTalent(talentId);
-    return entries.map((entry) => ({
+    const visible =
+      mode === "full"
+        ? entries
+        : await this.ownWorkEntries(userId, talentId, entries);
+    return visible.map((entry) => ({
       id: entry.id,
       type: entry.type,
       assignmentKind: entry.assignmentKind,
@@ -187,6 +194,26 @@ export class TalentAssignmentsService {
       occurredAt: entry.occurredAt.toISOString(),
       actor: entry.actor,
     }));
+  }
+
+  /** History entries for the assignments the caller can manage; talent-level entries are excluded. */
+  private async ownWorkEntries<T extends { assignmentId: string | null }>(
+    userId: string,
+    talentId: string,
+    entries: readonly T[],
+  ): Promise<T[]> {
+    const manageable = new Set<string>();
+    for (const row of await this.repository.assignmentsForTalent(talentId)) {
+      if (
+        await this.access.canManageWork(userId, row.kind, row.work.departmentId)
+      ) {
+        manageable.add(row.id);
+      }
+    }
+    return entries.filter(
+      (entry) =>
+        entry.assignmentId !== null && manageable.has(entry.assignmentId),
+    );
   }
 
   /** Work items the caller may assign talent to, for the Assign dialog. */

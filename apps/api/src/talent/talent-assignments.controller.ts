@@ -90,7 +90,8 @@ export class TalentAssignmentsController {
 
   @Get(":talentId/activity")
   @ApiOperation({
-    summary: "List a talent's history (organization talent readers only)",
+    summary:
+      "List a talent's history. Organization readers see all of it; a Production Manager sees the assignments for their own department's work.",
   })
   @ApiOkResponse({ type: [TalentActivityResponse] })
   @ApiNotFoundResponse({ type: ProblemDetails })

@@ -692,17 +692,53 @@ describe("talent assignments API", () => {
       expect(update.status).toBe(403);
     });
 
-    it("cannot read talent history", async () => {
+    it("shows a Production Manager only the history of their department's assignments", async () => {
       const talent = await createTalent();
+      const own = await eventRow({ departmentId: productionDeptId });
+      const other = await eventRow({
+        departmentId: marketingDeptId,
+        startAt: day(22),
+        endAt: day(23),
+      });
       expect(
         (
-          await as(
-            productionManager,
-            "get",
-            `/api/v1/talents/${talent.id}/activity`,
-          )
+          await assign(productionManager, talent.id, {
+            kind: "EVENT",
+            workId: own,
+            role: "Host",
+          })
         ).status,
-      ).toBe(403);
+      ).toBe(201);
+      expect(
+        (
+          await assign(superAdmin, talent.id, {
+            kind: "EVENT",
+            workId: other,
+            role: "Guest",
+          })
+        ).status,
+      ).toBe(201);
+
+      type HistoryEntry = { type: string; assignmentId: string | null };
+      const full = (
+        await as(superAdmin, "get", `/api/v1/talents/${talent.id}/activity`)
+      ).body as HistoryEntry[];
+      const scoped = (
+        await as(
+          productionManager,
+          "get",
+          `/api/v1/talents/${talent.id}/activity`,
+        )
+      ).body as HistoryEntry[];
+
+      expect(
+        full.filter((entry) => entry.type === "ASSIGNMENT_CREATED"),
+      ).toHaveLength(2);
+      expect(
+        scoped.filter((entry) => entry.type === "ASSIGNMENT_CREATED"),
+      ).toHaveLength(1);
+      // Profile-level entries have no assignment and stay hidden from the scoped view.
+      expect(scoped.every((entry) => entry.assignmentId !== null)).toBe(true);
     });
 
     it("lists only the works they may assign to", async () => {
