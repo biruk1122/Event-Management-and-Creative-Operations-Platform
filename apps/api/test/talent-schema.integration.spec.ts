@@ -394,7 +394,7 @@ describe("talent management schema", () => {
         "talents_manager_id_idx",
         "talent_social_links_talent_id_url_key",
         "talent_schedules_talent_id_start_at_end_at_idx",
-        "event_talents_event_id_talent_id_key",
+        "event_talents_event_id_talent_id_active_slot_key",
         "event_talents_talent_id_status_idx",
       ]),
     );

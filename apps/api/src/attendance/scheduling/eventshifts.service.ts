@@ -126,9 +126,7 @@ export class EventShiftsService {
     throw permissionDenied();
   }
 
-  private async requireEvent(
-    eventId: string,
-  ): Promise<{
+  private async requireEvent(eventId: string): Promise<{
     id: string;
     name: string;
     departmentId: string | null;

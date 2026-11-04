@@ -137,9 +137,7 @@ export class EventShiftsRepository {
     return user?.departmentId ?? null;
   }
 
-  async findEventContext(
-    eventId: string,
-  ): Promise<{
+  async findEventContext(eventId: string): Promise<{
     id: string;
     name: string;
     departmentId: string | null;
