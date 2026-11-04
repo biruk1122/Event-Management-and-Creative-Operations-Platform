@@ -349,7 +349,8 @@ test.describe("Talent management — end to end", () => {
       ).toBeVisible();
 
       // AC: the full workflow persists and reloads authoritative data.
-      await page.reload();
+      // The count lives on the directory, so reload the list rather than the profile.
+      await page.goto("/talent");
       await expect(
         page.getByText(talentCount(baseline + 1), { exact: true }),
       ).toBeVisible();

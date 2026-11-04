@@ -132,7 +132,10 @@ test.describe("Production Manager talent journeys", () => {
     await expect(
       page.getByRole("option", { name: otherEvent.name, exact: true }),
     ).toHaveCount(0);
+    // The first Escape closes the open work list; the second closes the dialog.
     await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    await expect(form).toHaveCount(0);
 
     // The API refuses the same work outside the scope, whatever the screen offers.
     const refused = await production.post(
