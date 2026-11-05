@@ -48,6 +48,7 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
   return {
     id: "evt-1",
     workspaceId: "ws-1",
+    progress: { completed: 0, total: 0 },
     name: "Aurora Premiere",
     eventType: "FILM_PREMIERE",
     description: "Opening night.",

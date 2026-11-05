@@ -14,6 +14,7 @@ import {
   EventsRequestError,
   getEvent,
   getEventBudget,
+  getEventSummary,
   listAssignableDepartments,
   listAssignableTeams,
   listAssignableUsers,
@@ -25,9 +26,11 @@ import type { EventStatus, EventType } from "../lib/events-types";
 import { CreateEventDialog } from "./create-event-dialog";
 import { EventDetailDialog } from "./event-detail-dialog";
 import { EventFilters } from "./event-filters";
-import { EventsTable } from "./events-table";
+import { EventSummaryTiles } from "./events-summary-tiles";
+import { EventsTable, type EventSort } from "./events-table";
 
 const PAGE_SIZE = 10;
+const DEFAULT_SORT: EventSort = { field: "createdAt", direction: "asc" };
 const SEARCH_DEBOUNCE_MS = 300;
 
 function useDebounced<T>(value: T, delay: number): T {
@@ -47,6 +50,7 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
   const [statusFilter, setStatusFilter] = useState<EventStatus | null>(null);
   const [typeFilter, setTypeFilter] = useState<EventType | null>(null);
   const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<EventSort>(DEFAULT_SORT);
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -57,6 +61,8 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
     status: statusFilter,
     eventType: typeFilter,
     search: debouncedSearch.trim() || null,
+    sort: sort.field,
+    direction: sort.direction,
     page,
     pageSize: PAGE_SIZE,
   };
@@ -64,6 +70,14 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
   const listQuery = useQuery({
     queryKey: keys.list(listParams),
     queryFn: ({ signal }) => listEvents(listParams, signal),
+    retry: false,
+    placeholderData: (previous) => previous,
+    refetchOnWindowFocus: true,
+  });
+
+  const summaryQuery = useQuery({
+    queryKey: keys.summary,
+    queryFn: ({ signal }) => getEventSummary(signal),
     retry: false,
     placeholderData: (previous) => previous,
     refetchOnWindowFocus: true,
@@ -153,10 +167,15 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
             {abilities.canCreate ? (
               <Button type="button" onClick={() => setCreateOpen(true)}>
                 <Plus aria-hidden="true" data-icon="inline-start" />
-                New event
+                Create event
               </Button>
             ) : null}
           </div>
+
+          <EventSummaryTiles
+            summary={summaryQuery.data}
+            loading={summaryQuery.isPending}
+          />
 
           <EventFilters
             status={statusFilter}
@@ -183,6 +202,11 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
             pageCount={pageCount}
             onPageChange={setPage}
             filtered={filtersActive}
+            sort={sort}
+            onSortChange={(next) => {
+              setSort(next);
+              setPage(1);
+            }}
           />
         </>
       )}
@@ -196,6 +220,9 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
           open={createOpen}
           onOpenChange={setCreateOpen}
           managers={users}
+          teams={teams}
+          canAssignTeams={abilities.canAssignTeams}
+          canUpdateBudget={abilities.canUpdateBudget}
           onCreate={mutations.create.mutateAsync}
           onCreated={() => {
             setSearch("");
@@ -204,6 +231,7 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
             setPage(1);
             setAnnouncement("Event created.");
             void listQuery.refetch();
+            void summaryQuery.refetch();
           }}
         />
       ) : null}

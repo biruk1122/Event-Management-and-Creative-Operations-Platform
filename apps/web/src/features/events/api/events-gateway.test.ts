@@ -48,6 +48,9 @@ const createValues: CreateEventValues = {
   location: "",
   organizerName: "  City Arts  ",
   managerId: null,
+  status: "PLANNING",
+  teamIds: [],
+  budgetAmount: "",
 };
 
 const editValues: EditEventValues = {
@@ -143,8 +146,34 @@ describe("events gateway writes", () => {
       description: "Opening night.",
       startAt: "2026-10-04T18:00:00.000Z",
       organizerName: "City Arts",
+      status: "PLANNING",
     });
     expect(options.headers).toEqual({ "x-csrf-token": "tok" });
+  });
+
+  it("sends teams and a budget in ETB, and maps an unknown team", async () => {
+    post.mockResolvedValue(ok({ id: "evt-1" }, 201));
+    document.cookie = "csrf_token=tok";
+    await createEvent({
+      ...createValues,
+      status: "READY",
+      teamIds: ["018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77"],
+      budgetAmount: "2500000",
+    });
+    const [, options] = post.mock.calls[0]!;
+    expect(options.body).toEqual(
+      expect.objectContaining({
+        status: "READY",
+        teamIds: ["018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77"],
+        budgetAmount: 2500000,
+        budgetCurrency: "ETB",
+      }),
+    );
+
+    post.mockResolvedValue(fail("EVENT_TEAM_NOT_FOUND", 404));
+    expect(await createEvent(createValues)).toEqual({
+      status: "team_not_found",
+    });
   });
 
   it("maps create failures by Problem Details code", async () => {

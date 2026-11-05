@@ -1,6 +1,12 @@
 import type { components } from "@event-platform/api-client";
 
 export type Event = components["schemas"]["EventResponse"];
+/** Headline counts for the listing tiles. */
+export type EventSummary = components["schemas"]["EventSummaryResponse"];
+/** Completed and total linked tasks for one event. */
+export type EventProgress = components["schemas"]["EventProgress"];
+/** Columns the listing can be sorted by (the API's `sort` values). */
+export type EventSortField = "startAt" | "name" | "status" | "createdAt";
 export type PaginatedEvents = components["schemas"]["PaginatedEventsResponse"];
 export type EventBudget = components["schemas"]["EventBudgetResponse"];
 export type EventBudgetSummary =

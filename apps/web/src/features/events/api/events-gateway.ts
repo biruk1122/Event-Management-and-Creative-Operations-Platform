@@ -31,7 +31,9 @@ import type {
   Event,
   EventBudget,
   EventBudgetSummary,
+  EventSortField,
   EventStatus,
+  EventSummary,
   LinkedCampaign,
   LinkedProduction,
   PaginatedEvents,
@@ -64,12 +66,24 @@ function toIsoUtc(local: string): string | null {
   return new Date(`${local.slice(0, 16)}:00.000Z`).toISOString();
 }
 
+/** A typed budget as a number with two fraction digits, or null when blank. */
+function budgetAmountOf(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === "") return null;
+  const amount = Number(trimmed);
+  return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : null;
+}
+
 /** Build a `CreateEventDto`: omit optional fields that were left blank. */
 function createBody(values: CreateEventValues) {
   const start = toIsoUtc(values.startAt);
   const end = toIsoUtc(values.endAt);
   const reminder = toIsoUtc(values.reminderAt);
+  const budget = budgetAmountOf(values.budgetAmount);
   return {
+    status: values.status,
+    ...(values.teamIds.length > 0 ? { teamIds: values.teamIds } : {}),
+    ...(budget !== null ? { budgetAmount: budget, budgetCurrency: "ETB" } : {}),
     name: values.name.trim(),
     eventType: values.eventType,
     ...(values.description.trim()
@@ -110,6 +124,8 @@ function saveFailure(error: unknown, status: number): SaveEventOutcome {
       return { status: "schedule_invalid" };
     if (error.code === "EVENT_REMINDER_INVALID")
       return { status: "reminder_invalid" };
+    if (error.code === "EVENT_TEAM_NOT_FOUND")
+      return { status: "team_not_found" };
     if (error.code === "VALIDATION_ERROR") {
       const fields = fieldErrorsOf(error);
       const fieldErrors: Partial<Record<keyof CreateEventValues, string>> = {};
@@ -123,6 +139,9 @@ function saveFailure(error: unknown, status: number): SaveEventOutcome {
         "location",
         "organizerName",
         "managerId",
+        "status",
+        "teamIds",
+        "budgetAmount",
       ] as const) {
         if (fields[key]) fieldErrors[key] = fields[key];
       }
@@ -244,8 +263,22 @@ export interface ListEventsParams {
   eventType?: string | null;
   search?: string | null;
   managerId?: string | null;
+  sort?: EventSortField | null;
+  direction?: "asc" | "desc" | null;
   page?: number;
   pageSize?: number;
+}
+
+/** Headline counts for the listing tiles, over the caller's visible events. */
+export async function getEventSummary(
+  signal?: AbortSignal,
+): Promise<EventSummary> {
+  const { data, response } = await browserApi.GET("/api/v1/events/summary", {
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  if (!data) throw new EventsRequestError(response.status);
+  return data;
 }
 
 type ListQuery = NonNullable<
@@ -264,6 +297,8 @@ export async function listEvents(
   if (params.eventType) query.eventType = params.eventType;
   if (params.search?.trim()) query.search = params.search.trim();
   if (params.managerId) query.managerId = params.managerId;
+  if (params.sort) query.sort = params.sort;
+  if (params.direction) query.direction = params.direction;
 
   const { data, response } = await browserApi.GET("/api/v1/events", {
     params: { query: query as unknown as ListQuery },
