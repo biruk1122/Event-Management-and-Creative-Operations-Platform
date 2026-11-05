@@ -195,9 +195,7 @@ export function TalentManager({ access }: { access: CurrentAccess }) {
             talents={rows}
             total={total}
             pageSize={PAGE_SIZE}
-            canAssign={abilities.canAssign}
             onSelect={(id) => router.push(`/talent/${id}`)}
-            onAssign={(id) => router.push(`/talent/${id}?assign=1`)}
             page={currentPage}
             pageCount={pageCount}
             onPageChange={setPage}
