@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { WorkSurface } from "@/components/ui/work-surface";
 
 import { createServerApi } from "@/lib/api/server";
@@ -34,9 +33,6 @@ export default async function SuppliersPage() {
 
   return (
     <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
-      <Link href="/" className="text-sm underline underline-offset-4">
-        Back to home
-      </Link>
       <WorkSurface
         title="Suppliers"
         description={

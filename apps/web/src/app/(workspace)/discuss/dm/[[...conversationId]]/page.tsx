@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 
 import { createServerApi } from "@/lib/api/server";
 import { DiscussScreen } from "@/features/discuss";
@@ -28,10 +27,7 @@ export default async function DirectMessagesPage({
 
   return (
     <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
-      <Link href="/" className="text-sm underline underline-offset-4">
-        Back to home
-      </Link>
-      <h1 className="mt-4 text-xl font-semibold tracking-tight text-balance">
+      <h1 className="text-xl font-semibold tracking-tight text-balance">
         Direct messages
       </h1>
       {allowed ? (
