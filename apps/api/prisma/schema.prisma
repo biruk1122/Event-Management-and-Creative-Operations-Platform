@@ -2992,7 +2992,7 @@ enum LetterDirection {
 }
 
 /// Letter classification driving the reference-number sequence
-/// (`LELA-{category}-{year}-{sequence}`). A small, explicit enum - easy to
+/// (`LCM-{category}-{year}-{sequence}`). A small, explicit enum - easy to
 /// extend with a migration, same convention as `DocumentType` below.
 enum LetterCategory {
   CAST

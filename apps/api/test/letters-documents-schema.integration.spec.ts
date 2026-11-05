@@ -52,7 +52,7 @@ describe("letters, documents, and sharing schema", () => {
     columns: Record<string, unknown> = {},
   ): Promise<string> {
     const base = {
-      reference_number: `LELA-CAST-2026-${counter++}`,
+      reference_number: `LCM-CAST-2026-${counter++}`,
       direction: "INCOMING",
       category: "CAST",
       date: "2026-01-01",
@@ -121,7 +121,7 @@ describe("letters, documents, and sharing schema", () => {
     });
 
     it("enforces a unique reference number", async () => {
-      const referenceNumber = "LELA-CAST-2026-999";
+      const referenceNumber = "LCM-CAST-2026-999";
       await insertLetter({ reference_number: referenceNumber });
       await expect(
         insertLetter({ reference_number: referenceNumber }),

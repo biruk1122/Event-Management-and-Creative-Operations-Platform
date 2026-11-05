@@ -28,7 +28,7 @@ import {
 } from "../generated/prisma/client.js";
 
 /** Fixed company prefix - never configurable per-environment (per spec). */
-const REFERENCE_PREFIX = "LELA";
+const REFERENCE_PREFIX = "LCM";
 
 /** Africa/Addis_Ababa is a fixed UTC+3 offset with no DST. */
 const ADDIS_ABABA_OFFSET_MS = 3 * 60 * 60 * 1000;

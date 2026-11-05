@@ -43,7 +43,7 @@ describe("letter attachments and their linked documents", () => {
     });
     actorId = actor.id;
     const created = await repository.create(
-      "LELA",
+      "LCM",
       2026,
       {
         direction: "INCOMING",

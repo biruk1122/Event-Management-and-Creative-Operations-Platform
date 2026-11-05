@@ -12,7 +12,7 @@ export class LetterResponse {
   @ApiProperty({ format: "uuid" })
   id!: string;
 
-  @ApiProperty({ example: "LELA-CAST-2026-001" })
+  @ApiProperty({ example: "LCM-CAST-2026-001" })
   referenceNumber!: string;
 
   @ApiProperty({ enum: LetterDirection })
@@ -106,7 +106,7 @@ export class LetterRemarkResponse {
 
 export class LetterReferencePreviewResponse {
   @ApiProperty({
-    example: "LELA-CAST-2026-002",
+    example: "LCM-CAST-2026-002",
     description:
       "Non-reserving preview of the next number. Assigned for real only when the letter is created.",
   })
