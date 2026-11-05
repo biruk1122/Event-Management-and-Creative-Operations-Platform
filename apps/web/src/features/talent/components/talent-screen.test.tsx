@@ -8,6 +8,8 @@ import { TalentScreen } from "./talent-screen";
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  usePathname: () => "/talent",
 }));
 vi.mock("@/lib/api/browser", () => ({
   browserApi: {
