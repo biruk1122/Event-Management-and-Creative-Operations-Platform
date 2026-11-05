@@ -1725,6 +1725,9 @@ model PromotionActivity {
   campaignId         String                    @map("campaign_id") @db.Uuid
   campaignType       CampaignType              @default(PROMOTION) @map("campaign_type")
   channel            PromotionChannel
+  /// Set when the detail is removed but talent history keeps its row. The
+  /// shared campaign activity stays active.
+  archivedAt         DateTime?                 @map("archived_at") @db.Timestamptz(6)
   activity           CampaignActivity          @relation(fields: [campaignActivityId, campaignId], references: [id, campaignId], onDelete: Cascade)
   campaign           Campaign                  @relation(fields: [campaignId, campaignType], references: [id, campaignType], onDelete: Cascade)
   talents            PromotionActivityTalent[]

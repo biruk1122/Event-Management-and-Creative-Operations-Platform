@@ -15,7 +15,7 @@ export class PromotionAnalyticsQuery {
       ids: string[];
     }>(Prisma.sql`
       SELECT channel, array_agg(campaign_activity_id ORDER BY campaign_activity_id) AS ids
-      FROM promotion_activities JOIN campaign_activities a ON a.id = promotion_activities.campaign_activity_id WHERE promotion_activities.campaign_id = ${campaignId}::uuid AND a.archived_at IS NULL GROUP BY channel ORDER BY channel`);
+      FROM promotion_activities JOIN campaign_activities a ON a.id = promotion_activities.campaign_activity_id WHERE promotion_activities.campaign_id = ${campaignId}::uuid AND promotion_activities.archived_at IS NULL AND a.archived_at IS NULL GROUP BY channel ORDER BY channel`);
     const rows = await Promise.all(
       extensions.map(async (extension) => ({
         channel: extension.channel,

@@ -171,11 +171,11 @@ test.describe("Promotion operations — real-service workflow", () => {
         .getByRole("button", { name: "Remove promotion detail" })
         .click();
       await reopened.getByRole("button", { name: "Confirm removal" }).click();
-      // The activity had talent history, so its promotion detail is archived
-      // rather than deleted; the removal control no longer offers the detail.
       await expect(
-        reopened.getByRole("button", { name: "Remove promotion detail" }),
-      ).toHaveCount(0);
+        reopened.getByText(
+          "This activity does not have a promotion channel yet.",
+        ),
+      ).toBeVisible();
 
       const remaining = await page.request.get(endpoint);
       expect(((await remaining.json()) as { total: number }).total).toBe(0);
@@ -186,7 +186,8 @@ test.describe("Promotion operations — real-service workflow", () => {
       expect(
         await queryInSchema(
           process.env.DATABASE_URL!,
-          `SELECT campaign_activity_id FROM promotion_activities WHERE campaign_activity_id = $1`,
+          // Talent history keeps the archived row, so only active details count.
+          `SELECT campaign_activity_id FROM promotion_activities WHERE campaign_activity_id = $1 AND archived_at IS NULL`,
           [fixture.activityId],
         ),
       ).toHaveLength(0);

@@ -137,6 +137,7 @@ export class TalentAssignmentsRepository {
     const promotion = await this.db.promotionActivity.findFirst({
       where: {
         campaignActivityId: workId,
+        archivedAt: null,
         activity: { archivedAt: null },
         campaign: { archivedAt: null },
       },
@@ -233,6 +234,7 @@ export class TalentAssignmentsRepository {
     }
     const rows = await this.db.promotionActivity.findMany({
       where: {
+        archivedAt: null,
         activity: { archivedAt: null, ...(name ? { name } : {}) },
         campaign: {
           archivedAt: null,
