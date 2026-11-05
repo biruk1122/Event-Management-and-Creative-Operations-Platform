@@ -115,20 +115,24 @@ test.describe("Event management — end to end", () => {
       await expectNoWcag22AaViolations(page, "events list");
 
       // Create an event through the dialog.
-      await page.getByRole("button", { name: "New event" }).click();
+      await page.getByRole("button", { name: "Create event" }).click();
       const createDialog = page.getByRole("dialog");
       await expect(
-        createDialog.getByRole("heading", { name: "New event" }),
+        createDialog.getByRole("heading", { name: "Create an event" }),
       ).toBeVisible();
       await expectNoWcag22AaViolations(page, "create event dialog");
 
-      await createDialog.getByRole("textbox", { name: "Name" }).fill(eventName);
-      await createDialog.getByRole("combobox", { name: "Type" }).click();
+      await createDialog
+        .getByRole("textbox", { name: "Event name" })
+        .fill(eventName);
+      await createDialog.getByLabel("Start date").fill("2030-06-01");
+      await createDialog.getByLabel("End date").fill("2030-06-02");
+      await createDialog.getByRole("combobox", { name: "Event type" }).click();
       await page
         .getByRole("option", { name: "Corporate event", exact: true })
         .click();
       await createDialog
-        .getByRole("combobox", { name: "Manager (optional)" })
+        .getByRole("combobox", { name: "Event manager" })
         .click();
       await page
         .getByRole("option", { name: managerEmail, exact: true })
@@ -449,9 +453,9 @@ test.describe("Event management — end to end", () => {
       await expect(
         page.getByRole("combobox", { name: "Filter by status" }),
       ).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "New event" })).toHaveCount(
-        0,
-      );
+      await expect(
+        page.getByRole("button", { name: "Create event" }),
+      ).toHaveCount(0);
 
       const list = await page.request.get(`${apiBaseUrl}/api/v1/events`);
       expect(list.status()).toBe(403);

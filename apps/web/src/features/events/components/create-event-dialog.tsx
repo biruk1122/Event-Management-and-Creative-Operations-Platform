@@ -279,7 +279,10 @@ export function CreateEventDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="flex h-[98vh] max-h-[98vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-[94vw] lg:max-w-300 xl:max-w-340">
+      <DialogContent
+        fallbackSelector="[data-work-toolbar] button:not(:disabled), [data-work-filters] input:not(:disabled)"
+        className="flex h-[98vh] max-h-[98vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-[94vw] lg:max-w-300 xl:max-w-340"
+      >
         <DialogHeader className="border-border from-accent to-card flex-row items-center justify-between gap-4 border-b bg-linear-to-br px-6 py-5 text-left sm:px-10">
           <div className="flex items-center gap-3">
             <span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">

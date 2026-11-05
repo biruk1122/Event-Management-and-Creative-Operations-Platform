@@ -68,7 +68,7 @@ test.describe("Lela connected work presentation", () => {
         });
         await page.goto("/events");
         const opener = page.getByRole("button", {
-          name: "New event",
+          name: "Create event",
           exact: true,
         });
         await expect(opener).toBeVisible();
@@ -257,7 +257,7 @@ test.describe("Lela connected work presentation", () => {
     {
       endpoint: "events",
       title: "Events",
-      action: "New event",
+      action: "Create event",
       data: { eventType: "CONCERT" },
     },
     {

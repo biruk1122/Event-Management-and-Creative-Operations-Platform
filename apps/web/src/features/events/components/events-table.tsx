@@ -86,6 +86,7 @@ function TeamAvatars({ teams }: { teams: readonly EventTeamSummary[] }) {
   const hidden = teams.length - shown.length;
   return (
     <div
+      role="group"
       className="flex items-center"
       aria-label={teams.map((t) => t.name).join(", ")}
     >
