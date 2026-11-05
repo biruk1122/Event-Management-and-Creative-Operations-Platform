@@ -1,11 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft,
   CalendarDays,
   FileText,
   FolderOpen,
@@ -50,12 +47,6 @@ export function LetterDetailsView({
   letterId: string;
   access: CurrentAccess;
 }) {
-  const params = new URLSearchParams(useSearchParams().toString());
-  params.delete("letter");
-  const backHref = {
-    pathname: "/letters",
-    search: params.size ? `?${params}` : "",
-  };
   const keys = letterKeys(access);
   const client = useQueryClient();
   const [remarksOpen, setRemarksOpen] = useState(false);
@@ -82,15 +73,6 @@ export function LetterDetailsView({
   const letter = detail.data;
   return (
     <div className="space-y-6">
-      <div data-admin-toolbar>
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-2 text-sm underline-offset-4 hover:underline"
-        >
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Back to letters
-        </Link>
-      </div>
       {detail.isPending ? (
         <p role="status">Loading letter details…</p>
       ) : detail.isError || accessError ? (
