@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { createServerApi } from "@/lib/api/server";
 import { RolesScreen } from "@/features/rbac/components/roles-screen";
 import { AdministrationSurface } from "@/components/ui/administration-surface";
@@ -21,9 +20,6 @@ export default async function RolesPage() {
   );
   return (
     <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
-      <Link href="/" className="text-sm underline underline-offset-4">
-        Back to home
-      </Link>
       <AdministrationSurface
         title="Roles and permissions"
         description={

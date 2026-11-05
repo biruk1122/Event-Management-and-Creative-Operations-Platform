@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -29,10 +28,7 @@ export default async function AnalyticsPage() {
   );
   return (
     <main className="@container mx-auto w-full max-w-352 min-w-0 px-5 py-8 sm:px-8">
-      <Link href="/" className="text-sm underline underline-offset-4">
-        Back to home
-      </Link>
-      <h1 className="mt-4 text-3xl font-semibold tracking-tight">
+      <h1 className="text-3xl font-semibold tracking-tight">
         Management analytics
       </h1>
       <p className="text-muted-foreground mt-1 text-sm">
