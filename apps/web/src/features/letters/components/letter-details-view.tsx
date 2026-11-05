@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -28,6 +28,7 @@ import {
 } from "@/features/auth/api/access-queries";
 import {
   getLetter,
+  getLetterOptions,
   LettersRequestError,
   listLetterFiles,
   listRemarks,
@@ -39,6 +40,7 @@ import {
   letterPartyLabel,
 } from "../lib/letters-types";
 import { LetterAttachmentList } from "./letter-attachment-list";
+import { LetterEditView } from "./letter-edit-view";
 import { LetterRemarksSheet } from "./letter-remarks-sheet";
 
 const CARD = "border-border bg-card rounded-2xl border p-6 shadow-sm";
@@ -51,7 +53,11 @@ export function LetterDetailsView({
   access: CurrentAccess;
 }) {
   // Letter details open as ?letter= on the listing, so Back closes the detail and keeps its filters.
-  const params = new URLSearchParams(useSearchParams().toString());
+  const searchString = useSearchParams().toString();
+  const params = new URLSearchParams(searchString);
+  const router = useRouter();
+  // Edit opens as ?letter=<id>&edit=1, the same page with the edit form.
+  const editing = params.get("edit") === "1";
   params.delete("letter");
   const backHref = {
     pathname: "/letters",
@@ -80,7 +86,49 @@ export function LetterDetailsView({
   useEffect(() => {
     if (accessError) void client.invalidateQueries({ queryKey: accessKey });
   }, [accessError, client]);
+  const optionsQuery = useQuery({
+    queryKey: keys.options,
+    queryFn: ({ signal }) => getLetterOptions(signal),
+    retry: false,
+    staleTime: 60_000,
+    enabled: editing,
+  });
   const letter = detail.data;
+
+  if (editing) {
+    // The details URL without the edit marker: Cancel and a saved edit return here.
+    const detailParams = new URLSearchParams(searchString);
+    detailParams.delete("edit");
+    const detailHref = `?${detailParams}`;
+    const canShareLetter = access.grants.some(
+      (grant) =>
+        grant.permissionKey === "letter.share" &&
+        (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
+    );
+    return (
+      <LetterEditView
+        key={letterId}
+        letterId={letterId}
+        projects={optionsQuery.data?.projects ?? []}
+        canShare={canShareLetter}
+        backControl={
+          <Button variant="outline" size="sm" asChild>
+            <Link href={backHref}>
+              <ArrowLeft aria-hidden="true" data-icon="inline-start" />
+              Back
+            </Link>
+          </Button>
+        }
+        onCancel={() => router.replace(detailHref as never)}
+        onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
+        onChanged={() => {
+          void client.invalidateQueries({ queryKey: keys.detail(letterId) });
+          router.replace(detailHref as never);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {detail.isPending ? (

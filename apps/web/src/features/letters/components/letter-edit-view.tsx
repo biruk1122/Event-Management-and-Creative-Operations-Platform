@@ -1,21 +1,20 @@
 "use client";
 
-import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
-import { useEffect, useState, type FormEvent } from "react";
-import { LoaderCircle, Paperclip, TriangleAlert } from "lucide-react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import {
+  Info,
+  LoaderCircle,
+  Mail,
+  Paperclip,
+  Share2,
+  TriangleAlert,
+} from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { AttachmentDropzone } from "@/components/ui/attachment-dropzone";
 import { Input } from "@/components/ui/input";
-import { AdministrationDialogContent as DialogContent } from "@/components/ui/administration-dialog-content";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -38,7 +37,6 @@ import {
   uploadLetterFile,
 } from "../api/letters-gateway";
 import type {
-  DeleteLetter,
   GetLetter,
   UpdateLetter,
   UpdateLetterValues,
@@ -54,23 +52,10 @@ import { LetterAttachmentList } from "./letter-attachment-list";
 const NONE = "NONE";
 
 const ACTION_ERRORS: Record<string, string> = {
-  not_found: "This letter no longer exists. Close this and refresh the list.",
+  not_found: "This letter no longer exists. Go back and refresh the list.",
   permission_denied: "You do not have permission to do that.",
   unexpected: "We could not save that change. Try again.",
 };
-
-interface LetterDetailDialogProps {
-  letterId: string | null;
-  onOpenChange: (open: boolean) => void;
-  projects: readonly { id: string; name: string }[];
-  canDelete: boolean;
-  canShare: boolean;
-  getLetter?: GetLetter;
-  onUpdate: UpdateLetter;
-  onDelete: DeleteLetter;
-  onDeleted: () => void;
-  onChanged: (letter: Letter) => void;
-}
 
 function hrValuesOf(letter: Letter): UpdateLetterValues {
   return {
@@ -94,50 +79,32 @@ function changedKeys(
   );
 }
 
-export function LetterDetailDialog({
-  letterId,
-  onOpenChange,
-  ...bodyProps
-}: LetterDetailDialogProps) {
-  return (
-    <Dialog
-      open={letterId !== null}
-      onOpenChange={(open) => {
-        if (!open) onOpenChange(false);
-      }}
-    >
-      <DialogContent className="sm:max-w-2xl">
-        {letterId !== null ? (
-          <LetterDetailBody key={letterId} letterId={letterId} {...bodyProps} />
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface LetterDetailBodyProps {
+export interface LetterEditViewProps {
   letterId: string;
   projects: readonly { id: string; name: string }[];
-  canDelete: boolean;
   canShare: boolean;
+  /** The Back control shown at the top of the page. */
+  backControl: ReactNode;
+  /** Discards the edit and returns to the read-only details. */
+  onCancel: () => void;
   getLetter?: GetLetter;
   onUpdate: UpdateLetter;
-  onDelete: DeleteLetter;
-  onDeleted: () => void;
+  /** Called after a successful save with the saved letter. */
   onChanged: (letter: Letter) => void;
 }
 
-function LetterDetailBody({
+/** The letter edit page: a header card, the edit form beside a summary card,
+ * and the attachments below - the same arrangement as the documents edit page. */
+export function LetterEditView({
   letterId,
   projects,
-  canDelete,
   canShare,
+  backControl,
+  onCancel,
   getLetter = defaultGetLetter,
   onUpdate,
-  onDelete,
-  onDeleted,
   onChanged,
-}: LetterDetailBodyProps) {
+}: LetterEditViewProps) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
     "loading",
   );
@@ -145,9 +112,6 @@ function LetterDetailBody({
   const [form, setForm] = useState<UpdateLetterValues | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
 
   const [files, setFiles] = useState<EventFile[]>([]);
@@ -221,22 +185,8 @@ function LetterDetailBody({
     setSaveError(ACTION_ERRORS[outcome.status] ?? ACTION_ERRORS.unexpected!);
   }
 
-  async function runDelete() {
-    if (!letter) return;
-    setDeleteBusy(true);
-    setDeleteError(null);
-    const outcome = await onDelete(letter.id);
-    setDeleteBusy(false);
-    if (outcome.status === "success") {
-      onDeleted();
-      return;
-    }
-    setConfirmingDelete(false);
-    setDeleteError(ACTION_ERRORS[outcome.status] ?? ACTION_ERRORS.unexpected!);
-  }
-
-  function pickFiles(files: File[]) {
-    const file = files[0];
+  function pickFiles(picked: File[]) {
+    const file = picked[0];
     if (!file) return;
     const error = fileSelectionError(file);
     if (error) {
@@ -293,32 +243,47 @@ function LetterDetailBody({
   const dirty = changedKeys(hrValuesOf(letter), form).length > 0;
 
   return (
-    <>
-      <DialogBackButton />
-      <DialogHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <DialogTitle>Edit {letter.referenceNumber}</DialogTitle>
-            <Badge variant="outline">
-              {LETTER_CATEGORY_LABELS[letter.category]}
-            </Badge>
+    <div className="space-y-6">
+      {backControl}
+
+      <header className="border-border bg-card relative overflow-hidden rounded-2xl border p-6 shadow-sm sm:p-8">
+        <div
+          aria-hidden="true"
+          className="from-primary/10 pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-linear-to-l to-transparent"
+        />
+        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-6 sm:flex-row sm:items-center">
+            <span className="bg-primary text-primary-foreground inline-flex size-16 shrink-0 items-center justify-center rounded-2xl shadow-sm">
+              <Mail aria-hidden="true" className="size-7" />
+            </span>
+            <div className="min-w-0 space-y-2">
+              <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                Letter
+              </p>
+              <h1 className="text-3xl font-semibold tracking-tight break-words">
+                Edit {letter.referenceNumber}
+              </h1>
+              <p className="text-primary/70 text-sm">
+                {letter.subject}
+                {letter.projectName ? ` · ${letter.projectName}` : ""}
+              </p>
+              <Badge variant="outline">
+                {LETTER_CATEGORY_LABELS[letter.category]}
+              </Badge>
+            </div>
           </div>
           {canShare ? (
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setShareOpen(true)}
             >
+              <Share2 aria-hidden="true" />
               Share
             </Button>
           ) : null}
         </div>
-        <DialogDescription>
-          {letter.subject}
-          {letter.projectName ? ` · ${letter.projectName}` : ""}
-        </DialogDescription>
-      </DialogHeader>
+      </header>
 
       {canShare ? (
         <ShareDialog
@@ -330,123 +295,165 @@ function LetterDetailBody({
         />
       ) : null}
 
-      <form onSubmit={(event) => void handleSave(event)} className="space-y-4">
-        {saveError ? (
-          <Alert variant="destructive" aria-live="assertive">
-            <AlertTitle>{saveError}</AlertTitle>
-          </Alert>
-        ) : null}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <form
+          onSubmit={(event) => void handleSave(event)}
+          aria-label="Edit letter"
+          className="border-border bg-card border-l-primary space-y-6 rounded-2xl border border-l-4 p-6 shadow-sm"
+        >
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Info aria-hidden="true" className="text-primary size-4" />
+            Edit letter
+          </h2>
+          {saveError ? (
+            <Alert variant="destructive" aria-live="assertive">
+              <AlertTitle>{saveError}</AlertTitle>
+            </Alert>
+          ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>Date</Label>
-            <Input
-              type="date"
-              value={form.date}
-              onChange={(event) =>
-                setForm({ ...form, date: event.target.value })
-              }
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Project</Label>
-            <Select
-              value={form.projectId ?? NONE}
-              onValueChange={(value) =>
-                setForm({ ...form, projectId: value === NONE ? null : value })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>No project</SelectItem>
-                {projects.map((project) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label>Subject</Label>
-          <Input
-            value={form.subject}
-            onChange={(event) =>
-              setForm({ ...form, subject: event.target.value })
-            }
-          />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>{letterPartyLabel(letter)}</Label>
-            <Input
-              value={
-                letter.direction === "INCOMING" ? form.fromParty : form.toParty
-              }
-              onChange={(event) =>
-                setForm({
-                  ...form,
-                  [letter.direction === "INCOMING" ? "fromParty" : "toParty"]:
-                    event.target.value,
-                })
-              }
-            />
-          </div>
-          {letter.direction === "INCOMING" ? (
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Sender&apos;s reference no.</Label>
+              <Label>Date</Label>
               <Input
-                value={form.senderReferenceNumber}
+                type="date"
+                value={form.date}
+                onChange={(event) =>
+                  setForm({ ...form, date: event.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Project</Label>
+              <Select
+                value={form.projectId ?? NONE}
+                onValueChange={(value) =>
+                  setForm({ ...form, projectId: value === NONE ? null : value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>No project</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Subject</Label>
+            <Input
+              value={form.subject}
+              onChange={(event) =>
+                setForm({ ...form, subject: event.target.value })
+              }
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{letterPartyLabel(letter)}</Label>
+              <Input
+                value={
+                  letter.direction === "INCOMING"
+                    ? form.fromParty
+                    : form.toParty
+                }
                 onChange={(event) =>
                   setForm({
                     ...form,
-                    senderReferenceNumber: event.target.value,
+                    [letter.direction === "INCOMING" ? "fromParty" : "toParty"]:
+                      event.target.value,
                   })
                 }
               />
             </div>
-          ) : null}
-        </div>
+            {letter.direction === "INCOMING" ? (
+              <div className="space-y-2">
+                <Label>Sender&apos;s reference no.</Label>
+                <Input
+                  value={form.senderReferenceNumber}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      senderReferenceNumber: event.target.value,
+                    })
+                  }
+                />
+              </div>
+            ) : null}
+          </div>
 
-        <div className="space-y-2">
-          <Label>Short description</Label>
-          <Textarea
-            rows={2}
-            value={form.shortDescription}
-            onChange={(event) =>
-              setForm({ ...form, shortDescription: event.target.value })
-            }
-          />
-        </div>
+          <div className="space-y-2">
+            <Label>Short description</Label>
+            <Textarea
+              rows={3}
+              value={form.shortDescription}
+              onChange={(event) =>
+                setForm({ ...form, shortDescription: event.target.value })
+              }
+            />
+          </div>
 
-        <div className="space-y-2">
-          <Label>Remark</Label>
-          <Textarea
-            rows={2}
-            value={form.remark}
-            onChange={(event) =>
-              setForm({ ...form, remark: event.target.value })
-            }
-          />
-        </div>
+          <div className="space-y-2">
+            <Label>Remark</Label>
+            <Textarea
+              rows={3}
+              value={form.remark}
+              onChange={(event) =>
+                setForm({ ...form, remark: event.target.value })
+              }
+            />
+          </div>
 
-        <Button
-          type="submit"
-          size="sm"
-          disabled={!dirty || saving}
-          aria-busy={saving}
+          <div className="border-border flex flex-wrap justify-end gap-3 border-t pt-5">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={saving}
+              onClick={onCancel}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!dirty || saving}
+              aria-busy={saving}
+            >
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </form>
+
+        <aside
+          aria-label="Letter summary"
+          className="border-border bg-accent/40 flex flex-col items-center justify-center gap-4 rounded-2xl border p-8 text-center shadow-sm"
         >
-          {saving ? "Saving…" : "Save changes"}
-        </Button>
-      </form>
+          <span className="bg-card inline-flex size-24 items-center justify-center rounded-2xl shadow-sm">
+            <Mail aria-hidden="true" className="text-primary size-12" />
+          </span>
+          <p className="text-lg font-semibold">
+            {LETTER_CATEGORY_LABELS[letter.category]}
+          </p>
+          <p className="text-muted-foreground text-sm">
+            {letter.referenceNumber}
+          </p>
+        </aside>
+      </div>
 
-      <div className="border-border space-y-3 border-t pt-4">
-        <p className="text-sm font-medium">Attachments</p>
+      <section
+        aria-label="Attachments"
+        className="border-border bg-card space-y-4 rounded-2xl border p-6 shadow-sm"
+      >
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <Paperclip aria-hidden="true" className="text-primary size-4" />
+          Attachments
+        </h2>
         {filesStatus === "loading" ? (
           <p className="text-muted-foreground text-sm">Loading attachments…</p>
         ) : filesStatus === "error" ? (
@@ -491,50 +498,7 @@ function LetterDetailBody({
             {uploadBusy ? "Attaching…" : "Attach file"}
           </Button>
         </div>
-      </div>
-
-      {canDelete ? (
-        <div className="border-border space-y-2 border-t pt-4">
-          {deleteError ? (
-            <Alert variant="destructive" aria-live="assertive">
-              <AlertTitle>{deleteError}</AlertTitle>
-            </Alert>
-          ) : null}
-          {confirmingDelete ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm">Delete this letter permanently?</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={deleteBusy}
-                onClick={() => setConfirmingDelete(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                disabled={deleteBusy}
-                aria-busy={deleteBusy}
-                onClick={() => void runDelete()}
-              >
-                {deleteBusy ? "Deleting…" : "Confirm delete"}
-              </Button>
-            </div>
-          ) : (
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              onClick={() => setConfirmingDelete(true)}
-            >
-              Delete letter
-            </Button>
-          )}
-        </div>
-      ) : null}
-    </>
+      </section>
+    </div>
   );
 }
