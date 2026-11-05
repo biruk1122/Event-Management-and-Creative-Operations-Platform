@@ -1293,6 +1293,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/events/summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Headline event counts for the listing, over the caller's visible events */
+    get: operations["Events_summary_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/events/{eventId}/files": {
     parameters: {
       query?: never;
@@ -5004,6 +5021,16 @@ export interface components {
       workLocation?: string;
     };
     CreateEventDto: {
+      /**
+       * @description Planned budget. Requires event.budget.update. Two fraction digits at most.
+       * @example 2500000
+       */
+      budgetAmount?: number;
+      /**
+       * @description ISO-4217 code for budgetAmount. Defaults to ETB when a budget is given.
+       * @example ETB
+       */
+      budgetCurrency?: string;
       /** @example Opening night gala for partners and press. */
       description?: string;
       /**
@@ -5044,6 +5071,14 @@ export interface components {
        * @description UTC start. If both ends are given, the end may not precede it.
        */
       startAt?: string;
+      /**
+       * @description Starting lifecycle state. Defaults to PLANNING; later states use the transition route.
+       * @default PLANNING
+       * @enum {string}
+       */
+      status: "PLANNING" | "READY";
+      /** @description Teams to assign to the event's connected workspace at creation. Requires event.assign_teams. */
+      teamIds?: string[];
     };
     CreateEventShiftDto: {
       breakMinutes?: number;
@@ -6100,6 +6135,15 @@ export interface components {
       /** @example Okafor */
       lastName: string | null;
     };
+    EventProgress: {
+      /** @example 3 */
+      completed: number;
+      /**
+       * @description Linked tasks, excluding cancelled.
+       * @example 4
+       */
+      total: number;
+    };
     EventResponse: {
       /** Format: date-time */
       createdAt: string;
@@ -6141,6 +6185,8 @@ export interface components {
       organizerName: string | null;
       /** @description Employees assigned to this event individually, from the connected workspace. */
       participants: components["schemas"]["EventPersonSummary"][];
+      /** @description Work progress derived from the tasks linked to this event (completed out of total, cancelled tasks excluded). Zero of zero when none are linked. */
+      progress: components["schemas"]["EventProgress"];
       /**
        * Format: date-time
        * @description UTC reminder instant, never after the start.
@@ -6219,6 +6265,25 @@ export interface components {
       status:
         "PLANNED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
       timeZone: string;
+    };
+    EventSummaryResponse: {
+      /**
+       * @description Completed events that start in the current calendar year.
+       * @example 14
+       */
+      completed: number;
+      /** @example 4 */
+      inProgress: number;
+      /**
+       * @description All visible events.
+       * @example 24
+       */
+      total: number;
+      /**
+       * @description Events starting in the next 30 days that are not cancelled or completed.
+       * @example 6
+       */
+      upcoming: number;
     };
     EventTeamSummary: {
       /**
@@ -14409,6 +14474,9 @@ export interface operations {
         startingAfter?: string;
         /** @description Only events that start at or before this UTC instant. */
         startingBefore?: string;
+        /** @description Column to sort the listing by. */
+        sort?: "startAt" | "name" | "status" | "createdAt";
+        direction?: "asc" | "desc";
         page?: components["schemas"]["Object"];
         pageSize?: components["schemas"]["Object"];
       };
@@ -14487,6 +14555,43 @@ export interface operations {
       };
       /** @description The requested manager user does not exist */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_summary_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventSummaryResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
         headers: {
           [name: string]: unknown;
         };
