@@ -5,7 +5,7 @@ import { DeleteLetterDialog } from "./delete-letter-dialog";
 import type { Letter } from "../lib/letters-types";
 const letter = {
   id: "letter-1",
-  referenceNumber: "LELA-HR-001",
+  referenceNumber: "LCM-HR-001",
   subject: "Venue confirmation",
 } as Letter;
 it("requires an explicit confirmation and deletes the selected letter", async () => {

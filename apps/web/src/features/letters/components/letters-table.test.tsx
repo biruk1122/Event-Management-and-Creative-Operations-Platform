@@ -6,7 +6,7 @@ import type { Letter } from "../lib/letters-types";
 
 const letter: Letter = {
   id: "letter-1",
-  referenceNumber: "LELA-HR-001",
+  referenceNumber: "LCM-HR-001",
   subject: "Venue confirmation",
   direction: "INCOMING",
   category: "HR",
@@ -52,22 +52,22 @@ describe("Letters table actions", () => {
     for (const name of ["Subject", "Share", "Remarks", "Action"])
       expect(screen.getByRole("columnheader", { name })).toBeInTheDocument();
     const table = within(screen.getByRole("table"));
-    await user.click(table.getByRole("button", { name: "Share LELA-HR-001" }));
+    await user.click(table.getByRole("button", { name: "Share LCM-HR-001" }));
     expect(props.onShare).toHaveBeenCalledWith(letter);
     await user.click(
-      table.getByRole("button", { name: "Attachments for LELA-HR-001" }),
+      table.getByRole("button", { name: "Attachments for LCM-HR-001" }),
     );
     expect(props.onOpenAttachments).toHaveBeenCalledWith(letter);
-    await user.click(table.getByRole("button", { name: "LELA-HR-001" }));
+    await user.click(table.getByRole("button", { name: "LCM-HR-001" }));
     expect(props.onSelect).toHaveBeenCalledWith(letter.id);
-    await user.click(table.getByRole("button", { name: "Edit LELA-HR-001" }));
+    await user.click(table.getByRole("button", { name: "Edit LCM-HR-001" }));
     expect(props.onEdit).toHaveBeenCalledWith(letter.id);
-    await user.click(table.getByRole("button", { name: "Delete LELA-HR-001" }));
+    await user.click(table.getByRole("button", { name: "Delete LCM-HR-001" }));
     expect(props.onDelete).toHaveBeenCalledWith(letter);
     const cells = within(table.getAllByRole("row")[1]!).getAllByRole("cell");
     expect(
       within(cells.at(-2)!).getByRole("button", {
-        name: "Remarks for LELA-HR-001",
+        name: "Remarks for LCM-HR-001",
       }),
     ).toBeInTheDocument();
     expect(
