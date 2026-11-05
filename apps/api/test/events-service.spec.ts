@@ -648,7 +648,7 @@ describe("EventsService", () => {
       const page = await service.list(ACTOR, {
         page: 1,
         pageSize: 25,
-      } as never);
+      });
 
       expect(page.items.map((item) => item.progress)).toEqual([
         { completed: 2, total: 4 },
