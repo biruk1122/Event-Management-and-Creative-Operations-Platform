@@ -1,12 +1,19 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
   IsEnum,
+  IsIn,
   IsISO8601,
+  IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Matches,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from "class-validator";
 
@@ -14,6 +21,10 @@ import { EventType } from "../../generated/prisma/client.js";
 
 /** Rejects a value that is empty once trimmed, matching the database CHECKs. */
 const NOT_BLANK = /\S/;
+
+/** A new event starts in planning or ready; later states are reached through
+ * the lifecycle transition route, never by creating an event directly. */
+export const CREATABLE_EVENT_STATUSES = ["PLANNING", "READY"] as const;
 
 export class CreateEventDto {
   @ApiProperty({
@@ -96,4 +107,51 @@ export class CreateEventDto {
   @IsOptional()
   @IsUUID()
   managerId?: string;
+
+  @ApiPropertyOptional({
+    enum: CREATABLE_EVENT_STATUSES,
+    default: "PLANNING",
+    description:
+      "Starting lifecycle state. Defaults to PLANNING; later states use the transition route.",
+  })
+  @IsOptional()
+  @IsIn(CREATABLE_EVENT_STATUSES)
+  status?: (typeof CREATABLE_EVENT_STATUSES)[number];
+
+  @ApiPropertyOptional({
+    type: [String],
+    format: "uuid",
+    maxItems: 20,
+    description:
+      "Teams to assign to the event's connected workspace at creation. Requires event.assign_teams.",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ArrayUnique()
+  @IsUUID("all", { each: true })
+  teamIds?: string[];
+
+  @ApiPropertyOptional({
+    example: 2500000,
+    minimum: 0,
+    description:
+      "Planned budget. Requires event.budget.update. Two fraction digits at most.",
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999.99)
+  budgetAmount?: number;
+
+  @ApiPropertyOptional({
+    example: "ETB",
+    description:
+      "ISO-4217 code for budgetAmount. Defaults to ETB when a budget is given.",
+  })
+  @IsOptional()
+  @Matches(/^[A-Z]{3}$/, {
+    message: "budgetCurrency must be three upper-case letters",
+  })
+  budgetCurrency?: string;
 }

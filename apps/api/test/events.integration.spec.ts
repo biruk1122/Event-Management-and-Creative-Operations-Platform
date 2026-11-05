@@ -68,6 +68,7 @@ const EVENT_KEYS = [
   "name",
   "organizerName",
   "participants",
+  "progress",
   "reminderAt",
   "startAt",
   "status",
@@ -458,6 +459,132 @@ describe("event management API", () => {
         ...p2.items.map((e) => e.id),
       ]);
       expect(ids.size).toBe(p1.items.length + p2.items.length);
+    });
+  });
+
+  describe("listing redesign: teams and budget on create, progress, sort, summary", () => {
+    it("creates with teams, a READY status and a budget; the budget stays behind the budget route", async () => {
+      const teamId = await createTeam();
+      const response = await as(superAdmin, "post", "/api/v1/events").send({
+        name: "Addis Live 2026",
+        eventType: "CONCERT",
+        status: "READY",
+        teamIds: [teamId],
+        budgetAmount: 2500000,
+      });
+      expect(response.status).toBe(201);
+      const created = body<EventBody>(response);
+      expect(created.status).toBe("READY");
+      expect(created.teams.map((team) => team.id)).toEqual([teamId]);
+      expect(created).not.toHaveProperty("budgetAmount");
+
+      const budget = await as(
+        superAdmin,
+        "get",
+        `/api/v1/events/${created.id}/budget`,
+      );
+      expect(budget.status).toBe(200);
+      expect(body<{ amount: string; currency: string }>(budget)).toMatchObject({
+        amount: "2500000.00",
+        currency: "ETB",
+      });
+    });
+
+    it("rejects a starting status other than PLANNING or READY", async () => {
+      const response = await as(superAdmin, "post", "/api/v1/events").send({
+        name: "Skipped ahead",
+        eventType: "OTHER",
+        status: "COMPLETED",
+      });
+      expect(response.status).toBe(400);
+    });
+
+    it("404s an unknown team on create and writes no event", async () => {
+      const before = await prisma.event.count();
+      const response = await as(superAdmin, "post", "/api/v1/events").send({
+        name: "Ghost team",
+        eventType: "OTHER",
+        teamIds: [UUID],
+      });
+      expect(response.status).toBe(404);
+      expect(body<ProblemBody>(response).code).toBe("EVENT_TEAM_NOT_FOUND");
+      expect(await prisma.event.count()).toBe(before);
+    });
+
+    it("derives progress from linked tasks and leaves cancelled tasks out", async () => {
+      const created = await createEvent();
+      // A task needs an owner (tasks_has_owner); the department is enough here.
+      await prisma.task.createMany({
+        data: [
+          {
+            title: "Book venue",
+            status: "COMPLETED",
+            relatedEventId: created.id,
+            departmentId,
+          },
+          {
+            title: "Print tickets",
+            status: "TODO",
+            relatedEventId: created.id,
+            departmentId,
+          },
+          {
+            title: "Dropped",
+            status: "CANCELLED",
+            relatedEventId: created.id,
+            departmentId,
+          },
+        ],
+      });
+
+      const read = await as(superAdmin, "get", `/api/v1/events/${created.id}`);
+      expect(body<EventBody>(read).progress).toEqual({
+        completed: 1,
+        total: 2,
+      });
+
+      const untouched = await createEvent();
+      const readEmpty = await as(
+        superAdmin,
+        "get",
+        `/api/v1/events/${untouched.id}`,
+      );
+      expect(body<EventBody>(readEmpty).progress).toEqual({
+        completed: 0,
+        total: 0,
+      });
+    });
+
+    it("sorts the listing by name in the requested direction", async () => {
+      const token = `sortprobe-${Math.random().toString(36).slice(2)}`;
+      await createEvent(superAdmin, { name: `${token} alpha` });
+      await createEvent(superAdmin, { name: `${token} zulu` });
+
+      const response = await as(
+        superAdmin,
+        "get",
+        `/api/v1/events?search=${token}&sort=name&direction=desc`,
+      );
+      expect(response.status).toBe(200);
+      expect(body<PageBody>(response).items.map((item) => item.name)).toEqual([
+        `${token} zulu`,
+        `${token} alpha`,
+      ]);
+    });
+
+    it("counts a new upcoming event in the summary tiles", async () => {
+      const before = body<{ total: number; upcoming: number }>(
+        await as(superAdmin, "get", "/api/v1/events/summary"),
+      );
+      const soon = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+      await createEvent(superAdmin, { startAt: soon });
+
+      const after = await as(superAdmin, "get", "/api/v1/events/summary");
+      expect(after.status).toBe(200);
+      expect(body<{ total: number; upcoming: number }>(after)).toMatchObject({
+        total: before.total + 1,
+        upcoming: before.upcoming + 1,
+      });
     });
   });
 

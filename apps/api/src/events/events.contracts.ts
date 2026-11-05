@@ -32,6 +32,18 @@ export class EventTeamSummary {
   name!: string;
 }
 
+/** Completed and total linked tasks for an event. */
+export class EventProgress {
+  @ApiProperty({ example: 3 })
+  completed!: number;
+
+  @ApiProperty({
+    example: 4,
+    description: "Linked tasks, excluding cancelled.",
+  })
+  total!: number;
+}
+
 /**
  * Public view of an event and its connected workspace overview: the shared
  * operational context (the event manager, the assigned teams, and the assigned
@@ -133,11 +145,40 @@ export class EventResponse {
   })
   createdBy!: EventPersonSummary | null;
 
+  @ApiProperty({
+    type: EventProgress,
+    description:
+      "Work progress derived from the tasks linked to this event (completed out of total, cancelled tasks excluded). Zero of zero when none are linked.",
+  })
+  progress!: EventProgress;
+
   @ApiProperty({ format: "date-time" })
   createdAt!: string;
 
   @ApiProperty({ format: "date-time" })
   updatedAt!: string;
+}
+
+/** Headline counts for the events listing tiles, over the caller's visible events. */
+export class EventSummaryResponse {
+  @ApiProperty({ example: 24, description: "All visible events." })
+  total!: number;
+
+  @ApiProperty({
+    example: 6,
+    description:
+      "Events starting in the next 30 days that are not cancelled or completed.",
+  })
+  upcoming!: number;
+
+  @ApiProperty({ example: 4 })
+  inProgress!: number;
+
+  @ApiProperty({
+    example: 14,
+    description: "Completed events that start in the current calendar year.",
+  })
+  completed!: number;
 }
 
 /** A page of events for the administration and connected-workspace overview. */

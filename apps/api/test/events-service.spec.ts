@@ -61,6 +61,8 @@ describe("EventsService", () => {
     updateStatus: ReturnType<typeof vi.fn>;
     setBudget: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
+    taskProgressFor: ReturnType<typeof vi.fn>;
+    summary: ReturnType<typeof vi.fn>;
   };
   let workspaces: {
     setManager: ReturnType<typeof vi.fn>;
@@ -96,6 +98,13 @@ describe("EventsService", () => {
       updateStatus: vi.fn().mockResolvedValue(makeEvent()),
       setBudget: vi.fn().mockResolvedValue(makeEvent()),
       delete: vi.fn().mockResolvedValue("deleted"),
+      taskProgressFor: vi.fn().mockResolvedValue(new Map()),
+      summary: vi.fn().mockResolvedValue({
+        total: 0,
+        upcoming: 0,
+        inProgress: 0,
+        completed: 0,
+      }),
     };
     function forwardToFindById(id: string): Promise<EventRecord | null> {
       return (
@@ -558,6 +567,129 @@ describe("EventsService", () => {
     });
   });
 
+  describe("create with teams, budget and status", () => {
+    const TEAM_ID = "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77";
+    const base = { name: "Gala", eventType: "CONCERT" as const };
+
+    it("refuses teams without event.assign_teams", async () => {
+      grantOnly(["event.create", "ORGANIZATION"]);
+      await expectCode(
+        service.create(ACTOR, { ...base, teamIds: [TEAM_ID] }),
+        "PERMISSION_DENIED",
+      );
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a budget without event.budget.update", async () => {
+      grantOnly(["event.create", "ORGANIZATION"]);
+      await expectCode(
+        service.create(ACTOR, { ...base, budgetAmount: 100 }),
+        "PERMISSION_DENIED",
+      );
+      expect(repository.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a currency without an amount", async () => {
+      grantOnly(
+        ["event.create", "ORGANIZATION"],
+        ["event.budget.update", "ORGANIZATION"],
+      );
+      await expectCode(
+        service.create(ACTOR, { ...base, budgetCurrency: "ETB" }),
+        "EVENT_BUDGET_INCOMPLETE",
+      );
+    });
+
+    it("passes teams, a default ETB budget and the starting status to the repository", async () => {
+      grantOnly(
+        ["event.create", "ORGANIZATION"],
+        ["event.assign_teams", "ORGANIZATION"],
+        ["event.budget.update", "ORGANIZATION"],
+      );
+      await service.create(ACTOR, {
+        ...base,
+        status: "READY",
+        teamIds: [TEAM_ID],
+        budgetAmount: 2500000,
+      });
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "READY",
+          teamIds: [TEAM_ID],
+          budget: { amount: 2500000, currency: "ETB" },
+        }),
+      );
+    });
+
+    it("maps an unknown team to EVENT_TEAM_NOT_FOUND", async () => {
+      grantOnly(
+        ["event.create", "ORGANIZATION"],
+        ["event.assign_teams", "ORGANIZATION"],
+      );
+      repository.create.mockResolvedValue("team_not_found");
+      await expectCode(
+        service.create(ACTOR, { ...base, teamIds: [TEAM_ID] }),
+        "EVENT_TEAM_NOT_FOUND",
+      );
+    });
+  });
+
+  describe("listing: progress, sorting and summary", () => {
+    it("attaches each event's linked-task progress, zero when none", async () => {
+      grantOnly(["event.read", "ORGANIZATION"]);
+      repository.list.mockResolvedValue({
+        items: [makeEvent({ id: "evt-1" }), makeEvent({ id: "evt-2" })],
+        total: 2,
+      });
+      repository.taskProgressFor.mockResolvedValue(
+        new Map([["evt-1", { completed: 2, total: 4 }]]),
+      );
+
+      const page = await service.list(ACTOR, {
+        page: 1,
+        pageSize: 25,
+      } as never);
+
+      expect(page.items.map((item) => item.progress)).toEqual([
+        { completed: 2, total: 4 },
+        { completed: 0, total: 0 },
+      ]);
+    });
+
+    it("passes the requested sort to the repository", async () => {
+      grantOnly(["event.read", "ORGANIZATION"]);
+      await service.list(ACTOR, {
+        page: 1,
+        pageSize: 25,
+        sort: "name",
+        direction: "desc",
+      } as never);
+      expect(repository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ sort: { field: "name", direction: "desc" } }),
+      );
+    });
+
+    it("returns the summary for the caller's visibility", async () => {
+      grantOnly(["event.read", "ORGANIZATION"]);
+      repository.summary.mockResolvedValue({
+        total: 24,
+        upcoming: 6,
+        inProgress: 4,
+        completed: 14,
+      });
+      await expect(service.summary(ACTOR)).resolves.toEqual({
+        total: 24,
+        upcoming: 6,
+        inProgress: 4,
+        completed: 14,
+      });
+      expect(repository.summary).toHaveBeenCalledWith(
+        { organization: true },
+        expect.any(Date),
+      );
+    });
+  });
+
   describe("response contract", () => {
     it("returns ISO strings, embeds workspace composition, and never a budget key", async () => {
       grantOnly(["event.read", "ORGANIZATION"]);
@@ -591,6 +723,7 @@ describe("EventsService", () => {
           "name",
           "organizerName",
           "participants",
+          "progress",
           "reminderAt",
           "startAt",
           "status",

@@ -9,6 +9,27 @@ import {
 } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
 
+/** Thrown inside the create transaction to roll it back when a requested team
+ * does not exist; converted to a `"team_not_found"` outcome. */
+class TeamNotFoundOutcome extends Error {}
+
+function orderByFor(
+  sort: ListEventsInput["sort"],
+): Prisma.EventOrderByWithRelationInput[] {
+  const direction = sort?.direction ?? "asc";
+  switch (sort?.field) {
+    case "startAt":
+      return [{ startAt: { sort: direction, nulls: "last" } }, { id: "asc" }];
+    case "name":
+      return [{ name: direction }, { id: "asc" }];
+    case "status":
+      return [{ status: direction }, { id: "asc" }];
+    default:
+      // `id` (uuidv7) is the tiebreaker so pagination stays deterministic.
+      return [{ createdAt: direction }, { id: "asc" }];
+  }
+}
+
 export interface EventPersonRecord {
   id: string;
   email: string;
@@ -67,6 +88,10 @@ export interface ListEventsInput {
   search?: string;
   startingAfter?: Date;
   startingBefore?: Date;
+  sort?: {
+    field: "startAt" | "name" | "status" | "createdAt";
+    direction: "asc" | "desc";
+  };
   page: number;
   pageSize: number;
 }
@@ -83,6 +108,12 @@ export interface CreateEventInput {
   managerId?: string;
   createdById: string;
   departmentId?: string;
+  /** Starting state; the service admits only PLANNING or READY. */
+  status?: EventStatus;
+  /** Teams to assign to the event's connected workspace in the same transaction. */
+  teamIds?: string[];
+  /** Planned budget, stored with its currency (ETB by default). */
+  budget?: { amount: number; currency: string };
 }
 
 export interface EventBudgetSummary {
@@ -274,7 +305,7 @@ export class EventsRepository {
         select: EVENT_SELECT,
         // `id` (uuidv7) is the tiebreaker so pagination stays deterministic
         // when two events share a `created_at` value.
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        orderBy: orderByFor(input.sort),
         skip: (input.page - 1) * input.pageSize,
         take: input.pageSize,
       }),
@@ -344,9 +375,19 @@ export class EventsRepository {
    */
   async create(
     input: CreateEventInput,
-  ): Promise<EventRecord | "manager_not_found"> {
+  ): Promise<EventRecord | "manager_not_found" | "team_not_found"> {
     try {
       return await this.db.$transaction(async (tx) => {
+        // Teams are checked up front so an unknown id is a clean outcome,
+        // not an ambiguous foreign-key failure mixed up with the manager.
+        const teamIds = [...new Set(input.teamIds ?? [])];
+        if (teamIds.length > 0) {
+          const found = await tx.team.count({ where: { id: { in: teamIds } } });
+          if (found !== teamIds.length) {
+            throw new TeamNotFoundOutcome();
+          }
+        }
+
         const workspace = await tx.workspace.create({
           data: {
             kind: WorkspaceKind.EVENT,
@@ -354,6 +395,14 @@ export class EventsRepository {
           },
           select: { id: true },
         });
+        if (teamIds.length > 0) {
+          await tx.workspaceTeam.createMany({
+            data: teamIds.map((teamId) => ({
+              workspaceId: workspace.id,
+              teamId,
+            })),
+          });
+        }
         const event = await tx.event.create({
           data: {
             workspaceId: workspace.id,
@@ -375,17 +424,99 @@ export class EventsRepository {
               ? { organizerName: input.organizerName }
               : {}),
             ...(input.departmentId ? { departmentId: input.departmentId } : {}),
+            ...(input.status ? { status: input.status } : {}),
+            ...(input.budget
+              ? {
+                  budgetAmount: input.budget.amount,
+                  budgetCurrency: input.budget.currency,
+                }
+              : {}),
           },
           select: EVENT_SELECT,
         });
         return toRecord(event);
       });
     } catch (error) {
+      if (error instanceof TeamNotFoundOutcome) {
+        return "team_not_found";
+      }
       if (isPrismaError(error, PRISMA_ERROR.foreignKeyViolation)) {
         return "manager_not_found";
       }
       throw error;
     }
+  }
+
+  /** Counts linked tasks per event, excluding cancelled ones. Events with no
+   * linked tasks are absent from the map. */
+  async taskProgressFor(
+    eventIds: readonly string[],
+  ): Promise<Map<string, { completed: number; total: number }>> {
+    const progress = new Map<string, { completed: number; total: number }>();
+    const ids = eventIds.filter(isUuid);
+    if (ids.length === 0) return progress;
+    const rows = await this.db.task.groupBy({
+      by: ["relatedEventId", "status"],
+      where: {
+        relatedEventId: { in: ids },
+        status: { not: "CANCELLED" },
+      },
+      _count: { _all: true },
+    });
+    for (const row of rows) {
+      if (!row.relatedEventId) continue;
+      const entry = progress.get(row.relatedEventId) ?? {
+        completed: 0,
+        total: 0,
+      };
+      entry.total += row._count._all;
+      if (row.status === "COMPLETED") entry.completed += row._count._all;
+      progress.set(row.relatedEventId, entry);
+    }
+    return progress;
+  }
+
+  /** Headline counts over the caller's visible, non-archived events. */
+  async summary(
+    visibility: EventVisibility,
+    now: Date,
+  ): Promise<{
+    total: number;
+    upcoming: number;
+    inProgress: number;
+    completed: number;
+  }> {
+    const base: Prisma.EventWhereInput = {
+      ...visibleWhere(visibility),
+      archivedAt: null,
+    };
+    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const [total, upcoming, inProgress, completed] = await Promise.all([
+      this.db.event.count({ where: base }),
+      this.db.event.count({
+        where: {
+          AND: [
+            base,
+            { startAt: { gt: now, lte: in30Days } },
+            { status: { notIn: ["CANCELLED", "COMPLETED"] } },
+          ],
+        },
+      }),
+      this.db.event.count({
+        where: { AND: [base, { status: "IN_PROGRESS" }] },
+      }),
+      this.db.event.count({
+        where: {
+          AND: [
+            base,
+            { status: "COMPLETED" },
+            { startAt: { gte: startOfYear } },
+          ],
+        },
+      }),
+    ]);
+    return { total, upcoming, inProgress, completed };
   }
 
   async update(
