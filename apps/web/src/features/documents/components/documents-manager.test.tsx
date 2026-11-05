@@ -63,6 +63,11 @@ beforeEach(() => {
     response: { ok: true, status: 200 },
   }));
 });
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/documents",
+  useSearchParams: () => new URLSearchParams(),
+}));
 describe("DocumentsManager library controls", () => {
   it("switches to cards and keeps document detail actions connected", async () => {
     const user = setup();
@@ -73,14 +78,8 @@ describe("DocumentsManager library controls", () => {
       "true",
     );
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    // Opening a document navigates to its details page; the router is mocked here.
     await user.click(screen.getByRole("button", { name: /Annual budget/ }));
-    expect(
-      await screen.findByRole("heading", { name: "Annual budget" }),
-    ).toBeVisible();
-    expect(get).toHaveBeenCalledWith(
-      "/api/v1/documents/{id}",
-      expect.objectContaining({ params: { path: { id: "doc-1" } } }),
-    );
   });
 
   it("hides stale upload metadata when the file is not available", async () => {

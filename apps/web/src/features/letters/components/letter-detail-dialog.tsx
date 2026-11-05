@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
 import { useEffect, useState, type FormEvent } from "react";
 import { LoaderCircle, Paperclip, TriangleAlert } from "lucide-react";
 
@@ -293,6 +294,7 @@ function LetterDetailBody({
 
   return (
     <>
+      <DialogBackButton />
       <DialogHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">

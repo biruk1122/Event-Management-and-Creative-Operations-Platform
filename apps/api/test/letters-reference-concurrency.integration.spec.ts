@@ -62,7 +62,7 @@ describe("letter reference number concurrency", () => {
     const results = await Promise.all(
       Array.from({ length: CONCURRENCY }, () =>
         repository.create(
-          "LELA",
+          "LCM",
           2026,
           { ...baseFields, category: "CAST" },
           actorId,
@@ -80,7 +80,7 @@ describe("letter reference number concurrency", () => {
       Array.from({ length: CONCURRENCY }, (_, index) => index + 1),
     );
     for (const ref of referenceNumbers) {
-      expect(ref).toMatch(/^LELA-CAST-2026-\d{3}$/);
+      expect(ref).toMatch(/^LCM-CAST-2026-\d{3}$/);
     }
   });
 
@@ -89,7 +89,7 @@ describe("letter reference number concurrency", () => {
       Promise.all(
         Array.from({ length: 5 }, () =>
           repository.create(
-            "LELA",
+            "LCM",
             2027,
             { ...baseFields, category: "CAST" },
             actorId,
@@ -100,7 +100,7 @@ describe("letter reference number concurrency", () => {
       Promise.all(
         Array.from({ length: 5 }, () =>
           repository.create(
-            "LELA",
+            "LCM",
             2027,
             { ...baseFields, category: "MKT" },
             actorId,
@@ -125,7 +125,7 @@ describe("letter reference number concurrency", () => {
     expect(before).toBe(beforeAgain);
 
     const created = await repository.create(
-      "LELA",
+      "LCM",
       2028,
       { ...baseFields, category: "PROD" },
       actorId,

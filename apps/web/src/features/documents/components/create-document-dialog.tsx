@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
+import { FileText, MessageSquare } from "lucide-react";
 
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,23 @@ function empty(): CreateDocumentValues {
   };
 }
 
+function SectionHeading({
+  icon: Icon,
+  children,
+}: {
+  icon: typeof FileText;
+  children: string;
+}) {
+  return (
+    <h3 className="mb-1 flex items-center gap-2.5 text-base font-semibold">
+      <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
+        <Icon aria-hidden="true" className="size-4" />
+      </span>
+      {children}
+    </h3>
+  );
+}
+
 export function CreateDocumentDialog({
   open,
   onOpenChange,
@@ -65,6 +83,7 @@ export function CreateDocumentDialog({
   onCreate,
   onCreated,
 }: CreateDocumentDialogProps) {
+  const formId = useId();
   const ids = {
     displayName: useId(),
     documentType: useId(),
@@ -126,106 +145,127 @@ export function CreateDocumentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>New document</DialogTitle>
-          <DialogDescription>
-            Create the record first, then attach its file from the detail view.
-          </DialogDescription>
+      <DialogContent className="flex h-[98vh] max-h-[98vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-[94vw] lg:max-w-300 xl:max-w-340">
+        <DialogHeader className="border-border from-accent to-card flex-row items-center justify-between gap-4 border-b bg-linear-to-br px-6 py-5 text-left sm:px-10">
+          <div className="flex items-center gap-3">
+            <span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
+              <FileText aria-hidden="true" className="size-6" />
+            </span>
+            <div>
+              <DialogTitle className="text-xl">New document</DialogTitle>
+              <DialogDescription>
+                Create the record first, then attach its file from the detail
+                view.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form
-          aria-label="Create document"
-          className="space-y-4"
-          onSubmit={(event) => void handleSubmit(event)}
-        >
-          {formError ? (
-            <Alert variant="destructive" aria-live="assertive">
-              <AlertTitle>{formError}</AlertTitle>
-            </Alert>
-          ) : null}
+        <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-10 sm:py-8">
+          <form
+            id={formId}
+            aria-label="Create document"
+            className="space-y-8"
+            onSubmit={(event) => void handleSubmit(event)}
+          >
+            {formError ? (
+              <Alert variant="destructive" aria-live="assertive">
+                <AlertTitle>{formError}</AlertTitle>
+              </Alert>
+            ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor={ids.displayName}>Name</Label>
-            <Input
-              id={ids.displayName}
-              required
-              value={values.displayName}
-              aria-invalid={fieldErrors.displayName ? true : undefined}
-              onChange={(event) => set("displayName", event.target.value)}
-            />
-          </div>
+            <section className="border-border bg-muted/30 space-y-4 rounded-2xl border p-5 sm:p-6">
+              <SectionHeading icon={FileText}>Document details</SectionHeading>
+              <div className="space-y-2">
+                <Label htmlFor={ids.displayName}>Name</Label>
+                <Input
+                  id={ids.displayName}
+                  required
+                  value={values.displayName}
+                  aria-invalid={fieldErrors.displayName ? true : undefined}
+                  onChange={(event) => set("displayName", event.target.value)}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor={ids.documentType}>Type</Label>
+                  <Select
+                    value={values.documentType}
+                    onValueChange={(value) =>
+                      set("documentType", value as DocumentType)
+                    }
+                  >
+                    <SelectTrigger id={ids.documentType}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(DOCUMENT_TYPE_LABELS).map(
+                        ([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={ids.project}>Document of (optional)</Label>
+                  <Select
+                    value={values.projectId ?? NONE}
+                    onValueChange={(value) =>
+                      set("projectId", value === NONE ? null : value)
+                    }
+                  >
+                    <SelectTrigger id={ids.project}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>No linked project</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </section>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={ids.documentType}>Type</Label>
-              <Select
-                value={values.documentType}
-                onValueChange={(value) =>
-                  set("documentType", value as DocumentType)
-                }
-              >
-                <SelectTrigger id={ids.documentType}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(DOCUMENT_TYPE_LABELS).map(
-                    ([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={ids.project}>Document of (optional)</Label>
-              <Select
-                value={values.projectId ?? NONE}
-                onValueChange={(value) =>
-                  set("projectId", value === NONE ? null : value)
-                }
-              >
-                <SelectTrigger id={ids.project}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>No linked project</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+            <section className="border-border bg-muted/30 space-y-4 rounded-2xl border p-5 sm:p-6">
+              <SectionHeading icon={MessageSquare}>Description</SectionHeading>
+              <div className="space-y-2">
+                <Label htmlFor={ids.description}>Description (optional)</Label>
+                <Textarea
+                  id={ids.description}
+                  rows={5}
+                  value={values.description}
+                  onChange={(event) => set("description", event.target.value)}
+                />
+              </div>
+            </section>
+          </form>
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor={ids.description}>Description (optional)</Label>
-            <Textarea
-              id={ids.description}
-              rows={2}
-              value={values.description}
-              onChange={(event) => set("description", event.target.value)}
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting} aria-busy={submitting}>
-              {submitting ? "Creating…" : "Create document"}
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter className="border-border bg-card border-t px-6 py-4 sm:px-10">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={submitting}
+            aria-busy={submitting}
+          >
+            {submitting ? "Creating…" : "Create document"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

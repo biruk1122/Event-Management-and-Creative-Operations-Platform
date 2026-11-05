@@ -78,6 +78,11 @@ function setup() {
   );
 }
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/documents",
+  useSearchParams: () => new URLSearchParams(),
+}));
 describe("DocumentsScreen access boundary", () => {
   it("announces the permission check while it runs", () => {
     get.mockImplementation(() => new Promise(() => undefined));

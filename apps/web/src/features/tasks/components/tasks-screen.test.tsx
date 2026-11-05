@@ -35,6 +35,11 @@ function setup() {
   );
 }
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/tasks",
+  useSearchParams: () => new URLSearchParams(),
+}));
 describe("TasksScreen", () => {
   it("renders the task UI for any valid task.read scope", async () => {
     setup();

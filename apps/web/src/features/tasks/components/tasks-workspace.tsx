@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useUrlState } from "@/features/navigation/hooks/use-url-state";
+import {
+  booleanCodec,
+  enumCodec,
+  nullableEnumCodec,
+  nullableStringCodec,
+  stringCodec,
+} from "@/features/navigation/lib/url-state";
 import { useQuery } from "@tanstack/react-query";
 import {
   Ban,
@@ -76,6 +85,9 @@ import {
 import { CreateTaskDialog, type CreateTaskValues } from "./create-task-dialog";
 
 type View = "list" | "board" | "calendar";
+
+const VIEW_CODEC = enumCodec(["list", "board", "calendar"] as const);
+const TASK_STATUS_CODEC = nullableEnumCodec(TASK_STATUSES);
 
 const ALL = "ALL";
 
@@ -1522,13 +1534,50 @@ export function TaskWorkspace({
   /** Powers the "Department Tasks" filter; empty hides that control. */
   departments?: readonly { id: string; name: string }[];
 }) {
-  const [view, setView] = useState<View>("list");
-  const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<TaskStatus | null>(null);
-  const [assignedToMe, setAssignedToMe] = useState(false);
-  const [createdByMe, setCreatedByMe] = useState(false);
-  const [reportingToMe, setReportingToMe] = useState(false);
-  const [overdueOnly, setOverdueOnly] = useState(false);
+  // The view and filters live in the URL, so a visit to a task and back restores them.
+  const urlQuery = useSearchParams();
+  const [view, setView] = useUrlState<View>(
+    "view",
+    "list",
+    VIEW_CODEC,
+    urlQuery.get("view"),
+  );
+  const [query, setQuery] = useUrlState<string>(
+    "q",
+    "",
+    stringCodec,
+    urlQuery.get("q"),
+  );
+  const [status, setStatus] = useUrlState<TaskStatus | null>(
+    "status",
+    null,
+    TASK_STATUS_CODEC,
+    urlQuery.get("status"),
+  );
+  const [assignedToMe, setAssignedToMe] = useUrlState<boolean>(
+    "assigned",
+    false,
+    booleanCodec,
+    urlQuery.get("assigned"),
+  );
+  const [createdByMe, setCreatedByMe] = useUrlState<boolean>(
+    "created",
+    false,
+    booleanCodec,
+    urlQuery.get("created"),
+  );
+  const [reportingToMe, setReportingToMe] = useUrlState<boolean>(
+    "reporting",
+    false,
+    booleanCodec,
+    urlQuery.get("reporting"),
+  );
+  const [overdueOnly, setOverdueOnly] = useUrlState<boolean>(
+    "overdue",
+    false,
+    booleanCodec,
+    urlQuery.get("overdue"),
+  );
   const departmentNames = useMemo(
     () =>
       new Map(
@@ -1536,8 +1585,18 @@ export function TaskWorkspace({
       ),
     [departments],
   );
-  const [reviewerNeeded, setReviewerNeeded] = useState(false);
-  const [departmentId, setDepartmentId] = useState<string | null>(null);
+  const [reviewerNeeded, setReviewerNeeded] = useUrlState<boolean>(
+    "reviewer",
+    false,
+    booleanCodec,
+    urlQuery.get("reviewer"),
+  );
+  const [departmentId, setDepartmentId] = useUrlState<string | null>(
+    "department",
+    null,
+    nullableStringCodec,
+    urlQuery.get("department"),
+  );
   const [selected, setSelected] = useState<Task | null>(null);
   const visibleTasks = useMemo(
     () =>

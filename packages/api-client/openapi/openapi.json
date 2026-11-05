@@ -4784,7 +4784,7 @@
         "properties": {
           "referenceNumber": {
             "description": "Non-reserving preview of the next number. Assigned for real only when the letter is created.",
-            "example": "LELA-CAST-2026-002",
+            "example": "LCM-CAST-2026-002",
             "type": "string"
           }
         },
@@ -4878,7 +4878,7 @@
             "type": "string"
           },
           "referenceNumber": {
-            "example": "LELA-CAST-2026-001",
+            "example": "LCM-CAST-2026-001",
             "type": "string"
           },
           "remark": {
@@ -8566,7 +8566,7 @@
             "type": "string"
           },
           "referenceNumber": {
-            "example": "LELA-CAST-2026-001",
+            "example": "LCM-CAST-2026-001",
             "type": "string"
           },
           "remark": {

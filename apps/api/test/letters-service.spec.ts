@@ -10,7 +10,7 @@ const ACTOR = "actor-1";
 function makeLetter(overrides: Partial<LetterRecord> = {}): LetterRecord {
   return {
     id: "letter-1",
-    referenceNumber: "LELA-CAST-2026-001",
+    referenceNumber: "LCM-CAST-2026-001",
     direction: "INCOMING",
     category: "CAST",
     date: new Date("2026-01-01T00:00:00Z"),
@@ -219,7 +219,7 @@ describe("LettersService", () => {
   describe("create", () => {
     it("generates the reference number via the repository and returns it", async () => {
       repository.create.mockResolvedValue(
-        makeLetter({ referenceNumber: "LELA-CAST-2026-007" }),
+        makeLetter({ referenceNumber: "LCM-CAST-2026-007" }),
       );
       const result = await service.create(
         ACTOR,
@@ -232,9 +232,9 @@ describe("LettersService", () => {
         },
         "req-1",
       );
-      expect(result.referenceNumber).toBe("LELA-CAST-2026-007");
+      expect(result.referenceNumber).toBe("LCM-CAST-2026-007");
       expect(repository.create).toHaveBeenCalledWith(
-        "LELA",
+        "LCM",
         expect.any(Number),
         expect.objectContaining({ category: "CAST", direction: "INCOMING" }),
         ACTOR,
@@ -316,7 +316,7 @@ describe("LettersService", () => {
         "req-1",
       );
       expect(result.subject).toBe("Updated");
-      expect(result.referenceNumber).toBe("LELA-CAST-2026-001");
+      expect(result.referenceNumber).toBe("LCM-CAST-2026-001");
     });
   });
 

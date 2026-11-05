@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState, type FormEvent } from "react";
+import { FileText, Mail, MessageSquare, Users } from "lucide-react";
 
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +68,23 @@ function empty(direction: LetterDirection): CreateLetterValues {
   };
 }
 
+function SectionHeading({
+  icon: Icon,
+  children,
+}: {
+  icon: typeof Mail;
+  children: string;
+}) {
+  return (
+    <h3 className="mb-1 flex items-center gap-2.5 text-base font-semibold">
+      <span className="bg-primary/10 text-primary flex size-8 items-center justify-center rounded-lg">
+        <Icon aria-hidden="true" className="size-4" />
+      </span>
+      {children}
+    </h3>
+  );
+}
+
 export function CreateLetterDialog({
   open,
   onOpenChange,
@@ -75,6 +93,7 @@ export function CreateLetterDialog({
   onCreate,
   onCreated,
 }: CreateLetterDialogProps) {
+  const formId = useId();
   const ids = {
     direction: useId(),
     category: useId(),
@@ -155,195 +174,221 @@ export function CreateLetterDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>New letter</DialogTitle>
-          <DialogDescription>
-            The reference number is assigned automatically when you save.
-          </DialogDescription>
+      <DialogContent className="flex h-[98vh] max-h-[98vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-[94vw] lg:max-w-300 xl:max-w-340">
+        <DialogHeader className="border-border from-accent to-card flex-row items-center justify-between gap-4 border-b bg-linear-to-br px-6 py-5 text-left sm:px-10">
+          <div className="flex items-center gap-3">
+            <span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
+              <Mail aria-hidden="true" className="size-6" />
+            </span>
+            <div>
+              <DialogTitle className="text-xl">New letter</DialogTitle>
+              <DialogDescription>
+                Record the letter&apos;s details. The reference number is
+                assigned automatically when you save.
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form
-          aria-label="Register letter"
-          className="space-y-4"
-          onSubmit={(event) => void handleSubmit(event)}
-        >
-          {formError ? (
-            <Alert variant="destructive" aria-live="assertive">
-              <AlertTitle>{formError}</AlertTitle>
-            </Alert>
-          ) : null}
+        <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-10 sm:py-8">
+          <form
+            id={formId}
+            aria-label="Register letter"
+            className="space-y-8"
+            onSubmit={(event) => void handleSubmit(event)}
+          >
+            {formError ? (
+              <Alert variant="destructive" aria-live="assertive">
+                <AlertTitle>{formError}</AlertTitle>
+              </Alert>
+            ) : null}
 
-          <div className="bg-muted/30 border-border flex items-center justify-between rounded-lg border p-3">
-            <span className="text-sm font-medium">Reference number</span>
-            <Badge variant="outline" title="Assigned on save">
-              {preview || "…"} (preview)
-            </Badge>
-          </div>
+            <div className="border-border bg-muted/30 flex items-center justify-between gap-3 rounded-2xl border p-5 sm:p-6">
+              <span className="text-sm font-medium">Reference number</span>
+              <Badge variant="outline" title="Assigned on save">
+                {preview || "…"} (preview)
+              </Badge>
+            </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={ids.direction}>Direction</Label>
-              <Select
-                value={values.direction}
-                onValueChange={(value) =>
-                  set("direction", value as LetterDirection)
-                }
-              >
-                <SelectTrigger id={ids.direction}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LETTER_DIRECTIONS.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {LETTER_DIRECTION_LABELS[value]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={ids.category}>Category</Label>
-              <Select
-                value={values.category}
-                onValueChange={(value) =>
-                  set("category", value as LetterCategory)
-                }
-              >
-                <SelectTrigger id={ids.category}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(LETTER_CATEGORY_LABELS).map(
-                    ([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={ids.date}>Date</Label>
-              <Input
-                id={ids.date}
-                type="date"
-                required
-                value={values.date}
-                onChange={(event) => set("date", event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={ids.project}>Project (optional)</Label>
-              <Select
-                value={values.projectId ?? NONE}
-                onValueChange={(value) =>
-                  set("projectId", value === NONE ? null : value)
-                }
-              >
-                <SelectTrigger id={ids.project}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NONE}>No project</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={ids.subject}>Subject</Label>
-            <Input
-              id={ids.subject}
-              required
-              value={values.subject}
-              aria-invalid={fieldErrors.subject ? true : undefined}
-              onChange={(event) => set("subject", event.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={ids.party}>
-                {values.direction === "INCOMING" ? "From" : "To"}
-              </Label>
-              <Input
-                id={ids.party}
-                required
-                value={
-                  values.direction === "INCOMING"
-                    ? values.fromParty
-                    : values.toParty
-                }
-                onChange={(event) =>
-                  set(
-                    values.direction === "INCOMING" ? "fromParty" : "toParty",
-                    event.target.value,
-                  )
-                }
-              />
-            </div>
-            {values.direction === "INCOMING" ? (
+            <section className="border-border bg-muted/30 space-y-4 rounded-2xl border p-5 sm:p-6">
+              <SectionHeading icon={FileText}>Letter details</SectionHeading>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor={ids.direction}>Direction</Label>
+                  <Select
+                    value={values.direction}
+                    onValueChange={(value) =>
+                      set("direction", value as LetterDirection)
+                    }
+                  >
+                    <SelectTrigger id={ids.direction}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LETTER_DIRECTIONS.map((value) => (
+                        <SelectItem key={value} value={value}>
+                          {LETTER_DIRECTION_LABELS[value]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={ids.category}>Category</Label>
+                  <Select
+                    value={values.category}
+                    onValueChange={(value) =>
+                      set("category", value as LetterCategory)
+                    }
+                  >
+                    <SelectTrigger id={ids.category}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(LETTER_CATEGORY_LABELS).map(
+                        ([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ),
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={ids.date}>Date</Label>
+                  <Input
+                    id={ids.date}
+                    type="date"
+                    required
+                    value={values.date}
+                    onChange={(event) => set("date", event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={ids.project}>Project (optional)</Label>
+                  <Select
+                    value={values.projectId ?? NONE}
+                    onValueChange={(value) =>
+                      set("projectId", value === NONE ? null : value)
+                    }
+                  >
+                    <SelectTrigger id={ids.project}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>No project</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="space-y-2">
-                <Label htmlFor={ids.senderReferenceNumber}>
-                  Sender&apos;s reference no. (optional)
-                </Label>
+                <Label htmlFor={ids.subject}>Subject</Label>
                 <Input
-                  id={ids.senderReferenceNumber}
-                  value={values.senderReferenceNumber}
-                  onChange={(event) =>
-                    set("senderReferenceNumber", event.target.value)
-                  }
+                  id={ids.subject}
+                  required
+                  value={values.subject}
+                  aria-invalid={fieldErrors.subject ? true : undefined}
+                  onChange={(event) => set("subject", event.target.value)}
                 />
               </div>
-            ) : null}
-          </div>
+            </section>
 
-          <div className="space-y-2">
-            <Label htmlFor={ids.shortDescription}>
-              Short description (optional)
-            </Label>
-            <Textarea
-              id={ids.shortDescription}
-              rows={2}
-              value={values.shortDescription}
-              onChange={(event) => set("shortDescription", event.target.value)}
-            />
-          </div>
+            <section className="border-border bg-muted/30 space-y-4 rounded-2xl border p-5 sm:p-6">
+              <SectionHeading icon={Users}>Parties</SectionHeading>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor={ids.party}>
+                    {values.direction === "INCOMING" ? "From" : "To"}
+                  </Label>
+                  <Input
+                    id={ids.party}
+                    required
+                    value={
+                      values.direction === "INCOMING"
+                        ? values.fromParty
+                        : values.toParty
+                    }
+                    onChange={(event) =>
+                      set(
+                        values.direction === "INCOMING"
+                          ? "fromParty"
+                          : "toParty",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </div>
+                {values.direction === "INCOMING" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor={ids.senderReferenceNumber}>
+                      Sender&apos;s reference no. (optional)
+                    </Label>
+                    <Input
+                      id={ids.senderReferenceNumber}
+                      value={values.senderReferenceNumber}
+                      onChange={(event) =>
+                        set("senderReferenceNumber", event.target.value)
+                      }
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </section>
 
-          <div className="space-y-2">
-            <Label htmlFor={ids.remark}>Remark (optional)</Label>
-            <Textarea
-              id={ids.remark}
-              rows={2}
-              value={values.remark}
-              onChange={(event) => set("remark", event.target.value)}
-            />
-          </div>
+            <section className="border-border bg-muted/30 space-y-4 rounded-2xl border p-5 sm:p-6">
+              <SectionHeading icon={MessageSquare}>Notes</SectionHeading>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor={ids.shortDescription}>
+                    Short description (optional)
+                  </Label>
+                  <Textarea
+                    id={ids.shortDescription}
+                    rows={4}
+                    value={values.shortDescription}
+                    onChange={(event) =>
+                      set("shortDescription", event.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={ids.remark}>Remark (optional)</Label>
+                  <Textarea
+                    id={ids.remark}
+                    rows={4}
+                    value={values.remark}
+                    onChange={(event) => set("remark", event.target.value)}
+                  />
+                </div>
+              </div>
+            </section>
+          </form>
+        </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting} aria-busy={submitting}>
-              {submitting ? "Registering…" : "Register letter"}
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter className="border-border bg-card border-t px-6 py-4 sm:px-10">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            disabled={submitting}
+            aria-busy={submitting}
+          >
+            {submitting ? "Registering…" : "Register letter"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

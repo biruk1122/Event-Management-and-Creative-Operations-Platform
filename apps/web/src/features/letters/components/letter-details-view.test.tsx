@@ -25,7 +25,7 @@ const access: CurrentAccess = {
 beforeEach(() => {
   vi.mocked(getLetter).mockReset().mockResolvedValue({
     id: "letter-1",
-    referenceNumber: "LELA-HR-001",
+    referenceNumber: "LCM-HR-001",
     subject: "Venue confirmation",
     direction: "OUTGOING",
     category: "HR",
@@ -59,13 +59,11 @@ function setup() {
 }
 it("shows letter information without opening an edit form and preserves the return direction", async () => {
   setup();
-  expect(
-    await screen.findByRole("heading", { name: "Venue confirmation" }),
-  ).toBeInTheDocument();
+  expect(await screen.findByText("Venue confirmation")).toBeInTheDocument();
   expect(screen.getByText("Events team")).toBeInTheDocument();
   expect(screen.getByText("The venue is confirmed.")).toBeInTheDocument();
   expect(screen.getByText("Signed by admin")).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Back to letters" })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute(
     "href",
     "/letters?direction=OUTGOING",
   );

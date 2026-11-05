@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
 import { useEffect, useId, useState } from "react";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 
@@ -274,6 +275,7 @@ function ExpenseDetailBody({
 
   return (
     <>
+      <DialogBackButton />
       <DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle>{expenseCategoryLabel(expense.category)}</DialogTitle>

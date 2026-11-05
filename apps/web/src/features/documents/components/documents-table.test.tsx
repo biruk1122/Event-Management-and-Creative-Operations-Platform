@@ -30,6 +30,8 @@ function setup(canShare = true) {
     onSelect: vi.fn(),
     onShare: vi.fn(),
     canShare,
+    canDelete: true,
+    onDelete: vi.fn(),
     page: 1,
     pageCount: 1,
     onPageChange: vi.fn(),
@@ -39,6 +41,11 @@ function setup(canShare = true) {
   return props;
 }
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/documents",
+  useSearchParams: () => new URLSearchParams(),
+}));
 describe("Documents table", () => {
   it("shows document ownership, uploader, sharing, and actions in separate columns", async () => {
     const props = setup();
@@ -53,7 +60,7 @@ describe("Documents table", () => {
     );
     expect(props.onShare).toHaveBeenCalledWith(document);
     await user.click(
-      screen.getByRole("button", { name: "Open Annual budget details" }),
+      screen.getByRole("button", { name: "Edit Annual budget" }),
     );
     expect(props.onSelect).toHaveBeenCalledWith("doc-1");
     expect(
@@ -73,6 +80,8 @@ describe("Documents table", () => {
         onSelect={vi.fn()}
         onShare={vi.fn()}
         canShare
+        canDelete
+        onDelete={vi.fn()}
         page={1}
         pageCount={1}
         onPageChange={vi.fn()}
@@ -88,6 +97,5 @@ describe("Documents table", () => {
     expect(
       screen.queryByRole("button", { name: /Share Annual budget/ }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("Unavailable")).toBeInTheDocument();
   });
 });

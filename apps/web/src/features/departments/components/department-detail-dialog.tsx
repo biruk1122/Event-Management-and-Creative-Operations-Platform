@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 
@@ -351,6 +352,7 @@ function DepartmentDetailBody({
 
   return (
     <>
+      <DialogBackButton />
       <DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle>{department.name}</DialogTitle>

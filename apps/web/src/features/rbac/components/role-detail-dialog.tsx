@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
 import { RBAC_FAILURE_MESSAGES } from "../lib/rbac-outcome";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -296,6 +297,7 @@ function RoleEditor({
 
   return (
     <>
+      <DialogBackButton />
       <DialogHeader>
         <div className="flex items-center gap-2">
           <DialogTitle>{role.name}</DialogTitle>

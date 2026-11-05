@@ -6438,7 +6438,7 @@ export interface components {
     LetterReferencePreviewResponse: {
       /**
        * @description Non-reserving preview of the next number. Assigned for real only when the letter is created.
-       * @example LELA-CAST-2026-002
+       * @example LCM-CAST-2026-002
        */
       referenceNumber: string;
     };
@@ -6477,7 +6477,7 @@ export interface components {
       /** Format: uuid */
       projectId: string | null;
       projectName: string | null;
-      /** @example LELA-CAST-2026-001 */
+      /** @example LCM-CAST-2026-001 */
       referenceNumber: string;
       remark: string | null;
       senderReferenceNumber: string | null;
@@ -7933,7 +7933,7 @@ export interface components {
       /** Format: uuid */
       projectId: string | null;
       projectName: string | null;
-      /** @example LELA-CAST-2026-001 */
+      /** @example LCM-CAST-2026-001 */
       referenceNumber: string;
       remark: string | null;
       senderReferenceNumber: string | null;
