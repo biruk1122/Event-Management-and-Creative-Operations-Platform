@@ -18,8 +18,12 @@ export type EventFile = {
   state: "available";
   createdAt: string;
 };
-export const formatFileSize = (bytes: number) =>
-  bytes < 1024 ? `${bytes} B` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+/** Exact size in bytes, KB or MB, as the file list shows it. */
+export const formatFileSize = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+};
 export function fileSelectionError(file: File): string | null {
   if (!ACCEPTED_FILE_TYPES.includes(file.type as EventFile["mediaType"]))
     return "Choose a PDF, image, plain-text, CSV, or Office document.";
