@@ -73,7 +73,7 @@ export function TalentCardGrid({
 
   return (
     <div className="space-y-6">
-      <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {talents.map((talent) => (
           <li key={talent.id} className="h-full">
             <TalentCard
@@ -94,7 +94,7 @@ export function TalentCardGrid({
           Showing {first}–{last} of <span>{countLabel(total)}</span>
         </p>
         {pageCount > 1 ? (
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <Button
               type="button"
               variant="outline"

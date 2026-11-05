@@ -151,9 +151,11 @@ export class TalentFileManagementController {
     );
     response.setHeader("Cache-Control", "private, max-age=300");
     response.setHeader("X-Content-Type-Options", "nosniff");
-    // Helmet's default `same-origin` blocks the web app, served from another
-    // port, from showing the photo. `same-site` still keeps it off other sites.
-    response.setHeader("Cross-Origin-Resource-Policy", "same-site");
+    // The web app embeds this from another origin, which Helmet's default
+    // `same-origin` blocks. `same-site` is not enough either: Chromium refuses
+    // it between ports of an IP host. The route stays authenticated, and the
+    // session cookie is not sent on cross-site image loads.
+    response.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     return new StreamableFile(Buffer.from(image.bytes), {
       type: image.mediaType,
     });

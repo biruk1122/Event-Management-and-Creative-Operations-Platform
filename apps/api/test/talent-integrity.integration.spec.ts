@@ -468,7 +468,7 @@ describe("talent integrity", () => {
       ).toBe(1);
     });
 
-    it("archives a promotional activity that has talent assignment history and keeps its campaign", async () => {
+    it("archives a promotion detail that has talent assignment history and keeps its shared activity and campaign", async () => {
       const talent = await createTalent();
       const promo = await promotionRow({ departmentId: marketingDeptId });
       expect(
@@ -489,11 +489,18 @@ describe("talent integrity", () => {
       expect(removed.status).toBe(204);
       expect(
         (
+          await prisma.promotionActivity.findUnique({
+            where: { campaignActivityId: promo.activityId },
+          })
+        )?.archivedAt,
+      ).toBeInstanceOf(Date);
+      expect(
+        (
           await prisma.campaignActivity.findUnique({
             where: { id: promo.activityId },
           })
         )?.archivedAt,
-      ).toBeInstanceOf(Date);
+      ).toBeNull();
       expect(
         (await prisma.campaign.findUnique({ where: { id: promo.campaignId } }))
           ?.archivedAt,
@@ -507,6 +514,26 @@ describe("talent integrity", () => {
           )
         ).status,
       ).toBe(404);
+      expect(
+        await prisma.promotionActivityTalent.count({
+          where: { campaignActivityId: promo.activityId },
+        }),
+      ).toBe(1);
+
+      // Adding a channel again restores the detail with its history.
+      const restored = await as(
+        superAdmin,
+        "post",
+        `/api/v1/promotion/campaigns/${promo.campaignId}/activities/${promo.activityId}`,
+      ).send({ channel: "RADIO_PROMOTION" });
+      expect(restored.status).toBe(201);
+      expect(
+        (
+          await prisma.promotionActivity.findUnique({
+            where: { campaignActivityId: promo.activityId },
+          })
+        )?.archivedAt,
+      ).toBeNull();
       expect(
         await prisma.promotionActivityTalent.count({
           where: { campaignActivityId: promo.activityId },
@@ -987,8 +1014,10 @@ describe("talent integrity", () => {
           res.on("end", () => done(null, Buffer.concat(chunks)));
         });
       expect(content.status).toBe(200);
-      // The web app is served from another port, so the photo must be embeddable same-site.
-      expect(content.headers["cross-origin-resource-policy"]).toBe("same-site");
+      // The web app is served from another origin, so the photo must be embeddable.
+      expect(content.headers["cross-origin-resource-policy"]).toBe(
+        "cross-origin",
+      );
       expect(content.headers["content-type"]).toMatch(/^image\/png/);
       expect(content.headers["cache-control"]).toBe("private, max-age=300");
       expect(Buffer.from(content.body as Buffer).equals(PNG_BYTES)).toBe(true);
