@@ -42,6 +42,7 @@ interface EventBody {
   organizerName: string | null;
   manager: PersonSummary | null;
   teams: { id: string; name: string }[];
+  progress: { completed: number; total: number };
   participants: PersonSummary[];
   createdBy: PersonSummary | null;
   createdAt: string;
