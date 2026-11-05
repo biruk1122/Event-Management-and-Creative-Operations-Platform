@@ -38,6 +38,7 @@ import {
   EventBudgetResponse,
   EventBudgetSummaryResponse,
   EventResponse,
+  EventSummaryResponse,
   PaginatedEventsResponse,
 } from "./events.contracts.js";
 import { EventsService } from "./events.service.js";
@@ -89,6 +90,19 @@ export class EventsController {
     @Query() query: ListEventsQueryDto,
   ): Promise<PaginatedEventsResponse> {
     return this.events.list(actingUserId(request), query);
+  }
+
+  @Get("summary")
+  @RequirePermissions("event.read")
+  @ApiOperation({
+    summary:
+      "Headline event counts for the listing, over the caller's visible events",
+  })
+  @ApiOkResponse({ type: EventSummaryResponse })
+  async summary(
+    @Req() request: RequestWithContext,
+  ): Promise<EventSummaryResponse> {
+    return this.events.summary(actingUserId(request));
   }
 
   @Get(":id")

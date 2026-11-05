@@ -1477,6 +1477,17 @@
       },
       "CreateEventDto": {
         "properties": {
+          "budgetAmount": {
+            "description": "Planned budget. Requires event.budget.update. Two fraction digits at most.",
+            "example": 2500000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "budgetCurrency": {
+            "description": "ISO-4217 code for budgetAmount. Defaults to ETB when a budget is given.",
+            "example": "ETB",
+            "type": "string"
+          },
           "description": {
             "example": "Opening night gala for partners and press.",
             "maxLength": 2000,
@@ -1533,6 +1544,21 @@
             "description": "UTC start. If both ends are given, the end may not precede it.",
             "format": "date-time",
             "type": "string"
+          },
+          "status": {
+            "default": "PLANNING",
+            "description": "Starting lifecycle state. Defaults to PLANNING; later states use the transition route.",
+            "enum": ["PLANNING", "READY"],
+            "type": "string"
+          },
+          "teamIds": {
+            "description": "Teams to assign to the event's connected workspace at creation. Requires event.assign_teams.",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
           }
         },
         "required": ["name", "eventType"],
@@ -3916,6 +3942,21 @@
         "required": ["id", "email", "firstName", "lastName"],
         "type": "object"
       },
+      "EventProgress": {
+        "properties": {
+          "completed": {
+            "example": 3,
+            "type": "number"
+          },
+          "total": {
+            "description": "Linked tasks, excluding cancelled.",
+            "example": 4,
+            "type": "number"
+          }
+        },
+        "required": ["completed", "total"],
+        "type": "object"
+      },
       "EventResponse": {
         "properties": {
           "createdAt": {
@@ -3997,6 +4038,14 @@
             },
             "type": "array"
           },
+          "progress": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventProgress"
+              }
+            ],
+            "description": "Work progress derived from the tasks linked to this event (completed out of total, cancelled tasks excluded). Zero of zero when none are linked."
+          },
           "reminderAt": {
             "description": "UTC reminder instant, never after the start.",
             "format": "date-time",
@@ -4054,6 +4103,7 @@
           "teams",
           "participants",
           "createdBy",
+          "progress",
           "createdAt",
           "updatedAt"
         ],
@@ -4214,6 +4264,31 @@
           "status",
           "createdAt"
         ],
+        "type": "object"
+      },
+      "EventSummaryResponse": {
+        "properties": {
+          "completed": {
+            "description": "Completed events that start in the current calendar year.",
+            "example": 14,
+            "type": "number"
+          },
+          "inProgress": {
+            "example": 4,
+            "type": "number"
+          },
+          "total": {
+            "description": "All visible events.",
+            "example": 24,
+            "type": "number"
+          },
+          "upcoming": {
+            "description": "Events starting in the next 30 days that are not cancelled or completed.",
+            "example": 6,
+            "type": "number"
+          }
+        },
+        "required": ["total", "upcoming", "inProgress", "completed"],
         "type": "object"
       },
       "EventTeamSummary": {
@@ -19752,6 +19827,27 @@
             }
           },
           {
+            "description": "Column to sort the listing by.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "createdAt",
+              "enum": ["startAt", "name", "status", "createdAt"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "asc",
+              "enum": ["asc", "desc"],
+              "type": "string"
+            }
+          },
+          {
             "in": "query",
             "name": "page",
             "required": false,
@@ -19885,6 +19981,51 @@
           }
         ],
         "summary": "Create an event and its connected workspace",
+        "tags": ["Event management"]
+      }
+    },
+    "/api/v1/events/summary": {
+      "get": {
+        "operationId": "Events_summary_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventSummaryResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Headline event counts for the listing, over the caller's visible events",
         "tags": ["Event management"]
       }
     },

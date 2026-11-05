@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsEnum,
+  IsIn,
   IsISO8601,
   IsInt,
   IsOptional,
@@ -13,6 +14,14 @@ import {
 } from "class-validator";
 
 import { EventStatus, EventType } from "../../generated/prisma/client.js";
+
+export const EVENT_SORT_FIELDS = [
+  "startAt",
+  "name",
+  "status",
+  "createdAt",
+] as const;
+export type EventSortField = (typeof EVENT_SORT_FIELDS)[number];
 
 export class ListEventsQueryDto {
   @ApiPropertyOptional({ enum: EventStatus })
@@ -58,6 +67,20 @@ export class ListEventsQueryDto {
   @IsOptional()
   @IsISO8601({ strict: true })
   startingBefore?: string;
+
+  @ApiPropertyOptional({
+    enum: EVENT_SORT_FIELDS,
+    default: "createdAt",
+    description: "Column to sort the listing by.",
+  })
+  @IsOptional()
+  @IsIn(EVENT_SORT_FIELDS)
+  sort?: EventSortField;
+
+  @ApiPropertyOptional({ enum: ["asc", "desc"], default: "asc" })
+  @IsOptional()
+  @IsIn(["asc", "desc"])
+  direction?: "asc" | "desc";
 
   @ApiPropertyOptional({ minimum: 1, default: 1 })
   @IsOptional()

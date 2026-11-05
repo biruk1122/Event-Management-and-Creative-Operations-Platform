@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -26,6 +32,7 @@ function makeEvent(
 ): Event {
   return {
     workspaceId: `ws-${overrides.id}`,
+    progress: { completed: 0, total: 0 },
     eventType: "CONCERT",
     description: null,
     status: "PLANNING",
@@ -197,12 +204,16 @@ describe("EventsManager API integration", () => {
     setup();
     await screen.findByText("2 events");
 
-    await user.click(screen.getByRole("button", { name: "New event" }));
-    await user.type(
-      within(await screen.findByRole("dialog")).getByLabelText("Name"),
-      "Harvest Gala",
-    );
     await user.click(screen.getByRole("button", { name: "Create event" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(dialog.getByLabelText("Event name *"), "Harvest Gala");
+    fireEvent.change(dialog.getByLabelText("Start date *"), {
+      target: { value: "2026-10-04" },
+    });
+    fireEvent.change(dialog.getByLabelText("End date *"), {
+      target: { value: "2026-10-04" },
+    });
+    await user.click(dialog.getByRole("button", { name: "Create event" }));
 
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
@@ -218,7 +229,7 @@ describe("EventsManager API integration", () => {
     setup(access());
     await screen.findByText("2 events");
     expect(
-      screen.queryByRole("button", { name: "New event" }),
+      screen.queryByRole("button", { name: "Create event" }),
     ).not.toBeInTheDocument();
   });
 

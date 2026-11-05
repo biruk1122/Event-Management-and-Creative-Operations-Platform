@@ -41,24 +41,39 @@ export function EventFilters({
   onTypeChange,
   onSearchChange,
 }: EventFiltersProps) {
-  const statusId = useId();
-  const typeId = useId();
   const searchId = useId();
 
   return (
     <div
       data-work-filters
-      className="flex flex-col gap-3 sm:flex-row sm:items-end"
+      className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
     >
-      <div className="space-y-2 sm:w-44">
-        <Label htmlFor={statusId}>Status</Label>
+      <div className="relative w-full md:max-w-sm">
+        <Label htmlFor={searchId} className="sr-only">
+          Search
+        </Label>
+        <Search
+          aria-hidden="true"
+          className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+        />
+        <Input
+          id={searchId}
+          type="search"
+          placeholder="Search events..."
+          className="pl-9"
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row">
         <Select
           value={status ?? ALL}
           onValueChange={(value) =>
             onStatusChange(value === ALL ? null : (value as EventStatus))
           }
         >
-          <SelectTrigger id={statusId} aria-label="Filter by status">
+          <SelectTrigger aria-label="Filter by status" className="sm:w-44">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -70,17 +85,14 @@ export function EventFilters({
             ))}
           </SelectContent>
         </Select>
-      </div>
 
-      <div className="space-y-2 sm:w-48">
-        <Label htmlFor={typeId}>Type</Label>
         <Select
           value={eventType ?? ALL}
           onValueChange={(value) =>
             onTypeChange(value === ALL ? null : (value as EventType))
           }
         >
-          <SelectTrigger id={typeId} aria-label="Filter by type">
+          <SelectTrigger aria-label="Filter by type" className="sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -92,24 +104,6 @@ export function EventFilters({
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="flex-1 space-y-2">
-        <Label htmlFor={searchId}>Search</Label>
-        <div className="relative">
-          <Search
-            aria-hidden="true"
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-          />
-          <Input
-            id={searchId}
-            type="search"
-            placeholder="Event name"
-            className="pl-9"
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </div>
       </div>
     </div>
   );

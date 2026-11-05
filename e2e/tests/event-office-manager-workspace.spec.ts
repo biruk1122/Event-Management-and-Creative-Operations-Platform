@@ -195,11 +195,13 @@ test.describe("Event & Office Manager workspace — end to end", () => {
     await expect(
       homePage.getByRole("heading", { level: 1, name: "Events" }),
     ).toBeVisible();
-    await homePage.getByRole("button", { name: "New event" }).click();
+    await homePage.getByRole("button", { name: "Create event" }).click();
     const createEventDialog = homePage.getByRole("dialog");
     await createEventDialog
-      .getByRole("textbox", { name: "Name" })
+      .getByRole("textbox", { name: "Event name" })
       .fill(eventName);
+    await createEventDialog.getByLabel("Start date").fill("2030-06-01");
+    await createEventDialog.getByLabel("End date").fill("2030-06-01");
     await createEventDialog
       .getByRole("button", { name: "Create event" })
       .click();

@@ -36,9 +36,7 @@ export default async function EventsPage() {
       <WorkSurface
         title="Events"
         description={
-          allowed
-            ? "Review events, create one, edit its details, move it through its lifecycle, assign a manager and teams, and set an optional budget."
-            : undefined
+          allowed ? "From the first idea to the final encore." : undefined
         }
       >
         {allowed ? (

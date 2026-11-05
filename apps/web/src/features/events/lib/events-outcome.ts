@@ -5,7 +5,9 @@ import type {
   EventType,
 } from "./events-types";
 
-/** The fields the create form collects. Optional text fields are empty strings. */
+/** The fields the create form collects. Optional text fields are empty strings.
+ * `startAt` / `endAt` / `reminderAt` are `YYYY-MM-DDTHH:mm` strings, combined
+ * from the date and time inputs by the form. */
 export interface CreateEventValues {
   name: string;
   eventType: EventType;
@@ -16,7 +18,14 @@ export interface CreateEventValues {
   location: string;
   organizerName: string;
   managerId: string | null;
+  status: CreatableEventStatus;
+  teamIds: string[];
+  /** The planned budget as typed; blank means no budget. */
+  budgetAmount: string;
 }
+
+/** A new event starts in planning or ready; later states use the transition route. */
+export type CreatableEventStatus = "PLANNING" | "READY";
 
 /** The fields the edit-details form collects. */
 export interface EditEventValues {
@@ -40,6 +49,7 @@ type FieldErrors<K extends string> = Partial<Record<K, string>>;
 export type SaveEventOutcome =
   | { status: "success"; event: Event }
   | { status: "manager_not_found" }
+  | { status: "team_not_found" }
   | { status: "schedule_invalid" }
   | { status: "reminder_invalid" }
   | {

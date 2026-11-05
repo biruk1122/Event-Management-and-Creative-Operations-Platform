@@ -7,6 +7,7 @@ import { getLetter, listLetterFiles } from "../api/letters-gateway";
 vi.mock("@/lib/api/browser", () => ({ browserApi: { GET: vi.fn() } }));
 
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   useSearchParams: () =>
     new URLSearchParams("direction=OUTGOING&letter=letter-1"),
 }));

@@ -10,7 +10,9 @@ import { WorkspacesRepository } from "../workspaces/infrastructure/workspaces.re
 import type {
   EventBudgetResponse,
   EventBudgetSummaryResponse,
+  EventProgress,
   EventResponse,
+  EventSummaryResponse,
   PaginatedEventsResponse,
 } from "./events.contracts.js";
 import {
@@ -73,6 +75,18 @@ export class EventsService {
     return this.permissions.hasGrant(actingUserId, permissionKey, scope);
   }
 
+  /** Passes when the caller holds the key at any scope; used where the event
+   * does not exist yet, so there is no record to scope against. */
+  private async requireAnyScope(
+    actingUserId: string,
+    permissionKey: string,
+  ): Promise<void> {
+    const allowed =
+      (await this.hasGrant(actingUserId, permissionKey, "ORGANIZATION")) ||
+      (await this.hasGrant(actingUserId, permissionKey, "DEPARTMENT"));
+    if (!allowed) throw permissionDenied();
+  }
+
   private async visibilityFor(
     actingUserId: string,
     permissionKey: string,
@@ -114,7 +128,28 @@ export class EventsService {
   private async reload(id: string): Promise<EventResponse> {
     const event = await this.repository.findById(id);
     if (!event) throw eventNotFound();
-    return toEventResponse(event);
+    return this.single(event);
+  }
+
+  /** Builds public responses, attaching each event's task progress in one
+   * aggregate query rather than one query per event. */
+  private async respond(records: EventRecord[]): Promise<EventResponse[]> {
+    const progress = await this.repository.taskProgressFor(
+      records.map((record) => record.id),
+    );
+    return records.map((record) =>
+      toEventResponse(record, progress.get(record.id) ?? ZERO_PROGRESS),
+    );
+  }
+
+  private async single(record: EventRecord): Promise<EventResponse> {
+    return (await this.respond([record]))[0]!;
+  }
+
+  /** Headline counts for the listing tiles, over the caller's visible events. */
+  async summary(actingUserId: string): Promise<EventSummaryResponse> {
+    const visibility = await this.visibilityFor(actingUserId, "event.read");
+    return this.repository.summary(visibility, new Date());
   }
 
   async list(
@@ -135,12 +170,20 @@ export class EventsService {
       ...(query.startingBefore
         ? { startingBefore: new Date(query.startingBefore) }
         : {}),
+      ...(query.sort
+        ? {
+            sort: {
+              field: query.sort,
+              direction: query.direction ?? "asc",
+            },
+          }
+        : {}),
       page: query.page,
       pageSize: query.pageSize,
     });
 
     return {
-      items: items.map(toEventResponse),
+      items: await this.respond(items),
       page: query.page,
       pageSize: query.pageSize,
       total,
@@ -148,7 +191,7 @@ export class EventsService {
   }
 
   async get(actingUserId: string, id: string): Promise<EventResponse> {
-    return toEventResponse(
+    return this.single(
       await this.loadAuthorized(actingUserId, id, "event.read"),
     );
   }
@@ -158,6 +201,18 @@ export class EventsService {
     dto: CreateEventDto,
   ): Promise<EventResponse> {
     const visibility = await this.visibilityFor(actingUserId, "event.create");
+
+    // Teams and budget are separate permissions; a creator without them may
+    // not set them on creation, even though they may create the event.
+    if ((dto.teamIds?.length ?? 0) > 0) {
+      await this.requireAnyScope(actingUserId, "event.assign_teams");
+    }
+    if (dto.budgetAmount !== undefined || dto.budgetCurrency !== undefined) {
+      await this.requireAnyScope(actingUserId, "event.budget.update");
+    }
+    if (dto.budgetCurrency !== undefined && dto.budgetAmount === undefined) {
+      throw eventBudgetIncomplete();
+    }
 
     const startAt = dto.startAt ? new Date(dto.startAt) : undefined;
     const endAt = dto.endAt ? new Date(dto.endAt) : undefined;
@@ -180,6 +235,16 @@ export class EventsService {
         ? { organizerName: dto.organizerName.trim() }
         : {}),
       ...(dto.managerId ? { managerId: dto.managerId } : {}),
+      ...(dto.status ? { status: dto.status } : {}),
+      ...(dto.teamIds?.length ? { teamIds: dto.teamIds } : {}),
+      ...(dto.budgetAmount !== undefined
+        ? {
+            budget: {
+              amount: dto.budgetAmount,
+              currency: dto.budgetCurrency ?? "ETB",
+            },
+          }
+        : {}),
       // A department-scoped creator's event is scoped to their own
       // department (never from client input); an organization-scoped
       // creator leaves it unset (decision 2: no department is ever guessed).
@@ -191,7 +256,10 @@ export class EventsService {
     if (result === "manager_not_found") {
       throw eventUserNotFound();
     }
-    return toEventResponse(result);
+    if (result === "team_not_found") {
+      throw eventTeamNotFound();
+    }
+    return this.single(result);
   }
 
   async update(
@@ -242,7 +310,7 @@ export class EventsService {
     if (result === "not_found") {
       throw eventNotFound();
     }
-    return toEventResponse(result);
+    return this.single(result);
   }
 
   async transition(
@@ -271,7 +339,7 @@ export class EventsService {
       if (!current) throw eventNotFound();
       throw eventInvalidTransition(current.status, target);
     }
-    return toEventResponse(result);
+    return this.single(result);
   }
 
   async setManager(
@@ -432,7 +500,12 @@ function assertReminderBeforeStart(
   }
 }
 
-function toEventResponse(record: EventRecord): EventResponse {
+const ZERO_PROGRESS: EventProgress = { completed: 0, total: 0 };
+
+function toEventResponse(
+  record: EventRecord,
+  progress: EventProgress,
+): EventResponse {
   return {
     id: record.id,
     workspaceId: record.workspaceId,
@@ -450,6 +523,7 @@ function toEventResponse(record: EventRecord): EventResponse {
     teams: record.teams,
     participants: record.participants,
     createdBy: record.createdBy,
+    progress,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };

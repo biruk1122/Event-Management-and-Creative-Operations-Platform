@@ -21,7 +21,6 @@ import {
 } from "@/features/auth/api/access-queries";
 
 import {
-  getLetter,
   getLetterOptions,
   LettersRequestError,
   listLetters,
@@ -29,7 +28,6 @@ import {
 } from "../api/letters-gateway";
 import { letterKeys, useLettersMutations } from "../api/letters-queries";
 import { CreateLetterDialog } from "./create-letter-dialog";
-import { LetterDetailDialog } from "./letter-detail-dialog";
 import { LetterFilters } from "./letter-filters";
 import { LetterRemarksSheet } from "./letter-remarks-sheet";
 import { LettersTable } from "./letters-table";
@@ -89,7 +87,6 @@ export function LettersManager({ access }: { access: CurrentAccess }) {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<Letter | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [shareLetter, setShareLetter] = useState<Letter | null>(null);
   const [attachmentsLetter, setAttachmentsLetter] = useState<Letter | null>(
     null,
@@ -331,7 +328,13 @@ export function LettersManager({ access }: { access: CurrentAccess }) {
                 params.set("letter", id);
                 router.push(`?${params.toString()}`);
               }}
-              onEdit={setSelectedId}
+              onEdit={(id) => {
+                // Edit is a page, like the documents edit page: ?letter=<id>&edit=1.
+                const params = new URLSearchParams(searchParams.toString());
+                params.set("letter", id);
+                params.set("edit", "1");
+                router.push(`?${params.toString()}`);
+              }}
               onDelete={setDeleteTarget}
               canEdit={canEdit}
               canDelete={canDelete}
@@ -374,25 +377,6 @@ export function LettersManager({ access }: { access: CurrentAccess }) {
           }}
         />
       ) : null}
-
-      <LetterDetailDialog
-        letterId={selectedId}
-        onOpenChange={(open) => {
-          if (!open) setSelectedId(null);
-        }}
-        projects={optionsQuery.data?.projects ?? []}
-        canDelete={false}
-        canShare={canShare}
-        getLetter={getLetter}
-        onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
-        onDelete={mutations.remove.mutateAsync}
-        onDeleted={() => {
-          setSelectedId(null);
-          void listQuery.refetch();
-          setAnnouncement("Letter deleted.");
-        }}
-        onChanged={() => void listQuery.refetch()}
-      />
 
       <DeleteLetterDialog
         letter={canDelete ? deleteTarget : null}
