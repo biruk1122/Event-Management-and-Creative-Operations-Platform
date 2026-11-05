@@ -63,6 +63,10 @@ it("shows letter information without opening an edit form and preserves the retu
   expect(screen.getByText("Events team")).toBeInTheDocument();
   expect(screen.getByText("The venue is confirmed.")).toBeInTheDocument();
   expect(screen.getByText("Signed by admin")).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute(
+    "href",
+    "/letters?direction=OUTGOING",
+  );
   expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: "Save changes" }),

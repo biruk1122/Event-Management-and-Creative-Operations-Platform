@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -47,6 +50,13 @@ export function LetterDetailsView({
   letterId: string;
   access: CurrentAccess;
 }) {
+  // Letter details open as ?letter= on the listing, so Back closes the detail and keeps its filters.
+  const params = new URLSearchParams(useSearchParams().toString());
+  params.delete("letter");
+  const backHref = {
+    pathname: "/letters",
+    search: params.size ? `?${params}` : "",
+  };
   const keys = letterKeys(access);
   const client = useQueryClient();
   const [remarksOpen, setRemarksOpen] = useState(false);
@@ -92,6 +102,12 @@ export function LetterDetailsView({
         <p role="alert">This letter no longer exists.</p>
       ) : (
         <>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={backHref}>
+              <ArrowLeft aria-hidden="true" data-icon="inline-start" />
+              Back
+            </Link>
+          </Button>
           <header className="border-border bg-card relative overflow-hidden rounded-2xl border p-6 shadow-sm sm:p-8">
             <div
               aria-hidden="true"
