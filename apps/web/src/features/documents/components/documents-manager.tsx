@@ -19,10 +19,25 @@ import {
 } from "../api/documents-gateway";
 import { documentKeys, useDocumentsMutations } from "../api/documents-queries";
 import { CreateDocumentDialog } from "./create-document-dialog";
-import { DocumentDetailDialog } from "./document-detail-dialog";
+import { DocumentDetailsView } from "./document-details-view";
+import { DeleteDocumentDialog } from "./delete-document-dialog";
+import type { Route } from "next";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useUrlState } from "@/features/navigation/hooks/use-url-state";
+import {
+  enumCodec,
+  nullableEnumCodec,
+  nullableStringCodec,
+  positiveIntCodec,
+  stringCodec,
+} from "@/features/navigation/lib/url-state";
+import {
+  DOCUMENT_TYPE_LABELS,
+  type DocumentType as DocType,
+} from "../lib/documents-types";
 import { DocumentFilters } from "./document-filters";
 import { DocumentsTable } from "./documents-table";
-import type { DocumentRecord, DocumentType } from "../lib/documents-types";
+import type { DocumentRecord } from "../lib/documents-types";
 import styles from "./documents-presentation.module.css";
 
 const PAGE_SIZE = 20;
@@ -36,6 +51,11 @@ function useDebounced<T>(value: T, delay: number): T {
   }, [value, delay]);
   return debounced;
 }
+
+const DOCUMENT_TYPE_CODEC = nullableEnumCodec(
+  Object.keys(DOCUMENT_TYPE_LABELS) as DocType[],
+);
+const LAYOUT_CODEC = enumCodec(["list", "grid"] as const);
 
 export function DocumentsManager({ access }: { access: CurrentAccess }) {
   const keys = documentKeys(access);
@@ -58,17 +78,53 @@ export function DocumentsManager({ access }: { access: CurrentAccess }) {
       (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
   );
 
-  const [search, setSearch] = useState("");
-  const [documentType, setDocumentType] = useState<DocumentType | null>(null);
-  const [projectId, setProjectId] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Filters, the page and the open document live in the URL, so a visit to a document and back restores the listing.
+  const urlParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const selectedId = urlParams.get("document");
+  const [search, setSearch] = useUrlState<string>(
+    "search",
+    "",
+    stringCodec,
+    urlParams.get("search"),
+  );
+  const [documentType, setDocumentType] = useUrlState<DocType | null>(
+    "type",
+    null,
+    DOCUMENT_TYPE_CODEC,
+    urlParams.get("type"),
+  );
+  const [projectId, setProjectId] = useUrlState<string | null>(
+    "project",
+    null,
+    nullableStringCodec,
+    urlParams.get("project"),
+  );
+  const [page, setPage] = useUrlState<number>(
+    "page",
+    1,
+    positiveIntCodec,
+    urlParams.get("page"),
+  );
+  const openDocument = (id: string, edit = false) => {
+    const params = new URLSearchParams(urlParams.toString());
+    params.set("document", id);
+    if (edit) params.set("edit", "1");
+    router.push(`${pathname}?${params}` as Route);
+  };
   const [shareDocument, setShareDocument] = useState<DocumentRecord | null>(
     null,
   );
+  const [deleteTarget, setDeleteTarget] = useState<DocumentRecord | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
-  const [layout, setLayout] = useState<"list" | "grid">("list");
+  const [layout, setLayout] = useUrlState<"list" | "grid">(
+    "view",
+    "list",
+    LAYOUT_CODEC,
+    urlParams.get("view"),
+  );
 
   const debouncedSearch = useDebounced(search, SEARCH_DEBOUNCE_MS);
   const listParams = {
@@ -118,6 +174,31 @@ export function DocumentsManager({ access }: { access: CurrentAccess }) {
 
   function resetToFirstPage() {
     setPage(1);
+  }
+
+  if (selectedId) {
+    const listParams = new URLSearchParams(urlParams.toString());
+    listParams.delete("document");
+    listParams.delete("edit");
+    const backHref = listParams.size ? `${pathname}?${listParams}` : pathname;
+    return (
+      <DocumentDetailsView
+        key={selectedId}
+        documentId={selectedId}
+        backHref={backHref}
+        startEditing={urlParams.get("edit") === "1"}
+        onSaved={() => {
+          const params = new URLSearchParams(urlParams.toString());
+          params.delete("edit");
+          router.replace(`${pathname}?${params}` as Route);
+        }}
+        projects={optionsQuery.data?.projects ?? []}
+        canShare={canShare}
+        getDocument={getDocument}
+        onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
+        onChanged={() => void listQuery.refetch()}
+      />
+    );
   }
 
   return (
@@ -242,7 +323,8 @@ export function DocumentsManager({ access }: { access: CurrentAccess }) {
 
             <DocumentsTable
               documents={documents}
-              onSelect={setSelectedId}
+              onSelect={openDocument}
+              onEdit={(id) => openDocument(id, true)}
               onShare={(record) => {
                 shareOpener.current =
                   document.activeElement instanceof HTMLElement
@@ -251,6 +333,8 @@ export function DocumentsManager({ access }: { access: CurrentAccess }) {
                 setShareDocument(record);
               }}
               canShare={canShare}
+              canDelete={canDelete}
+              onDelete={setDeleteTarget}
               page={currentPage}
               pageCount={pageCount}
               onPageChange={setPage}
@@ -277,29 +361,25 @@ export function DocumentsManager({ access }: { access: CurrentAccess }) {
             setProjectId(null);
             setPage(1);
             setAnnouncement("Document created.");
-            setSelectedId(created.id);
+            openDocument(created.id);
           }}
         />
       ) : null}
 
-      <DocumentDetailDialog
-        documentId={selectedId}
+      <DeleteDocumentDialog
+        document={deleteTarget}
         onOpenChange={(open) => {
-          if (!open) setSelectedId(null);
+          if (!open) setDeleteTarget(null);
         }}
-        projects={optionsQuery.data?.projects ?? []}
-        canDelete={canDelete}
-        canShare={canShare}
-        getDocument={getDocument}
-        onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
-        onDelete={mutations.remove.mutateAsync}
-        onDeleted={() => {
-          setSelectedId(null);
-          void listQuery.refetch();
+        onConfirm={async (document) => {
+          const outcome = await mutations.remove.mutateAsync(document.id);
+          if (outcome.status !== "success") return false;
           setAnnouncement("Document deleted.");
+          void listQuery.refetch();
+          return true;
         }}
-        onChanged={() => void listQuery.refetch()}
       />
+
       {canShare && shareDocument ? (
         <ShareDialog
           open

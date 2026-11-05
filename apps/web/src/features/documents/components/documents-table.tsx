@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { formatFileSize } from "@/features/files/lib/file-types";
 import {
   ArrowUpRight,
+  Pencil,
+  Trash2,
   CalendarDays,
   File,
   FilePenLine,
@@ -24,8 +26,12 @@ import {
 interface DocumentsTableProps {
   documents: readonly DocumentRecord[];
   onSelect: (id: string) => void;
+  /** Opens the document straight into its edit form. Defaults to onSelect. */
+  onEdit?: (id: string) => void;
   onShare: (document: DocumentRecord) => void;
   canShare: boolean;
+  canDelete: boolean;
+  onDelete: (document: DocumentRecord) => void;
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
@@ -60,8 +66,11 @@ function uploadedAtLabel(document: DocumentRecord): string {
 export function DocumentsTable({
   documents,
   onSelect,
+  onEdit,
   onShare,
   canShare,
+  canDelete,
+  onDelete,
   page,
   pageCount,
   onPageChange,
@@ -187,19 +196,34 @@ export function DocumentsTable({
                         <Share2 aria-hidden="true" />
                         Share
                       </Button>
-                    ) : (
-                      <span className="text-muted-foreground">Unavailable</span>
-                    )}
+                    ) : null}
                   </td>
-                  <td className="text-muted-foreground px-4 py-3">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Open ${document.displayName} details`}
-                      onClick={() => onSelect(document.id)}
-                    >
-                      <ArrowUpRight aria-hidden="true" />
-                    </Button>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col items-start gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Edit ${document.displayName}`}
+                        onClick={() => (onEdit ?? onSelect)(document.id)}
+                      >
+                        <Pencil aria-hidden="true" />
+                        Edit
+                      </Button>
+                      {canDelete ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          aria-label={`Delete ${document.displayName}`}
+                          onClick={() => onDelete(document)}
+                        >
+                          <Trash2 aria-hidden="true" />
+                          Delete
+                        </Button>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}
