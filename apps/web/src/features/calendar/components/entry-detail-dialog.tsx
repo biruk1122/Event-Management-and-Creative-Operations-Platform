@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +34,7 @@ export function EntryDetailDialog({
       <DialogContent>
         {entry ? (
           <>
+            <DialogBackButton />
             <DialogHeader>
               <DialogTitle>{entry.title}</DialogTitle>
               <DialogDescription>

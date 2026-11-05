@@ -1,5 +1,6 @@
 "use client";
 
+import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
@@ -297,6 +298,7 @@ function PartnerDetailBody({
 
   return (
     <>
+      <DialogBackButton />
       <DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
           <DialogTitle>{partner.organizationName}</DialogTitle>
