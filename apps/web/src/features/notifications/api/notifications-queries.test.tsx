@@ -28,6 +28,7 @@ const item: NotificationItem = {
   body: "Hello",
   createdAt: "2026-10-19T09:00:00Z",
   readAt: null,
+  senderName: null,
   messageId: "message-1",
   taskId: null,
   eventId: null,

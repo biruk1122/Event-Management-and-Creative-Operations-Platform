@@ -22,6 +22,9 @@ const { get, post, patch, put, del } = vi.hoisted(() => ({
 vi.mock("@/lib/api/browser", () => ({
   browserApi: { GET: get, POST: post, PATCH: patch, PUT: put, DELETE: del },
 }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
 
 function access(...permissions: string[]): CurrentAccess {
   return {
@@ -83,7 +86,7 @@ beforeEach(() => {
         return ok({
           items: listItems,
           page: (options?.params?.query?.page as number) ?? 1,
-          pageSize: 10,
+          pageSize: 12,
           total: listTotal,
         });
       case "/api/v1/talents/{id}":
@@ -91,6 +94,18 @@ beforeEach(() => {
           listItems.find((item) => item.id === options?.params?.path?.id) ??
             null,
         );
+      case "/api/v1/talents/summary":
+        return ok({
+          total: 2,
+          assignedTalents: 1,
+          activeAssignments: 3,
+          byAvailability: {
+            AVAILABLE: 1,
+            ASSIGNED: 0,
+            UNAVAILABLE: 1,
+            INACTIVE: 0,
+          },
+        });
       case "/api/v1/users":
         return ok({
           items: [
@@ -132,18 +147,16 @@ describe("TalentManager list", () => {
     expect(screen.getByText("Loading talent…")).toBeVisible();
     expect(await screen.findByText("2 talents")).toBeVisible();
     expect(
-      screen.getAllByRole("button", { name: "Amina Tesfaye" }).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByRole("button", { name: "Beza Alemu" }).length,
-    ).toBeGreaterThan(0);
+      screen.getByRole("heading", { name: "Amina Tesfaye" }),
+    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Beza Alemu" })).toBeVisible();
   });
 
   it("requests the first page with the page size and no filters", async () => {
     renderManager();
     await screen.findByText("2 talents");
 
-    expect(lastListQuery()).toEqual({ page: 1, pageSize: 10 });
+    expect(lastListQuery()).toEqual({ page: 1, pageSize: 12, sort: "name" });
   });
 
   it("shows a recoverable error and reloads on retry", async () => {
@@ -209,6 +222,69 @@ describe("TalentManager filters", () => {
     );
   });
 
+  it("shows the directory counts above the list", async () => {
+    renderManager();
+    await screen.findByText("2 talents");
+
+    const activeTile = screen.getByText("Active assignments").closest("div")!;
+    expect(within(activeTile).getByText("3")).toBeVisible();
+    const availableTile = screen.getByText("Available now").closest("div")!;
+    expect(within(availableTile).getByText("1")).toBeVisible();
+  });
+
+  it("sends the assignment filter and the chosen sort", async () => {
+    const user = userEvent.setup();
+    renderManager();
+    await screen.findByText("2 talents");
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Filter by assignment" }),
+    );
+    await user.click(
+      await screen.findByRole("option", { name: "Not assigned" }),
+    );
+    await waitFor(() =>
+      expect(lastListQuery()).toMatchObject({
+        assignment: "unassigned",
+        page: 1,
+      }),
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Sort talent" }));
+    await user.click(
+      await screen.findByRole("option", { name: "Newest first" }),
+    );
+    await waitFor(() =>
+      expect(lastListQuery()).toMatchObject({
+        assignment: "unassigned",
+        sort: "newest",
+      }),
+    );
+  });
+
+  it("shows each talent's current assignment and how many work items they are on", async () => {
+    listItems = [
+      makeTalent({
+        id: "tal-3",
+        fullName: "Dawit Haile",
+        activeAssignmentCount: 2,
+        currentAssignment: {
+          id: "asg-1",
+          kind: "EVENT",
+          workName: "Aurora Premiere",
+          phase: "active",
+          startAt: null,
+          endAt: null,
+        },
+      }),
+    ];
+    listTotal = 1;
+    renderManager();
+
+    expect(await screen.findByText("Aurora Premiere (Active)")).toBeVisible();
+    expect(screen.getByText("2 work items")).toBeVisible();
+  });
+
   it("debounces the name search and sends the trimmed term", async () => {
     const user = userEvent.setup();
     renderManager();
@@ -219,7 +295,7 @@ describe("TalentManager filters", () => {
     await waitFor(() =>
       expect(lastListQuery()).toMatchObject({ search: "amina" }),
     );
-    expect(screen.getByText(/matching talent/)).toBeVisible();
+    expect(screen.getByLabelText("Search")).toHaveValue("  amina ");
   });
 });
 
@@ -229,28 +305,18 @@ describe("TalentManager permissions", () => {
     await screen.findByText("2 talents");
 
     expect(
-      screen.queryByRole("button", { name: "New talent" }),
+      screen.queryByRole("button", { name: "Add talent" }),
     ).not.toBeInTheDocument();
     const paths = get.mock.calls.map(([path]) => path);
     expect(paths).not.toContain("/api/v1/users");
     expect(paths).not.toContain("/api/v1/events");
   });
 
-  it("loads assignable events only when the caller can assign", async () => {
-    renderManager(access("talent.assign"));
-    await screen.findByText("2 talents");
-
-    await waitFor(() => {
-      const paths = get.mock.calls.map(([path]) => path);
-      expect(paths).toContain("/api/v1/events");
-    });
-  });
-
   it("shows the create action to a caller who may create", async () => {
     renderManager(access("talent.create"));
     await screen.findByText("2 talents");
 
-    expect(screen.getByRole("button", { name: "New talent" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add talent" })).toBeVisible();
   });
 });
 
@@ -263,7 +329,7 @@ describe("TalentManager create", () => {
     renderManager();
     await screen.findByText("2 talents");
 
-    await user.click(screen.getByRole("button", { name: "New talent" }));
+    await user.click(screen.getByRole("button", { name: "Add talent" }));
     const dialog = await screen.findByRole("dialog");
     await user.type(within(dialog).getByLabelText("Full name"), "Chala Girma");
     await user.click(

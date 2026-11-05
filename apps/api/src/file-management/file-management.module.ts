@@ -11,7 +11,9 @@ import { ExpensesModule } from "../expenses/expenses.module.js";
 import { LettersModule } from "../letters/letters.module.js";
 import { ReportsModule } from "../reports/reports.module.js";
 import { SharedRecordsModule } from "../shared-records/shared-records.module.js";
+import { TalentModule } from "../talent/talent.module.js";
 import { TasksModule } from "../tasks/tasks.module.js";
+import { TalentFileManagementController } from "./talent-file-management.controller.js";
 import { DocumentFileManagementController } from "./document-file-management.controller.js";
 import { ExpenseFileManagementController } from "./expense-file-management.controller.js";
 import { FileManagementController } from "./file-management.controller.js";
@@ -44,9 +46,11 @@ import { S3ObjectStorage } from "./storage/s3-object-storage.js";
     PermissionsModule,
     ReportsModule,
     SharedRecordsModule,
+    TalentModule,
     TasksModule,
   ],
   controllers: [
+    TalentFileManagementController,
     DocumentFileManagementController,
     ExpenseFileManagementController,
     FileManagementController,

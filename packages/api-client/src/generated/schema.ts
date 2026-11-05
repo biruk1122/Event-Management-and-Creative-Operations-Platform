@@ -2304,6 +2304,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/notifications/read-all": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Mark every unread notification in the caller's feed as read. Nothing is removed. */
+    put: operations["Notifications_markAllRead_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/notifications/unread-count": {
     parameters: {
       query?: never;
@@ -3266,6 +3283,23 @@ export interface paths {
     patch: operations["Suppliers_update_v1"];
     trace?: never;
   };
+  "/api/v1/talent-assignments/works": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Events, productions, or promotional activities the caller may assign talent to */
+    get: operations["TalentAssignableWorks_works_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/talents": {
     parameters: {
       query?: never;
@@ -3277,6 +3311,23 @@ export interface paths {
     get: operations["Talent_list_v1"];
     put?: never;
     post: operations["Talent_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Talent directory summary counts */
+    get: operations["Talent_summary_v1"];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -3422,6 +3473,160 @@ export interface paths {
     get?: never;
     put?: never;
     post: operations["Talent_transition_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{talentId}/activity": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a talent's history. Organization readers see all of it; a Production Manager sees the assignments for their own department's work. */
+    get: operations["TalentAssignments_activity_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{talentId}/assignments": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a talent's assignments, of every status, that the caller may see */
+    get: operations["TalentAssignments_list_v1"];
+    put?: never;
+    /** Create an assignment. Conflicts need acknowledgeConflicts; the override is recorded */
+    post: operations["TalentAssignments_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{talentId}/assignments/check": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Check an assignment against current data without saving it: blocks, duplicates, and conflicts */
+    post: operations["TalentAssignments_check_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{talentId}/assignments/{kind}/{assignmentId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update an active assignment's role, notes, or dates */
+    patch: operations["TalentAssignments_update_v1"];
+    trace?: never;
+  };
+  "/api/v1/talents/{talentId}/assignments/{kind}/{assignmentId}/transition": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Complete or cancel an active assignment (cancelling needs a reason) */
+    post: operations["TalentAssignments_transition_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{talentId}/profile-image": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a short-lived view grant for the talent's profile photo */
+    get: operations["TalentFileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{talentId}/profile-image/content": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Stream the talent's profile photo to an authorized directory reader */
+    get: operations["TalentFileManagement_content_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{talentId}/profile-image/upload-intents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a direct-upload grant for a talent profile photo (JPEG, PNG, or WEBP) */
+    post: operations["TalentFileManagement_createUploadIntent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/talents/{talentId}/profile-image/{fileId}/finalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify, scan, and set a completed upload as the talent's profile photo */
+    post: operations["TalentFileManagement_finalize_v1"];
     delete?: never;
     options?: never;
     head?: never;
@@ -4864,10 +5069,17 @@ export interface components {
       timeZone: string;
     };
     CreateEventTalentAssignmentDto: {
+      acknowledgeConflicts?: boolean;
+      /** Format: date-time */
+      endAt?: Record<string, never> | null;
       /** Format: uuid */
       eventId: string;
+      notes?: Record<string, never> | null;
+      overrideReason?: Record<string, never> | null;
       /** @example Headliner */
       role: string;
+      /** Format: date-time */
+      startAt?: Record<string, never> | null;
     };
     CreateExpenseDto: {
       /**
@@ -5196,7 +5408,24 @@ export interface components {
       name: string;
       notes?: string;
     };
+    CreateTalentAssignmentDto: {
+      acknowledgeConflicts?: boolean;
+      /** Format: date-time */
+      endAt?: string | null;
+      /** @enum {string} */
+      kind: "EVENT" | "PRODUCTION" | "PROMOTION";
+      notes?: string | null;
+      overrideReason?: string | null;
+      /** @example Headliner */
+      role: string;
+      /** Format: date-time */
+      startAt?: string | null;
+      /** Format: uuid */
+      workId: string;
+    };
     CreateTalentDto: {
+      /** @enum {string} */
+      availability?: "AVAILABLE" | "UNAVAILABLE" | "INACTIVE";
       /** @example Singer and live performer. */
       biography?: string;
       /** @example amina@example.com */
@@ -5207,6 +5436,7 @@ export interface components {
       managerId?: string;
       /** @example +251911000000 */
       phone?: string;
+      socialLink?: components["schemas"]["CreateTalentSocialLinkDto"];
       /** @enum {string} */
       type:
         | "ARTIST"
@@ -6307,6 +6537,9 @@ export interface components {
        */
       state: "pending" | "available";
     };
+    MarkAllReadResponse: {
+      markedCount: number;
+    };
     MarketingStrategyDto: {
       /** @example Reach local audiences through partner-led campaigns. */
       strategy: string;
@@ -6531,7 +6764,9 @@ export interface components {
         | "TASK_SUBMITTED"
         | "TASK_REPORT_TO_ASSIGNED"
         | "TASK_BLOCKED"
-        | "TASK_REVIEWER_CHANGED";
+        | "TASK_REVIEWER_CHANGED"
+        | "TALENT_ASSIGNED"
+        | "TALENT_ASSIGNMENT_CANCELLED";
     };
     NotificationPreferencesResponse: {
       items: components["schemas"]["NotificationPreferenceResponse"][];
@@ -6561,6 +6796,8 @@ export interface components {
       readAt: string | null;
       /** Format: uuid */
       reportId: string | null;
+      /** @example Amina Tesfaye */
+      senderName: string | null;
       /** Format: uuid */
       taskId: string | null;
       /** @example You were assigned a task */
@@ -6595,7 +6832,9 @@ export interface components {
         | "TASK_SUBMITTED"
         | "TASK_REPORT_TO_ASSIGNED"
         | "TASK_BLOCKED"
-        | "TASK_REVIEWER_CHANGED";
+        | "TASK_REVIEWER_CHANGED"
+        | "TALENT_ASSIGNED"
+        | "TALENT_ASSIGNMENT_CANCELLED";
     };
     Object: Record<string, never>;
     OvertimeApprovalResponse: {
@@ -7742,6 +7981,106 @@ export interface components {
       /** Format: date-time */
       updatedAt: string;
     };
+    TalentActivityResponse: {
+      actor: components["schemas"]["TalentAssignmentPersonResponse"] | null;
+      /** Format: uuid */
+      assignmentId: string | null;
+      /** @enum {string|null} */
+      assignmentKind: "EVENT" | "PRODUCTION" | "PROMOTION" | null;
+      /** @description Details recorded with the change; the shape depends on type. */
+      details: {
+        [key: string]: unknown;
+      };
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      occurredAt: string;
+      type: string;
+    };
+    TalentAssignmentCheckResponse: {
+      /** @description True when the talent is inactive and cannot be assigned. */
+      blocked: boolean;
+      conflicts: components["schemas"]["TalentAssignmentConflictResponse"][];
+      /** @description True when the talent already has an active assignment for this work. */
+      duplicate: boolean;
+    };
+    TalentAssignmentConflictResponse: {
+      /** Format: uuid */
+      assignmentId?: string;
+      /** @enum {string} */
+      assignmentKind?: "EVENT" | "PRODUCTION" | "PROMOTION";
+      /** Format: date-time */
+      endAt?: string | null;
+      /** Format: uuid */
+      scheduleId?: string;
+      /** Format: date-time */
+      startAt?: string;
+      title?: string;
+      /** @enum {string} */
+      type: "UNAVAILABLE" | "ASSIGNMENT_OVERLAP" | "SCHEDULE_OVERLAP";
+    };
+    TalentAssignmentPersonResponse: {
+      email: string;
+      firstName: string | null;
+      /** Format: uuid */
+      id: string;
+      lastName: string | null;
+    };
+    TalentAssignmentResponse: {
+      /** Format: date-time */
+      assignedAt: string;
+      assignedBy:
+        components["schemas"]["TalentAssignmentPersonResponse"] | null;
+      cancelReason: string | null;
+      /** Format: date-time */
+      cancelledAt: string | null;
+      cancelledBy:
+        components["schemas"]["TalentAssignmentPersonResponse"] | null;
+      /** Format: date-time */
+      completedAt: string | null;
+      /** Format: uuid */
+      departmentId: string | null;
+      /** Format: date-time */
+      endAt: string | null;
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      kind: "EVENT" | "PRODUCTION" | "PROMOTION";
+      notes: string | null;
+      /** @enum {string} */
+      phase: "upcoming" | "active" | "completed" | "cancelled";
+      role: string;
+      /** Format: date-time */
+      startAt: string | null;
+      /** @enum {string} */
+      status: "ASSIGNED" | "COMPLETED" | "CANCELLED";
+      /** Format: uuid */
+      workId: string;
+      workName: string;
+    };
+    TalentAssignmentWindowDto: {
+      /** Format: date-time */
+      endAt?: string | null;
+      /** @enum {string} */
+      kind: "EVENT" | "PRODUCTION" | "PROMOTION";
+      /** Format: date-time */
+      startAt?: string | null;
+      /** Format: uuid */
+      workId: string;
+    };
+    TalentCurrentAssignmentResponse: {
+      /** Format: date-time */
+      endAt: string | null;
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      kind: "EVENT" | "PRODUCTION" | "PROMOTION";
+      /** @enum {string} */
+      phase: "upcoming" | "active";
+      /** Format: date-time */
+      startAt: string | null;
+      workName: string;
+    };
     TalentEventAssignmentResponse: {
       /** Format: date-time */
       assignedAt: string;
@@ -7762,11 +8101,15 @@ export interface components {
       name: string;
     };
     TalentResponse: {
+      /** @description Assignments still active (ASSIGNED) across events, productions, and promotional activities. */
+      activeAssignmentCount: number;
       /** @enum {string} */
       availability: "AVAILABLE" | "ASSIGNED" | "UNAVAILABLE" | "INACTIVE";
       biography: string | null;
       /** Format: date-time */
       createdAt: string;
+      currentAssignment:
+        components["schemas"]["TalentCurrentAssignmentResponse"] | null;
       /** Format: email */
       email: string | null;
       eventAssignments: components["schemas"]["TalentEventAssignmentResponse"][];
@@ -7778,6 +8121,7 @@ export interface components {
       phone: string | null;
       /** Format: uuid */
       profileImageId: Record<string, never> | null;
+      profileImageUrl: string | null;
       schedules: components["schemas"]["TalentScheduleResponse"][];
       socialLinks: components["schemas"]["TalentSocialLinkResponse"][];
       /** @enum {string} */
@@ -7810,6 +8154,18 @@ export interface components {
       /** Format: uri */
       url: string;
     };
+    TalentSummaryResponse: {
+      /** @description Active assignments across events, productions, and promotional activities. */
+      activeAssignments: number;
+      /** @description Talent profiles with at least one active assignment. */
+      assignedTalents: number;
+      /** @description Talent profiles by availability state. */
+      byAvailability: {
+        [key: string]: number;
+      };
+      /** @description Talent profiles in the directory. */
+      total: number;
+    };
     TalentUserSummary: {
       /** Format: email */
       email: string;
@@ -7817,6 +8173,19 @@ export interface components {
       /** Format: uuid */
       id: string;
       lastName: string | null;
+    };
+    TalentWorkOptionResponse: {
+      /** Format: uuid */
+      departmentId: string | null;
+      /** Format: date-time */
+      endAt: string | null;
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      kind: "EVENT" | "PRODUCTION" | "PROMOTION";
+      name: string;
+      /** Format: date-time */
+      startAt: string | null;
     };
     TaskActivityResponse: {
       actor: components["schemas"]["TaskPersonSummary"] | null;
@@ -8113,6 +8482,7 @@ export interface components {
       status: "PLANNING" | "READY" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
     };
     TransitionEventTalentAssignmentDto: {
+      reason?: string;
       /** @enum {string} */
       status: "ASSIGNED" | "COMPLETED" | "CANCELLED";
     };
@@ -8130,6 +8500,11 @@ export interface components {
        * @enum {string}
        */
       status: "PLANNED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+    };
+    TransitionTalentAssignmentDto: {
+      reason?: string;
+      /** @enum {string} */
+      status: "COMPLETED" | "CANCELLED";
     };
     TransitionTalentDto: {
       /** @enum {string} */
@@ -8470,6 +8845,16 @@ export interface components {
       notes?: string;
       /** @enum {string} */
       status?: "ACTIVE" | "INACTIVE";
+    };
+    UpdateTalentAssignmentDto: {
+      acknowledgeConflicts?: boolean;
+      /** Format: date-time */
+      endAt?: string | null;
+      notes?: string | null;
+      overrideReason?: string | null;
+      role?: string;
+      /** Format: date-time */
+      startAt?: string | null;
     };
     UpdateTalentDto: {
       /** @example Singer and live performer. */
@@ -18368,6 +18753,43 @@ export interface operations {
       };
     };
   };
+  Notifications_markAllRead_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MarkAllReadResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Notifications_unreadCount_v1: {
     parameters: {
       query?: never;
@@ -22556,6 +22978,44 @@ export interface operations {
       };
     };
   };
+  TalentAssignableWorks_works_v1: {
+    parameters: {
+      query: {
+        kind: "EVENT" | "PRODUCTION" | "PROMOTION";
+        search?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentWorkOptionResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Talent_list_v1: {
     parameters: {
       query?: {
@@ -22570,8 +23030,10 @@ export interface operations {
         availability?: "AVAILABLE" | "ASSIGNED" | "UNAVAILABLE" | "INACTIVE";
         managerId?: string;
         search?: string;
-        page?: components["schemas"]["Object"];
-        pageSize?: components["schemas"]["Object"];
+        assignment?: "assigned" | "unassigned";
+        sort?: "name" | "newest" | "availability";
+        page?: number;
+        pageSize?: number;
       };
       header?: never;
       path?: never;
@@ -22624,6 +23086,41 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["TalentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Talent_summary_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentSummaryResponse"];
         };
       };
       401: {
@@ -23066,6 +23563,478 @@ export interface operations {
         };
       };
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentAssignments_activity_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentActivityResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentAssignments_list_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentAssignmentResponse"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentAssignments_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateTalentAssignmentDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentAssignmentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentAssignments_check_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TalentAssignmentWindowDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentAssignmentCheckResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentAssignments_update_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+        kind: string;
+        assignmentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateTalentAssignmentDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentAssignmentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentAssignments_transition_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+        kind: string;
+        assignmentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TransitionTalentAssignmentDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TalentAssignmentResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentFileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not allowed to change this profile photo */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Talent or photo not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentFileManagement_content_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description The profile photo */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not allowed to change this profile photo */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Talent or photo not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentFileManagement_createUploadIntent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUploadIntentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UploadIntentResponse"];
+        };
+      };
+      /** @description Invalid declaration or unsupported image type */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not allowed to change this profile photo */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Talent not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  TalentFileManagement_finalize_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        talentId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManagedFileResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not allowed to change this profile photo */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Intent expired, upload missing, unsafe, or already finalized */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description File scanner unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

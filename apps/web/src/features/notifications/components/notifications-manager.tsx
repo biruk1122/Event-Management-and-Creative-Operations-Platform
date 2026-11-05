@@ -182,31 +182,33 @@ export function NotificationsManager({
           : "ready";
 
   return (
-    <NotificationsCenter
-      items={items}
-      unreadCount={unread.data ?? 0}
-      hasMore={hasMore}
-      loadingMore={feed.isFetchingNextPage}
-      preferences={preferences.data ?? []}
-      state={state}
-      onRetry={() => {
-        // The failure driving the "error" state above may be any of the
-        // three queries, not necessarily the feed - retry all of them so
-        // "Try again" recovers regardless of which one actually failed.
-        void feed.refetch();
-        void unread.refetch();
-        void preferences.refetch();
-      }}
-      onLoadMore={() => void feed.fetchNextPage()}
-      onMarkRead={(id) => void markRead(id)}
-      onRemove={(id) => void remove(id)}
-      onMarkAllRead={() => void markAllRead()}
-      onTogglePreference={(type, muted) => void togglePreference(type, muted)}
-      markingAll={mutations.markAllRead.isPending}
-      pendingIds={pendingIds}
-      removingIds={removingIds}
-      pendingPreferences={pendingPreferences}
-      actionError={actionError}
-    />
+    <>
+      <NotificationsCenter
+        items={items}
+        unreadCount={unread.data ?? 0}
+        hasMore={hasMore}
+        loadingMore={feed.isFetchingNextPage}
+        preferences={preferences.data ?? []}
+        state={state}
+        onRetry={() => {
+          // The failure driving the "error" state above may be any of the
+          // three queries, not necessarily the feed - retry all of them so
+          // "Try again" recovers regardless of which one actually failed.
+          void feed.refetch();
+          void unread.refetch();
+          void preferences.refetch();
+        }}
+        onLoadMore={() => void feed.fetchNextPage()}
+        onMarkRead={(id) => void markRead(id)}
+        onRemove={(id) => void remove(id)}
+        onMarkAllRead={() => void markAllRead()}
+        onTogglePreference={(type, muted) => void togglePreference(type, muted)}
+        markingAll={mutations.markAllRead.isPending}
+        pendingIds={pendingIds}
+        removingIds={removingIds}
+        pendingPreferences={pendingPreferences}
+        actionError={actionError}
+      />
+    </>
   );
 }

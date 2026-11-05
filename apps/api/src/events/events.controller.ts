@@ -279,6 +279,6 @@ export class EventsController {
     @Req() request: RequestWithContext,
     @Param("id") id: string,
   ): Promise<void> {
-    await this.events.remove(actingUserId(request), id);
+    await this.events.remove(actingUserId(request), id, request.id);
   }
 }

@@ -18,7 +18,7 @@ export class CampaignsAnalyticsQuery {
       this.db,
       Prisma.sql`campaigns`,
       Prisma.sql`id`,
-      Prisma.sql`campaign_type = ${type}::campaign_type AND ${id ? Prisma.sql`id = ${id}::uuid` : Prisma.sql`true`}`,
+      Prisma.sql`campaign_type = ${type}::campaign_type AND archived_at IS NULL AND ${id ? Prisma.sql`id = ${id}::uuid` : Prisma.sql`true`}`,
       page,
     );
   }
@@ -30,7 +30,7 @@ export class CampaignsAnalyticsQuery {
       SELECT campaign_id AS id, count(*)::int AS total,
         count(*) FILTER (WHERE status = 'COMPLETED')::int AS completed,
         round(100.0 * count(*) FILTER (WHERE status = 'COMPLETED') / nullif(count(*), 0))::int AS percent
-      FROM campaign_activities WHERE campaign_id IN (${uuidSet(ids)}) AND status <> 'CANCELLED' GROUP BY campaign_id`);
+      FROM campaign_activities WHERE campaign_id IN (${uuidSet(ids)}) AND status <> 'CANCELLED' AND archived_at IS NULL GROUP BY campaign_id`);
     return ids.map(
       (id) =>
         rows.find((row) => row.id === id) ?? {
@@ -49,7 +49,7 @@ export class CampaignsAnalyticsQuery {
     const [row] = await this.db.readModel<ProgressCounts>(Prisma.sql`
       SELECT count(*)::int AS total, count(*) FILTER (WHERE status = 'COMPLETED')::int AS completed,
         round(100.0 * count(*) FILTER (WHERE status = 'COMPLETED') / nullif(count(*), 0))::int AS percent
-      FROM campaign_activities WHERE campaign_id = ${campaignId}::uuid AND id IN (${uuidSet(ids)}) AND status <> 'CANCELLED'`);
+      FROM campaign_activities WHERE campaign_id = ${campaignId}::uuid AND id IN (${uuidSet(ids)}) AND status <> 'CANCELLED' AND archived_at IS NULL`);
     return row!;
   }
   creation(period: ReadPeriod) {

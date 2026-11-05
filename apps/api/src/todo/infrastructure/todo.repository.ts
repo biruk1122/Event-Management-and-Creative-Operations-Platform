@@ -167,8 +167,8 @@ export class TodoRepository {
 
   async eventExists(id: string): Promise<boolean> {
     return (
-      (await this.db.event.findUnique({
-        where: { id },
+      (await this.db.event.findFirst({
+        where: { id, archivedAt: null },
         select: { id: true },
       })) !== null
     );

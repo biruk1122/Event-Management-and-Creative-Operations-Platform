@@ -115,7 +115,7 @@ test.describe("Talent management — end to end", () => {
       await expectNoWcag22AaViolations(page, "talent list");
 
       // Create a talent through the dialog, including its manager.
-      await page.getByRole("button", { name: "New talent" }).click();
+      await page.getByRole("button", { name: "Add talent" }).click();
       const createDialog = page.getByRole("dialog");
       await expect(
         createDialog.getByRole("heading", { name: "New talent" }),
@@ -123,10 +123,10 @@ test.describe("Talent management — end to end", () => {
       await expectNoWcag22AaViolations(page, "create talent dialog");
 
       await createDialog.getByLabel("Full name").fill(talentName);
-      await createDialog.getByRole("combobox", { name: "Type" }).click();
+      await createDialog.getByRole("combobox", { name: "Talent type" }).click();
       await page.getByRole("option", { name: "Musician", exact: true }).click();
       await createDialog
-        .getByRole("combobox", { name: "Manager (optional)" })
+        .getByRole("combobox", { name: "Manager", exact: true })
         .click();
       await page
         .getByRole("option", { name: managerEmail, exact: true })
@@ -174,12 +174,21 @@ test.describe("Talent management — end to end", () => {
       // Open the detail dialog. (The list renders both a desktop row and a
       // mobile card; only one is in the a11y tree at the test viewport, but
       // `.first()` keeps this stable regardless.)
-      await page.getByRole("button", { name: talentName }).first().click();
-      const detail = page.getByRole("dialog");
+      await page
+        .getByRole("button", { name: `View profile of ${talentName}` })
+        .first()
+        .click();
+      await page.waitForURL(new RegExp("/talent/[0-9a-f-]+$"));
       await expect(
-        detail.getByRole("heading", { name: talentName }),
+        page.getByRole("heading", { name: talentName, level: 2 }),
       ).toBeVisible();
-      await expectNoWcag22AaViolations(page, "talent detail dialog");
+      await expectNoWcag22AaViolations(page, "talent detail page");
+
+      // Social links, schedules and availability are edited in the Edit profile dialog.
+      await page
+        .getByRole("button", { name: "Edit profile", exact: true })
+        .click();
+      const detail = page.getByRole("dialog");
 
       // Add a social link, then a highest-risk failure path: a duplicate
       // url for the same talent is refused, both through the UI and the API
@@ -238,22 +247,24 @@ test.describe("Talent management — end to end", () => {
       );
       expect(scheduleRows).toEqual([{ title: "Sound check" }]);
 
-      // Assign the talent to the event created above.
-      await detail.getByRole("button", { name: "Assign to an event" }).click();
-      const assignForm = detail.getByRole("form", {
-        name: "Assign to an event",
-      });
-      await assignForm.getByRole("combobox", { name: "Event" }).click();
+      // Assign the talent to the event created above, through the Assign dialog.
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await page
+        .getByRole("button", { name: "Assign talent", exact: true })
+        .click();
+      const assignForm = page.getByRole("form", { name: "Assign talent" });
+      await assignForm.getByRole("combobox", { name: /Related work/ }).click();
       await page.getByRole("option", { name: eventName, exact: true }).click();
       await assignForm.getByLabel("Role").fill("Headliner");
-      await assignForm.getByRole("button", { name: "Assign" }).click();
-      // The form's own Select shows the chosen event's name as its closed
-      // value, which is exact-text-identical to the new row `Assign` is
-      // about to add - wait for the form to actually unmount before
-      // asserting on that text, or the two can transiently coexist and
-      // violate Playwright's strict mode.
+      await expect(
+        assignForm.getByText("Available for this window. No conflicts found."),
+      ).toBeVisible();
+      await assignForm
+        .getByRole("button", { name: "Confirm assignment", exact: true })
+        .click();
       await expect(assignForm).toHaveCount(0);
-      await expect(detail.getByText(eventName, { exact: true })).toBeVisible();
+      await expect(page.getByText(eventName, { exact: true })).toBeVisible();
 
       const assignmentRows = await queryInSchema<{
         event_id: string;
@@ -268,13 +279,9 @@ test.describe("Talent management — end to end", () => {
         { event_id: eventId, role: "Headliner", status: "ASSIGNED" },
       ]);
 
-      // Move the assignment to COMPLETED, a terminal state: the status
-      // control disappears once there are no further moves.
-      await detail
-        .getByRole("combobox", { name: `Move ${eventName} assignment to` })
-        .click();
+      // Mark the assignment complete, a terminal state: the row offers no further change.
       await page
-        .getByRole("option", { name: "Completed", exact: true })
+        .getByRole("button", { name: "Mark complete", exact: true })
         .click();
       await expect
         .poll(async () => {
@@ -286,11 +293,12 @@ test.describe("Talent management — end to end", () => {
         })
         .toBe("COMPLETED");
       await expect(
-        detail.getByRole("combobox", {
-          name: `Move ${eventName} assignment to`,
-        }),
+        page.getByRole("button", { name: "Mark complete", exact: true }),
       ).toHaveCount(0);
 
+      await page
+        .getByRole("button", { name: "Edit profile", exact: true })
+        .click();
       // Move through the availability lifecycle graph, cross-checking the
       // authoritative status after each move (the UI resets its picker to a
       // placeholder rather than showing the current value).
@@ -341,17 +349,19 @@ test.describe("Talent management — end to end", () => {
       ).toBeVisible();
 
       // AC: the full workflow persists and reloads authoritative data.
-      await page.reload();
+      // The count lives on the directory, so reload the list rather than the profile.
+      await page.goto("/talent");
       await expect(
         page.getByText(talentCount(baseline + 1), { exact: true }),
       ).toBeVisible();
-      await page.getByRole("button", { name: talentName }).first().click();
-      const reopened = page.getByRole("dialog");
+      await page
+        .getByRole("button", { name: `View profile of ${talentName}` })
+        .first()
+        .click();
+      await page.waitForURL(new RegExp("/talent/[0-9a-f-]+$"));
+      const reopened = page;
       await expect(
-        reopened.getByRole("heading", { name: talentName }),
-      ).toBeVisible();
-      await expect(
-        reopened.getByText("Inactive is a final state.", { exact: true }),
+        reopened.getByRole("heading", { name: talentName, level: 2 }),
       ).toBeVisible();
       await expect(
         reopened.getByText("Instagram", { exact: true }),
@@ -367,9 +377,15 @@ test.describe("Talent management — end to end", () => {
       // must actually disappear from the list, not merely report success
       // (EVE-138's #90 fix - the sections update their own local state since
       // DELETE returns no body to reconcile through).
-      await reopened.getByRole("button", { name: "Remove Instagram" }).click();
+      await reopened
+        .getByRole("button", { name: "Edit profile", exact: true })
+        .click();
+      const editDialog = reopened.getByRole("dialog");
+      await editDialog
+        .getByRole("button", { name: "Remove Instagram" })
+        .click();
       await expect(
-        reopened.getByText("Instagram", { exact: true }),
+        editDialog.getByText("Instagram", { exact: true }),
       ).not.toBeVisible();
       const linksGone = await queryInSchema(
         runDatabaseUrl(),
@@ -378,14 +394,14 @@ test.describe("Talent management — end to end", () => {
       );
       expect(linksGone).toHaveLength(0);
 
-      await reopened
+      await editDialog
         .getByRole("button", { name: "Remove Sound check" })
         .click();
-      await reopened
+      await editDialog
         .getByRole("button", { name: "Confirm remove Sound check" })
         .click();
       await expect(
-        reopened.getByText("Sound check", { exact: true }),
+        editDialog.getByText("Sound check", { exact: true }),
       ).not.toBeVisible();
       const schedulesGone = await queryInSchema(
         runDatabaseUrl(),
@@ -416,7 +432,7 @@ test.describe("Talent management — end to end", () => {
         page.getByRole("combobox", { name: "Filter by type" }),
       ).toHaveCount(0);
       await expect(
-        page.getByRole("button", { name: "New talent" }),
+        page.getByRole("button", { name: "Add talent" }),
       ).toHaveCount(0);
 
       const list = await page.request.get(`${apiBaseUrl}/api/v1/talents`);

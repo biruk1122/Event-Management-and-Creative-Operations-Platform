@@ -322,13 +322,18 @@ describe("EVE-171 analytics read-model specimens", () => {
       SELECT md5('production-workspace' || g)::uuid, 'PRODUCTION' FROM generate_series(1, 500) g;
       INSERT INTO productions (workspace_id, name, production_type, created_at)
       SELECT md5('production-workspace' || g)::uuid, 'Production', 'Video', '2026-09-01' FROM generate_series(1, 500) g;
-      INSERT INTO tasks (id, department_id, workspace_id, title, status, created_at, due_at)
+      INSERT INTO tasks (id, department_id, workspace_id, title, status, created_at, due_at, task_number)
       SELECT md5('task' || g)::uuid, md5('department' || (g % 100 + 1))::uuid,
         md5('event-workspace' || (g % 50 + 1))::uuid, 'Task',
         (ARRAY['TODO','IN_PROGRESS','UNDER_REVIEW','BLOCKED','COMPLETED','CANCELLED'])[g % 6 + 1]::task_status,
         '2025-01-01'::timestamptz + (g % 730) * interval '1 day',
-        CASE WHEN g % 7 = 0 THEN NULL ELSE '2026-09-15'::timestamptz END
+        CASE WHEN g % 7 = 0 THEN NULL ELSE '2026-09-15'::timestamptz END,
+        g
       FROM generate_series(1, 100000) g;
+      -- Numbers are given explicitly: the column default calls next_task_number(),
+      -- which updates one counter row per row. In this single transaction that is
+      -- quadratic (about 85 s for 100k rows); the counter is advanced once instead.
+      UPDATE task_number_counters SET last_value = 100000 WHERE id = 1;
       INSERT INTO task_assignments (task_id, user_id)
       SELECT md5('task' || g)::uuid, md5('user' || (g % 1000 + 1))::uuid FROM generate_series(1, 100000) g;
       INSERT INTO task_assignments (task_id, user_id)

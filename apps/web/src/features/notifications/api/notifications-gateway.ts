@@ -69,6 +69,16 @@ export async function unreadCount(signal?: AbortSignal): Promise<number> {
   return data.unreadCount;
 }
 
+/** Marks every unread notification the caller can see as read. Nothing is removed. */
+export async function markAllNotificationsRead(): Promise<number> {
+  const { data, response } = await browserApi.PUT(
+    "/api/v1/notifications/read-all",
+    { headers: headers() },
+  );
+  if (!data) throw new NotificationsRequestError(response.status);
+  return data.markedCount;
+}
+
 export async function removeNotification(id: string): Promise<void> {
   const { response } = await browserApi.DELETE("/api/v1/notifications/{id}", {
     params: { path: { id } },

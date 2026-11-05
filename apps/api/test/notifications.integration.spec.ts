@@ -59,6 +59,7 @@ interface NotificationBody {
   id: string;
   type: string;
   title: string;
+  senderName: string | null;
   body: string;
   taskId: string | null;
   messageId: string | null;
@@ -307,6 +308,76 @@ describe("notifications API and delivery pipeline", () => {
         await as(member, "get", "/api/v1/notifications/unread-count"),
       ).unreadCount,
     ).toBe(before - 1);
+  });
+
+  it("marks only the caller's unread notifications read, keeps history, and reports sender names", async () => {
+    const event = await prisma.outboxEvent.create({
+      data: {
+        name: "task.assigned",
+        version: 1,
+        occurredAt: new Date(),
+        actorKind: "USER",
+        actorUserId: secondMember.id,
+        resourceType: "task",
+      },
+    });
+    const create = (recipientUserId: string, readAt: Date | null) =>
+      prisma.notification.create({
+        data: {
+          recipientUserId,
+          type: "TASK_ASSIGNED",
+          sourceEventId: event.id,
+          occurrenceKey: randomUUID(),
+          title: "Read-all check",
+          body: "Part of a bulk read",
+          createdAt: new Date(Date.now() - 1000),
+          readAt,
+        },
+      });
+    const unread = await create(member.id, null);
+    const alreadyRead = await create(member.id, new Date());
+    const other = await create(secondMember.id, null);
+
+    await request(http).put("/api/v1/notifications/read-all").expect(401);
+    await request(http)
+      .put("/api/v1/notifications/read-all")
+      .set("Cookie", member.cookies)
+      .expect(403);
+
+    const marked = await as(
+      member,
+      "put",
+      "/api/v1/notifications/read-all",
+    ).expect(200);
+    expect(
+      body<{ markedCount: number }>(marked).markedCount,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      body<{ unreadCount: number }>(
+        await as(member, "get", "/api/v1/notifications/unread-count"),
+      ).unreadCount,
+    ).toBe(0);
+
+    const memberFeed = await feedFor(member);
+    const readItem = memberFeed.find((item) => item.id === unread.id);
+    expect(readItem?.readAt).not.toBeNull();
+    const sender = await prisma.user.findUniqueOrThrow({
+      where: { id: secondMember.id },
+    });
+    expect(readItem?.senderName).toBe(
+      [sender.firstName, sender.lastName].filter(Boolean).join(" ") || null,
+    );
+    expect(memberFeed.some((item) => item.id === alreadyRead.id)).toBe(true);
+
+    const otherFeed = await feedFor(secondMember);
+    expect(otherFeed.find((item) => item.id === other.id)?.readAt).toBeNull();
+
+    const again = await as(
+      member,
+      "put",
+      "/api/v1/notifications/read-all",
+    ).expect(200);
+    expect(body<{ markedCount: number }>(again).markedCount).toBe(0);
   });
 
   it(

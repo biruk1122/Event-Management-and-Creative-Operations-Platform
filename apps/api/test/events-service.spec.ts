@@ -46,6 +46,7 @@ async function expectCode(
   });
 }
 
+const talentAssignments = { archiveHook: () => () => Promise.resolve() };
 describe("EventsService", () => {
   let repository: {
     list: ReturnType<typeof vi.fn>;
@@ -112,6 +113,7 @@ describe("EventsService", () => {
       repository as never,
       workspaces as never,
       permissions as never,
+      talentAssignments as never,
     );
   });
 
@@ -150,7 +152,7 @@ describe("EventsService", () => {
         (s: EventsService) =>
           s.setBudget(ACTOR, "evt-1", { amount: null, currency: null }),
       ],
-      ["remove", (s: EventsService) => s.remove(ACTOR, "evt-1")],
+      ["remove", (s: EventsService) => s.remove(ACTOR, "evt-1", "req-1")],
     ] as const)("%s is denied without a grant", async (_label, call) => {
       grantOnly();
       await expectCode(call(service), "PERMISSION_DENIED");
@@ -199,7 +201,7 @@ describe("EventsService", () => {
           () =>
             service.setBudget(ACTOR, "evt-1", { amount: null, currency: null }),
         ],
-        ["event.delete", () => service.remove(ACTOR, "evt-1")],
+        ["event.delete", () => service.remove(ACTOR, "evt-1", "req-1")],
       ];
       for (const [key, call] of table) {
         grantOnly([key, "ORGANIZATION"]);
@@ -261,7 +263,7 @@ describe("EventsService", () => {
       [
         "remove",
         "event.delete",
-        (s: EventsService) => s.remove(ACTOR, "missing"),
+        (s: EventsService) => s.remove(ACTOR, "missing", "req-1"),
       ],
     ] as const)(
       "%s 404s for an organization-scoped caller on an unknown id",
@@ -549,7 +551,10 @@ describe("EventsService", () => {
       );
 
       repository.delete.mockResolvedValue("not_found");
-      await expectCode(service.remove(ACTOR, "evt-1"), "EVENT_NOT_FOUND");
+      await expectCode(
+        service.remove(ACTOR, "evt-1", "req-1"),
+        "EVENT_NOT_FOUND",
+      );
     });
   });
 

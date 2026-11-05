@@ -10,14 +10,10 @@ import {
 import * as gateway from "./talent-gateway";
 import type {
   EditTalentValues,
-  TalentAssignmentValues,
   TalentScheduleValues,
   TalentSocialLinkValues,
 } from "../lib/talent-outcome";
-import type {
-  TalentAssignmentStatus,
-  TalentAvailability,
-} from "../lib/talent-types";
+import type { TalentAvailability } from "../lib/talent-types";
 
 /**
  * Query keys namespaced by the acting user and a signature of their grants, so
@@ -35,6 +31,11 @@ export function talentKeys(access: CurrentAccess) {
     all,
     list: (params: Record<string, unknown>) =>
       [...all, "list", params] as const,
+    summary: [...all, "summary"] as const,
+    assignments: (id: string) => [...all, "talent", id, "assignments"] as const,
+    activity: (id: string) => [...all, "talent", id, "activity"] as const,
+    works: (kind: string, search: string) =>
+      [...all, "works", kind, search] as const,
     users: [...all, "assignable-users"] as const,
     events: [...all, "assignable-events"] as const,
     detail: (id: string) => [...all, "talent", id] as const,
@@ -124,29 +125,6 @@ export function useTalentMutations(access: CurrentAccess) {
     }) => gateway.removeSchedule(talentId, scheduleId),
     onSettled: reconcile,
   });
-  const assignEvent = useMutation({
-    mutationFn: ({
-      talentId,
-      values,
-    }: {
-      talentId: string;
-      values: TalentAssignmentValues;
-    }) => gateway.assignEvent(talentId, values),
-    onSettled: reconcile,
-  });
-  const transitionAssignment = useMutation({
-    mutationFn: ({
-      talentId,
-      assignmentId,
-      status,
-    }: {
-      talentId: string;
-      assignmentId: string;
-      status: TalentAssignmentStatus;
-    }) => gateway.transitionAssignment(talentId, assignmentId, status),
-    onSettled: reconcile,
-  });
-
   return {
     create,
     update,
@@ -157,7 +135,5 @@ export function useTalentMutations(access: CurrentAccess) {
     addSchedule,
     updateSchedule,
     removeSchedule,
-    assignEvent,
-    transitionAssignment,
   };
 }

@@ -1,4 +1,9 @@
-import { HttpException } from "@nestjs/common";
+import {
+  ConflictException,
+  HttpException,
+  NotFoundException,
+} from "@nestjs/common";
+import { TalentAccessService } from "../src/talent/talent-access.service.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PermissionScope } from "../src/generated/prisma/client.js";
@@ -58,18 +63,6 @@ const AVAILABILITY_PAIRS = AVAILABILITIES.flatMap((from) =>
   ),
 );
 
-const ASSIGNMENT_STATUSES = ["ASSIGNED", "COMPLETED", "CANCELLED"] as const;
-const ALLOWED_ASSIGNMENT: Record<string, readonly string[]> = {
-  ASSIGNED: ["COMPLETED", "CANCELLED"],
-  COMPLETED: [],
-  CANCELLED: [],
-};
-const ASSIGNMENT_PAIRS = ASSIGNMENT_STATUSES.flatMap((from) =>
-  ASSIGNMENT_STATUSES.map(
-    (to) => [from, to, ALLOWED_ASSIGNMENT[from]!.includes(to)] as const,
-  ),
-);
-
 describe("TalentService", () => {
   let repository: {
     list: ReturnType<typeof vi.fn>;
@@ -93,8 +86,13 @@ describe("TalentService", () => {
         (u: string, k: string, s: PermissionScope) => Promise<boolean>
       >
     >;
+    getAccessContext: ReturnType<typeof vi.fn>;
   };
   let service: TalentService;
+  let assignmentService: {
+    create: ReturnType<typeof vi.fn>;
+    transition: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     repository = {
@@ -113,8 +111,28 @@ describe("TalentService", () => {
       assignmentStatus: vi.fn().mockResolvedValue("ASSIGNED"),
       transitionAssignment: vi.fn().mockResolvedValue(makeTalent()),
     };
-    permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
-    service = new TalentService(repository as never, permissions as never);
+    permissions = {
+      hasGrant: vi.fn().mockResolvedValue(true),
+      getAccessContext: vi
+        .fn()
+        .mockResolvedValue({ role: "SUPER_ADMIN", department: null }),
+    };
+    const access = new TalentAccessService(permissions as never);
+    const assignments = {
+      countActiveAssignments: vi.fn().mockResolvedValue(0),
+      activeForTalents: vi.fn().mockResolvedValue([]),
+    };
+    assignmentService = {
+      create: vi.fn().mockResolvedValue({}),
+      transition: vi.fn().mockResolvedValue({}),
+    };
+    service = new TalentService(
+      repository as never,
+      permissions as never,
+      access,
+      assignments as never,
+      assignmentService as never,
+    );
   });
 
   function grantOnly(...allowed: [string, PermissionScope][]): void {
@@ -169,16 +187,6 @@ describe("TalentService", () => {
       [
         "removeSchedule",
         (s: TalentService) => s.removeSchedule(ACTOR, "tal-1", "sch-1"),
-      ],
-      [
-        "assignEvent",
-        (s: TalentService) =>
-          s.assignEvent(ACTOR, "tal-1", { eventId: "evt-1", role: "x" }),
-      ],
-      [
-        "transitionAssignment",
-        (s: TalentService) =>
-          s.transitionAssignment(ACTOR, "tal-1", "asg-1", "COMPLETED"),
       ],
     ] as const)("%s is denied without a grant", async (_label, call) => {
       grantOnly();
@@ -255,19 +263,6 @@ describe("TalentService", () => {
           "talent.manage_activities",
           () => service.removeSchedule(ACTOR, "tal-1", "sch-1"),
         ],
-        [
-          "talent.assign",
-          () =>
-            service.assignEvent(ACTOR, "tal-1", {
-              eventId: "evt-1",
-              role: "Headliner",
-            }),
-        ],
-        [
-          "talent.assign",
-          () =>
-            service.transitionAssignment(ACTOR, "tal-1", "asg-1", "COMPLETED"),
-        ],
       ];
       for (const [key, call] of table) {
         grantOnly([key, "ORGANIZATION"]);
@@ -327,18 +322,6 @@ describe("TalentService", () => {
         (s: TalentService) => s.removeSchedule(ACTOR, "missing", "sch-1"),
         "talent.manage_activities",
       ],
-      [
-        "assignEvent",
-        (s: TalentService) =>
-          s.assignEvent(ACTOR, "missing", { eventId: "evt-1", role: "x" }),
-        "talent.assign",
-      ],
-      [
-        "transitionAssignment",
-        (s: TalentService) =>
-          s.transitionAssignment(ACTOR, "missing", "asg-1", "COMPLETED"),
-        "talent.assign",
-      ],
     ] as const;
 
     it.each(ID_ROUTES)(
@@ -397,43 +380,6 @@ describe("TalentService", () => {
       await expectCode(
         service.transition(ACTOR, "tal-1", "ASSIGNED"),
         "TALENT_NOT_FOUND",
-      );
-    });
-  });
-
-  describe("assignment transitions follow the approved graph", () => {
-    it.each(ASSIGNMENT_PAIRS)(
-      "%s -> %s allowed=%s",
-      async (from, to, allowed) => {
-        grantOnly(["talent.assign", "ORGANIZATION"]);
-        repository.assignmentStatus.mockResolvedValue(from);
-        repository.transitionAssignment.mockResolvedValue(makeTalent());
-
-        if (allowed) {
-          await expect(
-            service.transitionAssignment(ACTOR, "tal-1", "asg-1", to),
-          ).resolves.toBeDefined();
-          expect(repository.transitionAssignment).toHaveBeenCalledWith(
-            "tal-1",
-            "asg-1",
-            to,
-          );
-        } else {
-          await expectCode(
-            service.transitionAssignment(ACTOR, "tal-1", "asg-1", to),
-            "TALENT_ASSIGNMENT_TRANSITION_INVALID",
-          );
-          expect(repository.transitionAssignment).not.toHaveBeenCalled();
-        }
-      },
-    );
-
-    it("404s an unknown assignment id", async () => {
-      grantOnly(["talent.assign", "ORGANIZATION"]);
-      repository.assignmentStatus.mockResolvedValue(null);
-      await expectCode(
-        service.transitionAssignment(ACTOR, "tal-1", "missing", "COMPLETED"),
-        "TALENT_ASSIGNMENT_NOT_FOUND",
       );
     });
   });
@@ -533,31 +479,89 @@ describe("TalentService", () => {
     });
   });
 
-  describe("event assignment conflicts", () => {
+  describe("legacy event assignments delegate to the assignment service", () => {
     beforeEach(() => {
       grantOnly(["talent.assign", "ORGANIZATION"]);
     });
 
-    it("maps a duplicate assignment to TALENT_EVENT_ASSIGNMENT_CONFLICT", async () => {
-      repository.createEventAssignment.mockResolvedValue("conflict");
-      await expectCode(
-        service.assignEvent(ACTOR, "tal-1", {
-          eventId: "evt-1",
+    it("passes the event as a work item and the caller's request id", async () => {
+      await service.assignEvent(
+        ACTOR,
+        "tal-1",
+        { eventId: "evt-1", role: "Headliner" },
+        "req-1",
+      );
+      expect(assignmentService.create).toHaveBeenCalledWith(
+        ACTOR,
+        "tal-1",
+        expect.objectContaining({
+          kind: "EVENT",
+          workId: "evt-1",
           role: "Headliner",
         }),
+        "req-1",
+      );
+    });
+
+    it("maps a duplicate assignment to TALENT_EVENT_ASSIGNMENT_CONFLICT", async () => {
+      assignmentService.create.mockRejectedValue(
+        new ConflictException({ code: "TALENT_ASSIGNMENT_DUPLICATE" }),
+      );
+      await expectCode(
+        service.assignEvent(
+          ACTOR,
+          "tal-1",
+          { eventId: "evt-1", role: "Headliner" },
+          "req-1",
+        ),
         "TALENT_EVENT_ASSIGNMENT_CONFLICT",
       );
     });
 
     it("maps an unknown event to EVENT_NOT_FOUND", async () => {
-      repository.createEventAssignment.mockResolvedValue("event_not_found");
+      assignmentService.create.mockRejectedValue(
+        new NotFoundException({ code: "TALENT_WORK_NOT_FOUND" }),
+      );
       await expectCode(
-        service.assignEvent(ACTOR, "tal-1", {
-          eventId: "missing",
-          role: "Headliner",
-        }),
+        service.assignEvent(
+          ACTOR,
+          "tal-1",
+          { eventId: "missing", role: "Headliner" },
+          "req-1",
+        ),
         "EVENT_NOT_FOUND",
       );
+    });
+
+    it("delegates cancellation with its reason, and never sets ASSIGNED directly", async () => {
+      await service.transitionAssignment(
+        ACTOR,
+        "tal-1",
+        "asg-1",
+        "CANCELLED",
+        "Withdrew",
+        "req-1",
+      );
+      expect(assignmentService.transition).toHaveBeenCalledWith(
+        ACTOR,
+        "tal-1",
+        "EVENT",
+        "asg-1",
+        { status: "CANCELLED", reason: "Withdrew" },
+        "req-1",
+      );
+      await expectCode(
+        service.transitionAssignment(
+          ACTOR,
+          "tal-1",
+          "asg-1",
+          "ASSIGNED",
+          undefined,
+          "req-1",
+        ),
+        "TALENT_ASSIGNMENT_TRANSITION_INVALID",
+      );
+      expect(assignmentService.transition).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -665,9 +669,11 @@ describe("TalentService", () => {
 
       expect(Object.keys(response).sort()).toEqual(
         [
+          "activeAssignmentCount",
           "availability",
           "biography",
           "createdAt",
+          "currentAssignment",
           "email",
           "eventAssignments",
           "fullName",
@@ -675,6 +681,7 @@ describe("TalentService", () => {
           "manager",
           "phone",
           "profileImageId",
+          "profileImageUrl",
           "schedules",
           "socialLinks",
           "type",

@@ -1595,15 +1595,38 @@
       },
       "CreateEventTalentAssignmentDto": {
         "properties": {
+          "acknowledgeConflicts": {
+            "type": "boolean"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "object"
+          },
           "eventId": {
             "format": "uuid",
             "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "object"
+          },
+          "overrideReason": {
+            "maxLength": 500,
+            "nullable": true,
+            "type": "object"
           },
           "role": {
             "example": "Headliner",
             "maxLength": 200,
             "minLength": 1,
             "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "object"
           }
         },
         "required": ["eventId", "role"],
@@ -2287,8 +2310,55 @@
         "required": ["name"],
         "type": "object"
       },
+      "CreateTalentAssignmentDto": {
+        "properties": {
+          "acknowledgeConflicts": {
+            "type": "boolean"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
+          "overrideReason": {
+            "maxLength": 500,
+            "nullable": true,
+            "type": "string"
+          },
+          "role": {
+            "example": "Headliner",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "workId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["kind", "workId", "role"],
+        "type": "object"
+      },
       "CreateTalentDto": {
         "properties": {
+          "availability": {
+            "enum": ["AVAILABLE", "UNAVAILABLE", "INACTIVE"],
+            "type": "string"
+          },
           "biography": {
             "example": "Singer and live performer.",
             "maxLength": 4000,
@@ -2312,6 +2382,9 @@
             "example": "+251911000000",
             "maxLength": 50,
             "type": "string"
+          },
+          "socialLink": {
+            "$ref": "#/components/schemas/CreateTalentSocialLinkDto"
           },
           "type": {
             "enum": [
@@ -4956,6 +5029,16 @@
         ],
         "type": "object"
       },
+      "MarkAllReadResponse": {
+        "properties": {
+          "markedCount": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["markedCount"],
+        "type": "object"
+      },
       "MarketingStrategyDto": {
         "properties": {
           "strategy": {
@@ -5527,7 +5610,9 @@
               "TASK_SUBMITTED",
               "TASK_REPORT_TO_ASSIGNED",
               "TASK_BLOCKED",
-              "TASK_REVIEWER_CHANGED"
+              "TASK_REVIEWER_CHANGED",
+              "TALENT_ASSIGNED",
+              "TALENT_ASSIGNMENT_CANCELLED"
             ],
             "type": "string"
           }
@@ -5606,6 +5691,11 @@
             "nullable": true,
             "type": "string"
           },
+          "senderName": {
+            "example": "Amina Tesfaye",
+            "nullable": true,
+            "type": "string"
+          },
           "taskId": {
             "format": "uuid",
             "nullable": true,
@@ -5645,7 +5735,9 @@
               "TASK_SUBMITTED",
               "TASK_REPORT_TO_ASSIGNED",
               "TASK_BLOCKED",
-              "TASK_REVIEWER_CHANGED"
+              "TASK_REVIEWER_CHANGED",
+              "TALENT_ASSIGNED",
+              "TALENT_ASSIGNMENT_CANCELLED"
             ],
             "type": "string"
           }
@@ -5655,6 +5747,7 @@
           "type",
           "title",
           "body",
+          "senderName",
           "taskId",
           "messageId",
           "eventId",
@@ -8620,6 +8713,290 @@
         ],
         "type": "object"
       },
+      "TalentActivityResponse": {
+        "properties": {
+          "actor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TalentAssignmentPersonResponse"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "assignmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "assignmentKind": {
+            "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+            "nullable": true,
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "description": "Details recorded with the change; the shape depends on type.",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "assignmentKind",
+          "assignmentId",
+          "details",
+          "occurredAt",
+          "actor"
+        ],
+        "type": "object"
+      },
+      "TalentAssignmentCheckResponse": {
+        "properties": {
+          "blocked": {
+            "description": "True when the talent is inactive and cannot be assigned.",
+            "type": "boolean"
+          },
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/TalentAssignmentConflictResponse"
+            },
+            "type": "array"
+          },
+          "duplicate": {
+            "description": "True when the talent already has an active assignment for this work.",
+            "type": "boolean"
+          }
+        },
+        "required": ["blocked", "duplicate", "conflicts"],
+        "type": "object"
+      },
+      "TalentAssignmentConflictResponse": {
+        "properties": {
+          "assignmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "assignmentKind": {
+            "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+            "type": "string"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "scheduleId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "enum": ["UNAVAILABLE", "ASSIGNMENT_OVERLAP", "SCHEDULE_OVERLAP"],
+            "type": "string"
+          }
+        },
+        "required": ["type"],
+        "type": "object"
+      },
+      "TalentAssignmentPersonResponse": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "firstName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["id", "email", "firstName", "lastName"],
+        "type": "object"
+      },
+      "TalentAssignmentResponse": {
+        "properties": {
+          "assignedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "assignedBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TalentAssignmentPersonResponse"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "cancelReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "cancelledAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "cancelledBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TalentAssignmentPersonResponse"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "departmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "phase": {
+            "enum": ["upcoming", "active", "completed", "cancelled"],
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": ["ASSIGNED", "COMPLETED", "CANCELLED"],
+            "type": "string"
+          },
+          "workId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "workName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "workId",
+          "workName",
+          "departmentId",
+          "role",
+          "status",
+          "phase",
+          "notes",
+          "startAt",
+          "endAt",
+          "assignedAt",
+          "completedAt",
+          "cancelledAt",
+          "cancelReason",
+          "assignedBy",
+          "cancelledBy"
+        ],
+        "type": "object"
+      },
+      "TalentAssignmentWindowDto": {
+        "properties": {
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "workId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["kind", "workId"],
+        "type": "object"
+      },
+      "TalentCurrentAssignmentResponse": {
+        "properties": {
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+            "type": "string"
+          },
+          "phase": {
+            "enum": ["upcoming", "active"],
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "workName": {
+            "type": "string"
+          }
+        },
+        "required": ["kind", "id", "workName", "startAt", "endAt", "phase"],
+        "type": "object"
+      },
       "TalentEventAssignmentResponse": {
         "properties": {
           "assignedAt": {
@@ -8672,6 +9049,10 @@
       },
       "TalentResponse": {
         "properties": {
+          "activeAssignmentCount": {
+            "description": "Assignments still active (ASSIGNED) across events, productions, and promotional activities.",
+            "type": "number"
+          },
           "availability": {
             "enum": ["AVAILABLE", "ASSIGNED", "UNAVAILABLE", "INACTIVE"],
             "type": "string"
@@ -8683,6 +9064,15 @@
           "createdAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "currentAssignment": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TalentCurrentAssignmentResponse"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
           },
           "email": {
             "format": "email",
@@ -8721,6 +9111,10 @@
             "nullable": true,
             "type": "object"
           },
+          "profileImageUrl": {
+            "nullable": true,
+            "type": "string"
+          },
           "schedules": {
             "items": {
               "$ref": "#/components/schemas/TalentScheduleResponse"
@@ -8751,10 +9145,13 @@
           }
         },
         "required": [
+          "activeAssignmentCount",
+          "currentAssignment",
           "id",
           "fullName",
           "type",
           "profileImageId",
+          "profileImageUrl",
           "email",
           "phone",
           "biography",
@@ -8808,6 +9205,36 @@
         "required": ["id", "label", "url"],
         "type": "object"
       },
+      "TalentSummaryResponse": {
+        "properties": {
+          "activeAssignments": {
+            "description": "Active assignments across events, productions, and promotional activities.",
+            "type": "number"
+          },
+          "assignedTalents": {
+            "description": "Talent profiles with at least one active assignment.",
+            "type": "number"
+          },
+          "byAvailability": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Talent profiles by availability state.",
+            "type": "object"
+          },
+          "total": {
+            "description": "Talent profiles in the directory.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "byAvailability",
+          "assignedTalents",
+          "activeAssignments"
+        ],
+        "type": "object"
+      },
       "TalentUserSummary": {
         "properties": {
           "email": {
@@ -8828,6 +9255,38 @@
           }
         },
         "required": ["id", "email", "firstName", "lastName"],
+        "type": "object"
+      },
+      "TalentWorkOptionResponse": {
+        "properties": {
+          "departmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["kind", "id", "name", "startAt", "endAt", "departmentId"],
         "type": "object"
       },
       "TaskActivityResponse": {
@@ -9598,6 +10057,10 @@
       },
       "TransitionEventTalentAssignmentDto": {
         "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string"
+          },
           "status": {
             "enum": ["ASSIGNED", "COMPLETED", "CANCELLED"],
             "type": "string"
@@ -9631,6 +10094,20 @@
           "status": {
             "description": "The lifecycle state to move to. Must be reachable from the current state under the approved graph.",
             "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "type": "string"
+          }
+        },
+        "required": ["status"],
+        "type": "object"
+      },
+      "TransitionTalentAssignmentDto": {
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "type": "string"
+          },
+          "status": {
+            "enum": ["COMPLETED", "CANCELLED"],
             "type": "string"
           }
         },
@@ -10567,6 +11044,38 @@
           },
           "status": {
             "enum": ["ACTIVE", "INACTIVE"],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateTalentAssignmentDto": {
+        "properties": {
+          "acknowledgeConflicts": {
+            "type": "boolean"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
+          "overrideReason": {
+            "maxLength": 500,
+            "nullable": true,
+            "type": "string"
+          },
+          "role": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
             "type": "string"
           }
         },
@@ -25787,6 +26296,54 @@
         "tags": ["Notifications"]
       }
     },
+    "/api/v1/notifications/read-all": {
+      "put": {
+        "operationId": "Notifications_markAllRead_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkAllReadResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission or invalid CSRF token"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Mark every unread notification in the caller's feed as read. Nothing is removed.",
+        "tags": ["Notifications"]
+      }
+    },
     "/api/v1/notifications/unread-count": {
       "get": {
         "operationId": "Notifications_unreadCount_v1",
@@ -32380,6 +32937,73 @@
         "tags": ["Supplier directory"]
       }
     },
+    "/api/v1/talent-assignments/works": {
+      "get": {
+        "operationId": "TalentAssignableWorks_works_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TalentWorkOptionResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Events, productions, or promotional activities the caller may assign talent to",
+        "tags": ["Talent management"]
+      }
+    },
     "/api/v1/talents": {
       "get": {
         "operationId": "Talent_list_v1",
@@ -32430,16 +33054,30 @@
           },
           {
             "in": "query",
+            "name": "assignment",
+            "required": false,
+            "schema": {
+              "enum": ["assigned", "unassigned"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "enum": ["name", "newest", "availability"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "page",
             "required": false,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ],
               "default": 1,
-              "minimum": 1
+              "minimum": 1,
+              "type": "number"
             }
           },
           {
@@ -32447,14 +33085,10 @@
             "name": "pageSize",
             "required": false,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Object"
-                }
-              ],
               "default": 25,
               "maximum": 100,
-              "minimum": 1
+              "minimum": 1,
+              "type": "number"
             }
           }
         ],
@@ -32551,6 +33185,51 @@
             "csrf-token": []
           }
         ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/summary": {
+      "get": {
+        "operationId": "Talent_summary_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentSummaryResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Talent directory summary counts",
         "tags": ["Talent management"]
       }
     },
@@ -33231,6 +33910,719 @@
             "csrf-token": []
           }
         ],
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{talentId}/activity": {
+      "get": {
+        "operationId": "TalentAssignments_activity_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TalentActivityResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List a talent's history. Organization readers see all of it; a Production Manager sees the assignments for their own department's work.",
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{talentId}/assignments": {
+      "get": {
+        "operationId": "TalentAssignments_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TalentAssignmentResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List a talent's assignments, of every status, that the caller may see",
+        "tags": ["Talent management"]
+      },
+      "post": {
+        "operationId": "TalentAssignments_create_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTalentAssignmentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentAssignmentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Create an assignment. Conflicts need acknowledgeConflicts; the override is recorded",
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{talentId}/assignments/check": {
+      "post": {
+        "operationId": "TalentAssignments_check_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TalentAssignmentWindowDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentAssignmentCheckResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Check an assignment against current data without saving it: blocks, duplicates, and conflicts",
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{talentId}/assignments/{kind}/{assignmentId}": {
+      "patch": {
+        "operationId": "TalentAssignments_update_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "assignmentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTalentAssignmentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentAssignmentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Update an active assignment's role, notes, or dates",
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{talentId}/assignments/{kind}/{assignmentId}/transition": {
+      "post": {
+        "operationId": "TalentAssignments_transition_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "assignmentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionTalentAssignmentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TalentAssignmentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Complete or cancel an active assignment (cancelling needs a reason)",
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{talentId}/profile-image": {
+      "get": {
+        "operationId": "TalentFileManagement_download_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadGrantResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed to change this profile photo"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Talent or photo not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Issue a short-lived view grant for the talent's profile photo",
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{talentId}/profile-image/content": {
+      "get": {
+        "operationId": "TalentFileManagement_content_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The profile photo"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed to change this profile photo"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Talent or photo not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Stream the talent's profile photo to an authorized directory reader",
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{talentId}/profile-image/upload-intents": {
+      "post": {
+        "operationId": "TalentFileManagement_createUploadIntent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadIntentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadIntentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid declaration or unsupported image type"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed to change this profile photo"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Talent not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a direct-upload grant for a talent profile photo (JPEG, PNG, or WEBP)",
+        "tags": ["Talent management"]
+      }
+    },
+    "/api/v1/talents/{talentId}/profile-image/{fileId}/finalize": {
+      "post": {
+        "operationId": "TalentFileManagement_finalize_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "talentId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedFileResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed to change this profile photo"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Intent expired, upload missing, unsafe, or already finalized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "File scanner unavailable"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Verify, scan, and set a completed upload as the talent's profile photo",
         "tags": ["Talent management"]
       }
     },

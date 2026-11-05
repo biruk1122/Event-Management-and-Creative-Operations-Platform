@@ -642,10 +642,20 @@ export class TasksService implements AuditWorkspaceContextResolver {
       fields.relatedEventId = dto.relatedEventId;
     if (dto.relatedCampaignId !== undefined)
       fields.relatedCampaignId = dto.relatedCampaignId;
+    // Only a link being added or moved is checked: an existing link to archived
+    // work stays as it is, so editing the task never silently breaks it.
     if (
       !(await this.repository.relatedLinksExist({
-        eventId: dto.relatedEventId,
-        campaignId: dto.relatedCampaignId,
+        eventId:
+          dto.relatedEventId !== undefined &&
+          dto.relatedEventId !== (task.relatedEvent?.id ?? null)
+            ? dto.relatedEventId
+            : undefined,
+        campaignId:
+          dto.relatedCampaignId !== undefined &&
+          dto.relatedCampaignId !== (task.relatedCampaign?.id ?? null)
+            ? dto.relatedCampaignId
+            : undefined,
       }))
     ) {
       throw taskRelatedNotFound();

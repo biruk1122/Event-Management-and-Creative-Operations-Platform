@@ -62,6 +62,8 @@ test.describe("Secure event-file management — end to end", () => {
       const event = (await create.json()) as ApiEvent;
 
       await page.goto("/events");
+      // The shared E2E database holds many events, so find this one by name.
+      await page.getByLabel("Search", { exact: true }).fill(eventName);
       await page.getByRole("button", { name: eventName }).first().click();
       const detail = page.getByRole("dialog");
       await expect(
@@ -152,6 +154,7 @@ test.describe("Secure event-file management — end to end", () => {
       // The browser reload proves the UI rehydrates from the API rather than
       // keeping the just-uploaded item only in client state.
       await page.reload();
+      await page.getByLabel("Search", { exact: true }).fill(eventName);
       await page.getByRole("button", { name: eventName }).first().click();
       const reopened = page.getByRole("dialog");
       await expect(reopened.getByText(filename, { exact: true })).toBeVisible();

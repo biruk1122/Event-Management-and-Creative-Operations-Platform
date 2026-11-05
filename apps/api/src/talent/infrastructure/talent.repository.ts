@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 
 import {
   Prisma,
-  TalentAssignmentStatus,
   TalentAvailability,
   TalentType,
 } from "../../generated/prisma/client.js";
@@ -54,6 +53,15 @@ const select = {
   },
 } as const;
 
+/** Talent with at least one assignment still active. */
+const ASSIGNED_WHERE: Prisma.TalentWhereInput = {
+  OR: [
+    { eventAssignments: { some: { status: "ASSIGNED" } } },
+    { productionAssignments: { some: { status: "ASSIGNED" } } },
+    { promotionAssignments: { some: { status: "ASSIGNED" } } },
+  ],
+};
+
 export type TalentRecord = Prisma.TalentGetPayload<{ select: typeof select }>;
 export type TalentFields = {
   fullName?: string;
@@ -79,7 +87,16 @@ export class TalentRepository {
     type?: TalentType;
     availability?: TalentAvailability;
     managerId?: string;
+    assignment?: "assigned" | "unassigned";
+    sort?: "name" | "newest" | "availability";
   }) {
+    const assigned: Prisma.TalentWhereInput = {
+      OR: [
+        { eventAssignments: { some: { status: "ASSIGNED" } } },
+        { productionAssignments: { some: { status: "ASSIGNED" } } },
+        { promotionAssignments: { some: { status: "ASSIGNED" } } },
+      ],
+    };
     const where: Prisma.TalentWhereInput = {
       ...(input.type ? { type: input.type } : {}),
       ...(input.availability ? { availability: input.availability } : {}),
@@ -87,12 +104,22 @@ export class TalentRepository {
       ...(input.search
         ? { fullName: { contains: input.search, mode: "insensitive" } }
         : {}),
+      ...(input.assignment === "assigned" ? assigned : {}),
+      ...(input.assignment === "unassigned" ? { NOT: assigned } : {}),
     };
+    const orderBy: Prisma.TalentOrderByWithRelationInput[] =
+      input.sort === "newest"
+        ? [{ createdAt: "desc" }, { id: "asc" }]
+        : input.sort === "availability"
+          ? [{ availability: "asc" }, { fullName: "asc" }, { id: "asc" }]
+          : input.sort === "name"
+            ? [{ fullName: "asc" }, { id: "asc" }]
+            : [{ createdAt: "asc" }, { id: "asc" }];
     const [items, total] = await Promise.all([
       this.db.talent.findMany({
         where,
         select,
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        orderBy,
         skip: (input.page - 1) * input.pageSize,
         take: input.pageSize,
       }),
@@ -100,6 +127,31 @@ export class TalentRepository {
     ]);
     return { items, total };
   }
+  /** Directory counts for the summary tiles, computed from the table. */
+  async summaryCounts(): Promise<{
+    total: number;
+    byAvailability: Array<{ availability: TalentAvailability; count: number }>;
+    assignedTalents: number;
+  }> {
+    const [total, grouped, assignedTalents] = await Promise.all([
+      this.db.talent.count(),
+      this.db.talent.groupBy({
+        by: ["availability"],
+        _count: { _all: true },
+      }),
+      this.db.talent.count({ where: ASSIGNED_WHERE }),
+    ]);
+    return {
+      total,
+      byAvailability: grouped.map((row) => ({
+        availability: row.availability,
+        count: row._count._all,
+      })),
+      assignedTalents,
+    };
+  }
+
+  /** The profile and its optional first social link are written in one statement. */
   async create(input: {
     fullName: string;
     type: TalentType;
@@ -107,9 +159,24 @@ export class TalentRepository {
     phone?: string;
     biography?: string;
     managerId?: string;
+    availability?: TalentAvailability;
+    socialLink?: { label: string; url: string };
   }): Promise<TalentRecord | "manager_not_found"> {
+    const { socialLink, ...fields } = input;
     try {
-      return await this.db.talent.create({ data: input, select });
+      return await this.db.talent.create({
+        data: {
+          ...fields,
+          ...(socialLink
+            ? {
+                socialLinks: {
+                  create: { label: socialLink.label, url: socialLink.url },
+                },
+              }
+            : {}),
+        },
+        select,
+      });
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -248,51 +315,5 @@ export class TalentRepository {
       (await this.db.talentSchedule.deleteMany({ where: { id, talentId } }))
         .count === 1
     );
-  }
-  async createEventAssignment(
-    talentId: string,
-    eventId: string,
-    role: string,
-  ): Promise<TalentRecord | "conflict" | "event_not_found" | null> {
-    if (!UUID.test(talentId) || !UUID.test(eventId)) return null;
-    try {
-      await this.db.eventTalent.create({ data: { talentId, eventId, role } });
-      return this.findById(talentId);
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002"
-      )
-        return "conflict";
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2003"
-      )
-        return "event_not_found";
-      throw error;
-    }
-  }
-  async assignmentStatus(
-    talentId: string,
-    id: string,
-  ): Promise<TalentAssignmentStatus | null> {
-    if (!UUID.test(talentId) || !UUID.test(id)) return null;
-    const item = await this.db.eventTalent.findFirst({
-      where: { id, talentId },
-      select: { status: true },
-    });
-    return item?.status ?? null;
-  }
-  async transitionAssignment(
-    talentId: string,
-    id: string,
-    status: TalentAssignmentStatus,
-  ): Promise<TalentRecord | null> {
-    if (!UUID.test(talentId) || !UUID.test(id)) return null;
-    const result = await this.db.eventTalent.updateMany({
-      where: { id, talentId },
-      data: { status },
-    });
-    return result.count ? this.findById(talentId) : null;
   }
 }

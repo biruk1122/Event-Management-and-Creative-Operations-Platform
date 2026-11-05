@@ -16,6 +16,7 @@ export class EventsSchedulerRepository {
     const rows = await this.db.event.findMany({
       where: {
         status: { notIn: [EventStatus.COMPLETED, EventStatus.CANCELLED] },
+        archivedAt: null,
         reminderAt: { not: null, lte: asOf },
       },
       select: { id: true, reminderAt: true },

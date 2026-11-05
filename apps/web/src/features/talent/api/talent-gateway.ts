@@ -9,8 +9,6 @@ import type {
   AddSchedule,
   AddSocialLink,
   AddSocialLinkOutcome,
-  AssignEvent,
-  AssignEventOutcome,
   CreateTalent,
   CreateTalentValues,
   EditTalentValues,
@@ -23,8 +21,6 @@ import type {
   SaveTalentOutcome,
   SetTalentManager,
   SetTalentManagerOutcome,
-  TransitionAssignment,
-  TransitionAssignmentOutcome,
   TransitionTalent,
   TransitionTalentOutcome,
   UpdateSchedule,
@@ -35,7 +31,10 @@ import type {
   AssignableEvent,
   AssignableUser,
   PaginatedTalents,
+  TalentAssignmentFilter,
   TalentAvailability,
+  TalentSort,
+  TalentSummary,
   TalentType,
 } from "../lib/talent-types";
 
@@ -91,11 +90,64 @@ function createBody(values: CreateTalentValues) {
   return {
     fullName: values.fullName.trim(),
     type: values.type,
+    availability: values.availability,
     ...(email ? { email } : {}),
     ...(phone ? { phone } : {}),
     ...(biography ? { biography } : {}),
     ...(values.managerId ? { managerId: values.managerId } : {}),
+    ...(values.socialLink
+      ? {
+          socialLink: {
+            label: values.socialLink.label.trim(),
+            url: values.socialLink.url.trim(),
+          },
+        }
+      : {}),
   };
+}
+
+/**
+ * Attaches a profile photo to an existing talent: intent, direct upload to
+ * storage, then finalize. Throws `TalentRequestError` so the caller can tell
+ * that the profile was created while the photo was not.
+ */
+export async function uploadTalentPhoto(
+  talentId: string,
+  file: File,
+): Promise<void> {
+  const { data: intent, response } = await browserApi.POST(
+    "/api/v1/talents/{talentId}/profile-image/upload-intents",
+    {
+      params: { path: { talentId } },
+      body: {
+        filename: file.name,
+        mediaType: file.type,
+        sizeBytes: file.size,
+      } as never,
+      headers: headers(),
+    },
+  );
+  if (!intent) throw new TalentRequestError(response.status);
+
+  const form = new FormData();
+  Object.entries(intent.upload.fields).forEach(([key, value]) =>
+    form.append(key, value),
+  );
+  form.append("file", file);
+  const uploaded = await fetch(intent.upload.url, {
+    method: "POST",
+    body: form,
+  });
+  if (!uploaded.ok) throw new TalentRequestError(uploaded.status);
+
+  const finalized = await browserApi.POST(
+    "/api/v1/talents/{talentId}/profile-image/{fileId}/finalize",
+    {
+      params: { path: { talentId, fileId: intent.id } },
+      headers: headers(),
+    },
+  );
+  if (!finalized.data) throw new TalentRequestError(finalized.response.status);
 }
 
 /** Build an `UpdateTalentDto`: send every field, blanking a nullable one to null. */
@@ -155,6 +207,8 @@ function transitionFailure(
   if (isProblemDetails(error)) {
     if (error.code === "TALENT_AVAILABILITY_TRANSITION_INVALID")
       return { status: "invalid_transition" };
+    if (error.code === "TALENT_HAS_ACTIVE_ASSIGNMENTS")
+      return { status: "has_active_assignments" };
     if (error.code === "TALENT_NOT_FOUND") return { status: "not_found" };
   }
   if (status === 401 || status === 403) return { status: "permission_denied" };
@@ -249,48 +303,13 @@ function removeScheduleFailure(
   return { status: "unexpected" };
 }
 
-function assignFailure(
-  error: unknown,
-  status: number,
-): Exclude<AssignEventOutcome, { status: "success" }> {
-  if (isProblemDetails(error)) {
-    if (error.code === "TALENT_EVENT_ASSIGNMENT_CONFLICT")
-      return { status: "conflict" };
-    if (error.code === "EVENT_NOT_FOUND") return { status: "event_not_found" };
-    if (error.code === "TALENT_NOT_FOUND") return { status: "not_found" };
-    if (error.code === "VALIDATION_ERROR") {
-      const fieldErrors = pickFieldErrors(error, ["eventId", "role"] as const);
-      if (Object.keys(fieldErrors).length > 0) {
-        return { status: "field_errors", fieldErrors };
-      }
-    }
-  }
-  if (status === 401 || status === 403) return { status: "permission_denied" };
-  return { status: "unexpected" };
-}
-
-function assignmentTransitionFailure(
-  error: unknown,
-  status: number,
-): Exclude<TransitionAssignmentOutcome, { status: "success" }> {
-  if (isProblemDetails(error)) {
-    if (error.code === "TALENT_ASSIGNMENT_TRANSITION_INVALID")
-      return { status: "invalid_transition" };
-    if (
-      error.code === "TALENT_NOT_FOUND" ||
-      error.code === "TALENT_ASSIGNMENT_NOT_FOUND"
-    )
-      return { status: "not_found" };
-  }
-  if (status === 401 || status === 403) return { status: "permission_denied" };
-  return { status: "unexpected" };
-}
-
 export interface ListTalentsParams {
   type?: TalentType | null;
   availability?: TalentAvailability | null;
   managerId?: string | null;
   search?: string | null;
+  assignment?: TalentAssignmentFilter | null;
+  sort?: TalentSort | null;
   page?: number;
   pageSize?: number;
 }
@@ -311,6 +330,8 @@ export async function listTalents(
   if (params.availability) query.availability = params.availability;
   if (params.managerId) query.managerId = params.managerId;
   if (params.search?.trim()) query.search = params.search.trim();
+  if (params.assignment) query.assignment = params.assignment;
+  if (params.sort) query.sort = params.sort;
 
   const { data, response } = await browserApi.GET("/api/v1/talents", {
     params: { query: query as unknown as ListQuery },
@@ -319,6 +340,17 @@ export async function listTalents(
   });
   if (!data) throw new TalentRequestError(response.status);
   return data;
+}
+
+/** Directory counts for the summary tiles. `null` when the caller cannot read the directory. */
+export async function getTalentSummary(
+  signal?: AbortSignal,
+): Promise<TalentSummary | null> {
+  const { data } = await browserApi.GET("/api/v1/talents/summary", {
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return data ?? null;
 }
 
 /** Resolves `null` for any non-OK response so the detail dialog shows its error state. */
@@ -525,46 +557,6 @@ export const removeSchedule: RemoveSchedule = async (talentId, scheduleId) => {
     );
     if (response.ok) return { status: "success" };
     return removeScheduleFailure(error, response.status);
-  } catch {
-    return { status: "unexpected" };
-  }
-};
-
-export const assignEvent: AssignEvent = async (talentId, values) => {
-  try {
-    const { data, error, response } = await browserApi.POST(
-      "/api/v1/talents/{id}/event-assignments",
-      {
-        params: { path: { id: talentId } },
-        body: { eventId: values.eventId, role: values.role.trim() },
-        headers: headers(),
-      },
-    );
-    return data
-      ? { status: "success", talent: data }
-      : assignFailure(error, response.status);
-  } catch {
-    return { status: "unexpected" };
-  }
-};
-
-export const transitionAssignment: TransitionAssignment = async (
-  talentId,
-  assignmentId,
-  status,
-) => {
-  try {
-    const { data, error, response } = await browserApi.POST(
-      "/api/v1/talents/{id}/event-assignments/{assignmentId}/transition",
-      {
-        params: { path: { id: talentId, assignmentId } },
-        body: { status },
-        headers: headers(),
-      },
-    );
-    return data
-      ? { status: "success", talent: data }
-      : assignmentTransitionFailure(error, response.status);
   } catch {
     return { status: "unexpected" };
   }

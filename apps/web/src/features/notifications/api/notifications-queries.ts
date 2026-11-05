@@ -112,6 +112,39 @@ export function useNotificationsMutations(access: CurrentAccess) {
       },
       onSettled: reconcile,
     }),
+    /** Clear Notifications: marks the unread ones read, so they leave the bell
+     * but stay in the full history. */
+    clearUnread: useMutation({
+      mutationKey: ["notifications", "clear-unread"],
+      mutationFn: async () => {
+        batch.current?.abort();
+        return gateway.markAllNotificationsRead();
+      },
+      onSuccess: async () => {
+        const readAt = new Date().toISOString();
+        await Promise.all([
+          client.cancelQueries({ queryKey: keys.feed }),
+          client.cancelQueries({ queryKey: keys.unreadCount }),
+        ]);
+        client.setQueryData<InfiniteData<NotificationFeed>>(
+          keys.feed,
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  pages: current.pages.map((page) => ({
+                    ...page,
+                    items: page.items.map((item) =>
+                      item.readAt === null ? { ...item, readAt } : item,
+                    ),
+                  })),
+                }
+              : current,
+        );
+        client.setQueryData<number>(keys.unreadCount, 0);
+      },
+      onSettled: reconcile,
+    }),
     markAllRead: useMutation({
       mutationKey: ["notifications", "mark-all-read"],
       mutationFn: async () => {

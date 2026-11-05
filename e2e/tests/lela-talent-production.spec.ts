@@ -3,315 +3,322 @@ import {
   expect,
   request,
   test,
+  type APIRequestContext,
   type Page,
-  type Locator,
-  type TestInfo,
 } from "@playwright/test";
 
 import { expectNoWcag22AaViolations } from "../fixtures/accessibility.js";
 import { authStatePath } from "../fixtures/auth.js";
 import { apiBaseUrl } from "../fixtures/environment.js";
 
-async function headers(page: Page) {
-  const csrf = (await page.context().cookies()).find(
+/** A valid 1x1 PNG, used as the profile photo. */
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+/** A talent with an overlapping schedule and a Production-department event. */
+const SCHEDULE = {
+  startAt: "2050-06-01T10:00:00.000Z",
+  endAt: "2050-06-01T12:00:00.000Z",
+};
+const EVENT_WINDOW = {
+  startAt: "2050-06-01T11:00:00.000Z",
+  endAt: "2050-06-01T13:00:00.000Z",
+};
+
+/** An API client signed in as one of the e2e accounts, carrying its CSRF token. */
+async function apiAs(key: string): Promise<APIRequestContext> {
+  return request.newContext({ storageState: authStatePath(key) });
+}
+
+async function csrfHeader(
+  api: APIRequestContext,
+): Promise<Record<string, string>> {
+  const token = (await api.storageState()).cookies.find(
     (c) => c.name === "csrf_token",
   )?.value;
-  expect(csrf).toBeTruthy();
-  return { "x-csrf-token": csrf! };
+  expect(token).toBeTruthy();
+  return { "x-csrf-token": token! };
 }
 
-async function capture(
-  page: Page,
-  testInfo: TestInfo,
+async function createTalent(
+  api: APIRequestContext,
+  fullName: string,
+  email: string,
+): Promise<{ id: string; fullName: string }> {
+  const response = await api.post(`${apiBaseUrl}/api/v1/talents`, {
+    headers: await csrfHeader(api),
+    data: { fullName, type: "MUSICIAN", email, phone: "+251 911 000 000" },
+  });
+  expect(response.status()).toBe(201);
+  return (await response.json()) as { id: string; fullName: string };
+}
+
+async function createEvent(
+  api: APIRequestContext,
   name: string,
-  region?: Locator,
-) {
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
-    ),
-  ).toBe(true);
-  if (region)
+  window?: { startAt: string; endAt: string },
+): Promise<{ id: string; name: string }> {
+  const response = await api.post(`${apiBaseUrl}/api/v1/events`, {
+    headers: await csrfHeader(api),
+    data: { name, eventType: "CONCERT", ...(window ?? {}) },
+  });
+  expect(response.status()).toBe(201);
+  return (await response.json()) as { id: string; name: string };
+}
+
+async function openProfile(page: Page, name: string): Promise<void> {
+  await page.goto("/talent");
+  await page.getByLabel("Search", { exact: true }).fill(name);
+  await page
+    .getByRole("button", { name: `View profile of ${name}`, exact: true })
+    .first()
+    .click();
+  await page.waitForURL(/\/talent\/[0-9a-f-]+$/);
+  await expect(
+    page.getByRole("heading", { level: 2, name, exact: true }),
+  ).toBeVisible();
+}
+
+test.describe("Production Manager talent journeys", () => {
+  test.use({ storageState: authStatePath("productionManager") });
+
+  test("sees masked contact details, assigns only own-department work, and cancels with a reason", async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(150_000);
+    const id = randomUUID().slice(0, 8);
+    const name = `Scoped Talent ${id}`;
+    const email = `scoped-${id}@e2e.test`;
+    const superAdmin = await apiAs("superAdmin");
+    const production = await apiAs("productionManager");
+    const talent = await createTalent(superAdmin, name, email);
+    const ownEvent = await createEvent(
+      production,
+      `PM Event ${id}`,
+      EVENT_WINDOW,
+    );
+    const otherEvent = await createEvent(
+      superAdmin,
+      `Organization Event ${id}`,
+      EVENT_WINDOW,
+    );
+
+    await page.setViewportSize({ width: 360, height: 800 });
+    await openProfile(page, name);
+
+    // Contact details are masked for the Production Manager, and the profile is read-only.
+    await expect(page.getByText(email, { exact: true })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "Edit profile", exact: true }),
+    ).toHaveCount(0);
     expect(
-      await region.evaluate(
-        (element) => element.scrollWidth <= element.clientWidth,
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true);
-  await expectNoWcag22AaViolations(page, name);
-  await page.screenshot({
-    path: testInfo.outputPath(`${name}.png`),
-    fullPage: true,
-  });
-}
+    await expectNoWcag22AaViolations(page, "production manager talent profile");
 
-const viewports = [
-  { width: 360, height: 800 },
-  { width: 768, height: 1024 },
-  { width: 1440, height: 900 },
-  { width: 720, height: 450 },
-];
-
-test.describe("Lela talent presentation", () => {
-  test.use({ storageState: authStatePath("talentManager") });
-
-  test("long profile, overlapping schedules and real duplicate-assignment feedback remain usable", async ({
-    page,
-  }, testInfo) => {
-    test.setTimeout(150_000);
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    const auth = await headers(page);
-    const name = `UI10-${randomUUID()}-${"LongTalentProfileName".repeat(4)}`;
-    const created = await page.request.post(`${apiBaseUrl}/api/v1/talents`, {
-      headers: auth,
-      data: {
-        fullName: name,
-        type: "MUSICIAN",
-        biography:
-          "A creative professional with extensive live production experience. ".repeat(
-            30,
-          ),
-      },
-    });
-    expect(created.status()).toBe(201);
-    const talent = (await created.json()) as { id: string };
-    for (const [title, startAt, endAt] of [
-      [
-        "Long sound check schedule",
-        "2050-06-01T10:00:00.000Z",
-        "2050-06-01T12:00:00.000Z",
-      ],
-      [
-        "Overlapping rehearsal schedule",
-        "2050-06-01T11:00:00.000Z",
-        "2050-06-01T13:00:00.000Z",
-      ],
-    ]) {
-      const schedule = await page.request.post(
-        `${apiBaseUrl}/api/v1/talents/${talent.id}/schedules`,
-        { headers: auth, data: { title, startAt, endAt } },
-      );
-      // Preserve current scheduling policy; no new capacity/overlap rule is invented.
-      expect(schedule.status()).toBe(201);
-    }
-    const admin = await request.newContext({
-      storageState: authStatePath("superAdmin"),
-    });
-    let event: { id: string; name: string };
-    try {
-      const csrf = (await admin.storageState()).cookies.find(
-        (c) => c.name === "csrf_token",
-      )?.value;
-      const response = await admin.post(`${apiBaseUrl}/api/v1/events`, {
-        headers: { "x-csrf-token": csrf! },
-        data: { name: `UI10 Event ${randomUUID()}`, eventType: "CONCERT" },
-      });
-      expect(response.status()).toBe(201);
-      event = (await response.json()) as { id: string; name: string };
-    } finally {
-      await admin.dispose();
-    }
-    const assigned = await page.request.post(
-      `${apiBaseUrl}/api/v1/talents/${talent.id}/event-assignments`,
-      { headers: auth, data: { eventId: event.id, role: "Headliner" } },
-    );
-    expect(assigned.status()).toBe(201);
-    await page.goto("/talent");
-    await page.getByLabel("Search", { exact: true }).fill(name);
-    const opener = page.getByRole("button", { name: new RegExp(name) });
-    await expect(opener).toBeVisible();
-    for (const viewport of viewports) {
-      await page.setViewportSize(viewport);
-      for (const dark of [false, true]) {
-        await page.evaluate(
-          (value) => document.documentElement.classList.toggle("dark", value),
-          dark,
-        );
-        await capture(page, testInfo, `talent-list-${viewport.width}-${dark}`);
-        await opener.focus();
-        await page.keyboard.press("Enter");
-        const detail = page.getByRole("dialog");
-        await expect(
-          detail.getByRole("heading", { name, exact: true }),
-        ).toBeVisible();
-        await expect(
-          detail.getByText("Overlapping rehearsal schedule", { exact: true }),
-        ).toBeVisible();
-        await capture(
-          page,
-          testInfo,
-          `talent-detail-${viewport.width}-${dark}`,
-          detail,
-        );
-        await page.keyboard.press("Escape");
-        await expect(opener).toBeFocused();
-      }
-    }
-    await page.setViewportSize({ width: 360, height: 800 });
-    await opener.click();
-    const detail = page.getByRole("dialog");
-    await detail
-      .getByRole("button", { name: "Assign to an event", exact: true })
+    // Work options are limited to the Production department.
+    await page
+      .getByRole("button", { name: "Assign talent", exact: true })
       .click();
-    const form = detail.getByRole("form", {
-      name: "Assign to an event",
-      exact: true,
-    });
-    await form.getByLabel("Event", { exact: true }).click();
-    await page.getByRole("option", { name: event.name, exact: true }).click();
-    await form.getByLabel("Role", { exact: true }).fill("Repeat assignment");
-    const conflict = page.waitForResponse(
-      (response) =>
-        response.url().endsWith(`/talents/${talent.id}/event-assignments`) &&
-        response.request().method() === "POST",
-    );
-    await form.getByRole("button", { name: "Assign", exact: true }).click();
-    expect((await conflict).status()).toBe(409);
+    const form = page.getByRole("form", { name: "Assign talent", exact: true });
+    await form.getByRole("combobox", { name: /Related work/ }).click();
     await expect(
-      form.getByText("This talent is already assigned to that event."),
+      page.getByRole("option", { name: ownEvent.name, exact: true }),
     ).toBeVisible();
-    await expect(form.getByLabel("Role")).toHaveValue("Repeat assignment");
-    await capture(page, testInfo, "talent-assignment-conflict-mobile", detail);
-    await form.getByRole("button", { name: "Cancel", exact: true }).click();
-    await detail
-      .getByRole("button", { name: "Add schedule entry", exact: true })
-      .click();
-    const schedule = detail.getByRole("form", { name: "New schedule entry" });
-    await schedule.getByLabel("Title").fill("Invalid date order");
-    await schedule.getByLabel("Starts (UTC)").fill("2050-06-01T15:00");
-    await schedule.getByLabel("Ends (UTC)").fill("2050-06-01T14:00");
-    await schedule
-      .getByRole("button", { name: "Add entry", exact: true })
-      .click();
     await expect(
-      schedule.getByText("The end must be after the start."),
-    ).toBeVisible();
-    await expect(schedule.getByLabel("Title")).toHaveValue(
-      "Invalid date order",
-    );
-    await capture(page, testInfo, "talent-schedule-validation-mobile", detail);
-    await page.keyboard.press("Escape");
-    await expect(opener).toBeFocused();
-    const create = page.getByRole("button", {
-      name: "New talent",
-      exact: true,
-    });
-    await create.focus();
-    await page.keyboard.press("Enter");
-    await expect(
-      page.getByRole("dialog").getByLabel("Full name"),
-    ).toBeVisible();
-    await capture(
-      page,
-      testInfo,
-      "talent-create-mobile",
-      page.getByRole("dialog"),
-    );
-    await page.keyboard.press("Escape");
-    await expect(create).toBeFocused();
-  });
-});
-
-test.describe("Lela production presentation", () => {
-  test.use({ storageState: authStatePath("superAdmin") });
-
-  test("long production resources, all shipped tabs, forms and empty filter recovery", async ({
-    page,
-  }, testInfo) => {
-    test.setTimeout(150_000);
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    const name = `UI10-${randomUUID()}-${"LongProductionProjectName".repeat(4)}`;
-    const response = await page.request.post(
-      `${apiBaseUrl}/api/v1/productions`,
+      page.getByRole("option", { name: otherEvent.name, exact: true }),
+    ).toHaveCount(0);
+    // The API refuses the same work outside the scope, whatever the screen offers.
+    const refused = await production.post(
+      `${apiBaseUrl}/api/v1/talents/${talent.id}/assignments`,
       {
-        headers: await headers(page),
+        headers: await csrfHeader(production),
         data: {
-          name,
-          productionType: "Video Production",
-          description: "Detailed production requirements. ".repeat(30),
-          startAt: "2050-01-01T00:00:00.000Z",
-          endAt: "2050-01-05T00:00:00.000Z",
-          deadlineAt: "2050-01-10T00:00:00.000Z",
+          kind: "EVENT",
+          workId: otherEvent.id,
+          role: "Host",
+          ...EVENT_WINDOW,
         },
       },
     );
-    expect(response.status()).toBe(201);
-    await page.goto("/projects/production");
-    await page.getByLabel("Search productions").fill(name);
-    const opener = page.getByRole("button", { name: new RegExp(name) });
-    await expect(opener).toBeVisible();
-    for (const viewport of viewports) {
-      await page.setViewportSize(viewport);
-      for (const dark of [false, true]) {
-        await page.evaluate(
-          (value) => document.documentElement.classList.toggle("dark", value),
-          dark,
-        );
-        await capture(
-          page,
-          testInfo,
-          `production-list-${viewport.width}-${dark}`,
-        );
-        await opener.focus();
-        await page.keyboard.press("Enter");
-        const detail = page.getByRole("region", {
-          name: "Production details",
-          exact: true,
-        });
-        await expect(
-          detail.getByRole("heading", { name, exact: true }),
-        ).toBeVisible();
-        for (const tab of await detail.getByRole("tab").all()) {
-          await tab.focus();
-          await page.keyboard.press("Enter");
-          await expect(tab).toHaveAttribute("aria-selected", "true");
-        }
-        await capture(
-          page,
-          testInfo,
-          `production-detail-${viewport.width}-${dark}`,
-          detail,
-        );
-        await detail
-          .getByRole("button", { name: "Close details", exact: true })
-          .click();
-      }
-    }
-    await page.setViewportSize({ width: 360, height: 800 });
-    await page.getByLabel("Search productions").fill(`absent-${randomUUID()}`);
-    await expect(
-      page.getByText("No productions match these filters", { exact: true }),
-    ).toBeVisible();
-    await capture(page, testInfo, "production-empty-mobile");
+    expect([403, 404]).toContain(refused.status());
+
+    // Assign own-department work from the same open work list.
     await page
-      .getByRole("button", { name: "Clear filters", exact: true })
+      .getByRole("option", { name: ownEvent.name, exact: true })
       .click();
-    await expect(opener).toBeVisible();
-    const create = page.getByRole("button", {
-      name: "New production",
+    await form.getByLabel("Role", { exact: true }).fill("Host");
+    await expect(
+      form.getByRole("button", { name: "Confirm assignment", exact: true }),
+    ).toBeEnabled();
+    await form
+      .getByRole("button", { name: "Confirm assignment", exact: true })
+      .click();
+    await expect(form).toHaveCount(0);
+    await expect(page.getByText(ownEvent.name, { exact: true })).toBeVisible();
+
+    // Cancelling needs a reason; with one, the row records it.
+    await page
+      .getByRole("button", { name: "Cancel assignment", exact: true })
+      .click();
+    const cancel = page.getByRole("dialog");
+    await cancel
+      .getByRole("button", { name: "Cancel assignment", exact: true })
+      .click();
+    await expect(
+      cancel.getByText("Say why the assignment is being cancelled."),
+    ).toBeVisible();
+    await cancel.getByLabel("Reason", { exact: true }).fill("Talent withdrew");
+    await cancel
+      .getByRole("button", { name: "Cancel assignment", exact: true })
+      .click();
+    await expect(page.getByText("Cancelled: Talent withdrew")).toBeVisible();
+    await expect(
+      page.getByText("Cancelled", { exact: true }).first(),
+    ).toBeVisible();
+
+    // The history records the cancellation with its actor.
+    const history = page
+      .getByRole("heading", { name: "History", exact: true })
+      .locator("..");
+    // The history reloads after the cancellation is saved, so allow for that round trip.
+    await expect(
+      history.getByText("Assignment cancelled", { exact: true }),
+    ).toBeVisible({ timeout: 30_000 });
+  });
+
+  test("a conflicting window needs an explicit acknowledgement before it is saved", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    const id = randomUUID().slice(0, 8);
+    const name = `Conflict Talent ${id}`;
+    const superAdmin = await apiAs("superAdmin");
+    const production = await apiAs("productionManager");
+    const talent = await createTalent(
+      superAdmin,
+      name,
+      `conflict-${id}@e2e.test`,
+    );
+    const schedule = await superAdmin.post(
+      `${apiBaseUrl}/api/v1/talents/${talent.id}/schedules`,
+      {
+        headers: await csrfHeader(superAdmin),
+        data: { title: "Sound check", ...SCHEDULE },
+      },
+    );
+    expect(schedule.status()).toBe(201);
+    const event = await createEvent(
+      production,
+      `Conflict Event ${id}`,
+      EVENT_WINDOW,
+    );
+
+    await openProfile(page, name);
+    await page
+      .getByRole("button", { name: "Assign talent", exact: true })
+      .click();
+    const form = page.getByRole("form", { name: "Assign talent", exact: true });
+    await form.getByRole("combobox", { name: /Related work/ }).click();
+    await page.getByRole("option", { name: event.name, exact: true }).click();
+    await form.getByLabel("Role", { exact: true }).fill("Headliner");
+
+    await expect(
+      form.getByText("Overlaps the schedule Sound check."),
+    ).toBeVisible();
+    const confirm = form.getByRole("button", {
+      name: "Confirm assignment",
       exact: true,
     });
-    await create.focus();
-    await page.keyboard.press("Enter");
+    await expect(confirm).toBeDisabled();
+    await form
+      .getByRole("checkbox", {
+        name: "Assign anyway, knowing about these conflicts",
+      })
+      .click();
+    await expect(confirm).toBeEnabled();
+    await confirm.click();
+
+    await expect(form).toHaveCount(0);
+    await expect(page.getByText(event.name, { exact: true })).toBeVisible();
+    await expectNoWcag22AaViolations(page, "talent conflict acknowledgement");
+  });
+});
+
+test.describe("Admin talent access", () => {
+  test.use({ storageState: authStatePath("admin") });
+
+  test("sees contact details, sees the New talent action, and archives talent with no active work", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    const id = randomUUID().slice(0, 8);
+    const name = `Admin Talent ${id}`;
+    const email = `admin-${id}@e2e.test`;
+    const superAdmin = await apiAs("superAdmin");
+    await createTalent(superAdmin, name, email);
+
+    await page.goto("/talent");
+    await expect(
+      page.getByRole("button", { name: "Add talent", exact: true }),
+    ).toBeVisible();
+    await openProfile(page, name);
+    await expect(page.getByText(email, { exact: true })).toBeVisible();
+
+    await page
+      .getByRole("button", { name: "Archive talent", exact: true })
+      .click();
     const dialog = page.getByRole("dialog");
     await dialog
-      .getByRole("button", { name: "Save production", exact: true })
+      .getByRole("button", { name: "Archive talent", exact: true })
       .click();
-    await expect(dialog.getByText("Enter a name.")).toBeVisible();
-    for (let index = 0; index < 10; index++) {
-      await page.keyboard.press("Tab");
-      expect(
-        await dialog.evaluate((element) =>
-          element.contains(document.activeElement),
-        ),
-      ).toBe(true);
-    }
-    await capture(
-      page,
-      testInfo,
-      "production-create-validation-mobile",
-      dialog,
-    );
+    await expect(
+      page.getByText("Inactive", { exact: true }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Talent archived.", { exact: true }),
+    ).toHaveCount(1);
+  });
+});
+
+test.describe("Talent profile photo", () => {
+  test.use({ storageState: authStatePath("superAdmin") });
+
+  test("uploads a profile photo and shows it on the profile", async ({
+    page,
+  }) => {
+    test.setTimeout(150_000);
+    const id = randomUUID().slice(0, 8);
+    const name = `Photo Talent ${id}`;
+    const superAdmin = await apiAs("superAdmin");
+    await createTalent(superAdmin, name, `photo-${id}@e2e.test`);
+
+    await openProfile(page, name);
+    // The photo is changed from the Edit profile dialog.
+    await page
+      .getByRole("button", { name: "Edit profile", exact: true })
+      .click();
+    await page
+      .getByLabel("Choose a profile photo", { exact: true })
+      .setInputFiles({
+        name: "portrait.png",
+        mimeType: "image/png",
+        buffer: PNG,
+      });
     await page.keyboard.press("Escape");
-    await expect(create).toBeFocused();
+
+    // The upload is scanned before it is attached, so wait for its success message
+    // before expecting the photo to render.
+    // The dialog hides the page from the accessibility tree, so match the live region by attribute.
+    await expect(
+      page.locator('[role="status"]', { hasText: "Profile photo updated." }),
+    ).toBeAttached({ timeout: 60_000 });
+    const photo = page.locator('img[src*="/profile-image/content"]');
+    await expect(photo).toBeVisible({ timeout: 30_000 });
+    await expect(photo).toHaveAttribute("src", /\/profile-image\/content\?v=/);
   });
 });

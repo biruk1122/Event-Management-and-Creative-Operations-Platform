@@ -499,7 +499,15 @@ describe("production management API", () => {
     );
   });
 
-  it("deletes a production and its workspace but retains related talent", async () => {
+  it("deletes a production without talent history, and archives one whose talent history must be kept", async () => {
+    const plain = await create();
+    expect(
+      (await as(admin, "delete", `/api/v1/productions/${plain.id}`)).status,
+    ).toBe(204);
+    expect(
+      await prisma.workspace.findUnique({ where: { id: plain.workspaceId } }),
+    ).toBeNull();
+
     const created = await create();
     const talent = await prisma.talent.create({
       data: { fullName: `Retained ${++sequence}`, type: "ARTIST" },
@@ -509,15 +517,25 @@ describe("production management API", () => {
       "put",
       `/api/v1/productions/${created.id}/talents/${talent.id}`,
     ).send({ role: "Lead" });
+    // The assignment is history: the production is archived, not deleted, and so is the talent link.
     expect(
       (await as(admin, "delete", `/api/v1/productions/${created.id}`)).status,
     ).toBe(204);
     expect(
-      await prisma.workspace.findUnique({ where: { id: created.workspaceId } }),
-    ).toBeNull();
+      (await prisma.production.findUnique({ where: { id: created.id } }))
+        ?.archivedAt,
+    ).toBeInstanceOf(Date);
     expect(
-      await prisma.talent.findUnique({ where: { id: talent.id } }),
+      await prisma.workspace.findUnique({ where: { id: created.workspaceId } }),
     ).not.toBeNull();
+    expect(
+      (await as(admin, "get", `/api/v1/productions/${created.id}`)).status,
+    ).toBe(404);
+    expect(
+      await prisma.productionTalent.count({
+        where: { productionId: created.id, talentId: talent.id },
+      }),
+    ).toBe(1);
   });
 
   it("preserves a production when a connected task blocks deletion", async () => {

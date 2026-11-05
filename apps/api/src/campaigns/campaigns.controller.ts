@@ -327,7 +327,7 @@ export class CampaignsController {
     @Req() request: RequestWithContext,
     @Param("id") id: string,
   ): Promise<void> {
-    await this.campaigns.remove(actingUserId(request), id);
+    await this.campaigns.remove(actingUserId(request), id, request.id);
   }
 
   @Get(":id/activities")
@@ -412,6 +412,11 @@ export class CampaignsController {
     @Param("id") id: string,
     @Param("activityId") activityId: string,
   ): Promise<void> {
-    await this.campaigns.removeActivity(actingUserId(request), id, activityId);
+    await this.campaigns.removeActivity(
+      actingUserId(request),
+      id,
+      activityId,
+      request.id,
+    );
   }
 }

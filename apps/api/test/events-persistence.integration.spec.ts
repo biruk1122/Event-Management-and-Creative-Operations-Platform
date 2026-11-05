@@ -1,4 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
+import { recordArchives } from "./support/archive-hook.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -433,8 +434,12 @@ describe("event management persistence", () => {
     it("deletes both rows and is idempotent on a second call", async () => {
       const event = await create();
 
-      expect(await repository.delete(event.id)).toBe("deleted");
-      expect(await repository.delete(event.id)).toBe("not_found");
+      expect(await repository.delete(event.id, recordArchives().hook)).toBe(
+        "deleted",
+      );
+      expect(await repository.delete(event.id, recordArchives().hook)).toBe(
+        "not_found",
+      );
 
       expect(
         await prisma.event.findUnique({ where: { id: event.id } }),
@@ -457,7 +462,9 @@ describe("event management persistence", () => {
         data: { workspaceId: event.workspaceId, userId },
       });
 
-      expect(await repository.delete(event.id)).toBe("deleted");
+      expect(await repository.delete(event.id, recordArchives().hook)).toBe(
+        "deleted",
+      );
 
       expect(await prisma.workspaceTeam.count({ where: { teamId } })).toBe(0);
       expect(
@@ -472,7 +479,9 @@ describe("event management persistence", () => {
     });
 
     it("returns not_found for a non-uuid string", async () => {
-      expect(await repository.delete("not-a-uuid")).toBe("not_found");
+      expect(await repository.delete("not-a-uuid", recordArchives().hook)).toBe(
+        "not_found",
+      );
     });
 
     it("cannot be short-circuited: the RESTRICT FK blocks deleting the workspace first", async () => {

@@ -146,7 +146,8 @@ describe("LoginForm", () => {
 
     release?.();
     expect(await screen.findByText("You are signed in")).toBeVisible();
-    expect(screen.getByRole("status")).toHaveFocus();
+    // Focus moves in an effect after the message renders, so wait for it.
+    await waitFor(() => expect(screen.getByRole("status")).toHaveFocus());
   });
 
   it("recovers from a rejected network request without losing input", async () => {

@@ -3,7 +3,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import {
   PrismaClient,
-  type TalentAssignmentStatus,
   type TalentAvailability,
 } from "../src/generated/prisma/client.js";
 import {
@@ -22,11 +21,6 @@ const EVERY_AVAILABILITY: TalentAvailability[] = [
   "ASSIGNED",
   "UNAVAILABLE",
   "INACTIVE",
-];
-const EVERY_ASSIGNMENT_STATUS: TalentAssignmentStatus[] = [
-  "ASSIGNED",
-  "COMPLETED",
-  "CANCELLED",
 ];
 
 /**
@@ -80,6 +74,15 @@ describe("talent management persistence", () => {
       data: { workspaceId: workspace.id, name, eventType: "CONCERT" },
     });
     return event.id;
+  }
+  /** Fixture: an event assignment row, written directly so the test controls only the state it needs. */
+  async function assignEventRow(
+    talentId: string,
+    eventId: string,
+    role: string,
+  ): Promise<TalentRecord> {
+    await prisma.eventTalent.create({ data: { talentId, eventId, role } });
+    return (await repository.findById(talentId))!;
   }
   async function create(
     overrides: Partial<{
@@ -204,12 +207,8 @@ describe("talent management persistence", () => {
       const talent = await create();
       const firstEvent = await makeEvent();
       const secondEvent = await makeEvent();
-      await repository.createEventAssignment(talent.id, firstEvent, "Opener");
-      await repository.createEventAssignment(
-        talent.id,
-        secondEvent,
-        "Headliner",
-      );
+      await assignEventRow(talent.id, firstEvent, "Opener");
+      await assignEventRow(talent.id, secondEvent, "Headliner");
 
       const reloaded = await repository.findById(talent.id);
       expect(reloaded?.eventAssignments.map((a) => a.role)).toEqual([
@@ -477,101 +476,10 @@ describe("talent management persistence", () => {
     it("creates an assignment and returns the full talent record", async () => {
       const talent = await create();
       const eventId = await makeEvent();
-      const updated = await repository.createEventAssignment(
-        talent.id,
-        eventId,
-        "Headliner",
-      );
-      expect((updated as TalentRecord).eventAssignments).toEqual([
+      const updated = await assignEventRow(talent.id, eventId, "Headliner");
+      expect(updated.eventAssignments).toEqual([
         expect.objectContaining({ role: "Headliner", status: "ASSIGNED" }),
       ]);
-    });
-
-    it("reports a duplicate talent-event pair as a conflict", async () => {
-      const talent = await create();
-      const eventId = await makeEvent();
-      await repository.createEventAssignment(talent.id, eventId, "Headliner");
-      expect(
-        await repository.createEventAssignment(talent.id, eventId, "Again"),
-      ).toBe("conflict");
-    });
-
-    it("reports an unknown event as event_not_found", async () => {
-      const talent = await create();
-      expect(
-        await repository.createEventAssignment(
-          talent.id,
-          MISSING_UUID,
-          "Headliner",
-        ),
-      ).toBe("event_not_found");
-    });
-
-    // P2003 fires on either FK column; the repository cannot tell which one
-    // was bad, so an unknown talentId with a real eventId is also reported
-    // as event_not_found. The service never reaches this ambiguity (it
-    // loads the talent first), so this documents the repository's own
-    // narrower contract.
-    it("also reports event_not_found when the unknown id is actually the talent", async () => {
-      const eventId = await makeEvent();
-      expect(
-        await repository.createEventAssignment(
-          MISSING_UUID,
-          eventId,
-          "Headliner",
-        ),
-      ).toBe("event_not_found");
-    });
-
-    it("assignmentStatus returns the current status or null", async () => {
-      const talent = await create();
-      const eventId = await makeEvent();
-      const updated = (await repository.createEventAssignment(
-        talent.id,
-        eventId,
-        "Headliner",
-      )) as TalentRecord;
-      const assignmentId = updated.eventAssignments[0]!.id;
-
-      expect(await repository.assignmentStatus(talent.id, assignmentId)).toBe(
-        "ASSIGNED",
-      );
-      expect(
-        await repository.assignmentStatus(talent.id, MISSING_UUID),
-      ).toBeNull();
-    });
-
-    it("round-trips every assignment status, scoped to the given talent", async () => {
-      const owner = await create();
-      const other = await create();
-      const eventId = await makeEvent();
-      const updated = (await repository.createEventAssignment(
-        owner.id,
-        eventId,
-        "Headliner",
-      )) as TalentRecord;
-      const assignmentId = updated.eventAssignments[0]!.id;
-
-      expect(
-        await repository.transitionAssignment(
-          other.id,
-          assignmentId,
-          "COMPLETED",
-        ),
-      ).toBeNull();
-
-      for (const status of EVERY_ASSIGNMENT_STATUS) {
-        const result = await repository.transitionAssignment(
-          owner.id,
-          assignmentId,
-          status,
-        );
-        expect(
-          (result as TalentRecord).eventAssignments.find(
-            (a) => a.id === assignmentId,
-          )?.status,
-        ).toBe(status);
-      }
     });
   });
 

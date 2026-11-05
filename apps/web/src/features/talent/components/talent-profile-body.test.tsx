@@ -1,25 +1,23 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-// The dialog default-imports getTalent from the gateway, which pulls in the
+// The body default-imports getTalent from the gateway, which pulls in the
 // real browser API client and validates public env vars at import time. Every
 // test here injects its own reader, so a stub client keeps that import chain
 // from throwing.
 vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
 
-import { ALL_ABILITIES, EVENTS, USERS, makeTalent } from "../test-data";
-import { TalentDetailDialog } from "./talent-detail-dialog";
+import { ALL_ABILITIES, USERS, makeTalent } from "../test-data";
+import { TalentProfileBody } from "./talent-profile-body";
 import type { Talent } from "../lib/talent-types";
 
-function renderDialog(
-  overrides: Partial<Parameters<typeof TalentDetailDialog>[0]> = {},
+function renderBody(
+  overrides: Partial<Parameters<typeof TalentProfileBody>[0]> = {},
 ) {
   const props = {
-    talentId: "tal-1" as string | null,
-    onOpenChange: vi.fn(),
+    talentId: "tal-1",
     users: USERS,
-    events: EVENTS,
     abilities: ALL_ABILITIES,
     getTalent: vi.fn((): Promise<Talent | null> =>
       Promise.resolve(makeTalent()),
@@ -76,57 +74,21 @@ function renderDialog(
     onRemoveSchedule: vi.fn(() =>
       Promise.resolve({ status: "success" as const }),
     ),
-    onAssignEvent: vi.fn(() =>
-      Promise.resolve({
-        status: "success" as const,
-        talent: makeTalent({
-          eventAssignments: [
-            {
-              id: "asg1",
-              event: { id: "e1", name: "Aurora Premiere" },
-              role: "Headliner",
-              status: "ASSIGNED",
-              assignedAt: "2026-05-01T00:00:00.000Z",
-              updatedAt: "2026-05-01T00:00:00.000Z",
-            },
-          ],
-        }),
-      }),
-    ),
-    onTransitionAssignment: vi.fn(() =>
-      Promise.resolve({
-        status: "success" as const,
-        talent: makeTalent({
-          eventAssignments: [
-            {
-              id: "asg1",
-              event: { id: "e1", name: "Aurora Premiere" },
-              role: "Headliner",
-              status: "COMPLETED",
-              assignedAt: "2026-05-01T00:00:00.000Z",
-              updatedAt: "2026-05-02T00:00:00.000Z",
-            },
-          ],
-        }),
-      }),
-    ),
     onChanged: vi.fn(),
     ...overrides,
   };
-  render(<TalentDetailDialog {...props} />);
+  render(<TalentProfileBody {...props} />);
   return props;
 }
 
 async function waitForLoaded(name = "Amina Tesfaye") {
-  return within(await screen.findByRole("dialog")).findByRole("heading", {
-    name,
-  });
+  return screen.findByDisplayValue(name);
 }
 
-describe("TalentDetailDialog", () => {
+describe("TalentProfileBody", () => {
   describe("loading", () => {
     it("announces loading first", () => {
-      renderDialog({
+      renderBody({
         getTalent: vi.fn(() => new Promise<Talent | null>(() => undefined)),
       });
 
@@ -134,7 +96,7 @@ describe("TalentDetailDialog", () => {
     });
 
     it("loads the talent and shows its details and manager", async () => {
-      renderDialog({
+      renderBody({
         getTalent: vi.fn(() =>
           Promise.resolve(makeTalent({ manager: USERS[0]! })),
         ),
@@ -143,11 +105,13 @@ describe("TalentDetailDialog", () => {
 
       expect(screen.getByLabelText("Full name")).toHaveValue("Amina Tesfaye");
       expect(screen.getByLabelText("Email")).toHaveValue("amina@example.com");
-      expect(screen.getByText("Managed by Morgan Lead")).toBeVisible();
+      expect(
+        screen.getByRole("combobox", { name: "Manager" }),
+      ).toHaveTextContent("Morgan Lead");
     });
 
     it("shows an error state when the talent cannot be loaded", async () => {
-      renderDialog({ getTalent: vi.fn(() => Promise.resolve(null)) });
+      renderBody({ getTalent: vi.fn(() => Promise.resolve(null)) });
 
       expect(
         await screen.findByText("We could not load this talent"),
@@ -164,7 +128,7 @@ describe("TalentDetailDialog", () => {
           talent: makeTalent({ fullName: "Renamed Talent" }),
         }),
       );
-      renderDialog({ onUpdate });
+      renderBody({ onUpdate });
       await waitForLoaded();
 
       const nameField = screen.getByLabelText("Full name");
@@ -184,7 +148,7 @@ describe("TalentDetailDialog", () => {
     });
 
     it("read-only caller cannot edit, sees an explanatory note", async () => {
-      renderDialog({ abilities: { ...ALL_ABILITIES, canUpdate: false } });
+      renderBody({ abilities: { ...ALL_ABILITIES, canUpdate: false } });
       await waitForLoaded();
 
       expect(screen.getByLabelText("Full name")).toBeDisabled();
@@ -203,7 +167,7 @@ describe("TalentDetailDialog", () => {
           talent: makeTalent({ availability: "ASSIGNED" }),
         }),
       );
-      renderDialog({ onTransition });
+      renderBody({ onTransition });
       await waitForLoaded();
 
       await user.click(screen.getByRole("combobox", { name: /Move to/ }));
@@ -215,7 +179,7 @@ describe("TalentDetailDialog", () => {
     });
 
     it("shows a terminal-state message and no control when inactive", async () => {
-      renderDialog({
+      renderBody({
         getTalent: vi.fn(() =>
           Promise.resolve(makeTalent({ availability: "INACTIVE" })),
         ),
@@ -230,7 +194,7 @@ describe("TalentDetailDialog", () => {
 
     it("shows the invalid-transition error", async () => {
       const user = userEvent.setup();
-      renderDialog({
+      renderBody({
         onTransition: vi.fn(() =>
           Promise.resolve({ status: "invalid_transition" as const }),
         ),
@@ -257,7 +221,7 @@ describe("TalentDetailDialog", () => {
           talent: makeTalent({ manager: USERS[0]! }),
         }),
       );
-      renderDialog({ onSetManager });
+      renderBody({ onSetManager });
       await waitForLoaded();
 
       const [managerSelect] = screen.getAllByRole("combobox", {
@@ -292,7 +256,7 @@ describe("TalentDetailDialog", () => {
           }),
         }),
       );
-      renderDialog({ onAddSchedule });
+      renderBody({ onAddSchedule });
       await waitForLoaded();
 
       await user.click(
@@ -317,7 +281,7 @@ describe("TalentDetailDialog", () => {
       const onRemoveSchedule = vi.fn(() =>
         Promise.resolve({ status: "success" as const }),
       );
-      renderDialog({
+      renderBody({
         getTalent: vi.fn(() =>
           Promise.resolve(
             makeTalent({
@@ -357,7 +321,7 @@ describe("TalentDetailDialog", () => {
       const onAddSocialLink = vi
         .fn()
         .mockResolvedValueOnce({ status: "conflict" as const });
-      renderDialog({ onAddSocialLink });
+      renderBody({ onAddSocialLink });
       await waitForLoaded();
 
       await user.click(screen.getByRole("button", { name: "Add social link" }));
@@ -379,7 +343,7 @@ describe("TalentDetailDialog", () => {
       const onRemoveSocialLink = vi.fn(() =>
         Promise.resolve({ status: "success" as const }),
       );
-      renderDialog({
+      renderBody({
         getTalent: vi.fn(() =>
           Promise.resolve(
             makeTalent({
@@ -406,44 +370,6 @@ describe("TalentDetailDialog", () => {
         expect(onRemoveSocialLink).toHaveBeenCalledWith("tal-1", "sl1"),
       );
       expect(screen.queryByText("Instagram")).not.toBeInTheDocument();
-    });
-  });
-
-  describe("event assignments", () => {
-    it("assigns to an event and transitions its status", async () => {
-      const user = userEvent.setup();
-      const onAssignEvent = vi.fn(() =>
-        Promise.resolve({
-          status: "success" as const,
-          talent: makeTalent({
-            eventAssignments: [
-              {
-                id: "asg1",
-                event: { id: "e1", name: "Aurora Premiere" },
-                role: "Headliner",
-                status: "ASSIGNED",
-                assignedAt: "2026-05-01T00:00:00.000Z",
-                updatedAt: "2026-05-01T00:00:00.000Z",
-              },
-            ],
-          }),
-        }),
-      );
-      renderDialog({ onAssignEvent });
-      await waitForLoaded();
-
-      await user.click(
-        screen.getByRole("button", { name: "Assign to an event" }),
-      );
-      await user.click(screen.getByRole("combobox", { name: "Event" }));
-      await user.click(
-        await screen.findByRole("option", { name: "Aurora Premiere" }),
-      );
-      await user.type(screen.getByLabelText("Role"), "Headliner");
-      await user.click(screen.getByRole("button", { name: "Assign" }));
-
-      await waitFor(() => expect(onAssignEvent).toHaveBeenCalled());
-      expect(await screen.findByText("Aurora Premiere")).toBeVisible();
     });
   });
 });

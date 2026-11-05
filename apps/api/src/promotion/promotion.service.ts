@@ -1,8 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { HttpException, Injectable } from "@nestjs/common";
 
 import { Prisma } from "../generated/prisma/client.js";
 import { CampaignsService } from "../campaigns/campaigns.service.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
+import { TalentAssignmentsService } from "../talent/talent-assignments.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import type { ListCampaignActivitiesQueryDto } from "../campaigns/dto/list-campaign-activities-query.dto.js";
 import type {
@@ -64,6 +65,7 @@ export class PromotionService {
     private readonly campaigns: CampaignsService,
     private readonly permissions: PermissionsService,
     private readonly repository: PromotionRepository,
+    private readonly talentAssignments: TalentAssignmentsService,
   ) {}
 
   private async campaign(userId: string, campaignId: string) {
@@ -174,29 +176,42 @@ export class PromotionService {
     return response(record);
   }
 
-  async remove(userId: string, campaignId: string, activityId: string) {
+  async remove(
+    userId: string,
+    campaignId: string,
+    activityId: string,
+    requestId: string,
+  ) {
     await this.activity(userId, campaignId, activityId);
     await this.grant(userId, "campaign.activity.manage");
-    if (!(await this.repository.remove(campaignId, activityId)))
-      throw promotionActivityNotFound();
+    const result = await this.repository.remove(
+      campaignId,
+      activityId,
+      this.talentAssignments.archiveHook(userId, requestId),
+    );
+    if (result === "not_found") throw promotionActivityNotFound();
   }
 
+  /** Assigns talent through the assignment service, so conflicts, history and audit apply. */
   async assignTalent(
     userId: string,
     campaignId: string,
     activityId: string,
     dto: AssignPromotionTalentDto,
+    requestId: string,
   ): Promise<PromotionActivityResponse> {
     await this.activity(userId, campaignId, activityId);
     await this.grant(userId, "campaign.activity.manage");
-    await this.grant(userId, "talent.assign");
     await this.load(campaignId, activityId);
     try {
-      await this.repository.assign(activityId, dto.talentId, dto.role.trim());
+      await this.talentAssignments.create(
+        userId,
+        dto.talentId,
+        { kind: "PROMOTION", workId: activityId, role: dto.role.trim() },
+        requestId,
+      );
     } catch (error) {
-      if (prismaError(error, "P2002")) throw promotionAssignmentConflict();
-      if (prismaError(error, "P2003")) throw promotionTalentNotFound();
-      throw error;
+      throw promotionTalentError(error, "assign");
     }
     return response(await this.load(campaignId, activityId));
   }
@@ -206,14 +221,39 @@ export class PromotionService {
     campaignId: string,
     activityId: string,
     talentId: string,
+    requestId: string,
   ): Promise<PromotionActivityResponse> {
     await this.activity(userId, campaignId, activityId);
     await this.grant(userId, "campaign.activity.manage");
-    await this.grant(userId, "talent.assign");
     await this.load(campaignId, activityId);
     if (!isUuid(talentId)) throw promotionAssignmentNotFound();
-    if (!(await this.repository.unassign(activityId, talentId)))
-      throw promotionAssignmentNotFound();
+    try {
+      await this.talentAssignments.cancelActiveForWork(
+        userId,
+        talentId,
+        "PROMOTION",
+        activityId,
+        "Removed from the promotional activity",
+        requestId,
+      );
+    } catch (error) {
+      throw promotionTalentError(error, "unassign");
+    }
     return response(await this.load(campaignId, activityId));
   }
+}
+
+/** Maps the assignment service's codes to this module's talent-link codes. */
+function promotionTalentError(
+  error: unknown,
+  action: "assign" | "unassign",
+): unknown {
+  if (!(error instanceof HttpException)) return error;
+  const code = (error.getResponse() as { code?: string }).code;
+  if (action === "assign" && code === "TALENT_ASSIGNMENT_DUPLICATE")
+    return promotionAssignmentConflict();
+  if (code === "TALENT_NOT_FOUND") return promotionTalentNotFound();
+  if (action === "unassign" && code === "TALENT_ASSIGNMENT_NOT_FOUND")
+    return promotionAssignmentNotFound();
+  return error;
 }

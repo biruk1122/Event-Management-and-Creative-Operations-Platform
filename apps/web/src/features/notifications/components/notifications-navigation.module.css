@@ -185,12 +185,46 @@
       transparent 48%
     );
 }
-.footer::before,
-.footer::after {
-  content: "";
+.footer > * {
+  flex: 1 1 auto;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.row > a {
   flex: 1;
-  height: 1px;
-  background: color-mix(in oklab, var(--ring) 12%, transparent);
+  min-width: 0;
+}
+.markRead {
+  flex-shrink: 0;
+  color: var(--ring);
+}
+.sender {
+  font-weight: 600;
+  color: var(--foreground);
+}
+.clearAll {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 2rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--destructive);
+  border-color: color-mix(in oklab, var(--destructive) 30%, transparent);
+  background: var(--card);
+}
+.clearAll:hover {
+  background: color-mix(in oklab, var(--destructive) 6%, var(--card));
+}
+.clearAll svg {
+  width: 1rem;
+  height: 1rem;
 }
 .viewAll {
   display: inline-flex;

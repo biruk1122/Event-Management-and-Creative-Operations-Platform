@@ -137,13 +137,16 @@ export class EventShiftsRepository {
     return user?.departmentId ?? null;
   }
 
-  async findEventContext(
-    eventId: string,
-  ): Promise<{ id: string; name: string; departmentId: string | null } | null> {
+  async findEventContext(eventId: string): Promise<{
+    id: string;
+    name: string;
+    departmentId: string | null;
+    archivedAt: Date | null;
+  } | null> {
     if (!isUuid(eventId)) return null;
     return this.db.event.findUnique({
       where: { id: eventId },
-      select: { id: true, name: true, departmentId: true },
+      select: { id: true, name: true, departmentId: true, archivedAt: true },
     });
   }
 

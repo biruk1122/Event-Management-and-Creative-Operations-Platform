@@ -125,11 +125,15 @@ describe("DocumentsManager library controls", () => {
         screen.queryByRole("button", { name: "Clear filters" }),
       ).not.toBeInTheDocument(),
     );
-    expect(
-      get.mock.calls
-        .filter(([path]) => path === "/api/v1/documents")
-        .at(-1)?.[1].params.query,
-    ).toEqual({ page: 1, pageSize: 20, sort: "createdAt", order: "desc" });
+    // The search term is debounced, so the unfiltered request can land after
+    // the Clear filters button has already gone.
+    await waitFor(() =>
+      expect(
+        get.mock.calls
+          .filter(([path]) => path === "/api/v1/documents")
+          .at(-1)?.[1].params.query,
+      ).toEqual({ page: 1, pageSize: 20, sort: "createdAt", order: "desc" }),
+    );
   });
 
   it("keeps registration hidden without a create grant", async () => {

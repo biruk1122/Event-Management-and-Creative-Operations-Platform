@@ -1,3 +1,4 @@
+import type { ArchiveHook } from "../../common/archive/archive-hook.js";
 import { Injectable } from "@nestjs/common";
 
 import {
@@ -257,6 +258,7 @@ export class EventsRepository {
 
     const where: Prisma.EventWhereInput = {
       ...visibleWhere(input.visibility),
+      archivedAt: null,
       ...(input.status ? { status: input.status } : {}),
       ...(input.eventType ? { eventType: input.eventType } : {}),
       ...(input.managerId ? { workspace: { managerId: input.managerId } } : {}),
@@ -286,8 +288,8 @@ export class EventsRepository {
     if (!isUuid(id)) {
       return null;
     }
-    const raw = await this.db.event.findUnique({
-      where: { id },
+    const raw = await this.db.event.findFirst({
+      where: { id, archivedAt: null },
       select: EVENT_SELECT,
     });
     return raw ? toRecord(raw) : null;
@@ -299,7 +301,7 @@ export class EventsRepository {
   ): Promise<EventRecord | null> {
     if (!isUuid(id)) return null;
     const raw = await this.db.event.findFirst({
-      where: { AND: [{ id }, visibleWhere(visibility)] },
+      where: { AND: [{ id, archivedAt: null }, visibleWhere(visibility)] },
       select: EVENT_SELECT,
     });
     return raw ? toRecord(raw) : null;
@@ -312,8 +314,8 @@ export class EventsRepository {
    */
   async budgetSummary(eventId: string): Promise<EventBudgetSummary | null> {
     if (!isUuid(eventId)) return null;
-    const event = await this.db.event.findUnique({
-      where: { id: eventId },
+    const event = await this.db.event.findFirst({
+      where: { id: eventId, archivedAt: null },
       select: { budgetAmount: true, budgetCurrency: true },
     });
     if (!event) return null;
@@ -395,7 +397,7 @@ export class EventsRepository {
     }
     try {
       const updated = await this.db.event.update({
-        where: { id },
+        where: { id, archivedAt: null },
         data: updateData(fields),
         select: EVENT_SELECT,
       });
@@ -427,7 +429,7 @@ export class EventsRepository {
       return "not_found";
     }
     const { count } = await this.db.event.updateMany({
-      where: { id, status: expectedStatus },
+      where: { id, status: expectedStatus, archivedAt: null },
       data: { status },
     });
     const record = await this.findById(id);
@@ -447,7 +449,7 @@ export class EventsRepository {
     }
     try {
       const updated = await this.db.event.update({
-        where: { id },
+        where: { id, archivedAt: null },
         data: { budgetAmount: amount, budgetCurrency: currency },
         select: EVENT_SELECT,
       });
@@ -462,21 +464,40 @@ export class EventsRepository {
 
   /**
    * Removes the event and then its connected workspace in one transaction. The
-   * workspace FK is `ON DELETE RESTRICT`, so the event must go first.
+   * workspace FK is `ON DELETE RESTRICT`, so the event must go first. An event
+   * with talent assignment history is archived instead: the row, its workspace
+   * and its assignments stay as they are, and reads stop returning it.
    */
   async delete(
     id: string,
-  ): Promise<"deleted" | "not_found" | "has_managed_files"> {
+    archive: ArchiveHook,
+  ): Promise<"deleted" | "archived" | "not_found" | "has_managed_files"> {
     if (!isUuid(id)) {
       return "not_found";
     }
     try {
       return await this.db.$transaction(async (tx) => {
-        const event = await tx.event.findUnique({
-          where: { id },
-          select: { workspaceId: true },
+        const event = await tx.event.findFirst({
+          where: { id, archivedAt: null },
+          select: {
+            workspaceId: true,
+            name: true,
+            workspace: { select: { managerId: true } },
+          },
         });
         if (!event) return "not_found";
+        if ((await tx.eventTalent.count({ where: { eventId: id } })) > 0) {
+          await tx.event.update({
+            where: { id },
+            data: { archivedAt: new Date() },
+          });
+          await archive(tx, {
+            label: event.name,
+            workspaceManagerId: event.workspace.managerId,
+            works: [{ kind: "EVENT", workId: id, workName: event.name }],
+          });
+          return "archived";
+        }
         // A detached/rejected file remains for retention cleanup, but no
         // longer needs to retain an event workspace that is being removed.
         await tx.managedFile.updateMany({

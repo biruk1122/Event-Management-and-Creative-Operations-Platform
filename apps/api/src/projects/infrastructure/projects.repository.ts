@@ -231,8 +231,8 @@ export class ProjectsRepository {
     if (!isUuid(id)) {
       return false;
     }
-    const event = await this.db.event.findUnique({
-      where: { id },
+    const event = await this.db.event.findFirst({
+      where: { id, archivedAt: null },
       select: { id: true },
     });
     return event !== null;
@@ -292,9 +292,17 @@ export class ProjectsRepository {
     if (!isUuid(id)) {
       return "not_found";
     }
+    const current = await this.db.project.findUnique({
+      where: { id },
+      select: { eventId: true },
+    });
+    if (!current) {
+      return "not_found";
+    }
     if (
       fields.eventId !== undefined &&
       fields.eventId !== null &&
+      fields.eventId !== current.eventId &&
       !(await this.eventExists(fields.eventId))
     ) {
       return "event_not_found";

@@ -67,6 +67,7 @@ async function expectCode(
   });
 }
 
+const talentAssignments = { archiveHook: () => () => Promise.resolve() };
 describe("CampaignsService", () => {
   let repository: {
     list: ReturnType<typeof vi.fn>;
@@ -132,6 +133,7 @@ describe("CampaignsService", () => {
       workspaces as never,
       permissions as never,
       events as never,
+      talentAssignments as never,
     );
   });
 
@@ -176,7 +178,7 @@ describe("CampaignsService", () => {
         (s: CampaignsService) =>
           s.setBudget(ACTOR, "cmp-1", { amount: 1, currency: "USD" }),
       ],
-      ["remove", (s: CampaignsService) => s.remove(ACTOR, "cmp-1")],
+      ["remove", (s: CampaignsService) => s.remove(ACTOR, "cmp-1", "req-1")],
       [
         "listActivities",
         (s: CampaignsService) =>
@@ -194,7 +196,8 @@ describe("CampaignsService", () => {
       ],
       [
         "removeActivity",
-        (s: CampaignsService) => s.removeActivity(ACTOR, "cmp-1", "act-1"),
+        (s: CampaignsService) =>
+          s.removeActivity(ACTOR, "cmp-1", "act-1", "req-1"),
       ],
     ] as const)("%s is denied without a grant", async (_label, call) => {
       grantOnly();
@@ -242,7 +245,7 @@ describe("CampaignsService", () => {
           "campaign.budget.update",
           () => service.setBudget(ACTOR, "cmp-1", { amount: 1, currency: "X" }),
         ],
-        ["campaign.delete", () => service.remove(ACTOR, "cmp-1")],
+        ["campaign.delete", () => service.remove(ACTOR, "cmp-1", "req-1")],
         [
           "campaign.activity.manage",
           () => service.createActivity(ACTOR, "cmp-1", { name: "x" }),
@@ -253,7 +256,7 @@ describe("CampaignsService", () => {
         ],
         [
           "campaign.activity.manage",
-          () => service.removeActivity(ACTOR, "cmp-1", "act-1"),
+          () => service.removeActivity(ACTOR, "cmp-1", "act-1", "req-1"),
         ],
       ];
       for (const [key, call] of table) {
@@ -613,18 +616,26 @@ describe("CampaignsService", () => {
 
   describe("delete", () => {
     it("removes the campaign", async () => {
-      await expect(service.remove(ACTOR, "cmp-1")).resolves.toBeUndefined();
-      expect(repository.delete).toHaveBeenCalledWith("cmp-1");
+      await expect(
+        service.remove(ACTOR, "cmp-1", "req-1"),
+      ).resolves.toBeUndefined();
+      expect(repository.delete).toHaveBeenCalledWith(
+        "cmp-1",
+        expect.any(Function),
+      );
     });
 
     it("maps repository outcomes to stable problem codes", async () => {
       repository.delete.mockResolvedValueOnce("has_managed_files");
       await expectCode(
-        service.remove(ACTOR, "cmp-1"),
+        service.remove(ACTOR, "cmp-1", "req-1"),
         "CAMPAIGN_HAS_MANAGED_FILES",
       );
       repository.delete.mockResolvedValueOnce("not_found");
-      await expectCode(service.remove(ACTOR, "cmp-1"), "CAMPAIGN_NOT_FOUND");
+      await expectCode(
+        service.remove(ACTOR, "cmp-1", "req-1"),
+        "CAMPAIGN_NOT_FOUND",
+      );
     });
   });
 
@@ -722,7 +733,7 @@ describe("CampaignsService", () => {
       );
       repository.deleteActivity.mockResolvedValueOnce("not_found");
       await expectCode(
-        service.removeActivity(ACTOR, "cmp-1", "ghost"),
+        service.removeActivity(ACTOR, "cmp-1", "ghost", "req-1"),
         "CAMPAIGN_ACTIVITY_NOT_FOUND",
       );
     });

@@ -3,6 +3,7 @@ import type {
   PermissionScope,
   ProductionStatus,
 } from "../generated/prisma/client.js";
+import { TalentAssignmentsService } from "../talent/talent-assignments.service.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import { EventsService } from "../events/events.service.js";
@@ -81,6 +82,7 @@ export class ProductionsService {
     private readonly workspaces: WorkspacesService,
     private readonly permissions: PermissionsService,
     private readonly events: EventsService,
+    private readonly talentAssignments: TalentAssignmentsService,
   ) {}
   private async hasGrant(
     userId: string,
@@ -231,9 +233,11 @@ export class ProductionsService {
       resolveDate(dto.startAt, current.startAt),
       resolveDate(dto.endAt, current.endAt),
     );
+    // Only a link being added or moved is checked; an existing archived link is kept.
     if (
       dto.eventId !== undefined &&
       dto.eventId !== null &&
+      dto.eventId !== current.eventId &&
       !(await this.repository.eventExists(dto.eventId))
     )
       throw productionEventNotFound();
@@ -322,27 +326,50 @@ export class ProductionsService {
     );
     return this.reload(id);
   }
+  /** Assigns talent through the assignment service, so conflicts, history and audit apply. */
   async assignTalent(
     userId: string,
     id: string,
     talentId: string,
     role: string,
+    requestId: string,
   ) {
     await this.loadAuthorized(userId, id, "project.assign");
-    const result = await this.repository.assignTalent(
-      id,
-      talentId,
-      role.trim(),
-    );
-    if (result === "talent_not_found") throw productionTalentNotFound();
-    if (result === "already_assigned")
-      throw productionConflict("PRODUCTION_TALENT_ALREADY_ASSIGNED");
+    try {
+      await this.talentAssignments.create(
+        userId,
+        talentId,
+        { kind: "PRODUCTION", workId: id, role: role.trim() },
+        requestId,
+        // project.assign for this production was verified above (loadAuthorized).
+        "owning-module",
+      );
+    } catch (error) {
+      throw productionTalentError(error, "assign");
+    }
     return this.reload(id);
   }
-  async unassignTalent(userId: string, id: string, talentId: string) {
+  /** Removing talent cancels its active assignment; the history is kept. */
+  async unassignTalent(
+    userId: string,
+    id: string,
+    talentId: string,
+    requestId: string,
+  ) {
     await this.loadAuthorized(userId, id, "project.assign");
-    if (!(await this.repository.unassignTalent(id, talentId)))
-      throw productionConflict("PRODUCTION_TALENT_NOT_ASSIGNED");
+    try {
+      await this.talentAssignments.cancelActiveForWork(
+        userId,
+        talentId,
+        "PRODUCTION",
+        id,
+        "Removed from the production",
+        requestId,
+        "owning-module",
+      );
+    } catch (error) {
+      throw productionTalentError(error, "unassign");
+    }
     return this.reload(id);
   }
   /** Narrow, read-only cross-department coordination (EOM-01): the
@@ -369,9 +396,12 @@ export class ProductionsService {
     return this.loadAuthorized(userId, id, permissionKey);
   }
 
-  async remove(userId: string, id: string): Promise<void> {
+  async remove(userId: string, id: string, requestId: string): Promise<void> {
     await this.loadAuthorized(userId, id, "project.delete");
-    const result = await this.repository.delete(id);
+    const result = await this.repository.delete(
+      id,
+      this.talentAssignments.archiveHook(userId, requestId),
+    );
     if (result === "not_found") throw productionNotFound();
     if (result === "in_use")
       throw productionConflict("PRODUCTION_WORKSPACE_IN_USE");
@@ -434,4 +464,19 @@ export class ProductionsService {
     }
     return item;
   }
+}
+
+/** Maps the assignment service's codes to this module's talent-link codes. */
+function productionTalentError(
+  error: unknown,
+  action: "assign" | "unassign",
+): unknown {
+  if (!(error instanceof HttpException)) return error;
+  const code = (error.getResponse() as { code?: string }).code;
+  if (action === "assign" && code === "TALENT_ASSIGNMENT_DUPLICATE")
+    return productionConflict("PRODUCTION_TALENT_ALREADY_ASSIGNED");
+  if (code === "TALENT_NOT_FOUND") return productionTalentNotFound();
+  if (action === "unassign" && code === "TALENT_ASSIGNMENT_NOT_FOUND")
+    return productionConflict("PRODUCTION_TALENT_NOT_ASSIGNED");
+  return error;
 }

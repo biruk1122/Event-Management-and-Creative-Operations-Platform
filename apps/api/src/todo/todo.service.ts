@@ -158,8 +158,12 @@ export class TodoService {
           : parseDueTime(dto.dueTime);
     if (nextDueTime && !nextDueDate) throw todoScheduleInvalid();
 
+    // Only a link being added or moved is checked; an existing archived link is kept.
     await this.assertRelatedRecordsExist(
-      dto.relatedEventId ?? undefined,
+      dto.relatedEventId !== undefined &&
+        dto.relatedEventId !== current.relatedEventId
+        ? (dto.relatedEventId ?? undefined)
+        : undefined,
       dto.relatedProjectId ?? undefined,
     );
 

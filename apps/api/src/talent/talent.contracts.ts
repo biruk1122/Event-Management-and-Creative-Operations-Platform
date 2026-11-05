@@ -73,7 +73,37 @@ export class TalentEventAssignmentResponse {
   updatedAt!: string;
 }
 
+/** The assignment a talent is most relevantly engaged in now: active first, then the next upcoming. */
+export class TalentCurrentAssignmentResponse {
+  @ApiProperty({ enum: ["EVENT", "PRODUCTION", "PROMOTION"] })
+  kind!: "EVENT" | "PRODUCTION" | "PROMOTION";
+
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty()
+  workName!: string;
+
+  @ApiProperty({ format: "date-time", nullable: true, type: String })
+  startAt!: string | null;
+
+  @ApiProperty({ format: "date-time", nullable: true, type: String })
+  endAt!: string | null;
+
+  @ApiProperty({ enum: ["upcoming", "active"] })
+  phase!: "upcoming" | "active";
+}
+
 export class TalentResponse {
+  @ApiProperty({
+    description:
+      "Assignments still active (ASSIGNED) across events, productions, and promotional activities.",
+  })
+  activeAssignmentCount!: number;
+
+  @ApiProperty({ type: TalentCurrentAssignmentResponse, nullable: true })
+  currentAssignment!: TalentCurrentAssignmentResponse | null;
+
   @ApiProperty({ format: "uuid" })
   id!: string;
 
@@ -85,6 +115,10 @@ export class TalentResponse {
 
   @ApiProperty({ format: "uuid", nullable: true })
   profileImageId!: string | null;
+
+  /** Where to load the profile photo, through the API. Null when there is no photo. */
+  @ApiProperty({ type: String, nullable: true })
+  profileImageUrl!: string | null;
 
   @ApiProperty({ type: String, nullable: true, format: "email" })
   email!: string | null;
@@ -129,4 +163,32 @@ export class PaginatedTalentsResponse {
 
   @ApiProperty({ example: 7 })
   total!: number;
+}
+
+export class TalentSummaryResponse {
+  @ApiProperty({ description: "Talent profiles in the directory." })
+  total!: number;
+
+  @ApiProperty({
+    description: "Talent profiles by availability state.",
+    type: "object",
+    additionalProperties: { type: "integer" },
+  })
+  byAvailability!: {
+    AVAILABLE: number;
+    ASSIGNED: number;
+    UNAVAILABLE: number;
+    INACTIVE: number;
+  };
+
+  @ApiProperty({
+    description: "Talent profiles with at least one active assignment.",
+  })
+  assignedTalents!: number;
+
+  @ApiProperty({
+    description:
+      "Active assignments across events, productions, and promotional activities.",
+  })
+  activeAssignments!: number;
 }

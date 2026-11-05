@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -137,7 +137,7 @@ describe("NotificationsNavigation", () => {
     expect(await screen.findByText("2 unread notifications.")).toBeVisible();
     expect(screen.getByText("You were assigned a task")).toBeVisible();
   });
-  it("clears read notifications from the bell preview", async () => {
+  it("hides read notifications from the bell and shows the caught-up state", async () => {
     const original = get.getMockImplementation()!;
     get.mockImplementation(async (path: string) => {
       const result = await original(path);
@@ -151,12 +151,43 @@ describe("NotificationsNavigation", () => {
     await user.click(
       await screen.findByRole("button", { name: "Open notifications" }),
     );
+    expect(await screen.findByText("You’re all caught up.")).toBeVisible();
     expect(
-      await screen.findByText("No notifications right now."),
-    ).toBeVisible();
-    expect(
-      screen.queryByText("You were assigned a task"),
+      screen.queryByRole("link", { name: /You were assigned a task/ }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Clear notifications" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "See all notifications" }),
+    ).toBeVisible();
+  });
+
+  it("asks before clearing unread notifications, marks them read, and keeps history", async () => {
+    put.mockResolvedValueOnce({
+      data: { markedCount: 2 },
+      response: { ok: true, status: 200 },
+    });
+    const user = setup();
+    await user.click(
+      await screen.findByRole("button", { name: "Open notifications" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Clear notifications" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Clear notifications" }),
+    );
+    await waitFor(() =>
+      expect(put).toHaveBeenCalledWith(
+        "/api/v1/notifications/read-all",
+        expect.objectContaining({ headers: expect.anything() }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
   });
   it("opens the notifications page and marks an item read when it has no specific destination", async () => {
     const user = setup();

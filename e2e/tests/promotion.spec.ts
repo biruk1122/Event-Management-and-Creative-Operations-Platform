@@ -186,7 +186,8 @@ test.describe("Promotion operations — real-service workflow", () => {
       expect(
         await queryInSchema(
           process.env.DATABASE_URL!,
-          `SELECT campaign_activity_id FROM promotion_activities WHERE campaign_activity_id = $1`,
+          // Talent history keeps the archived row, so only active details count.
+          `SELECT campaign_activity_id FROM promotion_activities WHERE campaign_activity_id = $1 AND archived_at IS NULL`,
           [fixture.activityId],
         ),
       ).toHaveLength(0);

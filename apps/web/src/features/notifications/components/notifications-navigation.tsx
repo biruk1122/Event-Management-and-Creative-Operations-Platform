@@ -8,12 +8,13 @@ import {
   ChevronRight,
   ClipboardList,
   Clock3,
-  LoaderCircle,
+  CheckCheck,
   MessageSquare,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,18 +26,29 @@ import {
 import {
   accessKey,
   useCurrentAccess,
+  type CurrentAccess,
 } from "@/features/auth/api/access-queries";
-import { NotificationsRequestError } from "../api/notifications-gateway";
-import { notificationHref } from "../lib/notifications-link";
-import styles from "./notifications-navigation.module.css";
+import {
+  useRealtimeConnection,
+  type ConnectRealtime,
+} from "@/features/realtime";
 
 import {
+  notificationsKeys,
   useNotificationsFeed,
   useNotificationsMutations,
   useUnreadCount,
 } from "../api/notifications-queries";
+import { NotificationsRequestError } from "../api/notifications-gateway";
+import { notificationHref } from "../lib/notifications-link";
+import { ClearNotificationsDialog } from "./clear-notifications-dialog";
+import styles from "./notifications-navigation.module.css";
 
-const RECENT_PREVIEW_COUNT = 2;
+/** How many unread notifications the bell lists before "See all". */
+const PREVIEW_COUNT = 6;
+
+/** The `notification.invalidated` frame: a signal to refetch, never data. */
+const LIVE_EVENT = "notification.invalidated";
 
 function notificationTime(createdAt: string) {
   const seconds = Math.round(
@@ -52,28 +64,58 @@ function notificationTime(createdAt: string) {
   return relative.format(Math.round(seconds / 86400), "day");
 }
 
-export function NotificationsNavigation() {
+export function NotificationsNavigation({
+  connect,
+}: {
+  /** Testing seam for the live connection; defaults to the real `/realtime` handshake. */
+  connect?: ConnectRealtime | undefined;
+}) {
   const access = useCurrentAccess();
   const allowed =
     access.data?.grants.some(
       (grant) => grant.permissionKey === "notification.read",
     ) ?? false;
   if (access.isError || !allowed || !access.data) return null;
-  return <NotificationsBell access={access.data} />;
+  return <NotificationsBell access={access.data} connect={connect} />;
 }
 
 export function NotificationsBell({
   access,
   inline = false,
+  connect,
 }: {
-  access: NonNullable<ReturnType<typeof useCurrentAccess>["data"]>;
+  access: CurrentAccess;
   inline?: boolean;
+  connect?: ConnectRealtime | undefined;
 }) {
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const client = useQueryClient();
+  const keys = notificationsKeys(access);
   const unread = useUnreadCount(access);
   const feed = useNotificationsFeed(access);
   const mutations = useNotificationsMutations(access);
-  const client = useQueryClient();
+
+  // New notifications arrive over the live connection. The frame itself is
+  // never trusted as data; receiving it only refetches the REST queries.
+  const reconcile = useCallback(() => {
+    void client.invalidateQueries({ queryKey: keys.all });
+  }, [client, keys.all]);
+  const reconcileRef = useRef(reconcile);
+  useEffect(() => {
+    reconcileRef.current = reconcile;
+  });
+  const connection = useRealtimeConnection(connect, (event) => {
+    if (event === LIVE_EVENT) reconcileRef.current();
+  });
+  const everConnectedRef = useRef(false);
+  const connectionStatus = connection.state.status;
+  useEffect(() => {
+    if (connectionStatus !== "connected") return;
+    if (everConnectedRef.current) reconcileRef.current();
+    everConnectedRef.current = true;
+  }, [connectionStatus]);
+
   useEffect(() => {
     for (const error of [unread.error, feed.error]) {
       if (
@@ -85,16 +127,20 @@ export function NotificationsBell({
       }
     }
   }, [client, unread.error, feed.error]);
-  const recent = (feed.data?.pages.flatMap((page) => page.items) ?? [])
+
+  // Only unread notifications are listed; read ones live on the full page.
+  const unreadItems = (feed.data?.pages.flatMap((page) => page.items) ?? [])
     .filter((item) => item.readAt === null)
-    .slice(0, RECENT_PREVIEW_COUNT);
+    .slice(0, PREVIEW_COUNT);
   const unreadCount = unread.data ?? 0;
   const { hasNextPage, isFetching, isFetchNextPageError, fetchNextPage } = feed;
+
+  // Pull further pages only while the list is short of the unread count.
   useEffect(() => {
     if (
       open &&
-      unreadCount > 0 &&
-      recent.length < RECENT_PREVIEW_COUNT &&
+      unreadCount > unreadItems.length &&
+      unreadItems.length < PREVIEW_COUNT &&
       hasNextPage &&
       !isFetching &&
       !isFetchNextPageError
@@ -104,12 +150,17 @@ export function NotificationsBell({
   }, [
     open,
     unreadCount,
-    recent.length,
+    unreadItems.length,
     hasNextPage,
     isFetching,
     isFetchNextPageError,
     fetchNextPage,
   ]);
+
+  const loading = unread.isPending || feed.isPending;
+  const failed = unread.isError || feed.isError;
+  const hasUnread = !loading && !failed && unreadCount > 0;
+  const clearing = mutations.clearUnread.isPending;
 
   return (
     <div className={inline ? "flex" : "flex justify-end px-5 py-3"}>
@@ -146,71 +197,51 @@ export function NotificationsBell({
             <div className={styles.heading}>
               <h2>Notifications</h2>
               <p>
-                {unread.isPending || feed.isPending
+                {loading
                   ? "Loading notifications…"
-                  : unread.isError || feed.isError
+                  : failed
                     ? "Notifications could not load."
                     : unreadCount === 0
-                      ? "No new notifications"
+                      ? "No unread notifications"
                       : `${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}.`}
               </p>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              className={styles.markAll}
-              disabled={
-                unreadCount === 0 ||
-                unread.isPending ||
-                feed.isPending ||
-                unread.isError ||
-                feed.isError ||
-                mutations.markAllRead.isPending
-              }
-              onClick={() => mutations.markAllRead.mutate()}
-            >
-              {mutations.markAllRead.isPending ? (
-                <LoaderCircle aria-hidden="true" className="animate-spin" />
-              ) : (
-                <Check aria-hidden="true" />
-              )}
-              {mutations.markAllRead.isPending ? "Marking…" : "Mark all read"}
-            </Button>
           </div>
+
           <div className={styles.body}>
-            {mutations.markAllRead.isError ? (
-              <p role="alert" className="text-destructive mb-3 text-sm">
-                Some notifications could not be marked read. Please try again.
-              </p>
-            ) : null}
-            {unread.isError || feed.isError ? (
-              <div role="alert" className="space-y-3">
-                <p className="text-sm">
-                  Try again to recover your notification preview.
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    void unread.refetch();
-                    void feed.refetch();
-                  }}
-                >
-                  Try again
-                </Button>
-              </div>
-            ) : unread.isPending || feed.isPending ? (
+            {failed ? (
+              <Alert variant="destructive">
+                <AlertTitle>Notifications could not load</AlertTitle>
+                <AlertDescription>
+                  <p>Try again to recover your notifications.</p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      void unread.refetch();
+                      void feed.refetch();
+                    }}
+                  >
+                    Try again
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            ) : loading ? (
               <p role="status" className="text-muted-foreground text-sm">
                 Loading notifications…
               </p>
-            ) : recent.length === 0 ? (
+            ) : unreadCount === 0 ? (
               <div className={styles.empty}>
-                <Bell aria-hidden="true" />
-                <p>No notifications right now.</p>
-                <span>You’re all caught up.</span>
+                <CheckCheck aria-hidden="true" />
+                <p>You’re all caught up.</p>
+                <span>New notifications will appear here.</span>
               </div>
+            ) : unreadItems.length === 0 ? (
+              <p role="status" className="text-muted-foreground text-sm">
+                Loading unread notifications…
+              </p>
             ) : (
-              <ul aria-label="Recent notifications" className="space-y-3">
-                {recent.map((item) => {
+              <ul aria-label="Unread notifications" className="space-y-3">
+                {unreadItems.map((item) => {
                   const href = notificationHref(item) ?? "/notifications";
                   const Icon = item.type.includes("MESSAGE")
                     ? MessageSquare
@@ -219,15 +250,12 @@ export function NotificationsBell({
                       ? CalendarDays
                       : ClipboardList;
                   return (
-                    <li key={item.id}>
+                    <li key={item.id} className={styles.row}>
                       <PopoverClose asChild>
                         <Link
                           href={href}
                           className={styles.item}
-                          onClick={() => {
-                            if (item.readAt === null)
-                              mutations.markRead.mutate(item.id);
-                          }}
+                          onClick={() => mutations.markRead.mutate(item.id)}
                         >
                           <span className={styles.itemIcon} aria-hidden="true">
                             <Icon />
@@ -241,6 +269,11 @@ export function NotificationsBell({
                               {item.body}
                             </span>
                             <span className={styles.time}>
+                              {item.senderName ? (
+                                <span className={styles.sender}>
+                                  {item.senderName} ·
+                                </span>
+                              ) : null}
                               <Clock3 aria-hidden="true" />
                               <time
                                 dateTime={item.createdAt}
@@ -258,22 +291,58 @@ export function NotificationsBell({
                           </span>
                         </Link>
                       </PopoverClose>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={styles.markRead}
+                        aria-label={`Mark “${item.title}” as read`}
+                        disabled={mutations.markRead.isPending}
+                        onClick={() => mutations.markRead.mutate(item.id)}
+                      >
+                        <Check aria-hidden="true" />
+                      </Button>
                     </li>
                   );
                 })}
               </ul>
             )}
           </div>
+
           <div className={styles.footer}>
+            {hasUnread ? (
+              <Button
+                type="button"
+                variant="outline"
+                className={styles.clearAll}
+                disabled={clearing}
+                aria-busy={clearing}
+                onClick={() => setConfirmOpen(true)}
+              >
+                <CheckCheck aria-hidden="true" />
+                Clear notifications
+              </Button>
+            ) : null}
             <PopoverClose asChild>
               <Link href="/notifications" className={styles.viewAll}>
-                View all notifications
+                See all notifications
                 <ChevronRight aria-hidden="true" />
               </Link>
             </PopoverClose>
           </div>
         </PopoverContent>
       </Popover>
+      <ClearNotificationsDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        pending={clearing}
+        error={mutations.clearUnread.isError}
+        onConfirm={() =>
+          mutations.clearUnread.mutate(undefined, {
+            onSuccess: () => setConfirmOpen(false),
+          })
+        }
+      />
     </div>
   );
 }

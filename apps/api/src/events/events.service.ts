@@ -27,6 +27,7 @@ import {
 import { canTransition } from "./events.lifecycle.js";
 import type { CreateEventDto } from "./dto/create-event.dto.js";
 import type { ListEventsQueryDto } from "./dto/list-events-query.dto.js";
+import { TalentAssignmentsService } from "../talent/talent-assignments.service.js";
 import type { SetEventBudgetDto } from "./dto/set-event-budget.dto.js";
 import type { UpdateEventDto } from "./dto/update-event.dto.js";
 import {
@@ -61,6 +62,7 @@ export class EventsService {
     private readonly repository: EventsRepository,
     private readonly workspaces: WorkspacesRepository,
     private readonly permissions: PermissionsService,
+    private readonly talentAssignments: TalentAssignmentsService,
   ) {}
 
   private async hasGrant(
@@ -382,10 +384,17 @@ export class EventsService {
     return { amount: result.budgetAmount, currency: result.budgetCurrency };
   }
 
-  async remove(actingUserId: string, id: string): Promise<void> {
+  async remove(
+    actingUserId: string,
+    id: string,
+    requestId: string,
+  ): Promise<void> {
     await this.loadAuthorized(actingUserId, id, "event.delete");
 
-    const result = await this.repository.delete(id);
+    const result = await this.repository.delete(
+      id,
+      this.talentAssignments.archiveHook(actingUserId, requestId),
+    );
     if (result === "not_found") {
       throw eventNotFound();
     }

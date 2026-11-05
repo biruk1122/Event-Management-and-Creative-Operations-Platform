@@ -45,7 +45,7 @@ export function TalentFields({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="grid gap-x-4 gap-y-5 sm:grid-cols-2">
       <div className="space-y-2">
         <Label htmlFor={ids.fullName}>Full name</Label>
         <Input
@@ -114,7 +114,7 @@ export function TalentFields({
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 sm:col-span-2">
         <Label htmlFor={ids.biography}>Biography</Label>
         <textarea
           id={ids.biography}

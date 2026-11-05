@@ -5,6 +5,7 @@ import {
   type CampaignActivityStatus,
   type PromotionChannel,
 } from "../../generated/prisma/client.js";
+import type { ArchiveHook } from "../../common/archive/archive-hook.js";
 import { DatabaseService } from "../../database/database.service.js";
 
 const SELECT = {
@@ -25,6 +26,7 @@ const SELECT = {
     },
   },
   talents: {
+    where: { status: "ASSIGNED" as const },
     select: { id: true, talentId: true, role: true, createdAt: true },
     orderBy: { id: "asc" },
   },
@@ -49,7 +51,8 @@ export class PromotionRepository {
   ) {
     const where: Prisma.PromotionActivityWhereInput = {
       campaignId,
-      ...(status ? { activity: { status } } : {}),
+      archivedAt: null,
+      activity: { archivedAt: null, ...(status ? { status } : {}) },
     };
     const [items, total] = await Promise.all([
       this.db.promotionActivity.findMany({
@@ -73,7 +76,12 @@ export class PromotionRepository {
   ): Promise<PromotionRecord | null> {
     if (!isUuid(campaignId) || !isUuid(activityId)) return null;
     return this.db.promotionActivity.findFirst({
-      where: { campaignId, campaignActivityId: activityId },
+      where: {
+        campaignId,
+        campaignActivityId: activityId,
+        archivedAt: null,
+        activity: { archivedAt: null },
+      },
       select: SELECT,
     });
   }
@@ -86,9 +94,20 @@ export class PromotionRepository {
     talents: { talentId: string; role: string }[],
   ) {
     await this.db.$transaction(async (tx) => {
-      await tx.promotionActivity.create({
-        data: { campaignActivityId: activityId, campaignId, channel },
+      // A detail archived for its talent history comes back with that history.
+      const restored = await tx.promotionActivity.updateMany({
+        where: {
+          campaignId,
+          campaignActivityId: activityId,
+          archivedAt: { not: null },
+        },
+        data: { channel, archivedAt: null },
       });
+      if (restored.count === 0) {
+        await tx.promotionActivity.create({
+          data: { campaignActivityId: activityId, campaignId, channel },
+        });
+      }
       if (talents.length) {
         await tx.promotionActivityTalent.createMany({
           data: talents.map((talent) => ({
@@ -107,29 +126,66 @@ export class PromotionRepository {
     channel: PromotionChannel,
   ) {
     const result = await this.db.promotionActivity.updateMany({
-      where: { campaignId, campaignActivityId: activityId },
+      where: {
+        campaignId,
+        campaignActivityId: activityId,
+        archivedAt: null,
+        activity: { archivedAt: null },
+      },
       data: { channel },
     });
     return result.count === 0 ? null : this.find(campaignId, activityId);
   }
 
-  async remove(campaignId: string, activityId: string) {
-    const result = await this.db.promotionActivity.deleteMany({
-      where: { campaignId, campaignActivityId: activityId },
+  /**
+   * Removes the promotion extension. A detail with talent assignment history is
+   * archived instead, so its assignments and work-item name snapshots stay. The
+   * shared campaign activity is left active either way.
+   */
+  async remove(
+    campaignId: string,
+    activityId: string,
+    archive: ArchiveHook,
+  ): Promise<"deleted" | "archived" | "not_found"> {
+    return this.db.$transaction(async (tx) => {
+      const detail = await tx.promotionActivity.findFirst({
+        where: {
+          campaignId,
+          campaignActivityId: activityId,
+          archivedAt: null,
+          activity: { archivedAt: null },
+        },
+        select: {
+          activity: { select: { name: true } },
+          campaign: { select: { workspace: { select: { managerId: true } } } },
+        },
+      });
+      if (!detail) return "not_found";
+      const history = await tx.promotionActivityTalent.count({
+        where: { campaignActivityId: activityId },
+      });
+      if (history === 0) {
+        await tx.promotionActivity.deleteMany({
+          where: { campaignId, campaignActivityId: activityId },
+        });
+        return "deleted";
+      }
+      await tx.promotionActivity.updateMany({
+        where: { campaignId, campaignActivityId: activityId },
+        data: { archivedAt: new Date() },
+      });
+      await archive(tx, {
+        label: detail.activity.name,
+        workspaceManagerId: detail.campaign.workspace.managerId,
+        works: [
+          {
+            kind: "PROMOTION",
+            workId: activityId,
+            workName: detail.activity.name,
+          },
+        ],
+      });
+      return "archived";
     });
-    return result.count > 0;
-  }
-
-  async assign(activityId: string, talentId: string, role: string) {
-    await this.db.promotionActivityTalent.create({
-      data: { campaignActivityId: activityId, talentId, role },
-    });
-  }
-
-  async unassign(activityId: string, talentId: string) {
-    const result = await this.db.promotionActivityTalent.deleteMany({
-      where: { campaignActivityId: activityId, talentId },
-    });
-    return result.count > 0;
   }
 }

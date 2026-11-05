@@ -126,8 +126,9 @@ export class ExpensesRepository {
     eventId: string,
   ): Promise<{ departmentId: string | null } | null> {
     if (!isUuid(eventId)) return null;
-    return this.db.event.findUnique({
-      where: { id: eventId },
+    // Archived events take no new expenses; their existing expenses stay as history.
+    return this.db.event.findFirst({
+      where: { id: eventId, archivedAt: null },
       select: { departmentId: true },
     });
   }
@@ -138,8 +139,8 @@ export class ExpensesRepository {
     productionId: string,
   ): Promise<{ departmentId: string | null } | null> {
     if (!isUuid(productionId)) return null;
-    return this.db.production.findUnique({
-      where: { id: productionId },
+    return this.db.production.findFirst({
+      where: { id: productionId, archivedAt: null },
       select: { departmentId: true },
     });
   }

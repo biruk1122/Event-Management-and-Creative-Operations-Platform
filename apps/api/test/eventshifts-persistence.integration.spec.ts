@@ -99,6 +99,7 @@ describe("event shift scheduling persistence", () => {
       id: eventId,
       name: "Launch Night",
       departmentId,
+      archivedAt: null,
     });
   });
 

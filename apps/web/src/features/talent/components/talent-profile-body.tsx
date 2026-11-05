@@ -4,15 +4,6 @@ import { useEffect, useId, useState } from "react";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
-import styles from "./talent-presentation.module.css";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -24,8 +15,6 @@ import {
 } from "@/components/ui/select";
 
 import { getTalent as defaultGetTalent } from "../api/talent-gateway";
-import { TalentAvailabilityBadge } from "./availability-badges";
-import { TalentEventAssignments } from "./talent-event-assignments";
 import { TalentFields } from "./talent-fields";
 import { TalentSchedules } from "./talent-schedules";
 import { TalentSocialLinks } from "./talent-social-links";
@@ -39,12 +28,10 @@ import {
 import type {
   AddSchedule,
   AddSocialLink,
-  AssignEvent,
   GetTalent,
   RemoveSchedule,
   RemoveSocialLink,
   SetTalentManager,
-  TransitionAssignment,
   TransitionTalent,
   UpdateSchedule,
   UpdateTalent,
@@ -53,8 +40,6 @@ import {
   availabilityLabel,
   NEXT_AVAILABILITIES,
   personName,
-  talentTypeLabel,
-  type AssignableEvent,
   type AssignableUser,
   type Talent,
 } from "../lib/talent-types";
@@ -65,7 +50,7 @@ const PICK_AVAILABILITY = "PICK_AVAILABILITY";
 const ACTION_ERRORS: Record<string, string> = {
   manager_not_found: "That user no longer exists.",
   invalid_transition: "That move is not allowed from the current availability.",
-  not_found: "This talent no longer exists. Close this and refresh the list.",
+  not_found: "This talent no longer exists. Refresh the list.",
   permission_denied: "You do not have permission to do that.",
   unexpected: "We could not save that change. Try again.",
 };
@@ -74,11 +59,9 @@ function actionError(key: string): string {
   return ACTION_ERRORS[key] ?? ACTION_ERRORS.unexpected!;
 }
 
-interface TalentDetailDialogProps {
-  talentId: string | null;
-  onOpenChange: (open: boolean) => void;
+export interface TalentProfileBodyProps {
+  talentId: string;
   users: readonly AssignableUser[];
-  events: readonly AssignableEvent[];
   /** What the caller may do; controls are hidden or read-only without the matching grant. */
   abilities: TalentAbilities;
   getTalent?: GetTalent;
@@ -90,42 +73,18 @@ interface TalentDetailDialogProps {
   onAddSchedule: AddSchedule;
   onUpdateSchedule: UpdateSchedule;
   onRemoveSchedule: RemoveSchedule;
-  onAssignEvent: AssignEvent;
-  onTransitionAssignment: TransitionAssignment;
+  /** Called with the latest profile after every change made here. */
   onChanged: (talent: Talent) => void;
 }
 
-export function TalentDetailDialog({
-  talentId,
-  onOpenChange,
-  ...bodyProps
-}: TalentDetailDialogProps) {
-  return (
-    <Dialog
-      open={talentId !== null}
-      onOpenChange={(open) => {
-        if (!open) onOpenChange(false);
-      }}
-    >
-      <DialogContent
-        className={`${styles.dialog} max-h-[90vh] overflow-y-auto sm:max-w-2xl`}
-      >
-        {talentId !== null ? (
-          <TalentDetailBody key={talentId} talentId={talentId} {...bodyProps} />
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-type BodyProps = Omit<TalentDetailDialogProps, "talentId" | "onOpenChange"> & {
-  talentId: string;
-};
-
-function TalentDetailBody({
+/**
+ * The profile editor shared by the talent details page: identity header,
+ * profile fields, availability, manager, schedules and social links. Assignments
+ * and history render beside it on the page.
+ */
+export function TalentProfileBody({
   talentId,
   users,
-  events,
   abilities,
   getTalent = defaultGetTalent,
   onUpdate,
@@ -136,10 +95,8 @@ function TalentDetailBody({
   onAddSchedule,
   onUpdateSchedule,
   onRemoveSchedule,
-  onAssignEvent,
-  onTransitionAssignment,
   onChanged,
-}: BodyProps) {
+}: TalentProfileBodyProps) {
   const ids = { manager: useId(), availability: useId() };
 
   const [status, setStatus] = useState<"loading" | "loaded" | "error">(
@@ -280,24 +237,11 @@ function TalentDetailBody({
   const moves = NEXT_AVAILABILITIES[talent.availability];
 
   return (
-    <>
-      <DialogHeader data-talent-summary>
-        <div className="flex flex-wrap items-center gap-2">
-          <DialogTitle>{talent.fullName}</DialogTitle>
-          <Badge variant="secondary">{talentTypeLabel(talent.type)}</Badge>
-          <TalentAvailabilityBadge availability={talent.availability} />
-        </div>
-        <DialogDescription>
-          {talent.manager
-            ? `Managed by ${personName(talent.manager)}`
-            : "No manager assigned"}
-        </DialogDescription>
-      </DialogHeader>
-
+    <div className="space-y-8">
       {/* Details */}
       <form
         aria-label="Edit talent details"
-        className="space-y-4"
+        className="border-border bg-card space-y-6 rounded-2xl border p-6 shadow-sm"
         noValidate
         onSubmit={(submitEvent) => {
           submitEvent.preventDefault();
@@ -334,7 +278,7 @@ function TalentDetailBody({
       {/* Availability */}
       <section
         aria-labelledby={`${ids.availability}-heading`}
-        className="border-border space-y-2 border-t pt-4"
+        className="space-y-2"
       >
         <p id={`${ids.availability}-heading`} className="text-sm font-medium">
           Availability
@@ -379,10 +323,7 @@ function TalentDetailBody({
       </section>
 
       {/* Manager */}
-      <section
-        aria-labelledby={`${ids.manager}-heading`}
-        className="border-border space-y-2 border-t pt-4"
-      >
+      <section aria-labelledby={`${ids.manager}-heading`} className="space-y-2">
         <p id={`${ids.manager}-heading`} className="text-sm font-medium">
           Manager
         </p>
@@ -448,19 +389,9 @@ function TalentDetailBody({
         }
       />
 
-      <TalentEventAssignments
-        talentId={talent.id}
-        assignments={talent.eventAssignments}
-        events={events}
-        canManage={abilities.canAssign}
-        onAssign={onAssignEvent}
-        onTransition={onTransitionAssignment}
-        onChanged={apply}
-      />
-
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}
       </p>
-    </>
+    </div>
   );
 }

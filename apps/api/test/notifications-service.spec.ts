@@ -33,6 +33,7 @@ function makeNotification(
     documentId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     readAt: null,
+    sourceEvent: { actorUserId: null },
     ...overrides,
   };
 }

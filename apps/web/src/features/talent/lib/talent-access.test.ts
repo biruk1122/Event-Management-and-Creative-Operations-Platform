@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
-import { canReadTalent, talentAbilities } from "./talent-access";
+import {
+  canReadTalent,
+  isProductionManager,
+  talentAbilities,
+} from "./talent-access";
 
 function access(...grants: [string, string?][]): CurrentAccess {
   return {
@@ -10,6 +14,14 @@ function access(...grants: [string, string?][]): CurrentAccess {
       permissionKey,
       scope: scope ?? "ORGANIZATION",
     })),
+  } as CurrentAccess;
+}
+
+function productionManager(): CurrentAccess {
+  return {
+    ...access(["project.assign", "DEPARTMENT"]),
+    role: "DEPARTMENT_MANAGER",
+    department: { name: "Production", active: true },
   } as CurrentAccess;
 }
 
@@ -27,6 +39,36 @@ describe("talent access", () => {
       expect(canReadTalent(access())).toBe(false);
       expect(canReadTalent(access(["talent.update"]))).toBe(false);
     });
+
+    it("admits the Production Manager without any talent grant", () => {
+      expect(canReadTalent(productionManager())).toBe(true);
+    });
+
+    it("does not admit a manager of another department", () => {
+      const other = {
+        ...productionManager(),
+        department: { name: "Marketing", active: true },
+      } as CurrentAccess;
+      expect(canReadTalent(other)).toBe(false);
+    });
+  });
+
+  describe("isProductionManager", () => {
+    it("requires an active Department Manager of the Production department", () => {
+      expect(isProductionManager(productionManager())).toBe(true);
+      expect(
+        isProductionManager({
+          ...productionManager(),
+          role: "DEPARTMENT_MEMBER",
+        } as CurrentAccess),
+      ).toBe(false);
+      expect(
+        isProductionManager({
+          ...productionManager(),
+          department: { name: "Production", active: false },
+        } as CurrentAccess),
+      ).toBe(false);
+    });
   });
 
   describe("talentAbilities", () => {
@@ -37,6 +79,7 @@ describe("talent access", () => {
         canTransition: false,
         canAssign: false,
         canManageActivities: false,
+        contactMasked: false,
       });
     });
 
@@ -80,6 +123,22 @@ describe("talent access", () => {
       const withUpdateOnly = talentAbilities(access(["talent.update"]));
       expect(withUpdateOnly.canUpdate).toBe(true);
       expect(withUpdateOnly.canManageActivities).toBe(false);
+    });
+
+    it("lets a Production Manager assign and see contact details masked", () => {
+      const abilities = talentAbilities(productionManager());
+      expect(abilities.canAssign).toBe(true);
+      expect(abilities.contactMasked).toBe(true);
+      expect(abilities.canCreate).toBe(false);
+      expect(abilities.canUpdate).toBe(false);
+      expect(abilities.canTransition).toBe(false);
+      expect(abilities.canManageActivities).toBe(false);
+    });
+
+    it("never masks contact details for a caller with organization read", () => {
+      expect(talentAbilities(access(["talent.read"])).contactMasked).toBe(
+        false,
+      );
     });
   });
 });

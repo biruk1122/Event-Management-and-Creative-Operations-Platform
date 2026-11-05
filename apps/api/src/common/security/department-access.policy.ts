@@ -69,6 +69,25 @@ export function isHrExecutiveOfficerManager(
   );
 }
 
+/** The department whose manager is the "Production Manager" for talent assignment. */
+export const PRODUCTION_DEPARTMENT = "Production";
+
+/**
+ * Whether the caller is the manager of the Production department. There is no
+ * separate Production Manager role: this is an existing Department Manager
+ * whose department is Production. It grants nothing by itself. Talent access
+ * combines it with the department of the work item and that work's existing
+ * grant (`project.assign` for productions, `event.update` for events), so it
+ * never widens access beyond the manager's own department.
+ */
+export function isProductionManager(context: DepartmentAccessContext): boolean {
+  return (
+    context.role === "DEPARTMENT_MANAGER" &&
+    context.department?.active === true &&
+    context.department.name === PRODUCTION_DEPARTMENT
+  );
+}
+
 interface Grant {
   permissionKey: string;
   scope: PermissionScope;
@@ -101,6 +120,15 @@ export const ADMIN_ORGANIZATION_PERMISSION_KEYS = [
   "dashboard.management.read",
   "department.read",
   "team.read",
+  // Talent Management: Admin is organization-wide for talent (TAL-PERM). These
+  // are the only talent keys an Admin holds, and they reach only talent records
+  // and talent-side assignment tools, never Event, Production or Campaign grants.
+  "talent.create",
+  "talent.read",
+  "talent.update",
+  "talent.transition_status",
+  "talent.assign",
+  "talent.manage_activities",
 ] as const;
 
 const ADMIN_ORGANIZATION_KEY_SET: ReadonlySet<string> = new Set(

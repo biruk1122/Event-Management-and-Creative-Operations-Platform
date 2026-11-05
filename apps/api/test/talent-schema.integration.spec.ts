@@ -356,9 +356,16 @@ describe("talent management schema", () => {
       for (const status of ["ASSIGNED", "COMPLETED", "CANCELLED"]) {
         await expect(
           db.query(
-            `INSERT INTO event_talents (event_id, talent_id, role, status)
-             VALUES ($1, $2, $3, $4)`,
-            [await insertEvent(), (await insertTalent()).id, "Guest", status],
+            `INSERT INTO event_talents (event_id, talent_id, role, status, completed_at, cancelled_at)
+             VALUES ($1, $2, $3, $4, $5, $6)`,
+            [
+              await insertEvent(),
+              (await insertTalent()).id,
+              "Guest",
+              status,
+              status === "COMPLETED" ? new Date() : null,
+              status === "CANCELLED" ? new Date() : null,
+            ],
           ),
         ).resolves.toBeTruthy();
       }
@@ -387,7 +394,7 @@ describe("talent management schema", () => {
         "talents_manager_id_idx",
         "talent_social_links_talent_id_url_key",
         "talent_schedules_talent_id_start_at_end_at_idx",
-        "event_talents_event_id_talent_id_key",
+        "event_talents_event_id_talent_id_active_slot_key",
         "event_talents_talent_id_status_idx",
       ]),
     );

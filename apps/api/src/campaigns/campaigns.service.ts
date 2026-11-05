@@ -36,6 +36,7 @@ import type { ListCampaignActivitiesQueryDto } from "./dto/list-campaign-activit
 import type { ListCampaignsQueryDto } from "./dto/list-campaigns-query.dto.js";
 import type { SetCampaignBudgetDto } from "./dto/set-campaign-budget.dto.js";
 import type { UpdateCampaignActivityDto } from "./dto/update-campaign-activity.dto.js";
+import { TalentAssignmentsService } from "../talent/talent-assignments.service.js";
 import type { UpdateCampaignDto } from "./dto/update-campaign.dto.js";
 import {
   CampaignsRepository,
@@ -69,6 +70,7 @@ export class CampaignsService {
     private readonly workspaces: WorkspacesRepository,
     private readonly permissions: PermissionsService,
     private readonly events: EventsService,
+    private readonly talentAssignments: TalentAssignmentsService,
   ) {}
 
   /** Loads a campaign or throws 404; used before a permission check on `:id` routes. */
@@ -476,10 +478,17 @@ export class CampaignsService {
     return { amount: result.budgetAmount, currency: result.budgetCurrency };
   }
 
-  async remove(actingUserId: string, id: string): Promise<void> {
+  async remove(
+    actingUserId: string,
+    id: string,
+    requestId: string,
+  ): Promise<void> {
     await this.authorize(actingUserId, id, "campaign.delete");
 
-    const result = await this.repository.delete(id);
+    const result = await this.repository.delete(
+      id,
+      this.talentAssignments.archiveHook(actingUserId, requestId),
+    );
     if (result === "not_found") {
       throw campaignNotFound();
     }
@@ -589,10 +598,15 @@ export class CampaignsService {
     actingUserId: string,
     id: string,
     activityId: string,
+    requestId: string,
   ): Promise<void> {
     await this.authorize(actingUserId, id, "campaign.activity.manage");
 
-    const result = await this.repository.deleteActivity(id, activityId);
+    const result = await this.repository.deleteActivity(
+      id,
+      activityId,
+      this.talentAssignments.archiveHook(actingUserId, requestId),
+    );
     if (result === "not_found") {
       throw campaignActivityNotFound();
     }

@@ -372,6 +372,8 @@ describe("promotion operations API smoke", () => {
       .send({ channel: "SOCIAL_MEDIA" });
     expect(changed.status).toBe(200);
     expect(body<PromotionBody>(changed).channel).toBe("SOCIAL_MEDIA");
+    // Talent history (including the unassigned link) keeps the promotion details in place:
+    // the detail is archived rather than deleted, and the shared activity stays.
     const removed = await request(app.getHttpServer())
       .delete(path)
       .set("Cookie", cookies)
@@ -381,9 +383,20 @@ describe("promotion operations API smoke", () => {
       await prisma.promotionActivity.count({
         where: { campaignActivityId: activityId },
       }),
-    ).toBe(0);
-    expect(
-      await prisma.campaignActivity.count({ where: { id: activityId } }),
     ).toBe(1);
+    expect(
+      await prisma.promotionActivity.count({
+        where: { campaignActivityId: activityId, archivedAt: { not: null } },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.campaignActivity.count({
+        where: { id: activityId, archivedAt: null },
+      }),
+    ).toBe(1);
+    expect(
+      (await request(app.getHttpServer()).get(path).set("Cookie", cookies))
+        .status,
+    ).toBe(404);
   });
 });
