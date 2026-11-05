@@ -32,7 +32,6 @@ import {
 import { talentKeys, useTalentMutations } from "../api/talent-queries";
 import { canReadTalent, talentAbilities } from "../lib/talent-access";
 import { talentTypeLabel } from "../lib/talent-types";
-import { BackButton } from "@/features/navigation/components/back-button";
 import { TalentAssignmentsPanel } from "./talent-assignments-panel";
 import { TalentHistoryTimeline } from "./talent-history-timeline";
 import { TalentProfileBody } from "./talent-profile-body";
@@ -195,7 +194,6 @@ function ProfileContent({
 
   return (
     <div className="space-y-8">
-      <BackButton fallbackHref="/talent" />
       <nav aria-label="Breadcrumb" className="text-primary/70 text-sm">
         <ol className="flex flex-wrap items-center gap-2">
           <li>

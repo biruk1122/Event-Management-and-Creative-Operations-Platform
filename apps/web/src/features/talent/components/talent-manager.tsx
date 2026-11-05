@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,23 +20,13 @@ import {
 } from "../api/talent-gateway";
 import { talentKeys, useTalentMutations } from "../api/talent-queries";
 import { talentAbilities } from "../lib/talent-access";
-import {
-  TALENT_AVAILABILITIES,
-  TALENT_TYPES,
-  type TalentAssignmentFilter,
-  type TalentAvailability,
-  type TalentSort,
-  type TalentType,
+import type {
+  TalentAssignmentFilter,
+  TalentAvailability,
+  TalentSort,
+  TalentType,
 } from "../lib/talent-types";
 import { CreateTalentDialog } from "./create-talent-dialog";
-import { useUrlState } from "@/features/navigation/hooks/use-url-state";
-import {
-  enumCodec,
-  nullableEnumCodec,
-  nullableStringCodec,
-  positiveIntCodec,
-  stringCodec,
-} from "@/features/navigation/lib/url-state";
 import { TalentCardGrid } from "./talent-card-grid";
 import { TalentFilters } from "./talent-filters";
 import { TalentSummaryTiles } from "./talent-summary-tiles";
@@ -53,62 +43,20 @@ function useDebounced<T>(value: T, delay: number): T {
   return debounced;
 }
 
-const TYPE_CODEC = nullableEnumCodec(TALENT_TYPES);
-const AVAILABILITY_CODEC = nullableEnumCodec(TALENT_AVAILABILITIES);
-const ASSIGNMENT_CODEC = nullableEnumCodec(["assigned", "unassigned"] as const);
-const SORT_CODEC = enumCodec(["name", "newest", "availability"] as const);
-
 export function TalentManager({ access }: { access: CurrentAccess }) {
   const keys = talentKeys(access);
   const client = useQueryClient();
   const abilities = talentAbilities(access);
 
-  // The filters live in the URL, so a visit to a profile and back restores them.
-  const query = useSearchParams();
-  const [typeFilter, setTypeFilter] = useUrlState<TalentType | null>(
-    "type",
-    null,
-    TYPE_CODEC,
-    query.get("type"),
-  );
+  const [typeFilter, setTypeFilter] = useState<TalentType | null>(null);
   const [availabilityFilter, setAvailabilityFilter] =
-    useUrlState<TalentAvailability | null>(
-      "availability",
-      null,
-      AVAILABILITY_CODEC,
-      query.get("availability"),
-    );
-  const [managerFilter, setManagerFilter] = useUrlState<string | null>(
-    "manager",
-    null,
-    nullableStringCodec,
-    query.get("manager"),
-  );
+    useState<TalentAvailability | null>(null);
+  const [managerFilter, setManagerFilter] = useState<string | null>(null);
   const [assignmentFilter, setAssignmentFilter] =
-    useUrlState<TalentAssignmentFilter | null>(
-      "assignment",
-      null,
-      ASSIGNMENT_CODEC,
-      query.get("assignment"),
-    );
-  const [sort, setSort] = useUrlState<TalentSort>(
-    "sort",
-    "name",
-    SORT_CODEC,
-    query.get("sort"),
-  );
-  const [search, setSearch] = useUrlState<string>(
-    "search",
-    "",
-    stringCodec,
-    query.get("search"),
-  );
-  const [page, setPage] = useUrlState<number>(
-    "page",
-    1,
-    positiveIntCodec,
-    query.get("page"),
-  );
+    useState<TalentAssignmentFilter | null>(null);
+  const [sort, setSort] = useState<TalentSort>("name");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
@@ -247,7 +195,9 @@ export function TalentManager({ access }: { access: CurrentAccess }) {
             talents={rows}
             total={total}
             pageSize={PAGE_SIZE}
+            canAssign={abilities.canAssign}
             onSelect={(id) => router.push(`/talent/${id}`)}
+            onAssign={(id) => router.push(`/talent/${id}?assign=1`)}
             page={currentPage}
             pageCount={pageCount}
             onPageChange={setPage}

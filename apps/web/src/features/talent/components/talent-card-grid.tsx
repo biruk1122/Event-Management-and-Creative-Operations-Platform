@@ -9,7 +9,9 @@ interface TalentCardGridProps {
   talents: readonly Talent[];
   total: number;
   pageSize: number;
+  canAssign: boolean;
   onSelect: (id: string) => void;
+  onAssign: (id: string) => void;
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
@@ -38,7 +40,9 @@ export function TalentCardGrid({
   talents,
   total,
   pageSize,
+  canAssign,
   onSelect,
+  onAssign,
   page,
   pageCount,
   onPageChange,
@@ -72,7 +76,12 @@ export function TalentCardGrid({
       <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {talents.map((talent) => (
           <li key={talent.id} className="h-full">
-            <TalentCard talent={talent} onSelect={onSelect} />
+            <TalentCard
+              talent={talent}
+              canAssign={canAssign}
+              onSelect={onSelect}
+              onAssign={onAssign}
+            />
           </li>
         ))}
       </ul>

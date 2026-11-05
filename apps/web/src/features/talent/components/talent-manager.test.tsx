@@ -23,9 +23,7 @@ vi.mock("@/lib/api/browser", () => ({
   browserApi: { GET: get, POST: post, PATCH: patch, PUT: put, DELETE: del },
 }));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
-  usePathname: () => "/talent",
-  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
 function access(...permissions: string[]): CurrentAccess {
