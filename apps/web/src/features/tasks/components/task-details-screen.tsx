@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { Alert, AlertTitle } from "@/components/ui/alert";
+import { BackButton } from "@/features/navigation/components/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -182,6 +183,7 @@ function LoadedTaskDetails({
 
   return (
     <article className="space-y-10">
+      <BackButton fallbackHref="/tasks" />
       <header className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="font-mono">

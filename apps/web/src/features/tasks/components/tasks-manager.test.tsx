@@ -37,6 +37,11 @@ function setup() {
   );
 }
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/tasks",
+  useSearchParams: () => new URLSearchParams(),
+}));
 describe("TasksManager", () => {
   it("uses the API page response and requests the next page", async () => {
     get.mockResolvedValue({

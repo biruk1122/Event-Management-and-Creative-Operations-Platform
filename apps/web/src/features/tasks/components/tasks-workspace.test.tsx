@@ -16,6 +16,11 @@ function renderWorkspace(node: ReactNode) {
   );
 }
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/tasks",
+  useSearchParams: () => new URLSearchParams(),
+}));
 describe("TaskWorkspace", () => {
   it("switches between the accessible list, board, and calendar projections", async () => {
     const user = userEvent.setup();

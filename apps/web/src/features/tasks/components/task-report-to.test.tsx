@@ -98,6 +98,11 @@ const adminAccess = {
   ],
 } as CurrentAccess;
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/tasks",
+  useSearchParams: () => new URLSearchParams(),
+}));
 describe("review authority follows the task's reporting recipient", () => {
   it("lets the recipient Admin approve work reporting to them", async () => {
     const task = underReview();

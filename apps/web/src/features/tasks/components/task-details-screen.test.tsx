@@ -120,6 +120,11 @@ function renderDetails(task: Task, activity: TaskActivity[] = []) {
   );
 }
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  usePathname: () => "/tasks",
+  useSearchParams: () => new URLSearchParams(),
+}));
 describe("task details page", () => {
   it("shows the task read-only by default with its identifier, and offers Edit only to people who may edit", async () => {
     givenAccess(
