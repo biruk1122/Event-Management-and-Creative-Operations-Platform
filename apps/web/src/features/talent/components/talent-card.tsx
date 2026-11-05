@@ -13,9 +13,7 @@ import {
 
 interface TalentCardProps {
   talent: Talent;
-  canAssign: boolean;
   onSelect: (id: string) => void;
-  onAssign: (id: string) => void;
 }
 
 function managerLabel(talent: Talent): string {
@@ -27,12 +25,7 @@ function currentLabel(current: TalentCurrentAssignment): string {
   return `${current.workName} (${phase})`;
 }
 
-export function TalentCard({
-  talent,
-  canAssign,
-  onSelect,
-  onAssign,
-}: TalentCardProps) {
+export function TalentCard({ talent, onSelect }: TalentCardProps) {
   const current = talent.currentAssignment;
   const assigned = talent.activeAssignmentCount;
   const assignedLabel =
@@ -89,7 +82,7 @@ export function TalentCard({
         </div>
       </dl>
 
-      <div className="mt-auto grid gap-3 sm:grid-cols-2">
+      <div className="mt-auto flex justify-center">
         <Button
           type="button"
           variant="outline"
@@ -99,16 +92,6 @@ export function TalentCard({
           <Eye aria-hidden="true" data-icon="inline-start" />
           View profile
         </Button>
-        {canAssign ? (
-          <Button
-            type="button"
-            aria-label={`${assigned > 0 ? "Manage assignment for" : "Assign"} ${talent.fullName}`}
-            onClick={() => onAssign(talent.id)}
-          >
-            <CalendarPlus aria-hidden="true" data-icon="inline-start" />
-            {assigned > 0 ? "Manage assignment" : "Assign"}
-          </Button>
-        ) : null}
       </div>
     </article>
   );
