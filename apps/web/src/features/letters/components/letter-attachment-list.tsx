@@ -171,7 +171,7 @@ export function LetterAttachmentList({
             <iframe
               title={`Preview of ${preview.file.filename}`}
               src={preview.url}
-              className="h-96 w-full rounded border"
+              className="h-[calc(98vh-18rem)] min-h-96 w-full rounded border"
             />
           )}
         </section>
