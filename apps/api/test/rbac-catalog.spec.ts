@@ -63,7 +63,8 @@ describe("rbac catalog", () => {
 
     it("holds no user, role, settings, audit, HR, delete or approval permission", () => {
       const forbidden =
-        /^(user|role|settings|audit|employee|letter|document|activity)\.|\.delete$|^expense\.approve$|^department\.(create|update|delete|assign_)/;
+        // event.delete is granted on purpose: Admin manages events organization-wide.
+        /^(user|role|settings|audit|employee|letter|document|activity)\.|(?<!^event)\.delete$|^expense\.approve$|^department\.(create|update|delete|assign_)/;
       const held = admin()!.grants.filter((grant) =>
         forbidden.test(grant.permissionKey),
       );

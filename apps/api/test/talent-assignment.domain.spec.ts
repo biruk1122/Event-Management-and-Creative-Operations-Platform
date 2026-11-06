@@ -186,8 +186,8 @@ describe("Production Manager and Admin talent access", () => {
     const others = ADMIN_ORGANIZATION_PERMISSION_KEYS.filter(
       (key) => !key.startsWith("talent."),
     );
-    expect(others.some((key) => /^(event|project|campaign)\./.test(key))).toBe(
-      false,
-    );
+    // Event keys are granted on purpose (organization-wide event management);
+    // projects and campaigns stay out of Admin's organization grants.
+    expect(others.some((key) => /^(project|campaign)\./.test(key))).toBe(false);
   });
 });

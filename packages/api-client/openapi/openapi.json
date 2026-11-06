@@ -116,6 +116,46 @@
         "required": ["managerId"],
         "type": "object"
       },
+      "AssignEventTalentDto": {
+        "properties": {
+          "acknowledgeConflicts": {
+            "type": "boolean"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
+          "overrideReason": {
+            "maxLength": 500,
+            "nullable": true,
+            "type": "string"
+          },
+          "role": {
+            "example": "Headliner",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "talentId": {
+            "description": "The central talent record. Profiles are never created here.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["talentId", "role"],
+        "type": "object"
+      },
       "AssignProductionManagerDto": {
         "properties": {
           "managerId": {
@@ -4460,6 +4500,20 @@
         ],
         "type": "object"
       },
+      "EventStaffNameResponse": {
+        "properties": {
+          "displayName": {
+            "example": "Dana Okafor",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["id", "displayName"],
+        "type": "object"
+      },
       "EventSummaryResponse": {
         "properties": {
           "completed": {
@@ -4483,6 +4537,195 @@
           }
         },
         "required": ["total", "upcoming", "inProgress", "completed"],
+        "type": "object"
+      },
+      "EventTalentAssignmentResponse": {
+        "properties": {
+          "assignedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "assignedBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventStaffNameResponse"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "cancelReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "cancelledAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "cancelledBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventStaffNameResponse"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "departmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "phase": {
+            "enum": ["upcoming", "active", "completed", "cancelled"],
+            "type": "string"
+          },
+          "role": {
+            "example": "Headliner",
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": ["ASSIGNED", "COMPLETED", "CANCELLED"],
+            "type": "string"
+          },
+          "talent": {
+            "$ref": "#/components/schemas/EventTalentSummaryResponse"
+          },
+          "workId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "workName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "workId",
+          "workName",
+          "departmentId",
+          "role",
+          "status",
+          "phase",
+          "notes",
+          "startAt",
+          "endAt",
+          "assignedAt",
+          "completedAt",
+          "cancelledAt",
+          "cancelReason",
+          "assignedBy",
+          "cancelledBy",
+          "talent"
+        ],
+        "type": "object"
+      },
+      "EventTalentSummaryResponse": {
+        "properties": {
+          "availability": {
+            "example": "AVAILABLE",
+            "type": "string"
+          },
+          "fullName": {
+            "example": "Ada Bell",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "type": {
+            "example": "ARTIST",
+            "type": "string"
+          }
+        },
+        "required": ["id", "fullName", "type", "availability"],
+        "type": "object"
+      },
+      "EventTeamResponse": {
+        "properties": {
+          "department": {
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "manager": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/EventPersonSummary"
+            },
+            "type": "array"
+          },
+          "membersVisible": {
+            "description": "True when the caller may read this team's people (team.read organization-wide, or the team's own department).",
+            "type": "boolean"
+          },
+          "name": {
+            "example": "Event Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "department",
+          "manager",
+          "membersVisible",
+          "members"
+        ],
         "type": "object"
       },
       "EventTeamSummary": {
@@ -20014,6 +20257,16 @@
             }
           },
           {
+            "description": "Restrict to events that have this team assigned. Visibility still applies.",
+            "in": "query",
+            "name": "teamId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
             "description": "Case-insensitive match against the event name.",
             "in": "query",
             "name": "search",
@@ -22430,6 +22683,215 @@
           }
         ],
         "summary": "The figures behind the workspace Overview tiles",
+        "tags": ["Event management"]
+      }
+    },
+    "/api/v1/events/{id}/talents": {
+      "get": {
+        "operationId": "Events_listTalents_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventTalentAssignmentResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "The talents assigned to this event, with the talent directory visibility rules. Contact details are never included",
+        "tags": ["Event management"]
+      },
+      "post": {
+        "operationId": "Events_assignTalent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignEventTalentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventTalentAssignmentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Assign an existing talent to this event. Conflicts, overrides and audit follow the talent rules",
+        "tags": ["Event management"]
+      }
+    },
+    "/api/v1/events/{id}/teams": {
+      "get": {
+        "operationId": "Events_listTeams_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventTeamResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "The teams assigned to this event. Members are included only when the caller may read teams",
         "tags": ["Event management"]
       }
     },

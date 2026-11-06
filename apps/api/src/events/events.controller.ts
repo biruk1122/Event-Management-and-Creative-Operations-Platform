@@ -44,7 +44,12 @@ import {
   EventSummaryResponse,
   PaginatedEventsResponse,
 } from "./events.contracts.js";
+import {
+  EventTalentAssignmentResponse,
+  EventTeamResponse,
+} from "./events-workspace.contracts.js";
 import { EventsService } from "./events.service.js";
+import { AssignEventTalentDto } from "./dto/assign-event-talent.dto.js";
 import { AssignEventManagerDto } from "./dto/assign-event-manager.dto.js";
 import { CreateEventDto } from "./dto/create-event.dto.js";
 import {
@@ -150,6 +155,60 @@ export class EventsController {
     @Query() query: ListEventActivityQueryDto,
   ): Promise<EventActivityResponse[]> {
     return this.events.activity(actingUserId(request), id, query.limit);
+  }
+
+  @Get(":id/teams")
+  @RequirePermissions("event.read")
+  @ApiOperation({
+    summary:
+      "The teams assigned to this event. Members are included only when the caller may read teams",
+  })
+  @ApiOkResponse({ type: [EventTeamResponse] })
+  @ApiNotFoundResponse({ type: ProblemDetails, description: "Event not found" })
+  async listTeams(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+  ): Promise<EventTeamResponse[]> {
+    return this.events.eventTeams(actingUserId(request), id);
+  }
+
+  @Get(":id/talents")
+  @RequirePermissions("event.read")
+  @ApiOperation({
+    summary:
+      "The talents assigned to this event, with the talent directory visibility rules. Contact details are never included",
+  })
+  @ApiOkResponse({ type: [EventTalentAssignmentResponse] })
+  @ApiNotFoundResponse({ type: ProblemDetails, description: "Event not found" })
+  async listTalents(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+  ): Promise<EventTalentAssignmentResponse[]> {
+    return this.events.eventTalents(actingUserId(request), id);
+  }
+
+  @Post(":id/talents")
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("event.read")
+  @ApiOperation({
+    summary:
+      "Assign an existing talent to this event. Conflicts, overrides and audit follow the talent rules",
+  })
+  @ApiCreatedResponse({ type: EventTalentAssignmentResponse })
+  @ApiNotFoundResponse({ type: ProblemDetails, description: "Event not found" })
+  async assignTalent(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: AssignEventTalentDto,
+  ): Promise<EventTalentAssignmentResponse> {
+    return this.events.assignEventTalent(
+      actingUserId(request),
+      id,
+      body,
+      request.id,
+    );
   }
 
   @Get(":id/milestones")

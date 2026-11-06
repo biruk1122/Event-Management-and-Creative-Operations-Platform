@@ -23,6 +23,7 @@ import type {
   EventBudgetSummaryResponse,
   EventMilestoneResponse,
   EventOverviewResponse,
+  EventPersonSummary,
   EventProgress,
   EventResponse,
   EventSummaryResponse,
@@ -39,6 +40,7 @@ import {
   eventTeamNotAssigned,
   eventTeamNotFound,
   eventUserNotFound,
+  eventTeamDeactivated,
 } from "./events.errors.js";
 import { canTransition } from "./events.lifecycle.js";
 import type { CreateEventDto } from "./dto/create-event.dto.js";
@@ -47,7 +49,17 @@ import type {
   UpdateEventMilestoneDto,
 } from "./dto/event-milestone.dto.js";
 import type { ListEventsQueryDto } from "./dto/list-events-query.dto.js";
-import { TalentAssignmentsService } from "../talent/talent-assignments.service.js";
+import {
+  TalentAssignmentsService,
+  type TalentAssignmentView,
+} from "../talent/talent-assignments.service.js";
+import type { EventTalentSummary } from "../talent/infrastructure/talent-assignments.repository.js";
+import type { AssignEventTalentDto } from "./dto/assign-event-talent.dto.js";
+import type {
+  EventStaffNameResponse,
+  EventTalentAssignmentResponse,
+  EventTeamResponse,
+} from "./events-workspace.contracts.js";
 import type { SetEventBudgetDto } from "./dto/set-event-budget.dto.js";
 import type { UpdateEventDto } from "./dto/update-event.dto.js";
 import {
@@ -235,6 +247,7 @@ export class EventsService {
       ...(query.status ? { status: query.status } : {}),
       ...(query.eventType ? { eventType: query.eventType } : {}),
       ...(query.managerId ? { managerId: query.managerId } : {}),
+      ...(query.teamId ? { teamId: query.teamId } : {}),
       ...(query.search?.trim() ? { search: query.search.trim() } : {}),
       ...(query.startingAfter
         ? { startingAfter: new Date(query.startingAfter) }
@@ -476,6 +489,18 @@ export class EventsService {
       "event.assign_teams",
     );
 
+    const alreadyAssigned = event.teams.some((team) => team.id === teamId);
+    if (!alreadyAssigned) {
+      // A deactivated team keeps its history but cannot take on new events.
+      const status = await this.repository.teamStatus(teamId);
+      if (status === "not_found") {
+        throw eventTeamNotFound();
+      }
+      if (status === "deactivated") {
+        throw eventTeamDeactivated();
+      }
+    }
+
     const result = await this.workspaces.assignTeam(event.workspaceId, teamId);
     if (result === "workspace_not_found") {
       throw eventNotFound();
@@ -483,7 +508,7 @@ export class EventsService {
     if (result === "team_not_found") {
       throw eventTeamNotFound();
     }
-    if (!event.teams.some((team) => team.id === teamId)) {
+    if (!alreadyAssigned) {
       await this.recordWorkspaceChange(
         event,
         actingUserId,
@@ -523,6 +548,92 @@ export class EventsService {
       "event.team_removed",
     );
     return this.reload(id);
+  }
+
+  /**
+   * The event's teams. Members are included only for callers who can read teams
+   * (organization-wide, or the team's own department), so event readers do not
+   * learn about other departments' people.
+   */
+  async eventTeams(
+    actingUserId: string,
+    id: string,
+  ): Promise<EventTeamResponse[]> {
+    const event = await this.loadAuthorized(actingUserId, id, "event.read");
+    const rows = await this.repository.eventTeamRows(event.id);
+    const teamOrg = await this.hasGrant(
+      actingUserId,
+      "team.read",
+      "ORGANIZATION",
+    );
+    const teamDept = await this.hasGrant(
+      actingUserId,
+      "team.read",
+      "DEPARTMENT",
+    );
+    const callerDepartment =
+      teamDept && !teamOrg
+        ? await this.repository.findUserDepartmentId(actingUserId)
+        : null;
+    return rows.map((team) => {
+      const membersVisible =
+        teamOrg || (teamDept && callerDepartment === team.department.id);
+      return {
+        id: team.id,
+        name: team.name,
+        description: team.description,
+        department: team.department,
+        manager:
+          membersVisible && team.manager ? personSummary(team.manager) : null,
+        membersVisible,
+        members: membersVisible
+          ? team.members.map((member) => personSummary(member.user))
+          : [],
+      };
+    });
+  }
+
+  /** The talents assigned to this event, with the talent-side visibility rules. */
+  async eventTalents(
+    actingUserId: string,
+    id: string,
+  ): Promise<EventTalentAssignmentResponse[]> {
+    const event = await this.loadAuthorized(actingUserId, id, "event.read");
+    const rows = await this.talentAssignments.listForEvent(
+      actingUserId,
+      event.id,
+    );
+    return rows.map(toEventTalentAssignment);
+  }
+
+  /**
+   * Assigns a talent to this event. The talent module's own service does the
+   * work, including the conflict check, override authorization and audit.
+   */
+  async assignEventTalent(
+    actingUserId: string,
+    id: string,
+    body: AssignEventTalentDto,
+    requestId: string = randomUUID(),
+  ): Promise<EventTalentAssignmentResponse> {
+    const event = await this.loadAuthorized(actingUserId, id, "event.read");
+    // Unset window fields stay unset, so the work's own dates apply as usual.
+    const { talentId, ...assignment } = body;
+    const created = await this.talentAssignments.create(
+      actingUserId,
+      talentId,
+      { ...assignment, kind: "EVENT", workId: event.id },
+      requestId,
+    );
+    // Read the new row back through the same visibility rule, so the response
+    // carries the talent summary. The caller just created it, so it is visible.
+    const row = (
+      await this.talentAssignments.listForEvent(actingUserId, event.id)
+    ).find((item) => item.id === created.id);
+    if (!row) {
+      throw new Error("A created talent assignment is missing from its event");
+    }
+    return toEventTalentAssignment(row);
   }
 
   async getBudget(
@@ -767,6 +878,47 @@ function assertReminderBeforeStart(
 }
 
 const ZERO_PROGRESS: EventProgress = { completed: 0, total: 0 };
+
+/** Staff are named by display name only on the event surface. */
+function staffName(
+  person: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null,
+): EventStaffNameResponse | null {
+  if (!person) return null;
+  const displayName = [person.firstName, person.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  return { id: person.id, displayName: displayName || "Staff member" };
+}
+
+function toEventTalentAssignment(
+  row: TalentAssignmentView & { talent: EventTalentSummary },
+): EventTalentAssignmentResponse {
+  const { assignedBy, cancelledBy, ...rest } = row;
+  return {
+    ...rest,
+    assignedBy: staffName(assignedBy),
+    cancelledBy: staffName(cancelledBy),
+  };
+}
+
+function personSummary(person: {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}): EventPersonSummary {
+  return {
+    id: person.id,
+    email: person.email,
+    firstName: person.firstName,
+    lastName: person.lastName,
+  };
+}
 
 /** The one safe detail an activity line may show: a milestone name or the
  * status an event moved to. */

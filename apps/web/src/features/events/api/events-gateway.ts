@@ -1,4 +1,4 @@
-import type { operations } from "@event-platform/api-client";
+import type { components, operations } from "@event-platform/api-client";
 
 import { browserApi } from "@/lib/api/browser";
 import { listAllUsers } from "@/lib/api/user-directory";
@@ -269,6 +269,7 @@ export interface ListEventsParams {
   eventType?: string | null;
   search?: string | null;
   managerId?: string | null;
+  teamId?: string | null;
   sort?: EventSortField | null;
   direction?: "asc" | "desc" | null;
   page?: number;
@@ -303,6 +304,7 @@ export async function listEvents(
   if (params.eventType) query.eventType = params.eventType;
   if (params.search?.trim()) query.search = params.search.trim();
   if (params.managerId) query.managerId = params.managerId;
+  if (params.teamId) query.teamId = params.teamId;
   if (params.sort) query.sort = params.sort;
   if (params.direction) query.direction = params.direction;
 
@@ -346,6 +348,42 @@ export async function getEventOverview(
 }
 
 /** The event's recent activity, newest first. */
+/** A team assigned to an event. `members` is empty unless `membersVisible`. */
+export type EventTeam = components["schemas"]["EventTeamResponse"];
+
+/** A talent assignment seen from an event, with the talent's name, type and availability only. */
+export type EventTalentAssignment =
+  components["schemas"]["EventTalentAssignmentResponse"];
+
+export async function listEventTeams(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EventTeam[]> {
+  const { data, response } = await browserApi.GET("/api/v1/events/{id}/teams", {
+    params: { path: { id } },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  if (!data) throw new EventsRequestError(response.status);
+  return data;
+}
+
+export async function listEventTalents(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EventTalentAssignment[]> {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/events/{id}/talents",
+    {
+      params: { path: { id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new EventsRequestError(response.status);
+  return data;
+}
+
 export async function listEventActivity(
   id: string,
   signal?: AbortSignal,
@@ -529,8 +567,9 @@ export async function listAssignableUsers(
 export async function listAssignableTeams(
   signal?: AbortSignal,
 ): Promise<AssignableTeam[]> {
+  // Deactivated teams cannot be newly assigned to an event, so offer active teams only.
   const { data } = await browserApi.GET("/api/v1/teams", {
-    params: { query: { pageSize: 100 } as never },
+    params: { query: { pageSize: 100, status: "ACTIVE" } as never },
     ...(signal ? { signal } : {}),
     cache: "no-store",
   });

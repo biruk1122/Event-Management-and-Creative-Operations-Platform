@@ -86,11 +86,28 @@ export interface EventVisibility {
   departmentId?: string;
 }
 
+export interface EventTeamRow {
+  id: string;
+  name: string;
+  description: string | null;
+  department: { id: string; name: string };
+  manager: PersonRow | null;
+  members: { user: PersonRow }[];
+}
+
+interface PersonRow {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
 export interface ListEventsInput {
   visibility: EventVisibility;
   status?: EventStatus;
   eventType?: EventType;
   managerId?: string;
+  teamId?: string;
   search?: string;
   startingAfter?: Date;
   startingBefore?: Date;
@@ -373,7 +390,16 @@ export class EventsRepository {
       archivedAt: null,
       ...(input.status ? { status: input.status } : {}),
       ...(input.eventType ? { eventType: input.eventType } : {}),
-      ...(input.managerId ? { workspace: { managerId: input.managerId } } : {}),
+      ...(input.managerId || input.teamId
+        ? {
+            workspace: {
+              ...(input.managerId ? { managerId: input.managerId } : {}),
+              ...(input.teamId
+                ? { teams: { some: { teamId: input.teamId } } }
+                : {}),
+            },
+          }
+        : {}),
       ...(input.search
         ? { name: { contains: input.search, mode: "insensitive" } }
         : {}),
@@ -703,6 +729,41 @@ export class EventsRepository {
       take: RELATED_TASK_LIMIT,
     });
     return tasks.map((task) => task.id);
+  }
+
+  /** Whether a team is active, deactivated, or missing. Used to block new event assignments. */
+  async teamStatus(
+    teamId: string,
+  ): Promise<"active" | "deactivated" | "not_found"> {
+    if (!isUuid(teamId)) return "not_found";
+    const team = await this.db.team.findUnique({
+      where: { id: teamId },
+      select: { deactivatedAt: true },
+    });
+    if (!team) return "not_found";
+    return team.deactivatedAt ? "deactivated" : "active";
+  }
+
+  /** The teams assigned to an event, with their department, manager and members. */
+  async eventTeamRows(eventId: string): Promise<EventTeamRow[]> {
+    if (!isUuid(eventId)) return [];
+    const rows = await this.db.workspaceTeam.findMany({
+      where: { workspace: { event: { id: eventId } } },
+      orderBy: { createdAt: "asc" },
+      select: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            department: { select: { id: true, name: true } },
+            manager: { select: PERSON_SELECT },
+            members: { select: { user: { select: PERSON_SELECT } } },
+          },
+        },
+      },
+    });
+    return rows.map((row) => row.team);
   }
 
   /** Names for the activity feed. Removed users are simply absent. */

@@ -31,6 +31,8 @@ export function eventKeys(access: CurrentAccess) {
     overview: (id: string) => [...all, "event", id, "overview"] as const,
     activity: (id: string) => [...all, "event", id, "activity"] as const,
     milestones: (id: string) => [...all, "event", id, "milestones"] as const,
+    eventTeams: (id: string) => [...all, "event", id, "teams"] as const,
+    eventTalents: (id: string) => [...all, "event", id, "talents"] as const,
     attentionTasks: (id: string) =>
       [...all, "event", id, "attention-tasks"] as const,
     users: [...all, "assignable-users"] as const,
@@ -69,15 +71,20 @@ export function useEventsMutations(access: CurrentAccess) {
       gateway.assignEventManager(id, managerId),
     onSettled: reconcile,
   });
+  // The main Teams page lists each team's events, so it refreshes too.
+  const reconcileTeams = async () => {
+    await reconcile();
+    await client.invalidateQueries({ queryKey: ["teams", access.userId] });
+  };
   const assignTeam = useMutation({
     mutationFn: ({ id, teamId }: { id: string; teamId: string }) =>
       gateway.assignEventTeam(id, teamId),
-    onSettled: reconcile,
+    onSettled: reconcileTeams,
   });
   const removeTeam = useMutation({
     mutationFn: ({ id, teamId }: { id: string; teamId: string }) =>
       gateway.removeEventTeam(id, teamId),
-    onSettled: reconcile,
+    onSettled: reconcileTeams,
   });
   const setBudget = useMutation({
     mutationFn: ({

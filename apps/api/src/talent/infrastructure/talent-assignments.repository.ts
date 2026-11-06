@@ -31,6 +31,14 @@ export interface WorkItem {
   eventId: string | null;
 }
 
+/** The central talent fields an event-side list needs; no contact details. */
+export interface EventTalentSummary {
+  id: string;
+  fullName: string;
+  type: string;
+  availability: string;
+}
+
 export interface AssignmentRow {
   kind: AssignmentKind;
   /** The work item's name as it was when the assignment was made. */
@@ -290,6 +298,26 @@ export class TalentAssignmentsRepository {
       ...productions.map((row) => toProductionRow(row)),
       ...promotions.map((row) => toPromotionRow(row)),
     ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  /** Every talent assignment on one event, of every status, newest first. */
+  async assignmentsForEvent(
+    eventId: string,
+  ): Promise<(AssignmentRow & { talent: EventTalentSummary })[]> {
+    if (!UUID.test(eventId)) return [];
+    const rows = await this.db.eventTalent.findMany({
+      where: { eventId },
+      include: {
+        ...ASSIGNMENT_INCLUDE.event,
+        ...PEOPLE,
+        talent: {
+          select: { id: true, fullName: true, type: true, availability: true },
+        },
+      },
+    });
+    return rows
+      .map((row) => ({ ...toEventRow(row), talent: row.talent }))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
   async findAssignment(

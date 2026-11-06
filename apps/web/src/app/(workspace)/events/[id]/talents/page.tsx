@@ -1,5 +1,5 @@
-import { EventPendingTab } from "@/features/events";
+import { EventTalentsTab } from "@/features/events";
 
 export default function EventTalentsPage() {
-  return <EventPendingTab title="Talents" />;
+  return <EventTalentsTab />;
 }

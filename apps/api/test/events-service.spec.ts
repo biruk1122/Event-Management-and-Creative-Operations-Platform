@@ -66,6 +66,7 @@ describe("EventsService", () => {
     summary: ReturnType<typeof vi.fn>;
     overview: ReturnType<typeof vi.fn>;
     visibleLinkedTaskIds: ReturnType<typeof vi.fn>;
+    teamStatus: ReturnType<typeof vi.fn>;
     peopleByIds: ReturnType<typeof vi.fn>;
     listMilestones: ReturnType<typeof vi.fn>;
     createMilestone: ReturnType<typeof vi.fn>;
@@ -117,6 +118,7 @@ describe("EventsService", () => {
       }),
       overview: vi.fn(),
       visibleLinkedTaskIds: vi.fn().mockResolvedValue([]),
+      teamStatus: vi.fn().mockResolvedValue("active"),
       peopleByIds: vi.fn().mockResolvedValue(new Map()),
       listMilestones: vi.fn().mockResolvedValue([]),
       createMilestone: vi.fn(),
@@ -574,6 +576,18 @@ describe("EventsService", () => {
         service.assignTeam(ACTOR, "evt-1", "team-1"),
         "EVENT_NOT_FOUND",
       );
+    });
+
+    it("refuses to newly assign a deactivated team and writes nothing", async () => {
+      grantOnly(["event.assign_teams", "ORGANIZATION"]);
+      repository.teamStatus.mockResolvedValue("deactivated");
+      workspaces.assignTeam.mockClear();
+
+      await expectCode(
+        service.assignTeam(ACTOR, "evt-1", "team-1"),
+        "EVENT_TEAM_DEACTIVATED",
+      );
+      expect(workspaces.assignTeam).not.toHaveBeenCalled();
     });
 
     it("maps a raced update/delete to EVENT_NOT_FOUND", async () => {

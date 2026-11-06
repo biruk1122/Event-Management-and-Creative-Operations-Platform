@@ -2,6 +2,7 @@
 
 import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { LoaderCircle, TriangleAlert, X } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -24,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { listEvents } from "@/features/events/api/events-gateway";
+import { eventStatusLabel } from "@/features/events/lib/events-types";
 import { getTeam as defaultGetTeam } from "../api/teams-gateway";
 import type {
   AddTeamMember,
@@ -64,6 +67,8 @@ interface TeamDetailDialogProps {
   teamId: string | null;
   onOpenChange: (open: boolean) => void;
   managers: readonly AssignableUser[];
+  /** Scopes the assigned-events cache to the signed-in user. */
+  accessUserId?: string;
   /** Gate name/description edits and the deactivate/reactivate controls. */
   canEdit?: boolean;
   /** Gate the manager control. */
@@ -110,6 +115,7 @@ export function TeamDetailDialog({
 interface TeamDetailBodyProps {
   teamId: string;
   managers: readonly AssignableUser[];
+  accessUserId?: string;
   canEdit?: boolean;
   canAssignManager?: boolean;
   canManageMembers?: boolean;
@@ -129,6 +135,7 @@ interface TeamDetailBodyProps {
 function TeamDetailBody({
   teamId,
   managers,
+  accessUserId,
   canEdit = true,
   canAssignManager = true,
   canManageMembers = true,
@@ -144,6 +151,10 @@ function TeamDetailBody({
   onChanged,
   onDeleted,
 }: TeamDetailBodyProps) {
+  const assignedEvents = useQuery({
+    queryKey: ["teams", accessUserId ?? "anonymous", "team-events", teamId],
+    queryFn: ({ signal }) => listEvents({ teamId, pageSize: 50 }, signal),
+  });
   const ids = {
     name: useId(),
     description: useId(),
@@ -463,6 +474,40 @@ function TeamDetailBody({
             </p>
           ) : null}
         </div>
+      </div>
+
+      <div className="border-border space-y-3 border-t pt-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium">Events</h3>
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {assignedEvents.data?.items.length ?? 0}
+          </span>
+        </div>
+        {assignedEvents.isPending ? (
+          <p className="text-muted-foreground text-sm">Loading events…</p>
+        ) : assignedEvents.isError ? (
+          <p className="text-destructive text-sm">
+            Events could not be loaded.
+          </p>
+        ) : assignedEvents.data.items.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            Not assigned to any event yet.
+          </p>
+        ) : (
+          <ul aria-label="Assigned events" className="space-y-2">
+            {assignedEvents.data.items.map((event) => (
+              <li
+                key={event.id}
+                className="border-border flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
+              >
+                <span className="truncate font-medium">{event.name}</span>
+                <span className="text-muted-foreground shrink-0 text-xs">
+                  {eventStatusLabel(event.status)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="border-border space-y-3 border-t pt-4">

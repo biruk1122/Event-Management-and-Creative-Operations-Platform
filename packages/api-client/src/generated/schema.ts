@@ -1675,6 +1675,41 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/events/{id}/talents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The talents assigned to this event, with the talent directory visibility rules. Contact details are never included */
+    get: operations["Events_listTalents_v1"];
+    put?: never;
+    /** Assign an existing talent to this event. Conflicts, overrides and audit follow the talent rules */
+    post: operations["Events_assignTalent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{id}/teams": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The teams assigned to this event. Members are included only when the caller may read teams */
+    get: operations["Events_listTeams_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/events/{id}/teams/{teamId}": {
     parameters: {
       query?: never;
@@ -4480,6 +4515,22 @@ export interface components {
        */
       managerId: string | null;
     };
+    AssignEventTalentDto: {
+      acknowledgeConflicts?: boolean;
+      /** Format: date-time */
+      endAt?: string | null;
+      notes?: string | null;
+      overrideReason?: string | null;
+      /** @example Headliner */
+      role: string;
+      /** Format: date-time */
+      startAt?: string | null;
+      /**
+       * Format: uuid
+       * @description The central talent record. Profiles are never created here.
+       */
+      talentId: string;
+    };
     AssignProductionManagerDto: {
       /** Format: uuid */
       managerId: string | null;
@@ -6420,6 +6471,12 @@ export interface components {
         "PLANNED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
       timeZone: string;
     };
+    EventStaffNameResponse: {
+      /** @example Dana Okafor */
+      displayName: string;
+      /** Format: uuid */
+      id: string;
+    };
     EventSummaryResponse: {
       /**
        * @description Completed events that start in the current calendar year.
@@ -6438,6 +6495,64 @@ export interface components {
        * @example 6
        */
       upcoming: number;
+    };
+    EventTalentAssignmentResponse: {
+      /** Format: date-time */
+      assignedAt: string;
+      assignedBy: components["schemas"]["EventStaffNameResponse"] | null;
+      cancelReason: string | null;
+      /** Format: date-time */
+      cancelledAt: string | null;
+      cancelledBy: components["schemas"]["EventStaffNameResponse"] | null;
+      /** Format: date-time */
+      completedAt: string | null;
+      /** Format: uuid */
+      departmentId: string | null;
+      /** Format: date-time */
+      endAt: string | null;
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      kind: "EVENT" | "PRODUCTION" | "PROMOTION";
+      notes: string | null;
+      /** @enum {string} */
+      phase: "upcoming" | "active" | "completed" | "cancelled";
+      /** @example Headliner */
+      role: string;
+      /** Format: date-time */
+      startAt: string | null;
+      /** @enum {string} */
+      status: "ASSIGNED" | "COMPLETED" | "CANCELLED";
+      talent: components["schemas"]["EventTalentSummaryResponse"];
+      /** Format: uuid */
+      workId: string;
+      workName: string;
+    };
+    EventTalentSummaryResponse: {
+      /** @example AVAILABLE */
+      availability: string;
+      /** @example Ada Bell */
+      fullName: string;
+      /** Format: uuid */
+      id: string;
+      /** @example ARTIST */
+      type: string;
+    };
+    EventTeamResponse: {
+      department: {
+        /** Format: uuid */
+        id?: string;
+        name?: string;
+      };
+      description: string | null;
+      /** Format: uuid */
+      id: string;
+      manager: components["schemas"]["EventPersonSummary"] | null;
+      members: components["schemas"]["EventPersonSummary"][];
+      /** @description True when the caller may read this team's people (team.read organization-wide, or the team's own department). */
+      membersVisible: boolean;
+      /** @example Event Team */
+      name: string;
     };
     EventTeamSummary: {
       /**
@@ -14631,6 +14746,8 @@ export interface operations {
           | "OTHER";
         /** @description Restrict to events whose connected workspace this user manages. */
         managerId?: string;
+        /** @description Restrict to events that have this team assigned. Visibility still applies. */
+        teamId?: string;
         /** @description Case-insensitive match against the event name. */
         search?: string;
         /** @description Only events that start at or after this UTC instant. */
@@ -16189,6 +16306,154 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["EventOverviewResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_listTalents_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventTalentAssignmentResponse"][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_assignTalent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignEventTalentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventTalentAssignmentResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_listTeams_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventTeamResponse"][];
         };
       };
       /** @description Not authenticated */

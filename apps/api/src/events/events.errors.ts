@@ -11,6 +11,7 @@ export const EVENT_ERROR = {
   eventTeamNotFound: "EVENT_TEAM_NOT_FOUND",
   eventMilestoneNotFound: "EVENT_MILESTONE_NOT_FOUND",
   eventTeamNotAssigned: "EVENT_TEAM_NOT_ASSIGNED",
+  eventTeamDeactivated: "EVENT_TEAM_DEACTIVATED",
   eventInvalidTransition: "EVENT_INVALID_TRANSITION",
   eventScheduleInvalid: "EVENT_SCHEDULE_INVALID",
   eventReminderInvalid: "EVENT_REMINDER_INVALID",
@@ -49,6 +50,14 @@ export function eventUserNotFound(): HttpException {
     code: EVENT_ERROR.userNotFound,
     error: "Not Found",
     detail: "No user exists with that id.",
+  });
+}
+
+export function eventTeamDeactivated(): HttpException {
+  return new ConflictException({
+    code: EVENT_ERROR.eventTeamDeactivated,
+    error: "Conflict",
+    detail: "A deactivated team cannot be assigned to an event.",
   });
 }
 
