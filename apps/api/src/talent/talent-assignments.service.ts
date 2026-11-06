@@ -470,6 +470,7 @@ export class TalentAssignmentsService {
         metadata: {
           assignmentKind: kind,
           assignmentId,
+          workId: row.workId,
           datesChanged,
           overridden,
         },

@@ -6,6 +6,11 @@ import type { CurrentAccess } from "@/features/auth/api/access-queries";
 import { EventsScreen } from "./events-screen";
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/events",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("@/lib/api/browser", () => ({
   browserApi: {
     GET: get,

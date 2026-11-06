@@ -24,6 +24,7 @@ const TEAMS: AssignableTeam[] = [{ id: "t1", name: "Production" }];
 function created(): Event {
   return {
     id: "evt-new",
+    eventNumber: 25,
     workspaceId: "ws-new",
     name: "New Event",
     eventType: "CONCERT",

@@ -1,19 +1,10 @@
 "use client";
 
-import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
 import { useEffect, useId, useRef, useState } from "react";
 import { LoaderCircle, TriangleAlert, X } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { WorkDialogContent as DialogContent } from "@/components/ui/work-dialog-content";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EventFilesPanel } from "@/features/files";
@@ -31,8 +22,10 @@ import {
   getEventBudgetSummary as defaultGetEventBudgetSummary,
   listCampaignsForEvent as defaultListCampaignsForEvent,
   listProductionsForEvent as defaultListProductionsForEvent,
-} from "../api/events-gateway";
-import { EventFields, type EventFieldValues } from "./event-fields";
+} from "../../api/events-gateway";
+import { detailDateTime } from "../../lib/event-workspace";
+import { utcToZonedLocal } from "@/lib/app-timezone";
+import { EventFields, type EventFieldValues } from "../event-fields";
 import type {
   AssignEventManager,
   AssignEventTeam,
@@ -43,7 +36,7 @@ import type {
   SetEventBudget,
   TransitionEvent,
   UpdateEvent,
-} from "../lib/events-outcome";
+} from "../../lib/events-outcome";
 import {
   budgetSummary,
   eventStatusLabel,
@@ -51,7 +44,6 @@ import {
   NEXT_STATUSES,
   personName,
   plannedAmountSummary,
-  scheduleSummary,
   type AssignableDepartment,
   type AssignableTeam,
   type AssignableUser,
@@ -60,7 +52,7 @@ import {
   type EventBudgetSummary,
   type LinkedCampaign,
   type LinkedProduction,
-} from "../lib/events-types";
+} from "../../lib/events-types";
 
 type GetEventBudgetSummary = (
   id: string,
@@ -87,7 +79,7 @@ const ACTION_ERRORS: Record<string, string> = {
   schedule_invalid: "The end must be on or after the start.",
   reminder_invalid: "The reminder must be at or before the start.",
   budget_incomplete: "Enter an amount and a currency, or clear both.",
-  not_found: "This event no longer exists. Close this and refresh the list.",
+  not_found: "This event no longer exists. Go back to the events list.",
   permission_denied: "You do not have permission to do that.",
   unexpected: "We could not save that change. Try again.",
 };
@@ -96,14 +88,18 @@ function actionError(key: string): string {
   return ACTION_ERRORS[key] ?? ACTION_ERRORS.unexpected!;
 }
 
-/** An ISO instant as the value a `datetime-local` input expects (no seconds, no zone). */
+/** An instant as the wall-clock value a `datetime-local` input expects, in the app timezone. */
 function toLocalInput(iso: string | null): string {
-  return iso ? iso.slice(0, 16) : "";
+  return iso ? utcToZonedLocal(iso) : "";
 }
 
-interface EventDetailDialogProps {
-  eventId: string | null;
-  onOpenChange: (open: boolean) => void;
+const CARD = "border-border bg-card space-y-3 rounded-2xl border p-6 shadow-sm";
+
+export interface EventDetailsPanelProps {
+  eventId: string;
+  /** Whether the details form is showing instead of the read-only view. */
+  editing: boolean;
+  onEditingChange: (editing: boolean) => void;
   users: readonly AssignableUser[];
   teams: readonly AssignableTeam[];
   departments: readonly AssignableDepartment[];
@@ -132,33 +128,12 @@ interface EventDetailDialogProps {
   onDeleted: (id: string) => void;
 }
 
-export function EventDetailDialog({
+/** Everything about one event that is not on another tab: its details, its
+ * lifecycle, manager, teams, budget, linked work, files and deletion. */
+export function EventDetailsPanel({
   eventId,
-  onOpenChange,
-  ...bodyProps
-}: EventDetailDialogProps) {
-  return (
-    <Dialog
-      open={eventId !== null}
-      onOpenChange={(open) => {
-        if (!open) onOpenChange(false);
-      }}
-    >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        {eventId !== null ? (
-          <EventDetailBody key={eventId} eventId={eventId} {...bodyProps} />
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-type BodyProps = Omit<EventDetailDialogProps, "eventId" | "onOpenChange"> & {
-  eventId: string;
-};
-
-function EventDetailBody({
-  eventId,
+  editing,
+  onEditingChange,
   users,
   teams,
   departments,
@@ -185,7 +160,7 @@ function EventDetailBody({
   onDelete,
   onChanged,
   onDeleted,
-}: BodyProps) {
+}: EventDetailsPanelProps) {
   const ids = {
     manager: useId(),
     team: useId(),
@@ -357,6 +332,7 @@ function EventDetailBody({
     if (outcome.status === "success") {
       apply(outcome.event);
       setAnnouncement("Event details saved.");
+      onEditingChange(false);
       return;
     }
     if (outcome.status === "field_errors") {
@@ -516,62 +492,116 @@ function EventDetailBody({
   const moves = NEXT_STATUSES[event.status];
 
   return (
-    <>
-      <DialogBackButton />
-      <DialogHeader>
-        <div className="flex flex-wrap items-center gap-2">
-          <DialogTitle>{event.name}</DialogTitle>
-          <Badge variant="secondary">{eventTypeLabel(event.eventType)}</Badge>
-          <Badge>{eventStatusLabel(event.status)}</Badge>
-        </div>
-        <DialogDescription>{scheduleSummary(event)}</DialogDescription>
-        <p className="text-muted-foreground text-sm">
-          Department: {departmentName(departments, event.departmentId)}
-        </p>
-      </DialogHeader>
-
+    <div className="space-y-6">
       {/* Details */}
-      <form
-        aria-label="Edit event details"
-        className="space-y-4"
-        noValidate
-        onSubmit={(submitEvent) => {
-          submitEvent.preventDefault();
-          void saveDetails();
-        }}
-      >
-        <EventFields
-          values={fields}
-          errors={fieldErrors}
-          disabled={detailsBusy || !canUpdate}
-          onChange={setField}
-        />
-        {detailsError ? (
-          <p className="text-destructive text-sm" role="alert">
-            {detailsError}
-          </p>
-        ) : null}
-        {canUpdate ? (
-          <Button
-            type="submit"
-            size="sm"
-            disabled={detailsBusy}
-            aria-busy={detailsBusy}
+      <section aria-labelledby="event-details-heading" className={CARD}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 id="event-details-heading" className="text-lg font-semibold">
+            Event details
+          </h3>
+          {canUpdate && !editing ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onEditingChange(true)}
+            >
+              Edit details
+            </Button>
+          ) : null}
+        </div>
+
+        {editing && canUpdate ? (
+          <form
+            aria-label="Edit event details"
+            className="space-y-4"
+            noValidate
+            onSubmit={(submitEvent) => {
+              submitEvent.preventDefault();
+              void saveDetails();
+            }}
           >
-            {detailsBusy ? "Saving…" : "Save details"}
-          </Button>
+            <EventFields
+              values={fields}
+              errors={fieldErrors}
+              disabled={detailsBusy}
+              onChange={setField}
+            />
+            {detailsError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {detailsError}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="submit"
+                size="sm"
+                disabled={detailsBusy}
+                aria-busy={detailsBusy}
+              >
+                {detailsBusy ? "Saving…" : "Save details"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={detailsBusy}
+                onClick={() => {
+                  setFields(fieldsFromEvent(event));
+                  setFieldErrors({});
+                  setDetailsError(null);
+                  onEditingChange(false);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
         ) : (
-          <p className="text-muted-foreground text-xs">
-            You have read-only access to this event&rsquo;s details.
-          </p>
+          <>
+            <dl className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+              {(
+                [
+                  ["Event type", eventTypeLabel(event.eventType)],
+                  ["Organizer", event.organizerName ?? "—"],
+                  ["Start", detailDateTime(event.startAt)],
+                  ["End", detailDateTime(event.endAt)],
+                  ["Location", event.location ?? "—"],
+                  [
+                    "Event manager",
+                    event.manager ? personName(event.manager) : "—",
+                  ],
+                  ["Status", eventStatusLabel(event.status)],
+                  [
+                    "Department",
+                    departmentName(departments, event.departmentId),
+                  ],
+                  ...(budgetReadable
+                    ? ([["Budget", budgetSummary(budget)]] as const)
+                    : []),
+                  ["Reminder", detailDateTime(event.reminderAt)],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="min-w-0">
+                  <dt className="text-muted-foreground text-xs">{label}</dt>
+                  <dd className="mt-1 text-sm font-medium break-words">
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <div className="pt-2">
+              <h4 className="text-base font-semibold">About this event</h4>
+              <p className="text-muted-foreground mt-2 text-sm break-words whitespace-pre-line">
+                {event.description ?? "No description yet."}
+              </p>
+            </div>
+          </>
         )}
-      </form>
+      </section>
 
       {/* Lifecycle */}
-      <section
-        aria-labelledby={`${ids.status}-heading`}
-        className="border-border space-y-2 border-t pt-4"
-      >
+      <section aria-labelledby={`${ids.status}-heading`} className={CARD}>
         <p id={`${ids.status}-heading`} className="text-sm font-medium">
           Lifecycle
         </p>
@@ -613,10 +643,7 @@ function EventDetailBody({
       </section>
 
       {/* Connected workspace: manager, teams, participants */}
-      <section
-        aria-labelledby={`${ids.manager}-heading`}
-        className="border-border space-y-3 border-t pt-4"
-      >
+      <section aria-labelledby={`${ids.manager}-heading`} className={CARD}>
         <p id={`${ids.manager}-heading`} className="text-sm font-medium">
           Connected workspace
         </p>
@@ -724,10 +751,7 @@ function EventDetailBody({
       </section>
 
       {/* Budget */}
-      <section
-        aria-labelledby={`${ids.amount}-heading`}
-        className="border-border space-y-2 border-t pt-4"
-      >
+      <section aria-labelledby={`${ids.amount}-heading`} className={CARD}>
         <p id={`${ids.amount}-heading`} className="text-sm font-medium">
           Budget
         </p>
@@ -811,7 +835,7 @@ function EventDetailBody({
 
       {/* Linked work (EOM-01 cross-department coordination, read-only) */}
       {canSeeLinkedCampaigns ? (
-        <section className="border-border space-y-2 border-t pt-4">
+        <section className={CARD}>
           <p className="text-sm font-medium">Linked campaigns</p>
           {linkedCampaigns.length === 0 ? (
             <p className="text-muted-foreground text-sm">
@@ -828,7 +852,7 @@ function EventDetailBody({
       ) : null}
 
       {canSeeLinkedProductions ? (
-        <section className="border-border space-y-2 border-t pt-4">
+        <section className={CARD}>
           <p className="text-sm font-medium">Linked productions</p>
           {linkedProductions.length === 0 ? (
             <p className="text-muted-foreground text-sm">
@@ -848,7 +872,7 @@ function EventDetailBody({
 
       {/* Danger zone */}
       {canDelete ? (
-        <div className="border-border space-y-2 border-t pt-4">
+        <div className={CARD}>
           {confirmingDelete ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm">Permanently delete this event?</span>
@@ -894,7 +918,7 @@ function EventDetailBody({
       <p role="status" aria-live="polite" className="sr-only">
         {announcement}
       </p>
-    </>
+    </div>
   );
 }
 

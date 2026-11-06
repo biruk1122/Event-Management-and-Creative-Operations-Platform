@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
@@ -9,28 +10,46 @@ import {
   accessKey,
   type CurrentAccess,
 } from "@/features/auth/api/access-queries";
+import { useUrlState } from "@/features/navigation/hooks/use-url-state";
+import {
+  enumCodec,
+  nullableEnumCodec,
+  positiveIntCodec,
+  stringCodec,
+} from "@/features/navigation/lib/url-state";
 
 import {
   EventsRequestError,
-  getEvent,
-  getEventBudget,
   getEventSummary,
-  listAssignableDepartments,
   listAssignableTeams,
   listAssignableUsers,
   listEvents,
 } from "../api/events-gateway";
 import { eventKeys, useEventsMutations } from "../api/events-queries";
 import { eventAbilities } from "../lib/event-access";
-import type { EventStatus, EventType } from "../lib/events-types";
+import { rememberEventsListing } from "../lib/event-workspace";
+import {
+  EVENT_STATUSES,
+  EVENT_TYPES,
+  type EventSortField,
+  type EventStatus,
+  type EventType,
+} from "../lib/events-types";
 import { CreateEventDialog } from "./create-event-dialog";
-import { EventDetailDialog } from "./event-detail-dialog";
 import { EventFilters } from "./event-filters";
 import { EventSummaryTiles } from "./events-summary-tiles";
 import { EventsTable, type EventSort } from "./events-table";
 
 const PAGE_SIZE = 10;
-const DEFAULT_SORT: EventSort = { field: "createdAt", direction: "asc" };
+const STATUS_CODEC = nullableEnumCodec(EVENT_STATUSES);
+const TYPE_CODEC = nullableEnumCodec(EVENT_TYPES);
+const SORT_CODEC = enumCodec([
+  "createdAt",
+  "name",
+  "startAt",
+  "status",
+] as const);
+const DIRECTION_CODEC = enumCodec(["asc", "desc"] as const);
 const SEARCH_DEBOUNCE_MS = 300;
 
 function useDebounced<T>(value: T, delay: number): T {
@@ -47,12 +66,47 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
   const client = useQueryClient();
   const abilities = eventAbilities(access);
 
-  const [statusFilter, setStatusFilter] = useState<EventStatus | null>(null);
-  const [typeFilter, setTypeFilter] = useState<EventType | null>(null);
-  const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<EventSort>(DEFAULT_SORT);
-  const [page, setPage] = useState(1);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // The filters live in the URL, so returning from a workspace restores them.
+  const urlParams = useSearchParams();
+  const [statusFilter, setStatusFilter] = useUrlState<EventStatus | null>(
+    "status",
+    null,
+    STATUS_CODEC,
+    urlParams.get("status"),
+  );
+  const [typeFilter, setTypeFilter] = useUrlState<EventType | null>(
+    "type",
+    null,
+    TYPE_CODEC,
+    urlParams.get("type"),
+  );
+  const [search, setSearch] = useUrlState<string>(
+    "search",
+    "",
+    stringCodec,
+    urlParams.get("search"),
+  );
+  const [sortField, setSortField] = useUrlState<EventSortField>(
+    "sort",
+    "createdAt",
+    SORT_CODEC,
+    urlParams.get("sort"),
+  );
+  const [sortDirection, setSortDirection] = useUrlState<"asc" | "desc">(
+    "direction",
+    "asc",
+    DIRECTION_CODEC,
+    urlParams.get("direction"),
+  );
+  const [page, setPage] = useUrlState<number>(
+    "page",
+    1,
+    positiveIntCodec,
+    urlParams.get("page"),
+  );
+  const sort: EventSort = { field: sortField, direction: sortDirection };
+  const listingQuery = urlParams.toString();
+  useEffect(() => rememberEventsListing(listingQuery), [listingQuery]);
   const [createOpen, setCreateOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
 
@@ -83,18 +137,12 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
     refetchOnWindowFocus: true,
   });
 
-  const assignmentNeeded =
-    abilities.canCreate ||
-    abilities.canUpdate ||
-    abilities.canAssignManager ||
-    abilities.canAssignTeams;
-
   const usersQuery = useQuery({
     queryKey: keys.users,
     queryFn: ({ signal }) => listAssignableUsers(signal),
     retry: false,
     staleTime: 60_000,
-    enabled: assignmentNeeded,
+    enabled: abilities.canCreate,
   });
 
   const teamsQuery = useQuery({
@@ -102,16 +150,7 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
     queryFn: ({ signal }) => listAssignableTeams(signal),
     retry: false,
     staleTime: 60_000,
-    enabled: abilities.canAssignTeams,
-  });
-
-  // The detail dialog resolves and displays an event's department name, so
-  // this is always needed, not gated on a write ability.
-  const departmentsQuery = useQuery({
-    queryKey: keys.departments,
-    queryFn: ({ signal }) => listAssignableDepartments(signal),
-    retry: false,
-    staleTime: 60_000,
+    enabled: abilities.canCreate && abilities.canAssignTeams,
   });
 
   const mutations = useEventsMutations(access);
@@ -138,7 +177,6 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
 
   const users = usersQuery.data ?? [];
   const teams = teamsQuery.data ?? [];
-  const departments = departmentsQuery.data ?? [];
 
   return (
     <div className="space-y-4">
@@ -197,14 +235,14 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
 
           <EventsTable
             events={rows}
-            onSelect={setSelectedId}
             page={currentPage}
             pageCount={pageCount}
             onPageChange={setPage}
             filtered={filtersActive}
             sort={sort}
             onSortChange={(next) => {
-              setSort(next);
+              setSortField(next.field);
+              setSortDirection(next.direction);
               setPage(1);
             }}
           />
@@ -235,50 +273,6 @@ export function EventsManager({ access }: { access: CurrentAccess }) {
           }}
         />
       ) : null}
-
-      <EventDetailDialog
-        eventId={selectedId}
-        onOpenChange={(open) => {
-          if (!open) setSelectedId(null);
-        }}
-        users={users}
-        teams={teams}
-        departments={departments}
-        canUpdate={abilities.canUpdate}
-        canTransition={abilities.canTransition}
-        canAssignManager={abilities.canAssignManager}
-        canAssignTeams={abilities.canAssignTeams}
-        canReadBudget={abilities.canReadBudget}
-        canUpdateBudget={abilities.canUpdateBudget}
-        canDelete={abilities.canDelete}
-        canSeeLinkedCampaigns={abilities.canSeeLinkedCampaigns}
-        canSeeLinkedProductions={abilities.canSeeLinkedProductions}
-        getEvent={getEvent}
-        getBudget={getEventBudget}
-        onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
-        onTransition={(id, status) =>
-          mutations.transition.mutateAsync({ id, status })
-        }
-        onAssignManager={(id, managerId) =>
-          mutations.assignManager.mutateAsync({ id, managerId })
-        }
-        onAssignTeam={(id, teamId) =>
-          mutations.assignTeam.mutateAsync({ id, teamId })
-        }
-        onRemoveTeam={(id, teamId) =>
-          mutations.removeTeam.mutateAsync({ id, teamId })
-        }
-        onSetBudget={(id, amount, currency) =>
-          mutations.setBudget.mutateAsync({ id, amount, currency })
-        }
-        onDelete={mutations.remove.mutateAsync}
-        onChanged={() => void listQuery.refetch()}
-        onDeleted={() => {
-          setSelectedId(null);
-          setAnnouncement("Event deleted.");
-          void listQuery.refetch();
-        }}
-      />
     </div>
   );
 }

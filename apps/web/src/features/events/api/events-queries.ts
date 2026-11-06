@@ -28,6 +28,11 @@ export function eventKeys(access: CurrentAccess) {
     list: (params: Record<string, unknown>) =>
       [...all, "list", params] as const,
     summary: [...all, "summary"] as const,
+    overview: (id: string) => [...all, "event", id, "overview"] as const,
+    activity: (id: string) => [...all, "event", id, "activity"] as const,
+    milestones: (id: string) => [...all, "event", id, "milestones"] as const,
+    attentionTasks: (id: string) =>
+      [...all, "event", id, "attention-tasks"] as const,
     users: [...all, "assignable-users"] as const,
     teams: [...all, "assignable-teams"] as const,
     departments: [...all, "assignable-departments"] as const,

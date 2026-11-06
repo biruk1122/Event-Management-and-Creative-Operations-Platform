@@ -151,6 +151,7 @@ services:
       API_INTERNAL_URL: http://api:4000/api/v1
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api/v1}
       NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-http://localhost:4000}
+      NEXT_PUBLIC_APP_TIMEZONE: ${NEXT_PUBLIC_APP_TIMEZONE:-Africa/Addis_Ababa}
       NODE_ENV: development
       WATCHPACK_POLLING: "true"
     command:

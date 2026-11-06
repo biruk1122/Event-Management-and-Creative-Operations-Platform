@@ -309,7 +309,10 @@ test.describe("Lela connected work presentation", () => {
 
       await page.goto(`/${area.endpoint}`);
       await page.getByLabel("Search", { exact: true }).fill(name);
-      const row = page.getByRole("button", { name: new RegExp(name) });
+      const row = page.getByRole(
+        area.endpoint === "events" ? "link" : "button",
+        { name: new RegExp(name) },
+      );
       await expect(row).toBeVisible();
       for (const viewport of [
         { width: 360, height: 800 },
@@ -344,43 +347,56 @@ test.describe("Lela connected work presentation", () => {
       await row.focus();
       await page.keyboard.press("Enter");
       const detail = page.getByRole("dialog");
+      // An event opens its workspace page; its files are on the Details tab.
+      const surface =
+        area.endpoint === "events" ? page.locator("main").last() : detail;
+      if (area.endpoint === "events") {
+        await expect(page).toHaveURL(`/events/${record.id}`);
+        await page
+          .getByRole("navigation", { name: "Event workspace" })
+          .getByRole("link", { name: "Details" })
+          .click();
+        await expect(
+          surface.getByRole("heading", { name: "Event details" }),
+        ).toBeVisible();
+      }
       await expect(
-        detail.getByRole("heading", { name, exact: true }),
+        surface.getByRole("heading", { name, exact: true }),
       ).toBeVisible();
       await expectNoWcag22AaViolations(
         page,
         `${area.title} detail mobile dark`,
       );
       if (area.endpoint === "events") {
-        await detail.locator('input[type="file"]').setInputFiles({
+        await surface.locator('input[type="file"]').setInputFiles({
           name: "unsupported.exe",
           mimeType: "application/octet-stream",
           buffer: Buffer.from("not executable"),
         });
-        await expect(detail.getByRole("alert")).toContainText(
+        await expect(surface.getByRole("alert")).toContainText(
           "File action needs attention",
         );
         await expect(
-          detail.getByRole("button", { name: "Attach file", exact: true }),
+          surface.getByRole("button", { name: "Attach file", exact: true }),
         ).toBeDisabled();
         await expectNoWcag22AaViolations(
           page,
           "File selection error mobile dark",
         );
         const filename = `${"LongAuthorizedWorkspaceFile".repeat(5)}.txt`;
-        await detail.locator('input[type="file"]').setInputFiles({
+        await surface.locator('input[type="file"]').setInputFiles({
           name: filename,
           mimeType: "text/plain",
           buffer: Buffer.from("UI09 real private event file"),
         });
-        await detail
+        await surface
           .getByRole("button", { name: "Attach file", exact: true })
           .click();
-        await expect(detail.getByText(filename, { exact: true })).toBeVisible({
+        await expect(surface.getByText(filename, { exact: true })).toBeVisible({
           timeout: 45_000,
         });
         await expect(
-          detail.getByText(`${filename} is ready to download.`, {
+          surface.getByText(`${filename} is ready to download.`, {
             exact: true,
           }),
         ).toBeVisible();
@@ -389,13 +405,13 @@ test.describe("Lela connected work presentation", () => {
           "Available long filename mobile dark",
         );
         const download = page.waitForEvent("download");
-        await detail
+        await surface
           .getByRole("button", { name: "Download", exact: true })
           .click();
         expect((await download).suggestedFilename()).toBe(filename);
       }
       expect(
-        await detail.evaluate(
+        await surface.evaluate(
           (element) => element.scrollWidth <= element.clientWidth,
         ),
       ).toBe(true);
@@ -403,8 +419,12 @@ test.describe("Lela connected work presentation", () => {
         path: testInfo.outputPath(`${area.endpoint}-detail.png`),
         fullPage: true,
       });
-      await page.keyboard.press("Escape");
-      await expect(row).toBeFocused();
+      if (area.endpoint === "events") {
+        await page.goto("/events");
+      } else {
+        await page.keyboard.press("Escape");
+        await expect(row).toBeFocused();
+      }
       const create = page.getByRole("button", {
         name: area.action,
         exact: true,

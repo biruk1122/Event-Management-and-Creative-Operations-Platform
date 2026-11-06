@@ -371,6 +371,10 @@ export class TasksService implements AuditWorkspaceContextResolver {
         ? { scheduledTo: new Date(query.scheduledTo) }
         : {}),
       ...(query.overdue !== undefined ? { overdue: query.overdue } : {}),
+      ...(query.relatedEventId ? { relatedEventId: query.relatedEventId } : {}),
+      ...(query.needsAttention !== undefined
+        ? { needsAttention: query.needsAttention }
+        : {}),
       sort:
         query.sort === TaskSort.DUE_AT
           ? "due"
@@ -420,6 +424,10 @@ export class TasksService implements AuditWorkspaceContextResolver {
         ? { scheduledTo: new Date(query.scheduledTo) }
         : {}),
       ...(query.overdue !== undefined ? { overdue: query.overdue } : {}),
+      ...(query.relatedEventId ? { relatedEventId: query.relatedEventId } : {}),
+      ...(query.needsAttention !== undefined
+        ? { needsAttention: query.needsAttention }
+        : {}),
       sort:
         query.sort === TaskSort.DUE_AT
           ? ("due" as const)

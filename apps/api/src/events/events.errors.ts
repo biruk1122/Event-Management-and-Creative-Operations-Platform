@@ -9,6 +9,7 @@ import {
 export const EVENT_ERROR = {
   eventNotFound: "EVENT_NOT_FOUND",
   eventTeamNotFound: "EVENT_TEAM_NOT_FOUND",
+  eventMilestoneNotFound: "EVENT_MILESTONE_NOT_FOUND",
   eventTeamNotAssigned: "EVENT_TEAM_NOT_ASSIGNED",
   eventInvalidTransition: "EVENT_INVALID_TRANSITION",
   eventScheduleInvalid: "EVENT_SCHEDULE_INVALID",
@@ -24,6 +25,14 @@ export function eventNotFound(): HttpException {
     code: EVENT_ERROR.eventNotFound,
     error: "Not Found",
     detail: "No event exists with that id.",
+  });
+}
+
+export function eventMilestoneNotFound(): HttpException {
+  return new NotFoundException({
+    code: EVENT_ERROR.eventMilestoneNotFound,
+    error: "Not Found",
+    detail: "This event has no milestone with that id.",
   });
 }
 

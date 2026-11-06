@@ -12,6 +12,7 @@ function makeEvent(
   overrides: Partial<Event> & Pick<Event, "id" | "name">,
 ): Event {
   return {
+    eventNumber: 1,
     workspaceId: `ws-${overrides.id}`,
     eventType: "CONCERT",
     description: null,
@@ -38,7 +39,6 @@ function tableProps(
 ) {
   return {
     events: [],
-    onSelect: vi.fn(),
     page: 1,
     pageCount: 1,
     onPageChange: vi.fn(),
@@ -58,13 +58,10 @@ describe("EventsTable", () => {
     expect(screen.getByText("No events match these filters")).toBeVisible();
   });
 
-  it("renders a row per event and selects one on click", async () => {
-    const user = userEvent.setup();
-    const onSelect = vi.fn();
+  it("renders a row per event, linking each to its workspace", () => {
     render(
       <EventsTable
         {...tableProps({
-          onSelect,
           events: [
             makeEvent({
               id: "e1",
@@ -79,10 +76,9 @@ describe("EventsTable", () => {
     );
 
     expect(screen.getAllByText("Ready").length).toBeGreaterThan(0);
-    await user.click(
-      screen.getAllByRole("button", { name: "Aurora Premiere" })[0]!,
-    );
-    expect(onSelect).toHaveBeenCalledWith("e1");
+    expect(
+      screen.getAllByRole("link", { name: "Aurora Premiere" })[0],
+    ).toHaveAttribute("href", "/events/e1");
   });
 
   it("shows the linked-task progress as a percentage, or a note when no tasks are linked", () => {

@@ -64,12 +64,16 @@ test.describe("Secure event-file management — end to end", () => {
       await page.goto("/events");
       // The shared E2E database holds many events, so find this one by name.
       await page.getByLabel("Search", { exact: true }).fill(eventName);
-      await page.getByRole("button", { name: eventName }).first().click();
-      const detail = page.getByRole("dialog");
+      await page.getByRole("link", { name: eventName }).first().click();
+      await page
+        .getByRole("navigation", { name: "Event workspace" })
+        .getByRole("link", { name: "Details" })
+        .click();
+      const detail = page.locator("main").last();
       await expect(
-        detail.getByRole("heading", { name: eventName }),
+        detail.getByRole("heading", { name: "Event details" }),
       ).toBeVisible();
-      await expectNoWcag22AaViolations(page, "event file dialog");
+      await expectNoWcag22AaViolations(page, "event files on details tab");
 
       const fileInput = detail.locator('input[type="file"]');
       const chooserPromise = page.waitForEvent("filechooser");
@@ -154,10 +158,7 @@ test.describe("Secure event-file management — end to end", () => {
       // The browser reload proves the UI rehydrates from the API rather than
       // keeping the just-uploaded item only in client state.
       await page.reload();
-      await page.getByLabel("Search", { exact: true }).fill(eventName);
-      await page.getByRole("button", { name: eventName }).first().click();
-      const reopened = page.getByRole("dialog");
-      await expect(reopened.getByText(filename, { exact: true })).toBeVisible();
+      await expect(detail.getByText(filename, { exact: true })).toBeVisible();
     });
   });
 

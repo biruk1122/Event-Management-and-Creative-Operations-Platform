@@ -1,10 +1,18 @@
 import type { components } from "@event-platform/api-client";
 
+import { formatInZone } from "@/lib/app-timezone";
+
 export type Event = components["schemas"]["EventResponse"];
 /** Headline counts for the listing tiles. */
 export type EventSummary = components["schemas"]["EventSummaryResponse"];
 /** Completed and total linked tasks for one event. */
 export type EventProgress = components["schemas"]["EventProgress"];
+/** The figures behind the workspace Overview tiles. */
+export type EventOverview = components["schemas"]["EventOverviewResponse"];
+export type EventMilestone = components["schemas"]["EventMilestoneResponse"];
+export type EventMilestoneStatus = EventMilestone["status"];
+/** One line of the event's activity feed. */
+export type EventActivity = components["schemas"]["EventActivityResponse"];
 /** Columns the listing can be sorted by (the API's `sort` values). */
 export type EventSortField = "startAt" | "name" | "status" | "createdAt";
 export type PaginatedEvents = components["schemas"]["PaginatedEventsResponse"];
@@ -133,11 +141,7 @@ export function scheduleSummary(
   event: Pick<Event, "startAt" | "endAt">,
 ): string {
   const fmt = (iso: string): string =>
-    new Date(iso).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    formatInZone(iso, { year: "numeric", month: "short", day: "numeric" });
   if (event.startAt && event.endAt) {
     return `${fmt(event.startAt)} – ${fmt(event.endAt)}`;
   }

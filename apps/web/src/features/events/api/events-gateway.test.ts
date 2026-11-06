@@ -144,7 +144,7 @@ describe("events gateway writes", () => {
       name: "Aurora Premiere",
       eventType: "FILM_PREMIERE",
       description: "Opening night.",
-      startAt: "2026-10-04T18:00:00.000Z",
+      startAt: "2026-10-04T15:00:00.000Z",
       organizerName: "City Arts",
       status: "PLANNING",
     });
@@ -210,7 +210,7 @@ describe("events gateway writes", () => {
       name: "Aurora",
       eventType: "CONCERT",
       description: null,
-      startAt: "2026-10-04T18:00:00.000Z",
+      startAt: "2026-10-04T15:00:00.000Z",
       endAt: null,
       reminderAt: null,
       location: "Hall A",

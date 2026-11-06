@@ -107,6 +107,8 @@ model User {
   managedDepartments           Department[]                 @relation("DepartmentManager")
   reportingAdminDepartments    Department[]                 @relation("DepartmentReportingAdmin")
   managedTeams                 Team[]                       @relation("TeamManager")
+  createdEventMilestones       EventMilestone[]             @relation("EventMilestoneCreatedBy")
+  updatedEventMilestones       EventMilestone[]             @relation("EventMilestoneUpdatedBy")
   teamMemberships              TeamMembership[]
   managedWorkspaces            Workspace[]                  @relation("WorkspaceManager")
   workspaceParticipations      WorkspaceParticipant[]
@@ -1088,45 +1090,50 @@ enum EventStatus {
 /// talent) is added once Talent Management provides a `talents` table to
 /// reference.
 model Event {
-  id             String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  workspaceId    String      @unique @map("workspace_id") @db.Uuid
-  name           String
-  eventType      EventType   @map("event_type")
-  description    String?
+  id                String      @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  /// The human reference (EVT-###). Assigned by next_event_number(), never reused.
+  eventNumber       Int         @unique @default(dbgenerated("next_event_number()")) @map("event_number")
+  workspaceId       String      @unique @map("workspace_id") @db.Uuid
+  name              String
+  eventType         EventType   @map("event_type")
+  description       String?
   /// UTC start / end of the event. Nullable: a `PLANNING` event may not be
   /// scheduled yet. A CHECK keeps `end_at` at or after `start_at` when both
   /// are set. Display time zones and all-day handling are open in OD-15;
   /// storage stays UTC.
-  startAt        DateTime?   @map("start_at") @db.Timestamptz(6)
-  endAt          DateTime?   @map("end_at") @db.Timestamptz(6)
+  startAt           DateTime?   @map("start_at") @db.Timestamptz(6)
+  endAt             DateTime?   @map("end_at") @db.Timestamptz(6)
   /// Optional reminder instant. A CHECK requires `start_at` to be set and
   /// `reminder_at` to be at or before it - "remind me before X" is
   /// meaningless with no X. Mirrors `Meeting.reminderAt` exactly.
-  reminderAt     DateTime?   @map("reminder_at") @db.Timestamptz(6)
-  location       String?
-  organizerName  String?     @map("organizer_name")
-  status         EventStatus @default(PLANNING)
+  reminderAt        DateTime?   @map("reminder_at") @db.Timestamptz(6)
+  location          String?
+  organizerName     String?     @map("organizer_name")
+  status            EventStatus @default(PLANNING)
   /// Optional budget. A CHECK requires the amount and the ISO-4217 currency
   /// code to be set together, the amount to be non-negative, and the code to
   /// be three upper-case letters.
-  budgetAmount   Decimal?    @map("budget_amount") @db.Decimal(14, 2)
-  budgetCurrency String?     @map("budget_currency") @db.Char(3)
+  budgetAmount      Decimal?    @map("budget_amount") @db.Decimal(14, 2)
+  budgetCurrency    String?     @map("budget_currency") @db.Char(3)
   /// The owning department, or NULL for events predating department-scoped
   /// access (EOM-01). NULL stays organization-only visible - the migration
   /// backfill never guesses an owner for a pre-existing event. Cleared, not
   /// cascaded, if that department row is removed.
-  departmentId   String?     @map("department_id") @db.Uuid
+  departmentId      String?     @map("department_id") @db.Uuid
   /// The user who created the event; cleared, not cascaded, if that user row
   /// is removed.
-  createdById    String?     @map("created_by_id") @db.Uuid
-  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdById       String?     @map("created_by_id") @db.Uuid
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   /// Set when a parent with talent assignment history is archived instead of deleted. Archived rows keep their history and stay out of list, detail, lookup and analytics reads.
-  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  archivedAt        DateTime?   @map("archived_at") @db.Timestamptz(6)
+  /// 1 = schedule stored before the Africa/Addis_Ababa correction (legacy), 2 = correct UTC.
+  /// See migration 20261106120000_event_schedule_timezone_correction.
+  scheduleTzVersion Int         @default(2) @map("schedule_tz_version") @db.SmallInt
 
-  workspace         Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
-  department        Department?     @relation(fields: [departmentId], references: [id], onDelete: SetNull)
-  createdBy         User?           @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  workspace         Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
+  department        Department?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdBy         User?            @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   /// General projects that optionally relate to this event (PRJ-01). A soft,
   /// unbounded cross-reference between peers, not ownership - deleting the
   /// event clears it on each project rather than being blocked.
@@ -1144,7 +1151,8 @@ model Event {
   expenses          Expense[]
   partners          Partner[]
   shifts            EventShift[]
-  relatedTasks      Task[]          @relation("TaskRelatedEvent")
+  relatedTasks      Task[]           @relation("TaskRelatedEvent")
+  milestones        EventMilestone[]
 
   // Administration and the connected-workspace overview filter events by
   // lifecycle state, type, schedule, author, and (EOM-01) owning department.
@@ -1357,7 +1365,7 @@ model Production {
   createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   /// Set when a parent with talent assignment history is archived instead of deleted. Archived rows keep their history and stay out of list, detail, lookup and analytics reads.
-  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  archivedAt     DateTime?        @map("archived_at") @db.Timestamptz(6)
 
   workspace  Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   event      Event?               @relation(fields: [eventId], references: [id], onDelete: SetNull)
@@ -1626,7 +1634,7 @@ model Campaign {
   createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   /// Set when a parent with talent assignment history is archived instead of deleted. Archived rows keep their history and stay out of list, detail, lookup and analytics reads.
-  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  archivedAt     DateTime?      @map("archived_at") @db.Timestamptz(6)
 
   workspace           Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Restrict)
   event               Event?              @relation(fields: [eventId], references: [id], onDelete: SetNull)
@@ -1669,7 +1677,7 @@ model CampaignActivity {
   createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   /// Set when a parent with talent assignment history is archived instead of deleted. Archived rows keep their history and stay out of list, detail, lookup and analytics reads.
-  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+  archivedAt  DateTime?              @map("archived_at") @db.Timestamptz(6)
 
   campaign  Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   promotion PromotionActivity?
@@ -1799,18 +1807,18 @@ model TalentActivity {
 /// One row per authorized conflict override. Written together with the
 /// assignment it allowed and never edited afterwards.
 model TalentConflictOverride {
-  id             String                 @id @default(dbgenerated("uuidv7()")) @db.Uuid
-  talentId       String                 @map("talent_id") @db.Uuid
-  assignmentKind TalentAssignmentKind   @map("assignment_kind")
-  assignmentId   String                 @map("assignment_id") @db.Uuid
-  authorizedById String?                @map("authorized_by_id") @db.Uuid
-  authorizedAt   DateTime               @default(now()) @map("authorized_at") @db.Timestamptz(6)
+  id             String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  talentId       String               @map("talent_id") @db.Uuid
+  assignmentKind TalentAssignmentKind @map("assignment_kind")
+  assignmentId   String               @map("assignment_id") @db.Uuid
+  authorizedById String?              @map("authorized_by_id") @db.Uuid
+  authorizedAt   DateTime             @default(now()) @map("authorized_at") @db.Timestamptz(6)
   reason         String?
   /// The exact conflicts the server found when the override was authorized.
-  conflicts      Json                   @db.JsonB
+  conflicts      Json                 @db.JsonB
 
-  talent     Talent @relation(fields: [talentId], references: [id], onDelete: Restrict)
-  authorizedBy User? @relation("TalentConflictOverrideAuthorizer", fields: [authorizedById], references: [id], onDelete: SetNull)
+  talent       Talent @relation(fields: [talentId], references: [id], onDelete: Restrict)
+  authorizedBy User?  @relation("TalentConflictOverrideAuthorizer", fields: [authorizedById], references: [id], onDelete: SetNull)
 
   @@index([talentId, authorizedAt])
   @@index([assignmentKind, assignmentId])
@@ -3716,6 +3724,47 @@ model LeaveRequest {
   @@index([leaveTypeId])
   @@index([startDate, endDate])
   @@map("leave_requests")
+}
+
+/// Single-row counter behind Event.eventNumber (EVT-###). Incremented only by
+/// next_event_number(); the CHECK constraints in the migration keep it to one row.
+model EventNumberCounter {
+  id        Int @id @default(1)
+  lastValue Int @map("last_value")
+
+  @@map("event_number_counters")
+}
+
+enum EventMilestoneStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+
+  @@map("event_milestone_status")
+}
+
+/// A checkpoint on the way to an event, managed from the event workspace and
+/// independent of tasks. It belongs to one event and goes with it.
+model EventMilestone {
+  id          String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  eventId     String               @map("event_id") @db.Uuid
+  name        String
+  description String?
+  dueDate     DateTime             @map("due_date") @db.Date
+  status      EventMilestoneStatus @default(NOT_STARTED)
+  createdById String?              @map("created_by_id") @db.Uuid
+  updatedById String?              @map("updated_by_id") @db.Uuid
+  createdAt   DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime             @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("EventMilestoneCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User? @relation("EventMilestoneUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([eventId, dueDate])
+  @@index([createdById])
+  @@index([updatedById])
+  @@map("event_milestones")
 }
 
 /// Single-row counter behind Task.taskNumber (TSK-###). Incremented only by
