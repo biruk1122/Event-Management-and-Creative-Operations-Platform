@@ -34091,7 +34091,11 @@
                 "TEST",
                 "TASK_ASSIGNED",
                 "TASK_REMINDER",
-                "TASK_OVERDUE"
+                "TASK_OVERDUE",
+                "MEETING_INVITATION",
+                "MEETING_CHANGED",
+                "MEETING_REMINDER",
+                "MEETING_CANCELLED"
               ],
               "type": "string"
             }

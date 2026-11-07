@@ -103,7 +103,8 @@ export interface AppendAuditRecordInput {
     | "leave_type"
     | "leave_grant"
     | "leave_request"
-    | "sms_message";
+    | "sms_message"
+    | "meeting";
   resourceId: string | null;
   workspaceContext?: string;
   outcome: AuditOutcome;

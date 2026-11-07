@@ -1,6 +1,6 @@
 # SMS notifications (AfroMessage)
 
-Status: Phase 1 implemented, awaiting review. Business triggers (tasks, meetings, reports) are not yet connected.
+Status: Phases 1–3 implemented (infrastructure, task SMS, meeting SMS), awaiting review. Report SMS is not connected.
 
 ## Flow
 
@@ -70,6 +70,17 @@ Each SMS step runs in a database savepoint inside its business transaction. A fa
 - **Audit record:** `sms.enqueue_failed` for the task, with the category and a truncated reason. It contains no message text and no phone number.
 
 Reminders are not recorded this way, because the next scan retries them automatically. Assignment and overdue messages are not retried automatically, so the audit record is their only trace. There is no automatic resend. Administrators can see these records in the audit history.
+
+## Meeting SMS (Phase 3)
+
+- **Invitation.** Queued in the transaction that adds a participant, whether the meeting is created with them or they are added later. Sent to that participant only; the organizer is never texted. Removing and re-adding the same person for the same start time sends nothing new.
+- **Change notice.** Queued in the transaction that changes the start time, end time or location of a scheduled meeting. Sent to every current participant, including those who declined. Title, description, type, agenda and minutes changes send nothing. Each change is keyed to its update time, so separate changes each notify once.
+- **Cancellation notice.** Queued in the transaction that cancels the meeting, for every current participant. Sent only if the meeting is still cancelled and the person is still a participant at send time. A failure to queue it is audited and never blocks the cancellation or in-app notifications.
+- **Reminder.** Queued by a one-minute scan, `MEETING_REMINDER_MINUTES` before the start (default 30, allowed 5–1440). A participant added inside that lead time gets no reminder, so nothing is sent late. Participants who declined get no reminder.
+- **Send-time checks.** A queued message is cancelled, not sent, when the meeting is no longer scheduled (`MEETING_NOT_SCHEDULED`), the person is no longer a participant (`PARTICIPANT_REMOVED`), the start time has changed since the message was written (`START_CHANGED`), or a reminder's recipient has declined since (`PARTICIPANT_DECLINED`). A change notice for a time that has since moved is skipped; the newer notice covers the newer time.
+- **Times.** Shown in Africa/Addis_Ababa.
+- **Duplicates.** Each message has a key per meeting, recipient and start time (plus the update time for change notices). The scan can run on more than one instance without sending twice, because the key is enforced by the database.
+- **Failures.** Each step runs in a savepoint. A failure to queue an invitation or change notice is recorded as `sms.enqueue_failed` on the meeting, with the category and a truncated reason, and the meeting change still commits. Reminders are retried by the next scan.
 
 ## Known gaps
 

@@ -11,6 +11,10 @@ export const SMS_CATEGORIES = [
   "TASK_ASSIGNED",
   "TASK_REMINDER",
   "TASK_OVERDUE",
+  "MEETING_INVITATION",
+  "MEETING_CHANGED",
+  "MEETING_REMINDER",
+  "MEETING_CANCELLED",
 ] as const;
 export type SmsCategory = (typeof SMS_CATEGORIES)[number];
 

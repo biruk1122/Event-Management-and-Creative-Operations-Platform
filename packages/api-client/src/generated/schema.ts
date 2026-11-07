@@ -23757,7 +23757,15 @@ export interface operations {
           | "UNCERTAIN"
           | "CANCELLED"
           | "SKIPPED";
-        category?: "TEST" | "TASK_ASSIGNED" | "TASK_REMINDER" | "TASK_OVERDUE";
+        category?:
+          | "TEST"
+          | "TASK_ASSIGNED"
+          | "TASK_REMINDER"
+          | "TASK_OVERDUE"
+          | "MEETING_INVITATION"
+          | "MEETING_CHANGED"
+          | "MEETING_REMINDER"
+          | "MEETING_CANCELLED";
         page?: number;
         pageSize?: number;
       };

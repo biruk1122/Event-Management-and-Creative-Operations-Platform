@@ -196,6 +196,7 @@ export class MeetingsService {
     userId: string,
     id: string,
     dto: UpdateMeetingDto,
+    requestId: string,
   ): Promise<MeetingResponse> {
     const meeting = await this.repository.findById(id);
     if (!meeting) throw meetingNotFound();
@@ -227,7 +228,7 @@ export class MeetingsService {
         ? { agenda: cleanNullable(dto.agenda, null) }
         : {}),
     };
-    const result = await this.repository.update(id, userId, fields);
+    const result = await this.repository.update(id, userId, fields, requestId);
     if (result === "not_found") throw meetingNotFound();
     if (result === "forbidden") throw permissionDenied();
     if (result === "cancelled") throw meetingCancelled();
@@ -365,13 +366,19 @@ export class MeetingsService {
     userId: string,
     id: string,
     status: "COMPLETED" | "CANCELLED",
+    requestId: string,
   ): Promise<MeetingResponse> {
     const meeting = await this.repository.findById(id);
     if (!meeting) throw meetingNotFound();
     await this.requireOrganizerUpdateGrant(userId, meeting);
     if (!canTransitionMeeting(meeting.status, status))
       throw meetingInvalidTransition();
-    const result = await this.repository.transition(id, userId, status);
+    const result = await this.repository.transition(
+      id,
+      userId,
+      status,
+      requestId,
+    );
     if (result === "not_found") throw meetingNotFound();
     if (result === "forbidden") throw permissionDenied();
     if (result === "invalid_transition") throw meetingInvalidTransition();

@@ -31,6 +31,7 @@ const environment: Environment = {
   AFROMESSAGE_BASE_URL: "https://api.afromessage.com/api",
   AFROMESSAGE_CALLBACK_TOKEN: "",
   AFROMESSAGE_TIMEOUT_MS: 10_000,
+  MEETING_REMINDER_MINUTES: 30,
   API_HOST: "127.0.0.1",
   API_PORT: 4000,
   API_RATE_LIMIT_MAX: 100,

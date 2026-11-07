@@ -32,6 +32,26 @@ export const SMS_TEMPLATES = {
     category: "TASK_OVERDUE",
     text: "LELA OVERDUE: Your task {{task_title}} passed its due date on {{due_date}} and is still incomplete. Please update its status.",
   },
+  MEETING_INVITATION: {
+    key: "meeting.invitation",
+    category: "MEETING_INVITATION",
+    text: "LELA: Hello {{employee_name}}, you are invited to the meeting {{meeting_title}} from {{start_time}} to {{end_time}}. Location: {{location}}. Please log in to Lela to respond.",
+  },
+  MEETING_CHANGED: {
+    key: "meeting.changed",
+    category: "MEETING_CHANGED",
+    text: "LELA: The meeting {{meeting_title}} has been updated. New time: {{start_time}} to {{end_time}}. Location: {{location}}. Please log in to Lela for details.",
+  },
+  MEETING_REMINDER: {
+    key: "meeting.reminder",
+    category: "MEETING_REMINDER",
+    text: "LELA REMINDER: The meeting {{meeting_title}} starts at {{start_time}}. Location: {{location}}. Please join on time.",
+  },
+  MEETING_CANCELLED: {
+    key: "meeting.cancelled",
+    category: "MEETING_CANCELLED",
+    text: "LELA: The meeting {{meeting_title}} scheduled for {{start_time}} has been cancelled. Please log in to Lela for details.",
+  },
 } as const satisfies Record<string, SmsTemplateDefinition>;
 
 export type SmsTemplateName = keyof typeof SMS_TEMPLATES;

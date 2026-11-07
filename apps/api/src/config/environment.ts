@@ -101,6 +101,13 @@ const environmentSchema = z.object({
     .min(1000)
     .max(20_000)
     .default(10_000),
+  /** Minutes before a meeting starts when participants get a reminder SMS. */
+  MEETING_REMINDER_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(1440)
+    .default(30),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
