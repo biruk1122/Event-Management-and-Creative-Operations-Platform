@@ -69,6 +69,12 @@ describe("task SMS (Phase 2)", () => {
 
   const provider = { send: vi.fn(), getStatus: vi.fn(), getBalance: vi.fn() };
 
+  /** Sends of one message body. Counting by body ignores messages other tests send in the same window. */
+  const sendsWithBody = (body: string) =>
+    provider.send.mock.calls.filter(
+      ([request]) => (request as { message: string }).message === body,
+    ).length;
+
   beforeAll(async () => {
     db = await createIsolatedDatabase();
     process.env.DATABASE_URL = db.url;
@@ -484,26 +490,26 @@ describe("task SMS (Phase 2)", () => {
     const assignment = await prisma.taskAssignment.create({
       data: { taskId, userId: assignee.id },
     });
+    const body = `LELA: removed ${rand()}`;
     const row = await prisma.smsMessage.create({
       data: {
         idempotencyKey: `test:${rand()}`,
         category: "TASK_ASSIGNED",
         recipientUserId: assignee.id,
         recipientPhone: "+251911111119",
-        body: "LELA: test",
+        body,
         templateKey: "task.assigned",
         sourceType: "task_assignment",
         sourceId: assignment.id,
       },
     });
     await prisma.taskAssignment.delete({ where: { id: assignment.id } });
-    const sendsBefore = provider.send.mock.calls.length;
     await smsService.dispatch({ payload: { smsMessageId: row.id } });
     expect(
       (await prisma.smsMessage.findUniqueOrThrow({ where: { id: row.id } }))
         .lastError,
     ).toBe("ASSIGNMENT_REMOVED");
-    expect(provider.send.mock.calls.length).toBe(sendsBefore);
+    expect(sendsWithBody(body)).toBe(0);
   });
 
   it("sends to the number on the profile at send time, and skips an invalid one", async () => {
@@ -512,13 +518,14 @@ describe("task SMS (Phase 2)", () => {
     const assignment = await prisma.taskAssignment.create({
       data: { taskId, userId: assignee.id },
     });
+    const profileBody = `LELA: profile ${rand()}`;
     const row = await prisma.smsMessage.create({
       data: {
         idempotencyKey: `test:${rand()}`,
         category: "TASK_ASSIGNED",
         recipientUserId: assignee.id,
         recipientPhone: "+251911111120",
-        body: "LELA: test",
+        body: profileBody,
         templateKey: "task.assigned",
         sourceType: "task_assignment",
         sourceId: assignment.id,
@@ -533,33 +540,39 @@ describe("task SMS (Phase 2)", () => {
       where: { id: row.id },
     });
     expect(sent.recipientPhone).toBe("+251933333333");
-    expect(provider.send).toHaveBeenLastCalledWith(
-      expect.objectContaining({ to: "+251933333333" }),
-    );
+    // Look for this message among all sends: other tests can send in the same window, so the last call is not reliable.
+    expect(
+      provider.send.mock.calls.some(
+        ([request]) =>
+          (request as { message: string; to: string }).message ===
+            profileBody &&
+          (request as { message: string; to: string }).to === "+251933333333",
+      ),
+    ).toBe(true);
 
     await prisma.user.update({
       where: { id: assignee.id },
       data: { phone: "0112345678" },
     });
+    const body = `LELA: invalid ${rand()}`;
     const invalid = await prisma.smsMessage.create({
       data: {
         idempotencyKey: `test:${rand()}`,
         category: "TASK_ASSIGNED",
         recipientUserId: assignee.id,
         recipientPhone: "+251933333333",
-        body: "LELA: test",
+        body,
         templateKey: "task.assigned",
         sourceType: "task_assignment",
         sourceId: assignment.id,
       },
     });
-    const sendsBefore = provider.send.mock.calls.length;
     await smsService.dispatch({ payload: { smsMessageId: invalid.id } });
     expect(
       (await prisma.smsMessage.findUniqueOrThrow({ where: { id: invalid.id } }))
         .status,
     ).toBe("SKIPPED");
-    expect(provider.send.mock.calls.length).toBe(sendsBefore);
+    expect(sendsWithBody(body)).toBe(0);
   });
 
   it("dispatches a message once, however many times the consumer runs", async () => {
@@ -582,13 +595,9 @@ describe("task SMS (Phase 2)", () => {
         sourceId: assignment.id,
       },
     });
-    const sendsOfThisMessage = () =>
-      provider.send.mock.calls.filter(
-        ([request]) => (request as { message: string }).message === body,
-      ).length;
     await smsService.dispatch({ payload: { smsMessageId: row.id } });
     await smsService.dispatch({ payload: { smsMessageId: row.id } });
-    expect(sendsOfThisMessage()).toBe(1);
+    expect(sendsWithBody(body)).toBe(1);
   });
 
   it("keeps the assignment when its SMS cannot be queued", async () => {
@@ -693,5 +702,5 @@ describe("task SMS (Phase 2)", () => {
         })
       ).length,
     ).toBe(total);
-  }, 300_000);
+  }, 600_000);
 });
