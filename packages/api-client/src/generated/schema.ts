@@ -23757,7 +23757,7 @@ export interface operations {
           | "UNCERTAIN"
           | "CANCELLED"
           | "SKIPPED";
-        category?: "TEST";
+        category?: "TEST" | "TASK_ASSIGNED" | "TASK_REMINDER" | "TASK_OVERDUE";
         page?: number;
         pageSize?: number;
       };

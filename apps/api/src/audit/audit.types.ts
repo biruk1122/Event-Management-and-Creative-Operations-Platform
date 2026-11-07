@@ -67,6 +67,7 @@ export type SupportedAuditAction =
   | "leave.type.created"
   | "sms.provider.tested"
   | "sms.message.resolved"
+  | "sms.enqueue_failed"
   | "leave.type.updated"
   | "leave.grant.created"
   | "leave.request.submitted"

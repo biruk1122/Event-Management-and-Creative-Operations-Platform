@@ -3779,6 +3779,9 @@ model TaskNumberCounter {
 
 enum SmsCategory {
   TEST
+  TASK_ASSIGNED
+  TASK_REMINDER
+  TASK_OVERDUE
 
   @@map("sms_category")
 }
@@ -3808,6 +3811,8 @@ model SmsMessage {
   templateKey           String            @map("template_key")
   sourceType            String?           @map("source_type")
   sourceId              String?           @map("source_id")
+  /// For reminders: the due date the reminder was scheduled for. Dispatch cancels the message if the task's due date has since changed.
+  sourceDueAt           DateTime?         @map("source_due_at") @db.Timestamptz(6)
   status                SmsMessageStatus  @default(PENDING)
   skipReason            String?           @map("skip_reason")
   providerMessageId     String?           @unique @map("provider_message_id")

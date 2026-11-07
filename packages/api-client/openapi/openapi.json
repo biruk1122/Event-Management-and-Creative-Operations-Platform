@@ -34087,7 +34087,12 @@
             "name": "category",
             "required": false,
             "schema": {
-              "enum": ["TEST"],
+              "enum": [
+                "TEST",
+                "TASK_ASSIGNED",
+                "TASK_REMINDER",
+                "TASK_OVERDUE"
+              ],
               "type": "string"
             }
           },

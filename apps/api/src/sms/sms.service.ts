@@ -18,7 +18,21 @@ import {
   smsMessageNotFound,
   smsMessageNotResolvable,
 } from "./sms.errors.js";
-import { SmsRepository, type SmsMessageRow } from "./sms.repository.js";
+import {
+  SmsRepository,
+  type DispatchView,
+  type SmsMessageRow,
+} from "./sms.repository.js";
+
+/**
+ * A category rule checked at send time. Returns a reason to cancel the message,
+ * or null when it may be sent. Business modules register these; the SMS module
+ * knows nothing about tasks.
+ */
+export type SmsPrecondition = (message: DispatchView) => Promise<string | null>;
+
+/** Savepoint name for SMS work inside a business transaction. Used one level deep only. */
+const SMS_SAVEPOINT = "sms_isolated_work";
 import { StatusCheckRateLimiter } from "./sms-rate-limiter.js";
 import { normalizeEthiopianPhone } from "./phone.js";
 import { renderTemplate, type SmsTemplateName } from "./templates.js";
@@ -44,6 +58,8 @@ export interface EnqueueSmsInput {
   params?: Record<string, string>;
   sourceType?: string;
   sourceId?: string;
+  /** For reminders: the due date the message is scheduled for. */
+  sourceDueAt?: Date | null;
   actorKind: OutboxActorKind;
   actorUserId?: string;
   requestId?: string;
@@ -77,6 +93,12 @@ export type StatusCheckResult =
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
+  private readonly preconditions = new Map<SmsCategory, SmsPrecondition>();
+
+  /** Registers the send-time rule for a category. One rule per category. */
+  registerPrecondition(category: SmsCategory, check: SmsPrecondition): void {
+    this.preconditions.set(category, check);
+  }
 
   constructor(
     @Inject(ENVIRONMENT) private readonly environment: Environment,
@@ -97,6 +119,39 @@ export class SmsService {
       callbackConfigured: env.AFROMESSAGE_CALLBACK_TOKEN.length > 0,
       timeoutMs: env.AFROMESSAGE_TIMEOUT_MS,
     };
+  }
+
+  /**
+   * Runs SMS work inside a savepoint of the caller's transaction. If the work
+   * fails, only the savepoint is rolled back, so the business change in the same
+   * transaction still commits. Returns null on failure, after logging it. If the
+   * savepoint cannot be rolled back, the error is thrown, because the transaction
+   * can no longer be trusted.
+   */
+  async isolate<T>(
+    tx: Prisma.TransactionClient,
+    label: string,
+    work: () => Promise<T>,
+    /**
+     * Runs after the savepoint is rolled back, still inside the business
+     * transaction. Use it to leave a durable record of a failure that cannot be
+     * retried automatically.
+     */
+    onFailure?: (error: unknown) => Promise<void>,
+  ): Promise<T | null> {
+    await tx.$executeRawUnsafe(`SAVEPOINT ${SMS_SAVEPOINT}`);
+    try {
+      const result = await work();
+      await tx.$executeRawUnsafe(`RELEASE SAVEPOINT ${SMS_SAVEPOINT}`);
+      return result;
+    } catch (error) {
+      await tx.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT ${SMS_SAVEPOINT}`);
+      await tx.$executeRawUnsafe(`RELEASE SAVEPOINT ${SMS_SAVEPOINT}`);
+      const reason = error instanceof Error ? error.message : "unknown error";
+      this.logger.error(`${label} SMS could not be queued: ${reason}`);
+      if (onFailure) await onFailure(error);
+      return null;
+    }
   }
 
   /**
@@ -126,6 +181,7 @@ export class SmsService {
       sourceId: input.sourceId ?? null,
       status,
       skipReason: reason,
+      sourceDueAt: input.sourceDueAt ?? null,
     });
     if (id === null) return { kind: "DUPLICATE" };
 
@@ -172,6 +228,10 @@ export class SmsService {
       return;
     }
 
+    // Recheck the recipient at send time: the account must still be active,
+    // and the number sent to is the one on the profile now, not the one stored
+    // when the message was queued.
+    let to = message.recipientPhone;
     if (message.recipientUserId) {
       const recipient = await this.repository.findRecipientStatus(
         message.recipientUserId,
@@ -189,14 +249,32 @@ export class SmsService {
         );
         return;
       }
+      const current = normalizeEthiopianPhone(recipient.phone);
+      if (!current.ok) {
+        await this.repository.setStatus(null, id, "SKIPPED", current.reason);
+        return;
+      }
+      if (current.e164 !== message.recipientPhone) {
+        await this.repository.updateRecipientPhone(id, current.e164);
+        to = current.e164;
+      }
     }
-    if (!message.recipientPhone) {
+    if (!to) {
       await this.repository.setStatus(
         null,
         id,
         "SKIPPED",
         "MISSING_PHONE_NUMBER",
       );
+      return;
+    }
+
+    // Category rules (for example, the task is still open and still assigned to
+    // this person). A failed rule cancels the message; nothing is sent.
+    const precondition = this.preconditions.get(message.category);
+    const blockedBy = precondition ? await precondition(message) : null;
+    if (blockedBy) {
+      await this.repository.setStatus(null, id, "CANCELLED", blockedBy);
       return;
     }
 
@@ -207,7 +285,7 @@ export class SmsService {
     let outcome: SendOutcome;
     try {
       outcome = await this.provider.send({
-        to: message.recipientPhone,
+        to,
         message: message.body,
         sender: this.environment.AFROMESSAGE_SENDER_ID,
         ...(this.environment.AFROMESSAGE_IDENTIFIER_ID

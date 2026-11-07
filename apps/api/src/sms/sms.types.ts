@@ -6,7 +6,12 @@ export const SMS_CONSUMER_NAME = "sms";
 export const SMS_CONSUMER_VERSION = 1;
 
 /** Categories an SMS can belong to. Phase 1 has only the connection test. */
-export const SMS_CATEGORIES = ["TEST"] as const;
+export const SMS_CATEGORIES = [
+  "TEST",
+  "TASK_ASSIGNED",
+  "TASK_REMINDER",
+  "TASK_OVERDUE",
+] as const;
 export type SmsCategory = (typeof SMS_CATEGORIES)[number];
 
 /** Statuses reflect what the provider actually returned. `DELIVERED` is reserved until the provider's status mapping is verified. */

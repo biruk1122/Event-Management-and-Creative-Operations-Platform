@@ -25,6 +25,7 @@ describe("TasksSchedulerService", () => {
       db as never,
       repository as never,
       outbox as never,
+      { queueOverdue: () => Promise.resolve() } as never,
     );
   });
 

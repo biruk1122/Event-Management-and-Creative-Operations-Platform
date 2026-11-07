@@ -19,14 +19,20 @@ export interface NewSmsMessage {
   sourceId: string | null;
   status: "PENDING" | "SKIPPED";
   skipReason: string | null;
+  /** For reminders: the due date the message was scheduled for. */
+  sourceDueAt: Date | null;
 }
 
 export interface DispatchView {
   id: string;
   status: SmsMessageStatus;
+  category: DbSmsCategory;
   recipientUserId: string | null;
   recipientPhone: string | null;
   body: string;
+  sourceType: string | null;
+  sourceId: string | null;
+  sourceDueAt: Date | null;
 }
 
 export interface SmsMessageRow {
@@ -73,11 +79,11 @@ export class SmsRepository {
     const inserted = await tx.$queryRaw<{ id: string }[]>`
       INSERT INTO "sms_messages" (
         "idempotency_key", "category", "recipient_user_id", "recipient_phone",
-        "body", "template_key", "source_type", "source_id", "status", "skip_reason"
+        "body", "template_key", "source_type", "source_id", "status", "skip_reason", "source_due_at"
       ) VALUES (
         ${row.idempotencyKey}, ${row.category}::"sms_category", ${row.recipientUserId}::uuid,
         ${row.recipientPhone}, ${row.body}, ${row.templateKey}, ${row.sourceType},
-        ${row.sourceId}, ${row.status}::"sms_message_status", ${row.skipReason}
+        ${row.sourceId}, ${row.status}::"sms_message_status", ${row.skipReason}, ${row.sourceDueAt}
       )
       ON CONFLICT ("idempotency_key") DO NOTHING
       RETURNING "id"
@@ -91,9 +97,13 @@ export class SmsRepository {
       select: {
         id: true,
         status: true,
+        category: true,
         recipientUserId: true,
         recipientPhone: true,
         body: true,
+        sourceType: true,
+        sourceId: true,
+        sourceDueAt: true,
       },
     });
   }
@@ -101,7 +111,21 @@ export class SmsRepository {
   findRecipientStatus(userId: string) {
     return this.db.user.findUnique({
       where: { id: userId },
-      select: { status: true, deactivatedAt: true },
+      select: {
+        status: true,
+        deactivatedAt: true,
+        phone: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+  }
+
+  /** Stores the number the message will actually be sent to, after a fresh check at dispatch. */
+  async updateRecipientPhone(id: string, e164: string): Promise<void> {
+    await this.db.smsMessage.update({
+      where: { id },
+      data: { recipientPhone: e164 },
     });
   }
 
@@ -226,9 +250,13 @@ export class SmsRepository {
     reason: string | null,
   ): Promise<void> {
     const client = tx ?? this.db;
+    // A skipped message keeps its reason in skipReason, which the database requires.
     await client.smsMessage.update({
       where: { id },
-      data: { status, lastError: reason },
+      data:
+        status === "SKIPPED"
+          ? { status, skipReason: reason }
+          : { status, lastError: reason },
     });
   }
 

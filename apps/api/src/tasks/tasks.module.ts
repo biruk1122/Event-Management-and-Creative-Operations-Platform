@@ -10,12 +10,20 @@ import { OutboxModule } from "../outbox/outbox.module.js";
 import { TasksSchedulerRepository } from "./infrastructure/tasks-scheduler.repository.js";
 import { TasksRepository } from "./infrastructure/tasks.repository.js";
 import { TasksSchedulerService } from "./tasks-scheduler.service.js";
+import { TasksSmsService } from "./tasks-sms.service.js";
+import { SmsModule } from "../sms/sms.module.js";
 import { TasksController } from "./tasks.controller.js";
 import { TasksService } from "./tasks.service.js";
 import { TasksReportFactsQuery } from "./tasks-report-facts.query.js";
 
 @Module({
-  imports: [AuditModule, AuthModule, OutboxModule, PermissionsModule],
+  imports: [
+    AuditModule,
+    AuthModule,
+    OutboxModule,
+    PermissionsModule,
+    SmsModule,
+  ],
   controllers: [TasksController],
   providers: [
     TasksDashboardQuery,
@@ -25,6 +33,7 @@ import { TasksReportFactsQuery } from "./tasks-report-facts.query.js";
     TasksReportFactsQuery,
     TasksSchedulerRepository,
     TasksSchedulerService,
+    TasksSmsService,
     {
       provide: AUDIT_WORKSPACE_CONTEXT_RESOLVER,
       useExisting: TasksService,
