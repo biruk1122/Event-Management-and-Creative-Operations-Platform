@@ -60,7 +60,7 @@ describe("event management persistence", () => {
         { schema: db.schema },
       ),
     });
-    repository = new EventsRepository(prisma as never);
+    repository = new EventsRepository(prisma as never, {} as never);
 
     actorId = (
       await prisma.user.create({

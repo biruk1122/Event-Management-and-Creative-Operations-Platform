@@ -24,6 +24,11 @@ const { get, post, patch, put, del } = vi.hoisted(() => ({
 vi.mock("@/lib/api/browser", () => ({
   browserApi: { GET: get, POST: post, PATCH: patch, PUT: put, DELETE: del },
 }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/events",
+  useSearchParams: () => new URLSearchParams(),
+}));
 
 const now = "2026-09-01T09:00:00.000Z";
 
@@ -31,6 +36,7 @@ function makeEvent(
   overrides: Partial<Event> & Pick<Event, "id" | "name">,
 ): Event {
   return {
+    eventNumber: 1,
     workspaceId: `ws-${overrides.id}`,
     progress: { completed: 0, total: 0 },
     eventType: "CONCERT",
@@ -246,29 +252,11 @@ describe("EventsManager API integration", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 
-  it("opens a row and deletes it via the API", async () => {
-    del.mockResolvedValue({ response: { ok: true, status: 204 } });
-    const user = userEvent.setup();
-    setup(access("event.delete"));
+  it("links each row to the event workspace", async () => {
+    setup();
     await screen.findByText("2 events");
-
-    await user.click(
-      screen.getAllByRole("button", { name: "Aurora Premiere" })[0]!,
-    );
-    const dialog = await screen.findByRole("dialog");
-    await within(dialog).findByRole("heading", { name: "Aurora Premiere" });
-    await user.click(
-      within(dialog).getByRole("button", { name: "Delete event" }),
-    );
-    await user.click(
-      within(dialog).getByRole("button", { name: "Confirm delete" }),
-    );
-
-    await waitFor(() =>
-      expect(del).toHaveBeenCalledWith(
-        "/api/v1/events/{id}",
-        expect.objectContaining({ params: { path: { id: "e1" } } }),
-      ),
-    );
+    expect(
+      screen.getAllByRole("link", { name: "Aurora Premiere" })[0],
+    ).toHaveAttribute("href", "/events/e1");
   });
 });

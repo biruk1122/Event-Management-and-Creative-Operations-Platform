@@ -123,6 +123,21 @@ function headers() {
   return token ? { "x-csrf-token": token } : {};
 }
 
+/** The meetings linked to one event workspace. Visibility is the server's rule. */
+export async function listEventMeetings(
+  workspaceId: string,
+  signal?: AbortSignal,
+): Promise<Meeting[]> {
+  const { data, response } = await browserApi.GET("/api/v1/meetings", {
+    params: { query: { workspaceId, pageSize: PAGE_SIZE } as never },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  if (!data)
+    throw new Error(`Meetings could not be loaded (${response.status}).`);
+  return data.items;
+}
+
 /** One page of the caller's meetings, newest-first per the API's own default
  * ordering. `useMeetings` (meetings-queries.ts) accumulates pages via
  * `useInfiniteQuery` - the "pagination/cursors" this issue's own technical

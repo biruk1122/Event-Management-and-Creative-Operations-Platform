@@ -1,4 +1,13 @@
 export { EventsScreen } from "./components/events-screen";
+export { EventDetailsTab } from "./components/workspace/event-details-tab";
+export { EventOverviewTab } from "./components/workspace/event-overview-tab";
+export { EventPendingTab } from "./components/workspace/event-pending-tab";
+export { EventTeamsTab } from "./components/workspace/event-teams-tab";
+export { EventTalentsTab } from "./components/workspace/event-talents-tab";
+export { EventTasksTab } from "./components/workspace/event-tasks-tab";
+export { EventMeetingsTab } from "./components/workspace/event-meetings-tab";
+export { EventCalendarTab } from "./components/workspace/event-calendar-tab";
+export { EventWorkspaceShell } from "./components/workspace/event-workspace-shell";
 export { EventsNavigation } from "./components/events-navigation";
 export type {
   AssignableTeam,

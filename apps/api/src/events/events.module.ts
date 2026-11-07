@@ -4,6 +4,7 @@ import { EventsDashboardQuery } from "./events-dashboard.query.js";
 import { EventsAnalyticsQuery } from "./events-analytics.query.js";
 import { EventsReportFactsQuery } from "./events-report-facts.query.js";
 
+import { AuditModule } from "../audit/audit.module.js";
 import { AuthModule } from "../auth/auth.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
 import { OutboxModule } from "../outbox/outbox.module.js";
@@ -16,6 +17,7 @@ import { EventsSchedulerRepository } from "./infrastructure/events-scheduler.rep
 
 @Module({
   imports: [
+    AuditModule,
     AuthModule,
     OutboxModule,
     PermissionsModule,

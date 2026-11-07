@@ -46,6 +46,8 @@ export function useTalentMutations(access: CurrentAccess) {
   const client = useQueryClient();
   const reconcile = async () => {
     await client.invalidateQueries({ queryKey: ["talent", access.userId] });
+    // Event workspaces list the same assignments on their Talents tab.
+    await client.invalidateQueries({ queryKey: ["events", access.userId] });
     await client.invalidateQueries({ queryKey: accessKey });
   };
 

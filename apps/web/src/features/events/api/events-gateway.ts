@@ -1,8 +1,9 @@
-import type { operations } from "@event-platform/api-client";
+import type { components, operations } from "@event-platform/api-client";
 
 import { browserApi } from "@/lib/api/browser";
 import { listAllUsers } from "@/lib/api/user-directory";
 import { readCsrfToken } from "@/lib/api/csrf";
+import { zonedLocalToUtcIso } from "@/lib/app-timezone";
 import { fieldErrorsOf, isProblemDetails } from "@/lib/api/problem-details";
 
 import type {
@@ -30,7 +31,11 @@ import type {
   AssignableUser,
   Event,
   EventBudget,
+  EventActivity,
   EventBudgetSummary,
+  EventMilestone,
+  EventMilestoneStatus,
+  EventOverview,
   EventSortField,
   EventStatus,
   EventSummary,
@@ -61,9 +66,10 @@ function headers() {
 }
 
 /** A `datetime-local` field value, read as a UTC instant. Empty stays empty. */
+/** A wall-clock time in the app timezone, as the UTC instant the API stores. */
 function toIsoUtc(local: string): string | null {
   if (local === "") return null;
-  return new Date(`${local.slice(0, 16)}:00.000Z`).toISOString();
+  return zonedLocalToUtcIso(local);
 }
 
 /** A typed budget as a number with two fraction digits, or null when blank. */
@@ -263,6 +269,7 @@ export interface ListEventsParams {
   eventType?: string | null;
   search?: string | null;
   managerId?: string | null;
+  teamId?: string | null;
   sort?: EventSortField | null;
   direction?: "asc" | "desc" | null;
   page?: number;
@@ -297,6 +304,7 @@ export async function listEvents(
   if (params.eventType) query.eventType = params.eventType;
   if (params.search?.trim()) query.search = params.search.trim();
   if (params.managerId) query.managerId = params.managerId;
+  if (params.teamId) query.teamId = params.teamId;
   if (params.sort) query.sort = params.sort;
   if (params.direction) query.direction = params.direction;
 
@@ -320,6 +328,152 @@ export async function getEvent(
     cache: "no-store",
   });
   return data ?? null;
+}
+
+/** The figures behind the workspace Overview tiles. */
+export async function getEventOverview(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EventOverview> {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/events/{id}/overview",
+    {
+      params: { path: { id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new EventsRequestError(response.status);
+  return data;
+}
+
+/** The event's recent activity, newest first. */
+/** A team assigned to an event. `members` is empty unless `membersVisible`. */
+export type EventTeam = components["schemas"]["EventTeamResponse"];
+
+/** A talent assignment seen from an event, with the talent's name, type and availability only. */
+export type EventTalentAssignment =
+  components["schemas"]["EventTalentAssignmentResponse"];
+
+export async function listEventTeams(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EventTeam[]> {
+  const { data, response } = await browserApi.GET("/api/v1/events/{id}/teams", {
+    params: { path: { id } },
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  if (!data) throw new EventsRequestError(response.status);
+  return data;
+}
+
+export async function listEventTalents(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EventTalentAssignment[]> {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/events/{id}/talents",
+    {
+      params: { path: { id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new EventsRequestError(response.status);
+  return data;
+}
+
+export async function listEventActivity(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EventActivity[]> {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/events/{id}/activity",
+    {
+      params: { path: { id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new EventsRequestError(response.status);
+  return data;
+}
+
+export async function listEventMilestones(
+  id: string,
+  signal?: AbortSignal,
+): Promise<EventMilestone[]> {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/events/{id}/milestones",
+    {
+      params: { path: { id } },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new EventsRequestError(response.status);
+  return data;
+}
+
+interface MilestoneValues {
+  name: string;
+  dueDate: string;
+  status: EventMilestoneStatus;
+}
+
+/** A milestone write that failed, with a message the form can show. */
+function milestoneFailure(error: unknown, status: number): Error {
+  if (isProblemDetails(error)) {
+    if (error.code === "EVENT_MILESTONE_NOT_FOUND") {
+      return new Error("This milestone no longer exists. Refresh the page.");
+    }
+    const [first] = Object.values(fieldErrorsOf(error));
+    if (first) return new Error(first);
+  }
+  return status === 403
+    ? new Error("You do not have permission to do that.")
+    : new Error("We could not save the milestone. Try again.");
+}
+
+export async function createEventMilestone(
+  id: string,
+  values: MilestoneValues & { description?: string },
+): Promise<EventMilestone> {
+  const { data, error, response } = await browserApi.POST(
+    "/api/v1/events/{id}/milestones",
+    { params: { path: { id } }, body: values, headers: headers() },
+  );
+  if (!data) throw milestoneFailure(error, response.status);
+  return data;
+}
+
+export async function updateEventMilestone(
+  id: string,
+  milestoneId: string,
+  values: MilestoneValues & { description: string | null },
+): Promise<EventMilestone> {
+  const { data, error, response } = await browserApi.PATCH(
+    "/api/v1/events/{id}/milestones/{milestoneId}",
+    {
+      params: { path: { id, milestoneId } },
+      body: values,
+      headers: headers(),
+    },
+  );
+  if (!data) throw milestoneFailure(error, response.status);
+  return data;
+}
+
+export async function deleteEventMilestone(
+  id: string,
+  milestoneId: string,
+): Promise<void> {
+  const { error, response } = await browserApi.DELETE(
+    "/api/v1/events/{id}/milestones/{milestoneId}",
+    { params: { path: { id, milestoneId } }, headers: headers() },
+  );
+  if (!response.ok) throw milestoneFailure(error, response.status);
 }
 
 /**
@@ -413,8 +567,9 @@ export async function listAssignableUsers(
 export async function listAssignableTeams(
   signal?: AbortSignal,
 ): Promise<AssignableTeam[]> {
+  // Deactivated teams cannot be newly assigned to an event, so offer active teams only.
   const { data } = await browserApi.GET("/api/v1/teams", {
-    params: { query: { pageSize: 100 } as never },
+    params: { query: { pageSize: 100, status: "ACTIVE" } as never },
     ...(signal ? { signal } : {}),
     cache: "no-store",
   });

@@ -213,6 +213,7 @@ export function TeamsManager({ access }: { access: CurrentAccess }) {
           }
         }}
         managers={managers}
+        accessUserId={access.userId}
         canEdit={canEdit}
         canAssignManager={canAssignManager}
         canManageMembers={canManageMembers}

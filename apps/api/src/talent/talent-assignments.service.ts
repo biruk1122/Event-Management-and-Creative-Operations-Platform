@@ -14,6 +14,7 @@ import { TalentRepository } from "./infrastructure/talent.repository.js";
 import {
   TalentAssignmentsRepository,
   type AssignmentRow,
+  type EventTalentSummary,
   type WorkItem,
 } from "./infrastructure/talent-assignments.repository.js";
 import { TalentAccessService } from "./talent-access.service.js";
@@ -141,6 +142,35 @@ export class TalentAssignmentsService {
   ) {}
 
   // ---- reads ----------------------------------------------------------------
+
+  /**
+   * The talents assigned to one event, for the event's Talents tab. The same
+   * directory rule as the talent-side list applies: a caller needs talent
+   * access, and a masked caller sees only rows for work they can manage. Only
+   * the talent's name, type and status are included, never contact details.
+   */
+  async listForEvent(
+    userId: string,
+    eventId: string,
+  ): Promise<(TalentAssignmentView & { talent: EventTalentSummary })[]> {
+    const mode = await this.access.directoryMode(userId);
+    if (!mode) throw permissionDenied();
+    const rows = await this.repository.assignmentsForEvent(eventId);
+    const visible: typeof rows = [];
+    for (const row of rows) {
+      if (
+        mode === "full" ||
+        (await this.access.canManageWork(
+          userId,
+          row.kind,
+          row.work.departmentId,
+        ))
+      ) {
+        visible.push(row);
+      }
+    }
+    return visible.map((row) => ({ ...toView(row), talent: row.talent }));
+  }
 
   /**
    * Every assignment of the talent that the caller may see: all of them for
@@ -470,6 +500,7 @@ export class TalentAssignmentsService {
         metadata: {
           assignmentKind: kind,
           assignmentId,
+          workId: row.workId,
           datesChanged,
           overridden,
         },

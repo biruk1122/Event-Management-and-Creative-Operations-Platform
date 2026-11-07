@@ -99,6 +99,26 @@ export class ListTasksQueryDto {
   overdue?: boolean;
 
   @ApiPropertyOptional({
+    format: "uuid",
+    description: "Only tasks linked to this event.",
+  })
+  @IsOptional()
+  @IsUUID()
+  relatedEventId?: string;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    description:
+      "Only open tasks that need attention: overdue, blocked, under review, or high or urgent priority.",
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    value === "true" ? true : value === "false" ? false : value,
+  )
+  @IsBoolean()
+  needsAttention?: boolean;
+
+  @ApiPropertyOptional({
     type: Boolean,
     description:
       'Only tasks with no eligible designated reviewer ("Reviewer needed"). Super Admin resolves them with the reviewer change action.',

@@ -207,6 +207,42 @@ export async function createTalentAssignment(
     : createFailure(error, response.status);
 }
 
+/** An assignment made from an event's Talents tab. The same record and rules as the talent profile. */
+export interface EventTalentDraft {
+  talentId: string;
+  role: string;
+  startAt?: string | null;
+  endAt?: string | null;
+  notes: string | null;
+  acknowledgeConflicts: boolean;
+  overrideReason: string | null;
+}
+
+/** The event-side create result. Its assignment carries staff display names, never emails. */
+export type EventTalentCreateOutcome =
+  | Exclude<CreateAssignmentOutcome, { status: "success" }>
+  | {
+      status: "success";
+      assignment: components["schemas"]["EventTalentAssignmentResponse"];
+    };
+
+export async function createEventTalentAssignment(
+  eventId: string,
+  draft: EventTalentDraft,
+): Promise<EventTalentCreateOutcome> {
+  const { data, error, response } = await browserApi.POST(
+    "/api/v1/events/{id}/talents",
+    {
+      params: { path: { id: eventId } },
+      body: draft,
+      headers: headers(),
+    },
+  );
+  return data
+    ? { status: "success", assignment: data }
+    : createFailure(error, response.status);
+}
+
 export async function updateTalentAssignment(
   talentId: string,
   assignment: Pick<TalentAssignment, "id" | "kind">,

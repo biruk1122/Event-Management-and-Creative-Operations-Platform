@@ -38,6 +38,8 @@ export function useTeamsMutations(access: CurrentAccess) {
   // network failures, and re-check the caller's access.
   const reconcile = async () => {
     await client.invalidateQueries({ queryKey: ["teams", access.userId] });
+    // Event workspaces show each event team and its current members.
+    await client.invalidateQueries({ queryKey: ["events", access.userId] });
     await client.invalidateQueries({ queryKey: accessKey });
   };
 

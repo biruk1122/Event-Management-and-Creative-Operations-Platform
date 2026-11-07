@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { formatInZone } from "@/lib/app-timezone";
 import { cn } from "@/lib/utils";
 
 import {
@@ -14,6 +16,7 @@ import {
   type EventStatus,
   type EventTeamSummary,
 } from "../lib/events-types";
+import { eventWorkspacePath } from "../lib/event-workspace";
 
 export interface EventSort {
   field: EventSortField;
@@ -22,7 +25,6 @@ export interface EventSort {
 
 interface EventsTableProps {
   events: readonly Event[];
-  onSelect: (id: string) => void;
   page: number;
   pageCount: number;
   onPageChange: (page: number) => void;
@@ -61,7 +63,7 @@ function initials(name: string): string {
 
 function dateLabel(iso: string | null): string {
   if (!iso) return "Not scheduled";
-  return new Date(iso).toLocaleDateString(undefined, {
+  return formatInZone(iso, {
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -154,7 +156,6 @@ function SortHeader({
 
 export function EventsTable({
   events,
-  onSelect,
   page,
   pageCount,
   onPageChange,
@@ -219,13 +220,12 @@ export function EventsTable({
               return (
                 <tr key={event.id} className="hover:bg-muted/50">
                   <th scope="row" className="px-4 py-3 font-normal">
-                    <button
-                      type="button"
+                    <Link
+                      href={eventWorkspacePath(event.id)}
                       className="focus-visible:ring-ring/50 block rounded text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:ring-3 focus-visible:outline-none"
-                      onClick={() => onSelect(event.id)}
                     >
                       {event.name}
-                    </button>
+                    </Link>
                     <span className="text-muted-foreground mt-0.5 block text-xs font-normal">
                       {eventTypeLabel(event.eventType)}
                       {event.location ? ` · ${event.location}` : ""}
@@ -265,10 +265,9 @@ export function EventsTable({
           const progress = progressFor(event);
           return (
             <li key={event.id} className="border-border rounded-xl border p-4">
-              <button
-                type="button"
+              <Link
+                href={eventWorkspacePath(event.id)}
                 className="focus-visible:ring-ring/50 block w-full rounded text-left focus-visible:ring-3 focus-visible:outline-none"
-                onClick={() => onSelect(event.id)}
               >
                 <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
                   {event.name}
@@ -289,7 +288,7 @@ export function EventsTable({
                     label={`Progress of ${event.name}`}
                   />
                 </span>
-              </button>
+              </Link>
             </li>
           );
         })}

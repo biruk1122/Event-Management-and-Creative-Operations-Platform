@@ -100,16 +100,20 @@ describe("LettersManager presentation controls", () => {
         screen.queryByRole("button", { name: "Clear filters" }),
       ).not.toBeInTheDocument(),
     );
-    expect(
-      get.mock.calls.filter(([path]) => path === "/api/v1/letters").at(-1)?.[1]
-        .params.query,
-    ).toEqual({
-      direction: "INCOMING",
-      page: 1,
-      pageSize: 20,
-      sort: "date",
-      order: "desc",
-    });
+    // The cleared request may be issued after the button disappears, so wait for it.
+    await waitFor(() =>
+      expect(
+        get.mock.calls
+          .filter(([path]) => path === "/api/v1/letters")
+          .at(-1)?.[1].params.query,
+      ).toEqual({
+        direction: "INCOMING",
+        page: 1,
+        pageSize: 20,
+        sort: "date",
+        order: "desc",
+      }),
+    );
   });
 
   it("keeps registration hidden when the create grant is absent", async () => {

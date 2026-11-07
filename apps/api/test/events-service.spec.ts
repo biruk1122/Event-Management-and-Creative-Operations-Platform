@@ -9,6 +9,7 @@ const ACTOR = "actor-1";
 
 function makeEvent(overrides: Partial<EventRecord> = {}): EventRecord {
   return {
+    eventNumber: 1,
     id: "evt-1",
     workspaceId: "ws-1",
     name: "Launch",
@@ -63,7 +64,17 @@ describe("EventsService", () => {
     delete: ReturnType<typeof vi.fn>;
     taskProgressFor: ReturnType<typeof vi.fn>;
     summary: ReturnType<typeof vi.fn>;
+    overview: ReturnType<typeof vi.fn>;
+    visibleLinkedTaskIds: ReturnType<typeof vi.fn>;
+    teamStatus: ReturnType<typeof vi.fn>;
+    peopleByIds: ReturnType<typeof vi.fn>;
+    listMilestones: ReturnType<typeof vi.fn>;
+    createMilestone: ReturnType<typeof vi.fn>;
+    updateMilestone: ReturnType<typeof vi.fn>;
+    deleteMilestone: ReturnType<typeof vi.fn>;
   };
+  let auditWriter: { record: ReturnType<typeof vi.fn> };
+  let auditReader: { listWorkActivity: ReturnType<typeof vi.fn> };
   let workspaces: {
     setManager: ReturnType<typeof vi.fn>;
     assignTeam: ReturnType<typeof vi.fn>;
@@ -105,7 +116,17 @@ describe("EventsService", () => {
         inProgress: 0,
         completed: 0,
       }),
+      overview: vi.fn(),
+      visibleLinkedTaskIds: vi.fn().mockResolvedValue([]),
+      teamStatus: vi.fn().mockResolvedValue("active"),
+      peopleByIds: vi.fn().mockResolvedValue(new Map()),
+      listMilestones: vi.fn().mockResolvedValue([]),
+      createMilestone: vi.fn(),
+      updateMilestone: vi.fn(),
+      deleteMilestone: vi.fn().mockResolvedValue("deleted"),
     };
+    auditWriter = { record: vi.fn().mockResolvedValue(undefined) };
+    auditReader = { listWorkActivity: vi.fn().mockResolvedValue([]) };
     function forwardToFindById(id: string): Promise<EventRecord | null> {
       return (
         repository.findById as (id: string) => Promise<EventRecord | null>
@@ -123,6 +144,8 @@ describe("EventsService", () => {
       workspaces as never,
       permissions as never,
       talentAssignments as never,
+      auditWriter as never,
+      auditReader as never,
     );
   });
 
@@ -332,7 +355,12 @@ describe("EventsService", () => {
         await expect(
           service.transition(ACTOR, "evt-1", to),
         ).resolves.toMatchObject({ status: to });
-        expect(repository.updateStatus).toHaveBeenCalledWith("evt-1", from, to);
+        expect(repository.updateStatus).toHaveBeenCalledWith(
+          "evt-1",
+          from,
+          to,
+          expect.objectContaining({ actorUserId: ACTOR }),
+        );
       } else {
         await expectCode(
           service.transition(ACTOR, "evt-1", to),
@@ -481,6 +509,7 @@ describe("EventsService", () => {
         "evt-1",
         "2500.00",
         "EUR",
+        expect.objectContaining({ actorUserId: ACTOR }),
       );
     });
 
@@ -488,7 +517,12 @@ describe("EventsService", () => {
       await expect(
         service.setBudget(ACTOR, "evt-1", { amount: null, currency: null }),
       ).resolves.toEqual({ amount: null, currency: null });
-      expect(repository.setBudget).toHaveBeenCalledWith("evt-1", null, null);
+      expect(repository.setBudget).toHaveBeenCalledWith(
+        "evt-1",
+        null,
+        null,
+        expect.objectContaining({ actorUserId: ACTOR }),
+      );
     });
   });
 
@@ -542,6 +576,18 @@ describe("EventsService", () => {
         service.assignTeam(ACTOR, "evt-1", "team-1"),
         "EVENT_NOT_FOUND",
       );
+    });
+
+    it("refuses to newly assign a deactivated team and writes nothing", async () => {
+      grantOnly(["event.assign_teams", "ORGANIZATION"]);
+      repository.teamStatus.mockResolvedValue("deactivated");
+      workspaces.assignTeam.mockClear();
+
+      await expectCode(
+        service.assignTeam(ACTOR, "evt-1", "team-1"),
+        "EVENT_TEAM_DEACTIVATED",
+      );
+      expect(workspaces.assignTeam).not.toHaveBeenCalled();
     });
 
     it("maps a raced update/delete to EVENT_NOT_FOUND", async () => {
@@ -618,6 +664,7 @@ describe("EventsService", () => {
           teamIds: [TEAM_ID],
           budget: { amount: 2500000, currency: "ETB" },
         }),
+        expect.objectContaining({ actorUserId: ACTOR }),
       );
     });
 
@@ -630,6 +677,213 @@ describe("EventsService", () => {
       await expectCode(
         service.create(ACTOR, { ...base, teamIds: [TEAM_ID] }),
         "EVENT_TEAM_NOT_FOUND",
+      );
+    });
+  });
+
+  describe("workspace: milestones and activity", () => {
+    const milestone = {
+      id: "m-1",
+      eventId: "evt-1",
+      name: "Doors open",
+      description: null,
+      dueDate: new Date("2026-10-24T00:00:00.000Z"),
+      status: "NOT_STARTED" as const,
+      createdBy: null,
+      updatedBy: null,
+      createdAt: new Date("2026-09-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-09-01T00:00:00.000Z"),
+    };
+
+    it("needs event.update to change a milestone, even with event.read", async () => {
+      grantOnly(["event.read", "ORGANIZATION"]);
+      await expectCode(
+        service.createMilestone(
+          ACTOR,
+          "evt-1",
+          { name: "x", dueDate: "2026-10-24" },
+          "req-1",
+        ),
+        "PERMISSION_DENIED",
+      );
+      await expectCode(
+        service.deleteMilestone(ACTOR, "evt-1", "m-1", "req-1"),
+        "PERMISSION_DENIED",
+      );
+      expect(repository.createMilestone).not.toHaveBeenCalled();
+      expect(repository.deleteMilestone).not.toHaveBeenCalled();
+    });
+
+    it("trims a new milestone and returns its due date as a calendar date", async () => {
+      grantOnly(["event.update", "ORGANIZATION"]);
+      repository.createMilestone.mockResolvedValue(milestone);
+      const created = await service.createMilestone(
+        ACTOR,
+        "evt-1",
+        { name: "  Doors open  ", dueDate: "2026-10-24" },
+        "req-1",
+      );
+      expect(repository.createMilestone).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "evt-1" }),
+        { name: "Doors open", dueDate: new Date("2026-10-24") },
+        { actorUserId: ACTOR, requestId: "req-1" },
+      );
+      expect(created.dueDate).toBe("2026-10-24");
+    });
+
+    it("maps a milestone outside the event to EVENT_MILESTONE_NOT_FOUND", async () => {
+      grantOnly(["event.update", "ORGANIZATION"]);
+      repository.updateMilestone.mockResolvedValue("not_found");
+      repository.deleteMilestone.mockResolvedValue("not_found");
+      await expectCode(
+        service.updateMilestone(ACTOR, "evt-1", "m-2", { name: "x" }, "req-1"),
+        "EVENT_MILESTONE_NOT_FOUND",
+      );
+      await expectCode(
+        service.deleteMilestone(ACTOR, "evt-1", "m-2", "req-1"),
+        "EVENT_MILESTONE_NOT_FOUND",
+      );
+    });
+
+    it("feeds activity from allowlisted audit actions and never exposes raw metadata", async () => {
+      grantOnly(
+        ["event.read", "ORGANIZATION"],
+        ["task.read", "ORGANIZATION"],
+        ["talent.read", "ORGANIZATION"],
+      );
+      const person = {
+        id: "u-1",
+        email: "a@b.c",
+        firstName: "Ada",
+        lastName: "Bell",
+      };
+      repository.visibleLinkedTaskIds.mockResolvedValue(["t-1"]);
+      repository.peopleByIds.mockResolvedValue(new Map([["u-1", person]]));
+      auditReader.listWorkActivity.mockResolvedValue([
+        {
+          id: "a-1",
+          occurredAt: new Date("2026-10-01T10:00:00.000Z"),
+          action: "event.milestone.created",
+          actorUserId: "u-1",
+          metadata: { milestoneName: "Doors open", secret: "hidden" },
+        },
+        {
+          id: "a-2",
+          occurredAt: new Date("2026-10-01T09:00:00.000Z"),
+          action: "event.budget_changed",
+          actorUserId: "gone",
+          metadata: {},
+        },
+      ]);
+
+      const feed = await service.activity(ACTOR, "evt-1", 10);
+
+      const query = auditReader.listWorkActivity.mock.calls[0]![0] as {
+        eventActions: string[];
+        taskActions: string[];
+        talentActions: string[];
+        taskIds: string[];
+      };
+      expect(query.taskIds).toEqual(["t-1"]);
+      expect(query.eventActions).toContain("event.status_changed");
+      expect(query.taskActions).toContain("task.assignee_added");
+      expect(query.talentActions).toContain("talent.assignment.created");
+      const everything = [
+        ...query.eventActions,
+        ...query.taskActions,
+        ...query.talentActions,
+      ];
+      expect(everything).not.toContain("authorization.denied");
+      expect(everything).not.toContain("talent.conflict_overridden");
+      expect(feed).toEqual([
+        {
+          id: "a-1",
+          action: "event.milestone.created",
+          occurredAt: "2026-10-01T10:00:00.000Z",
+          actor: person,
+          subject: "Doors open",
+        },
+        {
+          id: "a-2",
+          action: "event.budget_changed",
+          occurredAt: "2026-10-01T09:00:00.000Z",
+          actor: null,
+          subject: null,
+        },
+      ]);
+    });
+
+    it("gives a caller without task or talent scope only the event's own activity", async () => {
+      grantOnly(["event.read", "ORGANIZATION"]);
+
+      await service.activity(ACTOR, "evt-1", 10);
+
+      const query = auditReader.listWorkActivity.mock.calls[0]![0] as {
+        eventActions: string[];
+        taskActions: string[];
+        talentActions: string[];
+        taskIds: string[];
+      };
+      expect(repository.visibleLinkedTaskIds).not.toHaveBeenCalled();
+      expect(query.taskIds).toEqual([]);
+      expect(query.taskActions).toEqual([]);
+      expect(query.talentActions).toEqual([]);
+      expect(query.eventActions).toContain("event.milestone.created");
+    });
+
+    it("limits task lines to the caller's department for department task scope", async () => {
+      grantOnly(["event.read", "ORGANIZATION"], ["task.read", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue("dept-1");
+
+      await service.activity(ACTOR, "evt-1", 10);
+
+      expect(repository.visibleLinkedTaskIds).toHaveBeenCalledWith("evt-1", {
+        organization: false,
+        departmentId: "dept-1",
+        selfUserId: null,
+      });
+      const query = auditReader.listWorkActivity.mock.calls[0]![0] as {
+        taskActions: string[];
+        talentActions: string[];
+      };
+      expect(query.taskActions).toContain("task.assignee_added");
+      expect(query.talentActions).toEqual([]);
+    });
+
+    it("limits task lines to the caller's own tasks for self task scope", async () => {
+      grantOnly(["event.read", "ORGANIZATION"], ["task.read", "SELF"]);
+
+      await service.activity(ACTOR, "evt-1", 10);
+
+      expect(repository.visibleLinkedTaskIds).toHaveBeenCalledWith("evt-1", {
+        organization: false,
+        departmentId: null,
+        selfUserId: ACTOR,
+      });
+    });
+
+    it("audits a real manager change, and not a repeat of the same manager", async () => {
+      grantOnly(["event.assign_manager", "ORGANIZATION"]);
+      repository.findById.mockResolvedValue(
+        makeEvent({
+          manager: {
+            id: "u1",
+            email: "a@b.c",
+            firstName: null,
+            lastName: null,
+          },
+        }),
+      );
+      await service.setManager(ACTOR, "evt-1", "u1", "req-1");
+      expect(auditWriter.record).not.toHaveBeenCalled();
+
+      await service.setManager(ACTOR, "evt-1", "u2", "req-2");
+      expect(auditWriter.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "event.manager_changed",
+          requestId: "req-2",
+          resourceType: "event",
+        }),
       );
     });
   });
@@ -716,6 +970,7 @@ describe("EventsService", () => {
           "departmentId",
           "description",
           "endAt",
+          "eventNumber",
           "eventType",
           "id",
           "location",

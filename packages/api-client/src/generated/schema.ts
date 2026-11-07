@@ -1553,6 +1553,23 @@ export interface paths {
     patch: operations["Events_update_v1"];
     trace?: never;
   };
+  "/api/v1/events/{id}/activity": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The event's recent activity, newest first */
+    get: operations["Events_activity_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/events/{id}/budget": {
     parameters: {
       query?: never;
@@ -1598,6 +1615,94 @@ export interface paths {
     get?: never;
     /** Set, change, or clear the event manager */
     put: operations["Events_setManager_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{id}/milestones": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the event's milestones by due date */
+    get: operations["Events_listMilestones_v1"];
+    put?: never;
+    /** Add a milestone to an event */
+    post: operations["Events_createMilestone_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{id}/milestones/{milestoneId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a milestone */
+    delete: operations["Events_deleteMilestone_v1"];
+    options?: never;
+    head?: never;
+    /** Update a milestone */
+    patch: operations["Events_updateMilestone_v1"];
+    trace?: never;
+  };
+  "/api/v1/events/{id}/overview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The figures behind the workspace Overview tiles */
+    get: operations["Events_overview_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{id}/talents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The talents assigned to this event, with the talent directory visibility rules. Contact details are never included */
+    get: operations["Events_listTalents_v1"];
+    put?: never;
+    /** Assign an existing talent to this event. Conflicts, overrides and audit follow the talent rules */
+    post: operations["Events_assignTalent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/events/{id}/teams": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The teams assigned to this event. Members are included only when the caller may read teams */
+    get: operations["Events_listTeams_v1"];
+    put?: never;
     post?: never;
     delete?: never;
     options?: never;
@@ -4410,6 +4515,22 @@ export interface components {
        */
       managerId: string | null;
     };
+    AssignEventTalentDto: {
+      acknowledgeConflicts?: boolean;
+      /** Format: date-time */
+      endAt?: string | null;
+      notes?: string | null;
+      overrideReason?: string | null;
+      /** @example Headliner */
+      role: string;
+      /** Format: date-time */
+      startAt?: string | null;
+      /**
+       * Format: uuid
+       * @description The central talent record. Profiles are never created here.
+       */
+      talentId: string;
+    };
     AssignProductionManagerDto: {
       /** Format: uuid */
       managerId: string | null;
@@ -5079,6 +5200,21 @@ export interface components {
       status: "PLANNING" | "READY";
       /** @description Teams to assign to the event's connected workspace at creation. Requires event.assign_teams. */
       teamIds?: string[];
+    };
+    CreateEventMilestoneDto: {
+      description?: string;
+      /**
+       * Format: date
+       * @example 2026-10-10
+       */
+      dueDate: string;
+      /** @example Venue & permits confirmed */
+      name: string;
+      /**
+       * @default NOT_STARTED
+       * @enum {string}
+       */
+      status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
     };
     CreateEventShiftDto: {
       breakMinutes?: number;
@@ -6091,6 +6227,17 @@ export interface components {
       percent: number | null;
       total: number;
     };
+    EventActivityResponse: {
+      /** @example event.status_changed */
+      action: string;
+      actor: components["schemas"]["EventPersonSummary"] | null;
+      /** Format: uuid */
+      id: string;
+      /** Format: date-time */
+      occurredAt: string;
+      /** @description A milestone name or new status, when the action has one. */
+      subject: string | null;
+    };
     EventBudgetResponse: {
       /**
        * @description Decimal string with two fraction digits. Null when no budget is set.
@@ -6118,6 +6265,59 @@ export interface components {
       currency: string | null;
       /** @example 15000.00 */
       plannedAmount: string | null;
+    };
+    EventMilestoneResponse: {
+      /** Format: date-time */
+      createdAt: string;
+      createdBy: components["schemas"]["EventPersonSummary"] | null;
+      description: string | null;
+      /**
+       * Format: date
+       * @example 2026-10-10
+       */
+      dueDate: string;
+      /** Format: uuid */
+      eventId: string;
+      /** Format: uuid */
+      id: string;
+      /** @example Venue & permits confirmed */
+      name: string;
+      /** @enum {string} */
+      status: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+      /** Format: date-time */
+      updatedAt: string;
+      updatedBy: components["schemas"]["EventPersonSummary"] | null;
+    };
+    EventOverviewMilestones: {
+      /** @example 2 */
+      completed: number;
+      /** @example 4 */
+      total: number;
+    };
+    EventOverviewResponse: {
+      milestones: components["schemas"]["EventOverviewMilestones"];
+      tasks: components["schemas"]["EventOverviewTasks"];
+      teams: components["schemas"]["EventOverviewTeams"];
+    };
+    EventOverviewTasks: {
+      /** @example 3 */
+      awaitingReview: number;
+      /** @example 28 */
+      completed: number;
+      /**
+       * @description Linked tasks, excluding cancelled.
+       * @example 36
+       */
+      total: number;
+    };
+    EventOverviewTeams: {
+      /** @example 4 */
+      count: number;
+      /**
+       * @description Distinct people: team members, individual participants and the manager.
+       * @example 18
+       */
+      people: number;
     };
     EventPersonSummary: {
       /**
@@ -6161,6 +6361,11 @@ export interface components {
        * @description UTC end. Never before the start when both are set.
        */
       endAt: string | null;
+      /**
+       * @description The event's reference number, shown as EVT-024.
+       * @example 24
+       */
+      eventNumber: number;
       /** @enum {string} */
       eventType:
         | "FILM_PREMIERE"
@@ -6266,6 +6471,12 @@ export interface components {
         "PLANNED" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
       timeZone: string;
     };
+    EventStaffNameResponse: {
+      /** @example Dana Okafor */
+      displayName: string;
+      /** Format: uuid */
+      id: string;
+    };
     EventSummaryResponse: {
       /**
        * @description Completed events that start in the current calendar year.
@@ -6284,6 +6495,64 @@ export interface components {
        * @example 6
        */
       upcoming: number;
+    };
+    EventTalentAssignmentResponse: {
+      /** Format: date-time */
+      assignedAt: string;
+      assignedBy: components["schemas"]["EventStaffNameResponse"] | null;
+      cancelReason: string | null;
+      /** Format: date-time */
+      cancelledAt: string | null;
+      cancelledBy: components["schemas"]["EventStaffNameResponse"] | null;
+      /** Format: date-time */
+      completedAt: string | null;
+      /** Format: uuid */
+      departmentId: string | null;
+      /** Format: date-time */
+      endAt: string | null;
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      kind: "EVENT" | "PRODUCTION" | "PROMOTION";
+      notes: string | null;
+      /** @enum {string} */
+      phase: "upcoming" | "active" | "completed" | "cancelled";
+      /** @example Headliner */
+      role: string;
+      /** Format: date-time */
+      startAt: string | null;
+      /** @enum {string} */
+      status: "ASSIGNED" | "COMPLETED" | "CANCELLED";
+      talent: components["schemas"]["EventTalentSummaryResponse"];
+      /** Format: uuid */
+      workId: string;
+      workName: string;
+    };
+    EventTalentSummaryResponse: {
+      /** @example AVAILABLE */
+      availability: string;
+      /** @example Ada Bell */
+      fullName: string;
+      /** Format: uuid */
+      id: string;
+      /** @example ARTIST */
+      type: string;
+    };
+    EventTeamResponse: {
+      department: {
+        /** Format: uuid */
+        id?: string;
+        name?: string;
+      };
+      description: string | null;
+      /** Format: uuid */
+      id: string;
+      manager: components["schemas"]["EventPersonSummary"] | null;
+      members: components["schemas"]["EventPersonSummary"][];
+      /** @description True when the caller may read this team's people (team.read organization-wide, or the team's own department). */
+      membersVisible: boolean;
+      /** @example Event Team */
+      name: string;
     };
     EventTeamSummary: {
       /**
@@ -8698,6 +8967,15 @@ export interface components {
       reminderAt?: string | null;
       /** Format: date-time */
       startAt?: string | null;
+    };
+    UpdateEventMilestoneDto: {
+      /** @description Null clears the description. */
+      description?: string | null;
+      /** Format: date */
+      dueDate?: string;
+      name?: string;
+      /** @enum {string} */
+      status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
     };
     UpdateEventShiftDto: {
       breakMinutes?: number;
@@ -14468,6 +14746,8 @@ export interface operations {
           | "OTHER";
         /** @description Restrict to events whose connected workspace this user manages. */
         managerId?: string;
+        /** @description Restrict to events that have this team assigned. Visibility still applies. */
+        teamId?: string;
         /** @description Case-insensitive match against the event name. */
         search?: string;
         /** @description Only events that start at or after this UTC instant. */
@@ -15558,6 +15838,56 @@ export interface operations {
       };
     };
   };
+  Events_activity_v1: {
+    parameters: {
+      query?: {
+        limit?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventActivityResponse"][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Events_getBudget_v1: {
     parameters: {
       query?: never;
@@ -15748,6 +16078,403 @@ export interface operations {
         };
       };
       /** @description The event or the requested manager user does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_listMilestones_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventMilestoneResponse"][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_createMilestone_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateEventMilestoneDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventMilestoneResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_deleteMilestone_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        milestoneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Milestone deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event or milestone not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_updateMilestone_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        milestoneId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateEventMilestoneDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventMilestoneResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event or milestone not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_overview_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventOverviewResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_listTalents_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventTalentAssignmentResponse"][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_assignTalent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AssignEventTalentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventTalentAssignmentResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Events_listTeams_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["EventTeamResponse"][];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Event not found */
       404: {
         headers: {
           [name: string]: unknown;
@@ -24174,6 +24901,10 @@ export interface operations {
         scheduledTo?: string;
         /** @description Only overdue open tasks. */
         overdue?: boolean;
+        /** @description Only tasks linked to this event. */
+        relatedEventId?: string;
+        /** @description Only open tasks that need attention: overdue, blocked, under review, or high or urgent priority. */
+        needsAttention?: boolean;
         /** @description Only tasks with no eligible designated reviewer ("Reviewer needed"). Super Admin resolves them with the reviewer change action. */
         reviewerUnresolved?: boolean;
         sort?: "UPDATED" | "DUE_AT" | "START_AT";

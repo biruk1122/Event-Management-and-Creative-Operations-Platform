@@ -2,11 +2,16 @@ import type { ArchiveHook } from "../../common/archive/archive-hook.js";
 import { Injectable } from "@nestjs/common";
 
 import {
+  AuditActorKind,
+  AuditOutcome,
   Prisma,
   WorkspaceKind,
+  type EventMilestoneStatus,
   type EventStatus,
   type EventType,
 } from "../../generated/prisma/client.js";
+import { AuditWriterService } from "../../audit/audit-writer.service.js";
+import type { AppendAuditRecordInput } from "../../audit/audit.types.js";
 import { DatabaseService } from "../../database/database.service.js";
 
 /** Thrown inside the create transaction to roll it back when a requested team
@@ -51,6 +56,7 @@ export interface EventTeamRecord {
  */
 export interface EventRecord {
   id: string;
+  eventNumber: number;
   workspaceId: string;
   name: string;
   eventType: EventType;
@@ -80,11 +86,28 @@ export interface EventVisibility {
   departmentId?: string;
 }
 
+export interface EventTeamRow {
+  id: string;
+  name: string;
+  description: string | null;
+  department: { id: string; name: string };
+  manager: PersonRow | null;
+  members: { user: PersonRow }[];
+}
+
+interface PersonRow {
+  id: string;
+  email: string;
+  firstName: string | null;
+  lastName: string | null;
+}
+
 export interface ListEventsInput {
   visibility: EventVisibility;
   status?: EventStatus;
   eventType?: EventType;
   managerId?: string;
+  teamId?: string;
   search?: string;
   startingAfter?: Date;
   startingBefore?: Date;
@@ -114,6 +137,38 @@ export interface CreateEventInput {
   teamIds?: string[];
   /** Planned budget, stored with its currency (ETB by default). */
   budget?: { amount: number; currency: string };
+}
+
+/** Who is acting, for the audit record written with a change. */
+export interface EventAuditContext {
+  actorUserId: string;
+  requestId: string;
+}
+
+export interface EventMilestoneRecord {
+  id: string;
+  eventId: string;
+  name: string;
+  description: string | null;
+  dueDate: Date;
+  status: EventMilestoneStatus;
+  createdBy: EventPersonRecord | null;
+  updatedBy: EventPersonRecord | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EventMilestoneFields {
+  name?: string;
+  description?: string | null;
+  dueDate?: Date;
+  status?: EventMilestoneStatus;
+}
+
+export interface EventOverviewRecord {
+  tasks: { total: number; completed: number; awaitingReview: number };
+  teams: { count: number; people: number };
+  milestones: { total: number; completed: number };
 }
 
 export interface EventBudgetSummary {
@@ -166,8 +221,26 @@ const PERSON_SELECT = {
   lastName: true,
 } as const;
 
+const MILESTONE_SELECT = {
+  id: true,
+  eventId: true,
+  name: true,
+  description: true,
+  dueDate: true,
+  status: true,
+  createdBy: { select: PERSON_SELECT },
+  updatedBy: { select: PERSON_SELECT },
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+/** Bounds for reads with no paging: far above any real event. */
+const MILESTONE_LIMIT = 200;
+const RELATED_TASK_LIMIT = 500;
+
 const EVENT_SELECT = {
   id: true,
+  eventNumber: true,
   workspaceId: true,
   name: true,
   eventType: true,
@@ -210,6 +283,7 @@ function byPerson(a: EventPersonRecord, b: EventPersonRecord): number {
 function toRecord(raw: RawEvent): EventRecord {
   return {
     id: raw.id,
+    eventNumber: raw.eventNumber,
     workspaceId: raw.workspaceId,
     name: raw.name,
     eventType: raw.eventType,
@@ -265,7 +339,31 @@ function updateData(fields: UpdateEventFields): Prisma.EventUpdateInput {
 
 @Injectable()
 export class EventsRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly audit: AuditWriterService,
+  ) {}
+
+  /** Appends an event audit record inside the change's own transaction. */
+  private appendAudit(
+    tx: Prisma.TransactionClient,
+    context: EventAuditContext | undefined,
+    record: Pick<
+      AppendAuditRecordInput,
+      "action" | "resourceType" | "resourceId" | "metadata"
+    > & { workspaceId: string },
+  ): Promise<void> {
+    if (!context) return Promise.resolve();
+    const { workspaceId, ...entry } = record;
+    return this.audit.append(tx, {
+      ...entry,
+      actorKind: AuditActorKind.USER,
+      actorUserId: context.actorUserId,
+      requestId: context.requestId,
+      outcome: AuditOutcome.SUCCEEDED,
+      workspaceContext: workspaceId,
+    });
+  }
 
   async findUserDepartmentId(userId: string): Promise<string | null> {
     if (!isUuid(userId)) return null;
@@ -292,7 +390,16 @@ export class EventsRepository {
       archivedAt: null,
       ...(input.status ? { status: input.status } : {}),
       ...(input.eventType ? { eventType: input.eventType } : {}),
-      ...(input.managerId ? { workspace: { managerId: input.managerId } } : {}),
+      ...(input.managerId || input.teamId
+        ? {
+            workspace: {
+              ...(input.managerId ? { managerId: input.managerId } : {}),
+              ...(input.teamId
+                ? { teams: { some: { teamId: input.teamId } } }
+                : {}),
+            },
+          }
+        : {}),
       ...(input.search
         ? { name: { contains: input.search, mode: "insensitive" } }
         : {}),
@@ -375,6 +482,7 @@ export class EventsRepository {
    */
   async create(
     input: CreateEventInput,
+    audit?: EventAuditContext,
   ): Promise<EventRecord | "manager_not_found" | "team_not_found"> {
     try {
       return await this.db.$transaction(async (tx) => {
@@ -434,6 +542,12 @@ export class EventsRepository {
           },
           select: EVENT_SELECT,
         });
+        await this.appendAudit(tx, audit, {
+          action: "event.created",
+          resourceType: "event",
+          resourceId: event.id,
+          workspaceId: workspace.id,
+        });
         return toRecord(event);
       });
     } catch (error) {
@@ -445,6 +559,223 @@ export class EventsRepository {
       }
       throw error;
     }
+  }
+
+  async listMilestones(eventId: string): Promise<EventMilestoneRecord[]> {
+    return this.db.eventMilestone.findMany({
+      where: { eventId },
+      select: MILESTONE_SELECT,
+      orderBy: [{ dueDate: "asc" }, { id: "asc" }],
+      take: MILESTONE_LIMIT,
+    });
+  }
+
+  async createMilestone(
+    event: Pick<EventRecord, "id" | "workspaceId">,
+    fields: EventMilestoneFields & { name: string; dueDate: Date },
+    audit: EventAuditContext,
+  ): Promise<EventMilestoneRecord> {
+    return this.db.$transaction(async (tx) => {
+      const milestone = await tx.eventMilestone.create({
+        data: {
+          ...fields,
+          eventId: event.id,
+          createdById: audit.actorUserId,
+          updatedById: audit.actorUserId,
+        },
+        select: MILESTONE_SELECT,
+      });
+      await this.appendAudit(tx, audit, {
+        action: "event.milestone.created",
+        resourceType: "event_milestone",
+        resourceId: milestone.id,
+        workspaceId: event.workspaceId,
+        metadata: { milestoneName: milestone.name },
+      });
+      return milestone;
+    });
+  }
+
+  async updateMilestone(
+    event: Pick<EventRecord, "id" | "workspaceId">,
+    milestoneId: string,
+    fields: EventMilestoneFields,
+    audit: EventAuditContext,
+  ): Promise<EventMilestoneRecord | "not_found"> {
+    if (!isUuid(milestoneId)) return "not_found";
+    return this.db.$transaction(async (tx) => {
+      const { count } = await tx.eventMilestone.updateMany({
+        where: { id: milestoneId, eventId: event.id },
+        data: { ...fields, updatedById: audit.actorUserId },
+      });
+      if (count === 0) return "not_found";
+      const milestone = await tx.eventMilestone.findUniqueOrThrow({
+        where: { id: milestoneId },
+        select: MILESTONE_SELECT,
+      });
+      await this.appendAudit(tx, audit, {
+        action: "event.milestone.updated",
+        resourceType: "event_milestone",
+        resourceId: milestone.id,
+        workspaceId: event.workspaceId,
+        metadata: { milestoneName: milestone.name },
+      });
+      return milestone;
+    });
+  }
+
+  async deleteMilestone(
+    event: Pick<EventRecord, "id" | "workspaceId">,
+    milestoneId: string,
+    audit: EventAuditContext,
+  ): Promise<"deleted" | "not_found"> {
+    if (!isUuid(milestoneId)) return "not_found";
+    return this.db.$transaction(async (tx) => {
+      const milestone = await tx.eventMilestone.findFirst({
+        where: { id: milestoneId, eventId: event.id },
+        select: { id: true, name: true },
+      });
+      if (!milestone) return "not_found";
+      await tx.eventMilestone.delete({ where: { id: milestone.id } });
+      await this.appendAudit(tx, audit, {
+        action: "event.milestone.deleted",
+        resourceType: "event_milestone",
+        resourceId: milestone.id,
+        workspaceId: event.workspaceId,
+        metadata: { milestoneName: milestone.name },
+      });
+      return "deleted";
+    });
+  }
+
+  /** The figures behind the workspace Overview tiles. */
+  async overview(
+    event: Pick<EventRecord, "id" | "manager" | "teams" | "participants">,
+  ): Promise<EventOverviewRecord> {
+    const teamIds = event.teams.map((team) => team.id);
+    const [tasks, milestones, members] = await Promise.all([
+      this.db.task.groupBy({
+        by: ["status"],
+        where: { relatedEventId: event.id, status: { not: "CANCELLED" } },
+        _count: { _all: true },
+      }),
+      this.db.eventMilestone.groupBy({
+        by: ["status"],
+        where: { eventId: event.id },
+        _count: { _all: true },
+      }),
+      teamIds.length > 0
+        ? this.db.teamMembership.findMany({
+            where: { teamId: { in: teamIds } },
+            select: { userId: true },
+            distinct: ["userId"],
+          })
+        : Promise.resolve([]),
+    ]);
+    const people = new Set([
+      ...members.map((member) => member.userId),
+      ...event.participants.map((person) => person.id),
+      ...(event.manager ? [event.manager.id] : []),
+    ]);
+    const taskCount = (status: string) =>
+      tasks.find((row) => row.status === status)?._count._all ?? 0;
+    return {
+      tasks: {
+        total: tasks.reduce((sum, row) => sum + row._count._all, 0),
+        completed: taskCount("COMPLETED"),
+        awaitingReview: taskCount("UNDER_REVIEW"),
+      },
+      teams: { count: teamIds.length, people: people.size },
+      milestones: {
+        total: milestones.reduce((sum, row) => sum + row._count._all, 0),
+        completed:
+          milestones.find((row) => row.status === "COMPLETED")?._count._all ??
+          0,
+      },
+    };
+  }
+
+  /**
+   * The event's linked tasks that this caller may read, under the same rule the
+   * tasks module applies: organization sees all, department sees tasks in its
+   * department, and self sees tasks it is assigned to or created.
+   */
+  async visibleLinkedTaskIds(
+    eventId: string,
+    visibility: {
+      organization: boolean;
+      departmentId: string | null;
+      selfUserId: string | null;
+    },
+  ): Promise<string[]> {
+    const alternatives: Prisma.TaskWhereInput[] = [];
+    if (visibility.departmentId) {
+      alternatives.push({ departmentId: visibility.departmentId });
+    }
+    if (visibility.selfUserId) {
+      alternatives.push({
+        assignments: { some: { userId: visibility.selfUserId } },
+      });
+      alternatives.push({ createdById: visibility.selfUserId });
+    }
+    if (!visibility.organization && alternatives.length === 0) return [];
+    const tasks = await this.db.task.findMany({
+      where: {
+        relatedEventId: eventId,
+        ...(visibility.organization ? {} : { OR: alternatives }),
+      },
+      select: { id: true },
+      orderBy: { updatedAt: "desc" },
+      take: RELATED_TASK_LIMIT,
+    });
+    return tasks.map((task) => task.id);
+  }
+
+  /** Whether a team is active, deactivated, or missing. Used to block new event assignments. */
+  async teamStatus(
+    teamId: string,
+  ): Promise<"active" | "deactivated" | "not_found"> {
+    if (!isUuid(teamId)) return "not_found";
+    const team = await this.db.team.findUnique({
+      where: { id: teamId },
+      select: { deactivatedAt: true },
+    });
+    if (!team) return "not_found";
+    return team.deactivatedAt ? "deactivated" : "active";
+  }
+
+  /** The teams assigned to an event, with their department, manager and members. */
+  async eventTeamRows(eventId: string): Promise<EventTeamRow[]> {
+    if (!isUuid(eventId)) return [];
+    const rows = await this.db.workspaceTeam.findMany({
+      where: { workspace: { event: { id: eventId } } },
+      orderBy: { createdAt: "asc" },
+      select: {
+        team: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            department: { select: { id: true, name: true } },
+            manager: { select: PERSON_SELECT },
+            members: { select: { user: { select: PERSON_SELECT } } },
+          },
+        },
+      },
+    });
+    return rows.map((row) => row.team);
+  }
+
+  /** Names for the activity feed. Removed users are simply absent. */
+  async peopleByIds(
+    ids: readonly string[],
+  ): Promise<Map<string, EventPersonRecord>> {
+    if (ids.length === 0) return new Map();
+    const people = await this.db.user.findMany({
+      where: { id: { in: [...ids] } },
+      select: PERSON_SELECT,
+    });
+    return new Map(people.map((person) => [person.id, person]));
   }
 
   /** Counts linked tasks per event, excluding cancelled ones. Events with no
@@ -522,17 +853,26 @@ export class EventsRepository {
   async update(
     id: string,
     fields: UpdateEventFields,
+    audit?: EventAuditContext,
   ): Promise<EventRecord | "not_found"> {
     if (!isUuid(id)) {
       return "not_found";
     }
     try {
-      const updated = await this.db.event.update({
-        where: { id, archivedAt: null },
-        data: updateData(fields),
-        select: EVENT_SELECT,
+      return await this.db.$transaction(async (tx) => {
+        const updated = await tx.event.update({
+          where: { id, archivedAt: null },
+          data: updateData(fields),
+          select: EVENT_SELECT,
+        });
+        await this.appendAudit(tx, audit, {
+          action: "event.updated",
+          resourceType: "event",
+          resourceId: id,
+          workspaceId: updated.workspaceId,
+        });
+        return toRecord(updated);
       });
-      return toRecord(updated);
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
         return "not_found";
@@ -555,13 +895,30 @@ export class EventsRepository {
     id: string,
     expectedStatus: EventStatus,
     status: EventStatus,
+    audit?: EventAuditContext,
   ): Promise<EventRecord | "not_found" | "status_changed"> {
     if (!isUuid(id)) {
       return "not_found";
     }
-    const { count } = await this.db.event.updateMany({
-      where: { id, status: expectedStatus, archivedAt: null },
-      data: { status },
+    const count = await this.db.$transaction(async (tx) => {
+      const moved = await tx.event.updateMany({
+        where: { id, status: expectedStatus, archivedAt: null },
+        data: { status },
+      });
+      if (moved.count > 0) {
+        const { workspaceId } = await tx.event.findUniqueOrThrow({
+          where: { id },
+          select: { workspaceId: true },
+        });
+        await this.appendAudit(tx, audit, {
+          action: "event.status_changed",
+          resourceType: "event",
+          resourceId: id,
+          workspaceId,
+          metadata: { from: expectedStatus, to: status },
+        });
+      }
+      return moved.count;
     });
     const record = await this.findById(id);
     if (!record) {
@@ -574,17 +931,27 @@ export class EventsRepository {
     id: string,
     amount: string | null,
     currency: string | null,
+    audit?: EventAuditContext,
   ): Promise<EventRecord | "not_found"> {
     if (!isUuid(id)) {
       return "not_found";
     }
     try {
-      const updated = await this.db.event.update({
-        where: { id, archivedAt: null },
-        data: { budgetAmount: amount, budgetCurrency: currency },
-        select: EVENT_SELECT,
+      return await this.db.$transaction(async (tx) => {
+        const updated = await tx.event.update({
+          where: { id, archivedAt: null },
+          data: { budgetAmount: amount, budgetCurrency: currency },
+          select: EVENT_SELECT,
+        });
+        // The budget is sensitive: the record says it changed, never to what.
+        await this.appendAudit(tx, audit, {
+          action: "event.budget_changed",
+          resourceType: "event",
+          resourceId: id,
+          workspaceId: updated.workspaceId,
+        });
+        return toRecord(updated);
       });
-      return toRecord(updated);
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
         return "not_found";

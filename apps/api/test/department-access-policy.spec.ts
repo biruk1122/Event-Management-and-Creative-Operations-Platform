@@ -107,7 +107,7 @@ describe("department access policy", () => {
       ).toEqual([]);
     });
 
-    it("still requires an active supported department (separate from scope)", () => {
+    it("is exempt from the department requirement and keeps its organization grants", () => {
       const allowed = ADMIN_ORGANIZATION_PERMISSION_KEYS.map(orgGrant);
       const profile = [
         { permissionKey: "profile.read", scope: "SELF" as const },
@@ -115,10 +115,44 @@ describe("department access policy", () => {
       ];
       expect(
         constrainDepartmentGrants({ role: "ADMIN", department: null }, profile),
-      ).toEqual([profile[0]]);
+      ).toEqual(profile);
       expect(
         constrainDepartmentGrants(
           { role: "ADMIN", department: { ...department, active: false } },
+          profile,
+        ),
+      ).toEqual(profile);
+      expect(
+        constrainDepartmentGrants(
+          {
+            role: "ADMIN",
+            department: { id: "x", name: "Unsupported", active: true },
+          },
+          profile,
+        ),
+      ).toEqual(profile);
+    });
+
+    it("drops department-scoped grants for an Admin with no supported department", () => {
+      const departmentGrant = {
+        permissionKey: "event.read",
+        scope: "DEPARTMENT" as const,
+      };
+      expect(
+        constrainDepartmentGrants({ role: "ADMIN", department: null }, [
+          departmentGrant,
+        ]),
+      ).toEqual([]);
+    });
+
+    it("still requires an active supported department for non-Admin roles", () => {
+      const profile = [
+        { permissionKey: "profile.read", scope: "SELF" as const },
+        { permissionKey: "event.read", scope: "DEPARTMENT" as const },
+      ];
+      expect(
+        constrainDepartmentGrants(
+          { role: "DEPARTMENT_MANAGER", department: null },
           profile,
         ),
       ).toEqual([profile[0]]);

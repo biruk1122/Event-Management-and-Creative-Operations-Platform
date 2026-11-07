@@ -1,27 +1,27 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
-// The dialog default-imports read helpers from the gateway, which pulls in the
+// The panel default-imports read helpers from the gateway, which pulls in the
 // browser client and its validated env. Every read is injected in these tests,
 // so a stub client keeps that import chain from throwing.
 vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
 
-import { EventDetailDialog } from "./event-detail-dialog";
+import { EventDetailsPanel } from "./event-details-panel";
 import type {
   DeleteEventOutcome,
   SetEventBudgetOutcome,
   TransitionEventOutcome,
   UpdateEventOutcome,
-} from "../lib/events-outcome";
+} from "../../lib/events-outcome";
 import type {
   AssignableTeam,
   AssignableUser,
   Event,
   EventBudget,
   EventBudgetSummary,
-} from "../lib/events-types";
+} from "../../lib/events-types";
 
 const now = "2026-09-01T09:00:00.000Z";
 
@@ -47,6 +47,7 @@ const TEAMS: AssignableTeam[] = [
 function makeEvent(overrides: Partial<Event> = {}): Event {
   return {
     id: "evt-1",
+    eventNumber: 24,
     workspaceId: "ws-1",
     progress: { completed: 0, total: 0 },
     name: "Aurora Premiere",
@@ -77,11 +78,12 @@ function makeEvent(overrides: Partial<Event> = {}): Event {
 }
 
 function renderDialog(
-  overrides: Partial<Parameters<typeof EventDetailDialog>[0]> = {},
+  overrides: Partial<Parameters<typeof EventDetailsPanel>[0]> = {},
 ) {
   const props = {
-    eventId: "evt-1" as string | null,
-    onOpenChange: vi.fn(),
+    eventId: "evt-1",
+    editing: true,
+    onEditingChange: vi.fn(),
     users: USERS,
     teams: TEAMS,
     departments: [],
@@ -144,19 +146,56 @@ function renderDialog(
         new QueryClient({ defaultOptions: { queries: { retry: false } } })
       }
     >
-      <EventDetailDialog {...props} />
+      <EventDetailsPanel {...props} />
     </QueryClientProvider>,
   );
   return props;
 }
 
 async function waitForLoaded() {
-  return within(await screen.findByRole("dialog")).findByRole("heading", {
-    name: "Aurora Premiere",
-  });
+  return screen.findByRole("heading", { name: "Event details" });
 }
 
-describe("EventDetailDialog", () => {
+describe("EventDetailsPanel", () => {
+  it("shows the details read-only until Edit details is chosen", async () => {
+    const user = userEvent.setup();
+    const props = renderDialog({
+      editing: false,
+      getEvent: vi.fn(() =>
+        Promise.resolve(
+          makeEvent({
+            startAt: "2026-10-24T17:00:00.000Z",
+            manager: USERS[0]!,
+          }),
+        ),
+      ),
+    });
+    await waitForLoaded();
+
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.getByText("Oct 24, 2026 · 20:00")).toBeVisible();
+    expect(screen.getByText("Arts Council")).toBeVisible();
+    expect(screen.getByText("Opening night.")).toBeVisible();
+    expect(screen.getAllByText("Morgan Lead").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "Edit details" }));
+    expect(props.onEditingChange).toHaveBeenCalledWith(true);
+  });
+
+  it("leaves the form after saving and when cancelled", async () => {
+    const user = userEvent.setup();
+    const onEditingChange = vi.fn();
+    renderDialog({ onEditingChange });
+    await waitForLoaded();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onEditingChange).toHaveBeenLastCalledWith(false);
+
+    onEditingChange.mockClear();
+    await user.click(screen.getByRole("button", { name: "Save details" }));
+    await waitFor(() => expect(onEditingChange).toHaveBeenCalledWith(false));
+  });
+
   it("loads the event and shows its details", async () => {
     renderDialog();
     await waitForLoaded();
@@ -303,7 +342,9 @@ describe("EventDetailDialog", () => {
     expect(
       screen.queryByRole("button", { name: "Save details" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/read-only access to this event/)).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Edit details" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("combobox", { name: "Move to" }),
     ).not.toBeInTheDocument();

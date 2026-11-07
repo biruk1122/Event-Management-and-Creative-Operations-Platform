@@ -44,6 +44,15 @@ export class ListEventsQueryDto {
   managerId?: string;
 
   @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Restrict to events that have this team assigned. Visibility still applies.",
+  })
+  @IsOptional()
+  @IsUUID()
+  teamId?: string;
+
+  @ApiPropertyOptional({
     description: "Case-insensitive match against the event name.",
     maxLength: 200,
   })

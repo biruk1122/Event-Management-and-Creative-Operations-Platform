@@ -116,6 +116,46 @@
         "required": ["managerId"],
         "type": "object"
       },
+      "AssignEventTalentDto": {
+        "properties": {
+          "acknowledgeConflicts": {
+            "type": "boolean"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "notes": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
+          "overrideReason": {
+            "maxLength": 500,
+            "nullable": true,
+            "type": "string"
+          },
+          "role": {
+            "example": "Headliner",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "talentId": {
+            "description": "The central talent record. Profiles are never created here.",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["talentId", "role"],
+        "type": "object"
+      },
       "AssignProductionManagerDto": {
         "properties": {
           "managerId": {
@@ -1562,6 +1602,31 @@
           }
         },
         "required": ["name", "eventType"],
+        "type": "object"
+      },
+      "CreateEventMilestoneDto": {
+        "properties": {
+          "description": {
+            "maxLength": 2000,
+            "type": "string"
+          },
+          "dueDate": {
+            "example": "2026-10-10",
+            "format": "date",
+            "type": "string"
+          },
+          "name": {
+            "example": "Venue & permits confirmed",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "status": {
+            "default": "NOT_STARTED",
+            "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+            "type": "string"
+          }
+        },
+        "required": ["name", "dueDate"],
         "type": "object"
       },
       "CreateEventShiftDto": {
@@ -3867,6 +3932,38 @@
         ],
         "type": "object"
       },
+      "EventActivityResponse": {
+        "properties": {
+          "action": {
+            "example": "event.status_changed",
+            "type": "string"
+          },
+          "actor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "occurredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "subject": {
+            "description": "A milestone name or new status, when the action has one.",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["id", "action", "occurredAt", "actor", "subject"],
+        "type": "object"
+      },
       "EventBudgetResponse": {
         "properties": {
           "amount": {
@@ -3914,6 +4011,137 @@
           "actualApproved",
           "actualPending"
         ],
+        "type": "object"
+      },
+      "EventMilestoneResponse": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "dueDate": {
+            "example": "2026-10-10",
+            "format": "date",
+            "type": "string"
+          },
+          "eventId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "example": "Venue & permits confirmed",
+            "type": "string"
+          },
+          "status": {
+            "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "eventId",
+          "name",
+          "description",
+          "dueDate",
+          "status",
+          "createdBy",
+          "updatedBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "EventOverviewMilestones": {
+        "properties": {
+          "completed": {
+            "example": 2,
+            "type": "number"
+          },
+          "total": {
+            "example": 4,
+            "type": "number"
+          }
+        },
+        "required": ["total", "completed"],
+        "type": "object"
+      },
+      "EventOverviewResponse": {
+        "properties": {
+          "milestones": {
+            "$ref": "#/components/schemas/EventOverviewMilestones"
+          },
+          "tasks": {
+            "$ref": "#/components/schemas/EventOverviewTasks"
+          },
+          "teams": {
+            "$ref": "#/components/schemas/EventOverviewTeams"
+          }
+        },
+        "required": ["tasks", "teams", "milestones"],
+        "type": "object"
+      },
+      "EventOverviewTasks": {
+        "properties": {
+          "awaitingReview": {
+            "example": 3,
+            "type": "number"
+          },
+          "completed": {
+            "example": 28,
+            "type": "number"
+          },
+          "total": {
+            "description": "Linked tasks, excluding cancelled.",
+            "example": 36,
+            "type": "number"
+          }
+        },
+        "required": ["total", "completed", "awaitingReview"],
+        "type": "object"
+      },
+      "EventOverviewTeams": {
+        "properties": {
+          "count": {
+            "example": 4,
+            "type": "number"
+          },
+          "people": {
+            "description": "Distinct people: team members, individual participants and the manager.",
+            "example": 18,
+            "type": "number"
+          }
+        },
+        "required": ["count", "people"],
         "type": "object"
       },
       "EventPersonSummary": {
@@ -3989,6 +4217,11 @@
             "format": "date-time",
             "nullable": true,
             "type": "string"
+          },
+          "eventNumber": {
+            "description": "The event's reference number, shown as EVT-024.",
+            "example": 24,
+            "type": "number"
           },
           "eventType": {
             "enum": [
@@ -4088,6 +4321,7 @@
         },
         "required": [
           "id",
+          "eventNumber",
           "workspaceId",
           "name",
           "eventType",
@@ -4266,6 +4500,20 @@
         ],
         "type": "object"
       },
+      "EventStaffNameResponse": {
+        "properties": {
+          "displayName": {
+            "example": "Dana Okafor",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": ["id", "displayName"],
+        "type": "object"
+      },
       "EventSummaryResponse": {
         "properties": {
           "completed": {
@@ -4289,6 +4537,195 @@
           }
         },
         "required": ["total", "upcoming", "inProgress", "completed"],
+        "type": "object"
+      },
+      "EventTalentAssignmentResponse": {
+        "properties": {
+          "assignedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "assignedBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventStaffNameResponse"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "cancelReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "cancelledAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "cancelledBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventStaffNameResponse"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "departmentId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["EVENT", "PRODUCTION", "PROMOTION"],
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "phase": {
+            "enum": ["upcoming", "active", "completed", "cancelled"],
+            "type": "string"
+          },
+          "role": {
+            "example": "Headliner",
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": ["ASSIGNED", "COMPLETED", "CANCELLED"],
+            "type": "string"
+          },
+          "talent": {
+            "$ref": "#/components/schemas/EventTalentSummaryResponse"
+          },
+          "workId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "workName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "workId",
+          "workName",
+          "departmentId",
+          "role",
+          "status",
+          "phase",
+          "notes",
+          "startAt",
+          "endAt",
+          "assignedAt",
+          "completedAt",
+          "cancelledAt",
+          "cancelReason",
+          "assignedBy",
+          "cancelledBy",
+          "talent"
+        ],
+        "type": "object"
+      },
+      "EventTalentSummaryResponse": {
+        "properties": {
+          "availability": {
+            "example": "AVAILABLE",
+            "type": "string"
+          },
+          "fullName": {
+            "example": "Ada Bell",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "type": {
+            "example": "ARTIST",
+            "type": "string"
+          }
+        },
+        "required": ["id", "fullName", "type", "availability"],
+        "type": "object"
+      },
+      "EventTeamResponse": {
+        "properties": {
+          "department": {
+            "properties": {
+              "id": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "manager": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EventPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/EventPersonSummary"
+            },
+            "type": "array"
+          },
+          "membersVisible": {
+            "description": "True when the caller may read this team's people (team.read organization-wide, or the team's own department).",
+            "type": "boolean"
+          },
+          "name": {
+            "example": "Event Team",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "department",
+          "manager",
+          "membersVisible",
+          "members"
+        ],
         "type": "object"
       },
       "EventTeamSummary": {
@@ -10554,6 +10991,29 @@
           "startAt": {
             "format": "date-time",
             "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateEventMilestoneDto": {
+        "properties": {
+          "description": {
+            "description": "Null clears the description.",
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
+          "dueDate": {
+            "format": "date",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 200,
+            "type": "string"
+          },
+          "status": {
+            "enum": ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"],
             "type": "string"
           }
         },
@@ -19797,6 +20257,16 @@
             }
           },
           {
+            "description": "Restrict to events that have this team assigned. Visibility still applies.",
+            "in": "query",
+            "name": "teamId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
             "description": "Case-insensitive match against the event name.",
             "in": "query",
             "name": "search",
@@ -21497,6 +21967,88 @@
         "tags": ["Event management"]
       }
     },
+    "/api/v1/events/{id}/activity": {
+      "get": {
+        "operationId": "Events_activity_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 10,
+              "maximum": 50,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventActivityResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "The event's recent activity, newest first",
+        "tags": ["Event management"]
+      }
+    },
     "/api/v1/events/{id}/budget": {
       "get": {
         "operationId": "Events_getBudget_v1",
@@ -21774,6 +22326,572 @@
           }
         ],
         "summary": "Set, change, or clear the event manager",
+        "tags": ["Event management"]
+      }
+    },
+    "/api/v1/events/{id}/milestones": {
+      "get": {
+        "operationId": "Events_listMilestones_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventMilestoneResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List the event's milestones by due date",
+        "tags": ["Event management"]
+      },
+      "post": {
+        "operationId": "Events_createMilestone_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEventMilestoneDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventMilestoneResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Add a milestone to an event",
+        "tags": ["Event management"]
+      }
+    },
+    "/api/v1/events/{id}/milestones/{milestoneId}": {
+      "delete": {
+        "operationId": "Events_deleteMilestone_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "milestoneId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Milestone deleted"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event or milestone not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Delete a milestone",
+        "tags": ["Event management"]
+      },
+      "patch": {
+        "operationId": "Events_updateMilestone_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "milestoneId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEventMilestoneDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventMilestoneResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event or milestone not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Update a milestone",
+        "tags": ["Event management"]
+      }
+    },
+    "/api/v1/events/{id}/overview": {
+      "get": {
+        "operationId": "Events_overview_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOverviewResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "The figures behind the workspace Overview tiles",
+        "tags": ["Event management"]
+      }
+    },
+    "/api/v1/events/{id}/talents": {
+      "get": {
+        "operationId": "Events_listTalents_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventTalentAssignmentResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "The talents assigned to this event, with the talent directory visibility rules. Contact details are never included",
+        "tags": ["Event management"]
+      },
+      "post": {
+        "operationId": "Events_assignTalent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignEventTalentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventTalentAssignmentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Assign an existing talent to this event. Conflicts, overrides and audit follow the talent rules",
+        "tags": ["Event management"]
+      }
+    },
+    "/api/v1/events/{id}/teams": {
+      "get": {
+        "operationId": "Events_listTeams_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventTeamResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Event not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "The teams assigned to this event. Members are included only when the caller may read teams",
         "tags": ["Event management"]
       }
     },
@@ -34884,6 +36002,25 @@
             "description": "Only overdue open tasks.",
             "in": "query",
             "name": "overdue",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Only tasks linked to this event.",
+            "in": "query",
+            "name": "relatedEventId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only open tasks that need attention: overdue, blocked, under review, or high or urgent priority.",
+            "in": "query",
+            "name": "needsAttention",
             "required": false,
             "schema": {
               "type": "boolean"

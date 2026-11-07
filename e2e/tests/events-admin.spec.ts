@@ -176,14 +176,70 @@ test.describe("Event management — end to end", () => {
         },
       ]);
 
-      // Open the detail dialog and assign the team. (The list renders both a
+      // A row opens the event's own workspace. (The list renders both a
       // desktop row and a mobile card; only one is in the a11y tree at the
       // test viewport, but `.first()` keeps this stable regardless.)
-      await page.getByRole("button", { name: eventName }).first().click();
-      const detail = page.getByRole("dialog");
+      await page.getByRole("link", { name: eventName }).first().click();
+      await expect(page).toHaveURL(`/events/${eventId}`);
+      const detail = page.locator("main").last();
       await expect(
         detail.getByRole("heading", { name: eventName }),
       ).toBeVisible();
+      await expect(
+        detail.getByText(/^Corporate event \/ EVT-\d{3,}$/),
+      ).toBeVisible();
+      const workspaceTabs = page.getByRole("navigation", {
+        name: "Event workspace",
+      });
+      await expect(
+        workspaceTabs.getByRole("link", { name: "Overview" }),
+      ).toHaveAttribute("aria-current", "page");
+      await expect(workspaceTabs.getByRole("link")).toHaveCount(7);
+
+      // A milestone is saved, counted, and reported in the activity feed.
+      const milestoneName = `Doors open ${eventName}`;
+      await detail.getByRole("button", { name: "Add milestone" }).click();
+      const milestoneDialog = page.getByRole("dialog");
+      await expectNoWcag22AaViolations(page, "add milestone dialog");
+      await milestoneDialog.getByLabel("Name").fill(milestoneName);
+      await milestoneDialog.getByLabel("Due date").fill("2030-05-20");
+      await milestoneDialog
+        .getByRole("button", { name: "Save milestone" })
+        .click();
+      await expect(milestoneDialog).toBeHidden();
+      await expect(
+        detail.getByText(milestoneName, { exact: true }),
+      ).toBeVisible();
+      await expect(
+        detail.getByText("0 of 1 milestones complete", { exact: true }),
+      ).toBeVisible();
+      await expect(
+        detail.getByText(`added the milestone “${milestoneName}”`),
+      ).toBeVisible();
+      await expectNoWcag22AaViolations(page, "event workspace overview");
+      const milestoneRows = await queryInSchema<{ name: string }>(
+        runDatabaseUrl(),
+        `SELECT name FROM event_milestones WHERE event_id = $1`,
+        [eventId],
+      );
+      expect(milestoneRows).toEqual([{ name: milestoneName }]);
+
+      // The tab lives in the URL: it survives a refresh, and Back and Forward
+      // move between tabs.
+      await workspaceTabs.getByRole("link", { name: "Details" }).click();
+      await expect(page).toHaveURL(`/events/${eventId}/details`);
+      await page.reload();
+      await expect(
+        workspaceTabs.getByRole("link", { name: "Details" }),
+      ).toHaveAttribute("aria-current", "page");
+      await expect(
+        detail.getByRole("heading", { name: "Event details" }),
+      ).toBeVisible();
+      await expectNoWcag22AaViolations(page, "event workspace details");
+      await page.goBack();
+      await expect(page).toHaveURL(`/events/${eventId}`);
+      await page.goForward();
+      await expect(page).toHaveURL(`/events/${eventId}/details`);
 
       await detail.getByRole("combobox", { name: "Assign a team" }).click();
       await page.getByRole("option", { name: teamName, exact: true }).click();
@@ -244,6 +300,7 @@ test.describe("Event management — end to end", () => {
 
       // Edit the event's details.
       const renamedTo = `${eventName} Renamed`;
+      await page.getByRole("link", { name: "Edit event" }).click();
       await detail.getByRole("textbox", { name: "Name" }).fill(renamedTo);
       await detail
         .getByRole("button", { name: "Save details", exact: true })
@@ -253,12 +310,26 @@ test.describe("Event management — end to end", () => {
       ).toBeVisible();
 
       // AC: the full workflow persists and reloads authoritative data.
-      await page.reload();
+      await page.goto("/events");
       await expect(
         page.getByText(eventCount(baseline + 1), { exact: true }),
       ).toBeVisible();
-      await page.getByRole("button", { name: renamedTo }).first().click();
-      const reopened = page.getByRole("dialog");
+
+      // The listing's filters survive a visit to the workspace.
+      await page.getByLabel("Search", { exact: true }).fill(renamedTo);
+      await expect(page).toHaveURL(/search=/);
+      await page.getByRole("link", { name: renamedTo }).first().click();
+      await expect(page).toHaveURL(`/events/${eventId}`);
+      await page
+        .getByRole("navigation", { name: "Event location" })
+        .getByRole("link", { name: "Events" })
+        .click();
+      await expect(page.getByLabel("Search", { exact: true })).toHaveValue(
+        renamedTo,
+      );
+      await page.getByRole("link", { name: renamedTo }).first().click();
+      await workspaceTabs.getByRole("link", { name: "Details" }).click();
+      const reopened = detail;
       await expect(
         reopened.getByRole("heading", { name: renamedTo }),
       ).toBeVisible();
@@ -318,6 +389,8 @@ test.describe("Event management — end to end", () => {
       await reopened.getByRole("button", { name: "Delete event" }).click();
       await reopened.getByRole("button", { name: "Confirm delete" }).click();
 
+      await expect(page).toHaveURL(/\/events(\?|$)/);
+      await page.goto("/events");
       await expect(
         page.getByText(eventCount(baseline), { exact: true }),
       ).toBeVisible();
@@ -383,8 +456,12 @@ test.describe("Event management — end to end", () => {
 
       // Super Admin sees the organization-level management controls.
       await page.goto("/events");
-      await page.getByRole("button", { name: eventName }).first().click();
-      const detail = page.getByRole("dialog");
+      await page.getByRole("link", { name: eventName }).first().click();
+      await page
+        .getByRole("navigation", { name: "Event workspace" })
+        .getByRole("link", { name: "Details" })
+        .click();
+      const detail = page.locator("main").last();
       await expect(
         detail.getByRole("heading", { name: eventName }),
       ).toBeVisible();

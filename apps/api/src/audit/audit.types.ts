@@ -5,6 +5,16 @@ import type {
 
 export type SupportedAuditAction =
   | "authorization.denied"
+  | "event.created"
+  | "event.updated"
+  | "event.status_changed"
+  | "event.manager_changed"
+  | "event.team_assigned"
+  | "event.team_removed"
+  | "event.budget_changed"
+  | "event.milestone.created"
+  | "event.milestone.updated"
+  | "event.milestone.deleted"
   | "task.assignee_added"
   | "task.assignee_removed"
   | "task.submitted_for_review"
@@ -70,6 +80,8 @@ export interface AppendAuditRecordInput {
   correlationId?: string;
   action: SupportedAuditAction;
   resourceType:
+    | "event"
+    | "event_milestone"
     | "task"
     | "talent"
     | "managed_file"

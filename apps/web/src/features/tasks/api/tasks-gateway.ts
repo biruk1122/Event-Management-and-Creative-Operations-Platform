@@ -69,6 +69,11 @@ export interface ListTasksParams {
   /** "Reporting to me": tasks whose reporting recipient is this user. */
   reportToId?: string | null;
   overdue?: boolean | null;
+  /** Only tasks linked to this event. */
+  relatedEventId?: string | null;
+  /** Only open tasks that are overdue, blocked, in review or high priority. */
+  needsAttention?: boolean | null;
+  sort?: "UPDATED" | "DUE_AT" | "START_AT" | null;
   page?: number;
   pageSize?: number;
 }
@@ -93,6 +98,9 @@ export async function listTasks(params: ListTasksParams, signal?: AbortSignal) {
   if (params.createdById) query.createdById = params.createdById;
   if (params.reportToId) query.reportToId = params.reportToId;
   if (params.overdue) query.overdue = params.overdue;
+  if (params.relatedEventId) query.relatedEventId = params.relatedEventId;
+  if (params.needsAttention) query.needsAttention = true;
+  if (params.sort) query.sort = params.sort;
 
   const { data, error, response } = await browserApi.GET("/api/v1/tasks", {
     params: { query: query as unknown as ListQuery },

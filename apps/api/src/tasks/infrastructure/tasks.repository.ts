@@ -6,9 +6,9 @@ import {
   OutboxActorKind,
   Prisma,
   TaskActivityType,
+  TaskPriority,
   TaskStatus,
   UserAccountStatus,
-  type TaskPriority,
   type TaskReviewOutcome,
   type TaskType,
 } from "../../generated/prisma/client.js";
@@ -105,6 +105,8 @@ export interface ListTasksInput {
   scheduledFrom?: Date;
   scheduledTo?: Date;
   overdue?: boolean;
+  relatedEventId?: string;
+  needsAttention?: boolean;
   sort: "updated" | "due" | "start";
   page: number;
   pageSize: number;
@@ -458,7 +460,26 @@ export class TasksRepository {
               } satisfies Prisma.TaskWhereInput,
             ]
           : []),
+        ...(input.needsAttention
+          ? [
+              {
+                status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
+                OR: [
+                  { dueAt: { lt: new Date() } },
+                  {
+                    status: {
+                      in: [TaskStatus.BLOCKED, TaskStatus.UNDER_REVIEW],
+                    },
+                  },
+                  {
+                    priority: { in: [TaskPriority.HIGH, TaskPriority.URGENT] },
+                  },
+                ],
+              } satisfies Prisma.TaskWhereInput,
+            ]
+          : []),
       ],
+      ...(input.relatedEventId ? { relatedEventId: input.relatedEventId } : {}),
       ...(input.status ? { status: input.status } : {}),
       ...(input.priority ? { priority: input.priority } : {}),
       ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),

@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -6,7 +7,25 @@ import { describe, expect, it, vi } from "vitest";
 // browser client so the env schema does not run at import time.
 vi.mock("@/lib/api/browser", () => ({ browserApi: {} }));
 
+vi.mock("@/features/events/api/events-gateway", () => ({
+  listEvents: vi.fn(async () => ({
+    items: [],
+    total: 0,
+    page: 1,
+    pageSize: 50,
+  })),
+}));
+
 import { TeamDetailDialog } from "./team-detail-dialog";
+
+function renderWithClient(ui: React.ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
+}
 import type {
   AssignManagerOutcome,
   DeactivateTeamOutcome,
@@ -115,13 +134,13 @@ describe("TeamDetailDialog", () => {
           resolve = () => r(makeTeam());
         }),
     );
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
     expect(screen.getByText("Loading team…")).toBeVisible();
     resolve?.();
   });
 
   it("loads name, description, department, status, and member count", async () => {
-    render(<TeamDetailDialog {...baseProps(makeTeam())} />);
+    renderWithClient(<TeamDetailDialog {...baseProps(makeTeam())} />);
     expect(await screen.findByDisplayValue("Production Team")).toBeVisible();
     expect(screen.getByDisplayValue("Delivers production.")).toBeVisible();
     expect(screen.getByText("Active")).toBeVisible();
@@ -131,7 +150,7 @@ describe("TeamDetailDialog", () => {
   it("keeps Save disabled until a field changes, then sends only the change", async () => {
     const user = userEvent.setup();
     const props = baseProps(makeTeam());
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
 
     const name = await screen.findByLabelText("Name");
     const save = screen.getByRole("button", { name: "Save changes" });
@@ -180,7 +199,7 @@ describe("TeamDetailDialog", () => {
         }),
     );
     const props = { ...baseProps(base), onRemoveMember };
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
 
     await screen.findByDisplayValue("Production Team");
     const list = screen.getByRole("list", { name: "Team members" });
@@ -220,7 +239,7 @@ describe("TeamDetailDialog", () => {
         }),
     );
     const props = { ...baseProps(base), onAddMember };
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
 
     await screen.findByDisplayValue("Production Team");
     await user.click(screen.getByRole("combobox", { name: "Add member" }));
@@ -238,7 +257,7 @@ describe("TeamDetailDialog", () => {
 
   it("disables the add picker when everyone available is already a member", async () => {
     const everyone = MANAGERS.map((manager) => ({ ...manager }));
-    render(
+    renderWithClient(
       <TeamDetailDialog {...baseProps(makeTeam({ members: everyone }))} />,
     );
     await screen.findByDisplayValue("Production Team");
@@ -249,7 +268,9 @@ describe("TeamDetailDialog", () => {
   });
 
   it("shows the empty-members hint when the team has no members", async () => {
-    render(<TeamDetailDialog {...baseProps(makeTeam({ members: [] }))} />);
+    renderWithClient(
+      <TeamDetailDialog {...baseProps(makeTeam({ members: [] }))} />,
+    );
     await screen.findByDisplayValue("Production Team");
     expect(screen.getByText("No members yet. Add one below.")).toBeVisible();
   });
@@ -257,7 +278,7 @@ describe("TeamDetailDialog", () => {
   it("confirms before deactivating and reports success", async () => {
     const user = userEvent.setup();
     const props = baseProps(makeTeam());
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
 
     await screen.findByDisplayValue("Production Team");
     await user.click(screen.getByRole("button", { name: "Deactivate team" }));
@@ -276,7 +297,7 @@ describe("TeamDetailDialog", () => {
     const props = baseProps(
       makeTeam({ deactivatedAt: "2026-08-15T00:00:00Z" }),
     );
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
 
     await screen.findByDisplayValue("Production Team");
     expect(screen.getByText(/deactivated/)).toBeInTheDocument();
@@ -303,7 +324,7 @@ describe("TeamDetailDialog", () => {
         }),
     );
     const props = { ...baseProps(base), onAssignManager };
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
 
     await screen.findByDisplayValue("Production Team");
     await user.click(screen.getByRole("combobox", { name: "Manager" }));
@@ -318,7 +339,7 @@ describe("TeamDetailDialog", () => {
   it("confirms before deleting and reports the removal", async () => {
     const user = userEvent.setup();
     const props = baseProps(makeTeam());
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
 
     await screen.findByDisplayValue("Production Team");
     await user.click(screen.getByRole("button", { name: "Delete team" }));
@@ -335,7 +356,7 @@ describe("TeamDetailDialog", () => {
     props.onDelete = vi.fn((): Promise<DeleteTeamOutcome> =>
       Promise.resolve({ status: "in_use" }),
     );
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
 
     await screen.findByDisplayValue("Production Team");
     await user.click(screen.getByRole("button", { name: "Delete team" }));
@@ -352,7 +373,7 @@ describe("TeamDetailDialog", () => {
   it("shows an error state when the team cannot be loaded", async () => {
     const props = baseProps(makeTeam());
     props.getTeam = vi.fn(() => Promise.resolve(null));
-    render(<TeamDetailDialog {...props} />);
+    renderWithClient(<TeamDetailDialog {...props} />);
     expect(
       await screen.findByText("We could not load this team"),
     ).toBeVisible();

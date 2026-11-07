@@ -100,7 +100,9 @@ interface Grant {
  * real ceiling: `constrainDepartmentGrants` drops every other organization or
  * management grant even if the role is edited through role administration.
  * Nothing here touches users, roles, settings, audit, HR-only features,
- * expense approval, or deletion.
+ * expense approval, or task, meeting or document deletion. Event management is
+ * organization-wide for Admin, which includes deleting events and managing
+ * event budgets (event.budget.*, sensitive per PC-04).
  */
 export const ADMIN_ORGANIZATION_PERMISSION_KEYS = [
   "task.create",
@@ -122,13 +124,25 @@ export const ADMIN_ORGANIZATION_PERMISSION_KEYS = [
   "team.read",
   // Talent Management: Admin is organization-wide for talent (TAL-PERM). These
   // are the only talent keys an Admin holds, and they reach only talent records
-  // and talent-side assignment tools, never Event, Production or Campaign grants.
+  // and talent-side assignment tools.
   "talent.create",
   "talent.read",
   "talent.update",
   "talent.transition_status",
   "talent.assign",
   "talent.manage_activities",
+  // Event Management: Admin manages every event across all departments,
+  // including budgets. Budget keys are sensitive (PC-04); they are granted only
+  // to Super Admin and Admin, never to other roles.
+  "event.create",
+  "event.read",
+  "event.update",
+  "event.delete",
+  "event.assign_manager",
+  "event.assign_teams",
+  "event.transition_status",
+  "event.budget.read",
+  "event.budget.update",
 ] as const;
 
 const ADMIN_ORGANIZATION_KEY_SET: ReadonlySet<string> = new Set(
@@ -141,11 +155,13 @@ export function constrainDepartmentGrants(
   grants: readonly Grant[],
 ): Grant[] {
   if (context.role === "SUPER_ADMIN") return [...grants];
-  if (
-    !context.role ||
-    !context.department?.active ||
-    !supportedDepartment(context.department.name)
-  ) {
+  // Admin is organization-wide and exempt from the department requirement, so
+  // an Admin with no department, or an unsupported one, keeps its allow-listed
+  // organization grants. Other roles still need an active supported department.
+  const departmentOk =
+    !!context.department?.active &&
+    supportedDepartment(context.department.name);
+  if (!context.role || (context.role !== "ADMIN" && !departmentOk)) {
     return grants.filter(
       (grant) =>
         grant.scope === "SELF" &&
@@ -160,6 +176,8 @@ export function constrainDepartmentGrants(
         ADMIN_ORGANIZATION_KEY_SET.has(grant.permissionKey)
       );
     }
+    // A department-scoped grant needs a department to scope to.
+    if (grant.scope === "DEPARTMENT" && !departmentOk) return false;
     if (context.role === "DEPARTMENT_MEMBER") return grant.scope === "SELF";
     return true;
   });

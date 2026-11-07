@@ -206,7 +206,7 @@ test.describe("Event & Office Manager workspace — end to end", () => {
       .getByRole("button", { name: "Create event" })
       .click();
     await expect(
-      homePage.getByRole("button", { name: eventName }).first(),
+      homePage.getByRole("link", { name: eventName }).first(),
     ).toBeVisible();
 
     const eventLookup = await homePage.request.get(
@@ -219,15 +219,15 @@ test.describe("Event & Office Manager workspace — end to end", () => {
     const eventId = createdEvent!.id;
     expect(createdEvent!.departmentId).toBe(homeDeptId);
 
-    // The event's detail dialog shows the resolved department name.
-    await homePage.getByRole("button", { name: eventName }).first().click();
-    const eventDetail = homePage.getByRole("dialog");
+    // The event's Details tab shows the resolved department name.
+    await homePage.getByRole("link", { name: eventName }).first().click();
+    await homePage
+      .getByRole("navigation", { name: "Event workspace" })
+      .getByRole("link", { name: "Details" })
+      .click();
     await expect(
-      eventDetail.getByText(`Department: ${homeDepartmentName}`, {
-        exact: true,
-      }),
+      homePage.getByText(homeDepartmentName, { exact: true }),
     ).toBeVisible();
-    await homePage.keyboard.press("Escape");
 
     // Create an expense for that event, then submit it for approval. A
     // Department Manager holds expense.submit but never expense.approve
@@ -422,9 +422,17 @@ test.describe("Event & Office Manager workspace — end to end", () => {
     // department-scoped grant always resolves to the stricter, never-leak
     // answer (see events.service.ts/expenses.service.ts `loadAuthorized`).
     await otherPage.goto("/events");
+    await expect(otherPage.getByRole("link", { name: eventName })).toHaveCount(
+      0,
+    );
+    // Opening the event's workspace directly reveals nothing about it.
+    await otherPage.goto(`/events/${eventId}`);
     await expect(
-      otherPage.getByRole("button", { name: eventName }),
-    ).toHaveCount(0);
+      otherPage.getByText(
+        "This event does not exist, or you do not have access to it.",
+      ),
+    ).toBeVisible();
+    await expect(otherPage.getByText(eventName)).toHaveCount(0);
     const otherEventRead = await otherPage.request.get(
       `${apiBaseUrl}/api/v1/events/${eventId}`,
     );

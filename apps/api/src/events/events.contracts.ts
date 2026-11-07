@@ -1,6 +1,10 @@
 import { ApiProperty } from "@nestjs/swagger";
 
-import { EventStatus, EventType } from "../generated/prisma/client.js";
+import {
+  EventMilestoneStatus,
+  EventStatus,
+  EventType,
+} from "../generated/prisma/client.js";
 
 /** A user attached to an event through its connected workspace, or its author. */
 export class EventPersonSummary {
@@ -59,6 +63,12 @@ export class EventResponse {
     example: "018f2c9e-1d3a-7b21-9c44-2f1a6b5d0e77",
   })
   id!: string;
+
+  @ApiProperty({
+    example: 24,
+    description: "The event's reference number, shown as EVT-024.",
+  })
+  eventNumber!: number;
 
   @ApiProperty({
     format: "uuid",
@@ -157,6 +167,107 @@ export class EventResponse {
 
   @ApiProperty({ format: "date-time" })
   updatedAt!: string;
+}
+
+/** A checkpoint on the way to an event. */
+export class EventMilestoneResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ format: "uuid" })
+  eventId!: string;
+
+  @ApiProperty({ example: "Venue & permits confirmed" })
+  name!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  description!: string | null;
+
+  @ApiProperty({ format: "date", example: "2026-10-10" })
+  dueDate!: string;
+
+  @ApiProperty({ enum: EventMilestoneStatus })
+  status!: EventMilestoneStatus;
+
+  @ApiProperty({ type: EventPersonSummary, nullable: true })
+  createdBy!: EventPersonSummary | null;
+
+  @ApiProperty({ type: EventPersonSummary, nullable: true })
+  updatedBy!: EventPersonSummary | null;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+
+  @ApiProperty({ format: "date-time" })
+  updatedAt!: string;
+}
+
+class EventOverviewTasks {
+  @ApiProperty({
+    example: 36,
+    description: "Linked tasks, excluding cancelled.",
+  })
+  total!: number;
+
+  @ApiProperty({ example: 28 })
+  completed!: number;
+
+  @ApiProperty({ example: 3 })
+  awaitingReview!: number;
+}
+
+class EventOverviewTeams {
+  @ApiProperty({ example: 4 })
+  count!: number;
+
+  @ApiProperty({
+    example: 18,
+    description:
+      "Distinct people: team members, individual participants and the manager.",
+  })
+  people!: number;
+}
+
+class EventOverviewMilestones {
+  @ApiProperty({ example: 4 })
+  total!: number;
+
+  @ApiProperty({ example: 2 })
+  completed!: number;
+}
+
+/** The figures behind the workspace Overview tiles, for one event. */
+export class EventOverviewResponse {
+  @ApiProperty({ type: EventOverviewTasks })
+  tasks!: EventOverviewTasks;
+
+  @ApiProperty({ type: EventOverviewTeams })
+  teams!: EventOverviewTeams;
+
+  @ApiProperty({ type: EventOverviewMilestones })
+  milestones!: EventOverviewMilestones;
+}
+
+/** One line of the event's activity feed, read from the audit log. */
+export class EventActivityResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ example: "event.status_changed" })
+  action!: string;
+
+  @ApiProperty({ format: "date-time" })
+  occurredAt!: string;
+
+  @ApiProperty({ type: EventPersonSummary, nullable: true })
+  actor!: EventPersonSummary | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "A milestone name or new status, when the action has one.",
+  })
+  subject!: string | null;
 }
 
 /** Headline counts for the events listing tiles, over the caller's visible events. */
