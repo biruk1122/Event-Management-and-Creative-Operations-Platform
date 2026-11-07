@@ -65,6 +65,8 @@ export type SupportedAuditAction =
   | "attendance.calendar.holiday_updated"
   | "attendance.calendar.holiday_removed"
   | "leave.type.created"
+  | "sms.provider.tested"
+  | "sms.message.resolved"
   | "leave.type.updated"
   | "leave.grant.created"
   | "leave.request.submitted"
@@ -99,7 +101,8 @@ export interface AppendAuditRecordInput {
     | "attendance_holiday"
     | "leave_type"
     | "leave_grant"
-    | "leave_request";
+    | "leave_request"
+    | "sms_message";
   resourceId: string | null;
   workspaceContext?: string;
   outcome: AuditOutcome;

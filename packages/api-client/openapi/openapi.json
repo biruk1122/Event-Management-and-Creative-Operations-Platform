@@ -6834,6 +6834,27 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedSmsMessagesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SmsMessageResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": ["items", "total", "page", "pageSize"],
+        "type": "object"
+      },
       "PaginatedSuppliersResponse": {
         "properties": {
           "items": {
@@ -8566,6 +8587,17 @@
         "required": ["reason"],
         "type": "object"
       },
+      "ResolveSmsMessageDto": {
+        "properties": {
+          "decision": {
+            "description": "CANCEL closes an uncertain send without sending. REQUEUE sends it again; only use it when the message was not delivered.",
+            "enum": ["CANCEL", "REQUEUE"],
+            "type": "string"
+          }
+        },
+        "required": ["decision"],
+        "type": "object"
+      },
       "RespondToMeetingDto": {
         "properties": {
           "response": {
@@ -9147,6 +9179,147 @@
           }
         },
         "required": ["reason"],
+        "type": "object"
+      },
+      "SmsConnectionTestResponse": {
+        "properties": {
+          "balance": {
+            "type": "string"
+          },
+          "estimatedMessages": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": ["ok"],
+        "type": "object"
+      },
+      "SmsMessageResponse": {
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "body": {
+            "type": "string"
+          },
+          "callbackStatus": {
+            "nullable": true,
+            "type": "string"
+          },
+          "category": {
+            "example": "TEST",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastError": {
+            "nullable": true,
+            "type": "string"
+          },
+          "providerMessageId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "providerStatus": {
+            "nullable": true,
+            "type": "string"
+          },
+          "providerStatusCheckedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "recipientName": {
+            "example": "Dana Okafor",
+            "nullable": true,
+            "type": "string"
+          },
+          "recipientPhoneMasked": {
+            "example": "+251******123",
+            "nullable": true,
+            "type": "string"
+          },
+          "recipientUserId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "skipReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "example": "ACCEPTED",
+            "type": "string"
+          },
+          "templateKey": {
+            "example": "test.connection",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "status",
+          "recipientUserId",
+          "recipientName",
+          "recipientPhoneMasked",
+          "templateKey",
+          "body",
+          "skipReason",
+          "providerMessageId",
+          "providerStatus",
+          "providerStatusCheckedAt",
+          "callbackStatus",
+          "attempts",
+          "lastError",
+          "acceptedAt",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "SmsServiceStatusResponse": {
+        "properties": {
+          "apiKeyConfigured": {
+            "description": "Whether the provider key is set. The key itself is never returned.",
+            "type": "boolean"
+          },
+          "callbackConfigured": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "senderConfigured": {
+            "type": "boolean"
+          },
+          "timeoutMs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "apiKeyConfigured",
+          "senderConfigured",
+          "callbackConfigured",
+          "timeoutMs"
+        ],
         "type": "object"
       },
       "SubmitReportDto": {
@@ -33885,6 +34058,263 @@
         ],
         "summary": "Search active employees to share a record with",
         "tags": ["Administration: Letters"]
+      }
+    },
+    "/api/v1/sms/messages": {
+      "get": {
+        "operationId": "SmsAdmin_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "PENDING",
+                "SENDING",
+                "ACCEPTED",
+                "DELIVERED",
+                "FAILED",
+                "UNCERTAIN",
+                "CANCELLED",
+                "SKIPPED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "enum": ["TEST"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedSmsMessagesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "SMS history, newest first. Phone numbers are masked",
+        "tags": ["SMS"]
+      }
+    },
+    "/api/v1/sms/messages/{id}/resolve": {
+      "post": {
+        "operationId": "SmsAdmin_resolve_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveSmsMessageDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Resolved"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Resolve an uncertain SMS: cancel it, or requeue it on purpose. Never automatic",
+        "tags": ["SMS"]
+      }
+    },
+    "/api/v1/sms/status": {
+      "get": {
+        "operationId": "SmsAdmin_status_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsServiceStatusResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "SMS service status. Reports whether settings are present, never their values",
+        "tags": ["SMS"]
+      }
+    },
+    "/api/v1/sms/test-connection": {
+      "post": {
+        "operationId": "SmsAdmin_testConnection_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsConnectionTestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Check provider credentials by reading the balance. Sends no SMS",
+        "tags": ["SMS"]
       }
     },
     "/api/v1/suppliers": {

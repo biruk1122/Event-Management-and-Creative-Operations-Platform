@@ -3369,6 +3369,74 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/sms/messages": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** SMS history, newest first. Phone numbers are masked */
+    get: operations["SmsAdmin_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sms/messages/{id}/resolve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Resolve an uncertain SMS: cancel it, or requeue it on purpose. Never automatic */
+    post: operations["SmsAdmin_resolve_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sms/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** SMS service status. Reports whether settings are present, never their values */
+    get: operations["SmsAdmin_status_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sms/test-connection": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Check provider credentials by reading the balance. Sends no SMS */
+    post: operations["SmsAdmin_testConnection_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/suppliers": {
     parameters: {
       query?: never;
@@ -7388,6 +7456,12 @@ export interface components {
       /** @example 7 */
       total: number;
     };
+    PaginatedSmsMessagesResponse: {
+      items: components["schemas"]["SmsMessageResponse"][];
+      page: number;
+      pageSize: number;
+      total: number;
+    };
     PaginatedSuppliersResponse: {
       items: components["schemas"]["SupplierResponse"][];
       /** @example 1 */
@@ -8045,6 +8119,13 @@ export interface components {
       plannedStartAt?: string;
       reason: string;
     };
+    ResolveSmsMessageDto: {
+      /**
+       * @description CANCEL closes an uncertain send without sending. REQUEUE sends it again; only use it when the message was not delivered.
+       * @enum {string}
+       */
+      decision: "CANCEL" | "REQUEUE";
+    };
     RespondToMeetingDto: {
       /** @enum {string} */
       response: "ACCEPTED" | "DECLINED";
@@ -8283,6 +8364,49 @@ export interface components {
     };
     ShiftReasonDto: {
       reason: string;
+    };
+    SmsConnectionTestResponse: {
+      balance?: string;
+      estimatedMessages?: string;
+      ok: boolean;
+      reason?: string;
+    };
+    SmsMessageResponse: {
+      /** Format: date-time */
+      acceptedAt: string | null;
+      attempts: number;
+      body: string;
+      callbackStatus: string | null;
+      /** @example TEST */
+      category: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      id: string;
+      lastError: string | null;
+      providerMessageId: string | null;
+      providerStatus: string | null;
+      /** Format: date-time */
+      providerStatusCheckedAt: string | null;
+      /** @example Dana Okafor */
+      recipientName: string | null;
+      /** @example +251******123 */
+      recipientPhoneMasked: string | null;
+      /** Format: uuid */
+      recipientUserId: string | null;
+      skipReason: string | null;
+      /** @example ACCEPTED */
+      status: string;
+      /** @example test.connection */
+      templateKey: string;
+    };
+    SmsServiceStatusResponse: {
+      /** @description Whether the provider key is set. The key itself is never returned. */
+      apiKeyConfigured: boolean;
+      callbackConfigured: boolean;
+      enabled: boolean;
+      senderConfigured: boolean;
+      timeoutMs: number;
     };
     SubmitReportDto: {
       /**
@@ -23601,6 +23725,172 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ShareRecipientOption"][];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SmsAdmin_list_v1: {
+    parameters: {
+      query?: {
+        status?:
+          | "PENDING"
+          | "SENDING"
+          | "ACCEPTED"
+          | "DELIVERED"
+          | "FAILED"
+          | "UNCERTAIN"
+          | "CANCELLED"
+          | "SKIPPED";
+        category?: "TEST";
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedSmsMessagesResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SmsAdmin_resolve_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ResolveSmsMessageDto"];
+      };
+    };
+    responses: {
+      /** @description Resolved */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SmsAdmin_status_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SmsServiceStatusResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SmsAdmin_testConnection_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SmsConnectionTestResponse"];
         };
       };
       401: {

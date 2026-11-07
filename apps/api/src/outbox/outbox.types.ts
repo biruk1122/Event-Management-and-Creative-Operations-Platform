@@ -34,7 +34,13 @@ export type SupportedOutboxEventName =
   | "attendance.overtime.decided"
   | "attendance.exception.decided"
   | "leave.request.submitted"
-  | "leave.request.decided";
+  | "leave.request.decided"
+  | "sms.message.requested";
+
+/** `sms.message.requested` v1 payload. Carries only the SMS row id; the consumer re-reads the row and its recipient at send time. */
+export interface SmsMessageRequestedEventPayload {
+  smsMessageId: string;
+}
 
 /**
  * `meeting.participant.invited` v1 payload. The consumer resolves all other
@@ -159,7 +165,8 @@ export interface AppendOutboxEventInput {
     | "event_shift"
     | "attendance_overtime_approval"
     | "attendance_exception"
-    | "leave_request";
+    | "leave_request"
+    | "sms_message";
   resourceId: string;
   workspaceContext?: string;
   payload?: Prisma.InputJsonObject;

@@ -209,6 +209,7 @@ model User {
   @@index([lastName, firstName])
   // Scoped visibility and the department roster both filter users by department.
   @@index([departmentId])
+  smsMessages SmsMessage[] @relation("SmsMessageRecipient")
   @@map("users")
 }
 
@@ -3774,4 +3775,76 @@ model TaskNumberCounter {
   lastValue Int @map("last_value")
 
   @@map("task_number_counters")
+}
+
+enum SmsCategory {
+  TEST
+
+  @@map("sms_category")
+}
+
+enum SmsMessageStatus {
+  PENDING
+  SENDING
+  ACCEPTED
+  DELIVERED
+  FAILED
+  UNCERTAIN
+  CANCELLED
+  SKIPPED
+
+  @@map("sms_message_status")
+}
+
+/// One SMS to one recipient. The idempotency key is unique, so a repeated
+/// enqueue for the same business event and recipient is a no-op.
+model SmsMessage {
+  id                    String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  idempotencyKey        String            @unique @map("idempotency_key")
+  category              SmsCategory
+  recipientUserId       String?           @map("recipient_user_id") @db.Uuid
+  recipientPhone        String?           @map("recipient_phone")
+  body                  String
+  templateKey           String            @map("template_key")
+  sourceType            String?           @map("source_type")
+  sourceId              String?           @map("source_id")
+  status                SmsMessageStatus  @default(PENDING)
+  skipReason            String?           @map("skip_reason")
+  providerMessageId     String?           @unique @map("provider_message_id")
+  providerStatus        String?           @map("provider_status")
+  providerStatusCheckedAt DateTime?       @map("provider_status_checked_at") @db.Timestamptz(6)
+  callbackStatus        String?           @map("callback_status")
+  callbackReceivedAt    DateTime?         @map("callback_received_at") @db.Timestamptz(6)
+  attempts              Int               @default(0)
+  lastError             String?           @map("last_error")
+  acceptedAt            DateTime?         @map("accepted_at") @db.Timestamptz(6)
+  createdAt             DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  recipient  User?                @relation("SmsMessageRecipient", fields: [recipientUserId], references: [id], onDelete: SetNull)
+  attemptLog SmsDeliveryAttempt[]
+
+  @@index([status, createdAt])
+  @@index([recipientUserId, createdAt])
+  @@index([category, createdAt])
+  @@map("sms_messages")
+}
+
+/// One provider call for an SMS. Responses are stored sanitized: no
+/// credentials, no authorization headers.
+model SmsDeliveryAttempt {
+  id               String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  smsMessageId     String   @map("sms_message_id") @db.Uuid
+  attemptNumber    Int      @map("attempt_number")
+  outcome          String
+  providerHttpStatus Int?   @map("provider_http_status")
+  providerResponse Json?    @map("provider_response") @db.JsonB
+  error            String?
+  startedAt        DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
+  finishedAt       DateTime? @map("finished_at") @db.Timestamptz(6)
+
+  message SmsMessage @relation(fields: [smsMessageId], references: [id], onDelete: Cascade)
+
+  @@unique([smsMessageId, attemptNumber])
+  @@map("sms_delivery_attempts")
 }
