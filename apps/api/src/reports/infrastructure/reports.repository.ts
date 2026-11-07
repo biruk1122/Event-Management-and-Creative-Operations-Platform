@@ -18,6 +18,7 @@ import {
   reportInvalidTransition,
 } from "../reports.errors.js";
 import type { Sections } from "../reports.policy.js";
+import { ReportsSmsService } from "../reports-sms.service.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PERSON = {
@@ -109,6 +110,7 @@ export class ReportsRepository {
     private readonly db: DatabaseService,
     private readonly audit: AuditWriterService,
     private readonly outbox: OutboxWriterService,
+    private readonly reportsSms: ReportsSmsService,
   ) {}
 
   async findUserDepartmentId(userId: string): Promise<string | null> {
@@ -337,6 +339,7 @@ export class ReportsRepository {
     reportToId: string | null,
   ): Promise<ReportRecord> {
     return this.db.$transaction(async (tx) => {
+      const submittedAt = new Date();
       const changed = await tx.report.updateMany({
         where: {
           id,
@@ -345,7 +348,7 @@ export class ReportsRepository {
         },
         data: {
           status: "SUBMITTED",
-          submittedAt: new Date(),
+          submittedAt,
           reviewedAt: null,
           reviewerId: null,
           reportToId,
@@ -372,6 +375,13 @@ export class ReportsRepository {
         resourceId: id,
         consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
       });
+      await this.reportsSms.enqueueSubmitted(tx, {
+        reportId: id,
+        designatedRecipientId: reportToId,
+        actorUserId: actorId,
+        submittedAt,
+        requestId,
+      });
       return tx.report.findUniqueOrThrow({ where: { id }, include });
     });
   }
@@ -388,7 +398,7 @@ export class ReportsRepository {
     return this.db.$transaction(async (tx) => {
       const before = await tx.report.findUnique({
         where: { id },
-        select: { reportToId: true },
+        select: { reportToId: true, submittedAt: true },
       });
       const changed = await tx.report.updateMany({
         where: { id, status: "SUBMITTED" },
@@ -414,6 +424,13 @@ export class ReportsRepository {
         resourceType: "report",
         resourceId: id,
         consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
+      });
+      await this.reportsSms.enqueueSubmitted(tx, {
+        reportId: id,
+        designatedRecipientId: reportToId,
+        actorUserId: actorId,
+        submittedAt: before?.submittedAt ?? null,
+        requestId,
       });
       return tx.report.findUniqueOrThrow({ where: { id }, include });
     });

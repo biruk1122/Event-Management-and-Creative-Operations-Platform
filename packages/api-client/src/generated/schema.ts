@@ -23765,7 +23765,8 @@ export interface operations {
           | "MEETING_INVITATION"
           | "MEETING_CHANGED"
           | "MEETING_REMINDER"
-          | "MEETING_CANCELLED";
+          | "MEETING_CANCELLED"
+          | "REPORT_SUBMITTED";
         page?: number;
         pageSize?: number;
       };

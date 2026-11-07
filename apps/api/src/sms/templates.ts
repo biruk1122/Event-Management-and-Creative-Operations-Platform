@@ -52,6 +52,11 @@ export const SMS_TEMPLATES = {
     category: "MEETING_CANCELLED",
     text: "LELA: The meeting {{meeting_title}} scheduled for {{start_time}} has been cancelled. Please log in to Lela for details.",
   },
+  REPORT_SUBMITTED: {
+    key: "report.submitted",
+    category: "REPORT_SUBMITTED",
+    text: "LELA: Hello {{employee_name}}, a report titled {{report_title}} submitted by {{author_name}} is waiting for your review. Please log in to Lela to review it.",
+  },
 } as const satisfies Record<string, SmsTemplateDefinition>;
 
 export type SmsTemplateName = keyof typeof SMS_TEMPLATES;

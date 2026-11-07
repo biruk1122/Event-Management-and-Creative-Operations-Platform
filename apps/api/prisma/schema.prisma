@@ -3786,6 +3786,7 @@ enum SmsCategory {
   MEETING_CHANGED
   MEETING_REMINDER
   MEETING_CANCELLED
+  REPORT_SUBMITTED
 
   @@map("sms_category")
 }

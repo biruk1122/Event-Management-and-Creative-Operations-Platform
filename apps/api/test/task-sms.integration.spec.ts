@@ -568,22 +568,27 @@ describe("task SMS (Phase 2)", () => {
     const assignment = await prisma.taskAssignment.create({
       data: { taskId, userId: assignee.id },
     });
+    // A unique body lets the count ignore messages other tests send in the same window.
+    const body = `LELA: once ${rand()}`;
     const row = await prisma.smsMessage.create({
       data: {
         idempotencyKey: `test:${rand()}`,
         category: "TASK_ASSIGNED",
         recipientUserId: assignee.id,
         recipientPhone: "+251911111121",
-        body: "LELA: once",
+        body,
         templateKey: "task.assigned",
         sourceType: "task_assignment",
         sourceId: assignment.id,
       },
     });
-    const sendsBefore = provider.send.mock.calls.length;
+    const sendsOfThisMessage = () =>
+      provider.send.mock.calls.filter(
+        ([request]) => (request as { message: string }).message === body,
+      ).length;
     await smsService.dispatch({ payload: { smsMessageId: row.id } });
     await smsService.dispatch({ payload: { smsMessageId: row.id } });
-    expect(provider.send.mock.calls.length).toBe(sendsBefore + 1);
+    expect(sendsOfThisMessage()).toBe(1);
   });
 
   it("keeps the assignment when its SMS cannot be queued", async () => {

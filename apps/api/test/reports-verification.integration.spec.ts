@@ -766,6 +766,7 @@ describe("EVE-167 report verification", () => {
         logged as unknown as DatabaseService,
         {} as AuditWriterService,
         {} as OutboxWriterService,
+        {} as never,
       );
       const small = await reports.list({
         visibility: { organization: true },

@@ -34095,7 +34095,8 @@
                 "MEETING_INVITATION",
                 "MEETING_CHANGED",
                 "MEETING_REMINDER",
-                "MEETING_CANCELLED"
+                "MEETING_CANCELLED",
+                "REPORT_SUBMITTED"
               ],
               "type": "string"
             }

@@ -1,6 +1,6 @@
 # SMS notifications (AfroMessage)
 
-Status: Phases 1–3 implemented (infrastructure, task SMS, meeting SMS), awaiting review. Report SMS is not connected.
+Status: Phases 1–4 implemented (infrastructure, task, meeting and report SMS), awaiting review.
 
 ## Flow
 
@@ -81,6 +81,17 @@ Reminders are not recorded this way, because the next scan retries them automati
 - **Times.** Shown in Africa/Addis_Ababa.
 - **Duplicates.** Each message has a key per meeting, recipient and start time (plus the update time for change notices). The scan can run on more than one instance without sending twice, because the key is enforced by the database.
 - **Failures.** Each step runs in a savepoint. A failure to queue an invitation or change notice is recorded as `sms.enqueue_failed` on the meeting, with the category and a truncated reason, and the meeting change still commits. Reminders are retried by the next scan.
+
+## Report SMS (Phase 4)
+
+Scope is limited to the submission notice. Review outcome notices, period-end reminders, overdue alerts and missing-report alerts are not implemented.
+
+- **Recipients.** When a report is submitted, every active user holding the system Super Admin or Admin role is texted, plus the designated recipient when there is one. Legacy reports without a designated recipient still reach the admins. Recipients are resolved with the same role and status rules as the task module.
+- **Exclusions.** The report author is never texted for their own submission. Inactive users and users without a valid Ethiopian mobile number are not queued at all (no SKIPPED row).
+- **Timing.** Queued in the transaction that submits a report, or that re-routes a submitted report, in one savepoint per recipient. A failure is audited as `sms.enqueue_failed` on the report and never blocks the submission or in-app notifications.
+- **Duplicates.** The key is the report, the recipient and the submission time. Queuing the same submission again creates nothing; a resubmission has a new time and so is a new notice.
+- **Send-time checks.** A message is cancelled when the report is no longer pending (`REPORT_NOT_PENDING`), was resubmitted since (`SUBMISSION_SUPERSEDED`), or the recipient is no longer the designated recipient or an active reviewer (`RECIPIENT_NOT_ELIGIBLE`).
+- **Mute settings.** In-app mute settings do not apply to SMS.
 
 ## Known gaps
 
