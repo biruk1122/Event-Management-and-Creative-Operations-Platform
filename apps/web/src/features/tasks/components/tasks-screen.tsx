@@ -17,7 +17,13 @@ function canReadTasks(
   );
 }
 
-export function TasksScreen() {
+export function TasksScreen({
+  readOnly = false,
+}: {
+  /** Embedded where the viewer only oversees the records (EVE-229): no
+   * create, edit or submit controls, whatever the viewer's own grants. */
+  readOnly?: boolean;
+} = {}) {
   const access = useCurrentAccess();
 
   if (access.isPending) {
@@ -58,5 +64,5 @@ export function TasksScreen() {
     return <p role="alert">You do not have access to tasks.</p>;
   }
 
-  return <TasksManager access={access.data} />;
+  return <TasksManager access={access.data} readOnly={readOnly} />;
 }

@@ -54,7 +54,16 @@ describe("CampaignFilters", () => {
       (await screen.findAllByRole("option")).map(
         (option) => option.textContent,
       ),
-    ).toEqual(["All statuses", "Planned", "Active", "Completed", "Cancelled"]);
+    ).toEqual([
+      "All statuses",
+      "Planned",
+      // Promotion-only statuses (EVE-229) are filterable like any other.
+      "Approved",
+      "Active",
+      "Paused",
+      "Completed",
+      "Cancelled",
+    ]);
   });
 
   it("reports a chosen type and the cleared state", async () => {

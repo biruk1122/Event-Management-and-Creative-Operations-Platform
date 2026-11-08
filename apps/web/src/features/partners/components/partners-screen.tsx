@@ -12,7 +12,13 @@ import { PartnersManager } from "./partners-manager";
 
 const LOGIN_HREF = "/login?next=%2Fpartners";
 
-export function PartnersScreen() {
+export function PartnersScreen({
+  readOnly = false,
+}: {
+  /** Embedded where the viewer only oversees the records (EVE-229): no
+   * create, edit or submit controls, whatever the viewer's own grants. */
+  readOnly?: boolean;
+} = {}) {
   const access = useCurrentAccess();
   const client = useQueryClient();
   const allowed = access.data ? canReadPartners(access.data) : false;
@@ -62,5 +68,11 @@ export function PartnersScreen() {
     return <p role="alert">You do not have access to this area.</p>;
   }
 
-  return <PartnersManager key={access.data.userId} access={access.data} />;
+  return (
+    <PartnersManager
+      key={access.data.userId}
+      access={access.data}
+      readOnly={readOnly}
+    />
+  );
 }

@@ -528,11 +528,14 @@ describe("campaign platform API", () => {
         name: "list-decoy",
         campaignType: "MARKETING",
       });
-      await as(
-        superAdmin,
-        "post",
-        `/api/v1/campaigns/${target.id}/transition`,
-      ).send({ status: "ACTIVE" });
+      // A promotion campaign is approved before it goes active (EVE-229).
+      for (const status of ["APPROVED", "ACTIVE"]) {
+        await as(
+          superAdmin,
+          "post",
+          `/api/v1/campaigns/${target.id}/transition`,
+        ).send({ status });
+      }
 
       const response = await as(
         superAdmin,
@@ -744,7 +747,10 @@ describe("campaign platform API", () => {
     it("rejects an unknown status and a missing body", async () => {
       const created = await createCampaign();
 
-      expect((await transition(created.id, "PAUSED")).status).toBe(400);
+      expect((await transition(created.id, "ARCHIVED")).status).toBe(400);
+      // PAUSED is a promotion-only status (EVE-229): a valid value, but not a
+      // move a marketing campaign can make.
+      expect((await transition(created.id, "PAUSED")).status).toBe(409);
       expect(
         (
           await as(

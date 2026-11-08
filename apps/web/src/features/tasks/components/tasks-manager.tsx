@@ -20,6 +20,7 @@ import {
   canReviewFor,
   canManageAssigneesFor,
   canActOnAssignedTask,
+  isReadOnlyTask,
 } from "../lib/task-access";
 import * as gateway from "../api/tasks-gateway";
 import { TasksRequestError } from "../api/tasks-gateway";
@@ -36,7 +37,15 @@ import { TaskWorkspace } from "./tasks-workspace";
 
 const PAGE_SIZE = 25;
 
-export function TasksManager({ access }: { access: CurrentAccess }) {
+export function TasksManager({
+  access,
+  readOnly = false,
+}: {
+  access: CurrentAccess;
+  /** Embedded where the viewer only oversees the records (EVE-229): no
+   * create, edit or submit controls, whatever the viewer's own grants. */
+  readOnly?: boolean;
+}) {
   const [filters, setFilters] = useState<TaskListFilters>({
     search: "",
     status: null,
@@ -51,7 +60,7 @@ export function TasksManager({ access }: { access: CurrentAccess }) {
   const [createOpen, setCreateOpen] = useState(false);
   const client = useQueryClient();
   const keys = taskKeys(access);
-  const canCreate = canCreateTasks(access);
+  const canCreate = !readOnly && canCreateTasks(access);
   const listParams = {
     search: filters.search,
     status: filters.status,
@@ -157,6 +166,7 @@ export function TasksManager({ access }: { access: CurrentAccess }) {
           canUpload: hasGrant(access, "task.attachment.create"),
           canAssign: hasGrant(access, "task.assign"),
           canManageAssignees: canManageAssigneesFor(access),
+          isReadOnly: (task) => isReadOnlyTask(access, task),
           ...(users.isError
             ? {
                 assignmentDirectoryMessage:

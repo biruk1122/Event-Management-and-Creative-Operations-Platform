@@ -6,9 +6,11 @@ import type { PlatformRole } from "../common/security/department-access.policy.j
  * recipient is always an explicit, validated person - never "any Admin".
  *
  * - Department Member: their department's active manager.
- * - Department Manager: the Admin Super Admin designated for that department
- *   (`Department.reportingAdminId`). With no designation the submission is
- *   refused rather than guessing.
+ * - Department Manager: the active manager of the department that oversees
+ *   theirs (EVE-229, ADR 0008; e.g. Promotion -> the Marketing Manager).
+ *   Without an overseeing manager, the Admin Super Admin designated for that
+ *   department (`Department.reportingAdminId`). With neither, the submission
+ *   is refused rather than guessing.
  * - Admin: a Super Admin. Auto-selected only when exactly one active Super
  *   Admin exists; with several, the author must choose explicitly.
  * - Super Admin (and accounts without a platform role) have nobody above
@@ -20,6 +22,8 @@ export interface ReportRecipientContext {
   departmentManagerId: string | null;
   /** Active Admin Super Admin designated for the report's department. */
   reportingAdminId: string | null;
+  /** Active manager of the department overseeing the report's department. */
+  overseeingManagerId: string | null;
   activeSuperAdminIds: readonly string[];
 }
 
@@ -37,6 +41,7 @@ export function eligibleReportRecipients(
     case "DEPARTMENT_MEMBER":
       return context.departmentManagerId ? [context.departmentManagerId] : [];
     case "DEPARTMENT_MANAGER":
+      if (context.overseeingManagerId) return [context.overseeingManagerId];
       return context.reportingAdminId ? [context.reportingAdminId] : [];
     case "ADMIN":
       return [...context.activeSuperAdminIds];

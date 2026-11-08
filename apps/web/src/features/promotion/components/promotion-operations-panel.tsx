@@ -12,28 +12,59 @@ import { campaignKeys } from "@/features/campaigns/api/campaigns-queries";
 import * as gateway from "../api/promotion-gateway";
 import { PromotionOperationsBoard } from "./promotion-operations-board";
 
-function hasGrant(access: CurrentAccess, key: string) {
+function hasGrant(
+  access: CurrentAccess,
+  key: string,
+  scope: "ORGANIZATION" | "DEPARTMENT" = "ORGANIZATION",
+) {
   return access.grants.some(
-    (grant) => grant.permissionKey === key && grant.scope === "ORGANIZATION",
+    (grant) => grant.permissionKey === key && grant.scope === scope,
   );
+}
+
+/**
+ * Mirrors `PromotionService` (EVE-229): the campaign's own department
+ * manages its promotion details; Super Admin manages any. A department the
+ * caller only oversees stays read-only. Talent assignment still needs the
+ * organization-scoped `talent.assign`.
+ */
+export function promotionAbilities(
+  access: CurrentAccess,
+  campaignDepartmentId: string | null,
+) {
+  const canRead =
+    hasGrant(access, "campaign.read") ||
+    hasGrant(access, "campaign.read", "DEPARTMENT");
+  const ownDepartment =
+    !!campaignDepartmentId && campaignDepartmentId === access.department?.id;
+  const canManage =
+    hasGrant(access, "campaign.activity.manage") ||
+    (ownDepartment &&
+      hasGrant(access, "campaign.activity.manage", "DEPARTMENT"));
+  return {
+    canRead,
+    canManage,
+    canReadTalent: hasGrant(access, "talent.read"),
+    canAssignTalent: canManage && hasGrant(access, "talent.assign"),
+  };
 }
 
 export function PromotionOperationsPanel({
   campaignId,
   campaignName,
+  campaignDepartmentId = null,
   access,
 }: {
   campaignId: string;
   campaignName: string;
+  campaignDepartmentId?: string | null;
   access: CurrentAccess;
 }) {
   const client = useQueryClient();
   const campaign = campaignKeys(access);
   const promotionKey = [...campaign.all, "promotion", campaignId] as const;
-  const canRead = hasGrant(access, "campaign.read");
-  const canManage = hasGrant(access, "campaign.activity.manage");
-  const canReadTalent = hasGrant(access, "talent.read");
-  const canAssignTalent = canManage && hasGrant(access, "talent.assign");
+  const { canRead, canManage, canReadTalent, canAssignTalent } =
+    promotionAbilities(access, campaignDepartmentId);
 
   const activities = useQuery({
     queryKey: campaign.activities(campaignId),

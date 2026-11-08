@@ -96,6 +96,10 @@ describe("CampaignsService", () => {
         (u: string, k: string, s: PermissionScope) => Promise<boolean>
       >
     >;
+    getAccessContext: ReturnType<typeof vi.fn>;
+    overseenDepartmentIdsFor: ReturnType<
+      typeof vi.fn<(u: string, k: string) => Promise<string[]>>
+    >;
   };
   let events: { get: ReturnType<typeof vi.fn> };
   let service: CampaignsService;
@@ -126,7 +130,13 @@ describe("CampaignsService", () => {
       assignTeam: vi.fn().mockResolvedValue({}),
       unassignTeam: vi.fn().mockResolvedValue({}),
     };
-    permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
+    permissions = {
+      hasGrant: vi.fn().mockResolvedValue(true),
+      getAccessContext: vi
+        .fn()
+        .mockResolvedValue({ role: "SUPER_ADMIN", department: null }),
+      overseenDepartmentIdsFor: vi.fn().mockResolvedValue([]),
+    };
     events = { get: vi.fn().mockResolvedValue(undefined) };
     service = new CampaignsService(
       repository as never,
@@ -456,6 +466,207 @@ describe("CampaignsService", () => {
     });
   });
 
+  describe("promotion lifecycle and approval (EVE-229)", () => {
+    const promotion = (status: CampaignRecord["status"]) =>
+      makeCampaign({ campaignType: "PROMOTION", status });
+
+    it.each([
+      ["PLANNED", "APPROVED"],
+      ["PLANNED", "CANCELLED"],
+      ["APPROVED", "ACTIVE"],
+      ["APPROVED", "CANCELLED"],
+      ["ACTIVE", "PAUSED"],
+      ["ACTIVE", "COMPLETED"],
+      ["ACTIVE", "CANCELLED"],
+      ["PAUSED", "ACTIVE"],
+      ["PAUSED", "COMPLETED"],
+      ["PAUSED", "CANCELLED"],
+    ] as const)("allows a promotion campaign %s -> %s", async (from, to) => {
+      repository.findById.mockResolvedValue(promotion(from));
+      await service.transition(ACTOR, "cmp-1", to, "req-1");
+      expect(repository.updateStatus).toHaveBeenCalledWith("cmp-1", from, to, {
+        actorUserId: ACTOR,
+        requestId: "req-1",
+      });
+    });
+
+    it.each([
+      ["PLANNED", "ACTIVE"],
+      ["PLANNED", "PAUSED"],
+      ["APPROVED", "PAUSED"],
+      ["APPROVED", "COMPLETED"],
+      ["PAUSED", "APPROVED"],
+      ["COMPLETED", "ACTIVE"],
+      ["CANCELLED", "APPROVED"],
+    ] as const)("rejects a promotion campaign %s -> %s", async (from, to) => {
+      repository.findById.mockResolvedValue(promotion(from));
+      await expectCode(
+        service.transition(ACTOR, "cmp-1", to),
+        "CAMPAIGN_INVALID_TRANSITION",
+      );
+      expect(repository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["PLANNED", "APPROVED"],
+      ["ACTIVE", "PAUSED"],
+    ] as const)(
+      "never lets a marketing campaign use %s -> %s",
+      async (from, to) => {
+        repository.findById.mockResolvedValue(makeCampaign({ status: from }));
+        await expectCode(
+          service.transition(ACTOR, "cmp-1", to),
+          "CAMPAIGN_INVALID_TRANSITION",
+        );
+      },
+    );
+
+    it("refuses approval by a Department Manager, even on their own campaign", async () => {
+      grantOnly(["campaign.transition_status", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue("promotion");
+      permissions.getAccessContext.mockResolvedValue({
+        role: "DEPARTMENT_MANAGER",
+        department: { id: "promotion", name: "Promotion", active: true },
+      });
+      repository.findById.mockResolvedValue(
+        makeCampaign({
+          campaignType: "PROMOTION",
+          status: "PLANNED",
+          departmentId: "promotion",
+        }),
+      );
+      await expectCode(
+        service.transition(ACTOR, "cmp-1", "APPROVED"),
+        "CAMPAIGN_APPROVAL_REQUIRED",
+      );
+      expect(repository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("lets the Promotion manager run the approved campaign", async () => {
+      grantOnly(["campaign.transition_status", "DEPARTMENT"]);
+      repository.findUserDepartmentId.mockResolvedValue("promotion");
+      permissions.getAccessContext.mockResolvedValue({
+        role: "DEPARTMENT_MANAGER",
+        department: { id: "promotion", name: "Promotion", active: true },
+      });
+      repository.findById.mockResolvedValue(
+        makeCampaign({
+          campaignType: "PROMOTION",
+          status: "APPROVED",
+          departmentId: "promotion",
+        }),
+      );
+      await service.transition(ACTOR, "cmp-1", "ACTIVE");
+      expect(repository.updateStatus).toHaveBeenCalled();
+    });
+
+    it("lets Admin approve, and only approve", async () => {
+      grantOnly(["campaign.transition_status", "ORGANIZATION"]);
+      permissions.getAccessContext.mockResolvedValue({
+        role: "ADMIN",
+        department: null,
+      });
+      repository.findById.mockResolvedValue(promotion("PLANNED"));
+      await service.transition(ACTOR, "cmp-1", "APPROVED");
+      expect(repository.updateStatus).toHaveBeenCalledTimes(1);
+
+      repository.findById.mockResolvedValue(promotion("APPROVED"));
+      await expectCode(
+        service.transition(ACTOR, "cmp-1", "ACTIVE"),
+        "PERMISSION_DENIED",
+      );
+      repository.findById.mockResolvedValue(
+        makeCampaign({ status: "PLANNED" }),
+      );
+      await expectCode(
+        service.transition(ACTOR, "cmp-1", "ACTIVE"),
+        "PERMISSION_DENIED",
+      );
+      expect(repository.updateStatus).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("read-only department oversight (EVE-229)", () => {
+    beforeEach(() => {
+      // The Marketing Manager: every campaign key at DEPARTMENT scope, and
+      // read keys reach the overseen Promotion department.
+      permissions.hasGrant.mockImplementation((_u, _k, scope) =>
+        Promise.resolve(scope === "DEPARTMENT"),
+      );
+      repository.findUserDepartmentId.mockResolvedValue("marketing");
+      permissions.overseenDepartmentIdsFor.mockImplementation((_u, key) =>
+        Promise.resolve(
+          key === "campaign.read" || key === "campaign.budget.read"
+            ? ["promotion"]
+            : [],
+        ),
+      );
+      permissions.getAccessContext.mockResolvedValue({
+        role: "DEPARTMENT_MANAGER",
+        department: { id: "marketing", name: "Marketing", active: true },
+      });
+      repository.findById.mockResolvedValue(
+        makeCampaign({
+          campaignType: "PROMOTION",
+          status: "APPROVED",
+          departmentId: "promotion",
+        }),
+      );
+    });
+
+    it("lists the overseen department alongside the manager's own", async () => {
+      await service.list(ACTOR, { page: 1, pageSize: 25 });
+      expect(repository.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          visibility: {
+            organization: false,
+            departmentId: "marketing",
+            overseenDepartmentIds: ["promotion"],
+          },
+        }),
+      );
+    });
+
+    it("reads an overseen campaign, its activities and its budget", async () => {
+      await expect(service.get(ACTOR, "cmp-1")).resolves.toMatchObject({
+        departmentId: "promotion",
+      });
+      await expect(
+        service.listActivities(ACTOR, "cmp-1", { page: 1, pageSize: 25 }),
+      ).resolves.toMatchObject({ total: 0 });
+      await expect(service.getBudget(ACTOR, "cmp-1")).resolves.toBeDefined();
+    });
+
+    it("refuses every write on an overseen campaign", async () => {
+      const writes: (() => Promise<unknown>)[] = [
+        () => service.update(ACTOR, "cmp-1", { name: "x" }),
+        () => service.transition(ACTOR, "cmp-1", "ACTIVE"),
+        () => service.setManager(ACTOR, "cmp-1", null),
+        () => service.assignTeam(ACTOR, "cmp-1", "team-1"),
+        () => service.unassignTeam(ACTOR, "cmp-1", "team-1"),
+        () => service.setBudget(ACTOR, "cmp-1", { amount: 1, currency: "ETB" }),
+        () => service.remove(ACTOR, "cmp-1", "req-1"),
+        () => service.createActivity(ACTOR, "cmp-1", { name: "x" }),
+        () => service.updateActivity(ACTOR, "cmp-1", "act-1", {}),
+        () => service.removeActivity(ACTOR, "cmp-1", "act-1", "req-1"),
+        () =>
+          service.assertCampaignPermission(
+            ACTOR,
+            "cmp-1",
+            "campaign.activity.manage",
+          ),
+      ];
+      for (const write of writes) {
+        await expectCode(write(), "PERMISSION_DENIED");
+      }
+      expect(repository.update).not.toHaveBeenCalled();
+      expect(repository.updateStatus).not.toHaveBeenCalled();
+      expect(repository.setBudget).not.toHaveBeenCalled();
+      expect(repository.delete).not.toHaveBeenCalled();
+      expect(repository.createActivity).not.toHaveBeenCalled();
+    });
+  });
+
   describe("lifecycle", () => {
     it.each([
       ["PLANNED", "ACTIVE"],
@@ -467,7 +678,12 @@ describe("CampaignsService", () => {
 
       await service.transition(ACTOR, "cmp-1", to);
 
-      expect(repository.updateStatus).toHaveBeenCalledWith("cmp-1", from, to);
+      expect(repository.updateStatus).toHaveBeenCalledWith(
+        "cmp-1",
+        from,
+        to,
+        undefined,
+      );
     });
 
     it.each([

@@ -3,10 +3,17 @@ import { Injectable } from "@nestjs/common";
 import type { PermissionScope } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
 import {
+  canOverseeDepartments,
   constrainDepartmentGrants,
+  isOversightReadKey,
   platformRole,
   type DepartmentAccessContext,
 } from "./department-access.policy.js";
+
+export interface OverseenDepartment {
+  id: string;
+  name: string;
+}
 
 export interface EffectiveGrant {
   permissionKey: string;
@@ -67,6 +74,54 @@ export class PermissionsService {
   async getPermissionKeys(userId: string): Promise<Set<string>> {
     const grants = await this.getEffectiveGrants(userId);
     return new Set(grants.map((grant) => grant.permissionKey));
+  }
+
+  /**
+   * The active departments this user oversees read-only (EVE-229, ADR 0008):
+   * departments whose `oversight_department_id` is the user's own department,
+   * when the user is that department's active, recorded manager. Empty for
+   * everyone else, so callers can merge it into a visibility filter
+   * unconditionally.
+   */
+  async getOverseenDepartments(userId: string): Promise<OverseenDepartment[]> {
+    const user = await this.db.user.findUnique({
+      where: { id: userId },
+      select: {
+        status: true,
+        managedDepartments: { select: { id: true } },
+      },
+    });
+    if (!user || user.status !== "ACTIVE") return [];
+    const context = await this.getAccessContext(userId);
+    const managed = user.managedDepartments.map((department) => department.id);
+    if (!canOverseeDepartments(context, managed) || !context.department) {
+      return [];
+    }
+    return this.db.department.findMany({
+      where: {
+        oversightDepartmentId: context.department.id,
+        deactivatedAt: null,
+      },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  }
+
+  /**
+   * The overseen department ids that widen `permissionKey`'s reach for this
+   * user. Only read keys qualify (`OVERSIGHT_READ_PERMISSION_KEYS`), and only
+   * when the user already holds the key at DEPARTMENT scope, so oversight
+   * extends an existing department read and never grants a new capability.
+   */
+  async overseenDepartmentIdsFor(
+    userId: string,
+    permissionKey: string,
+  ): Promise<string[]> {
+    if (!isOversightReadKey(permissionKey)) return [];
+    if (!(await this.hasGrant(userId, permissionKey, "DEPARTMENT"))) return [];
+    return (await this.getOverseenDepartments(userId)).map(
+      (department) => department.id,
+    );
   }
 
   /** Whether the user holds the exact `(permissionKey, scope)` grant. */

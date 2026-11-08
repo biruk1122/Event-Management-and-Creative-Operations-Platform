@@ -7,6 +7,7 @@ import {
   accessKey,
   type CurrentAccess,
 } from "@/features/auth/api/access-queries";
+import { isOverseenRecord } from "@/features/auth/lib/department-oversight";
 import { listDepartments } from "@/features/departments/api/departments-gateway";
 import { listUsers } from "@/features/users/api/users-gateway";
 import { readableKinds } from "@/features/workspaces/lib/workspace-access";
@@ -59,10 +60,20 @@ function downloadReport(id: string, content: unknown) {
   URL.revokeObjectURL(url);
 }
 
-export function ReportsManager({ access }: { access: CurrentAccess }) {
+export function ReportsManager({
+  access,
+  readOnly = false,
+}: {
+  access: CurrentAccess;
+  /** No create or submit controls (EVE-229 oversight); review stays. */
+  readOnly?: boolean;
+}) {
   const client = useQueryClient();
   const keys = reportKeys(access);
-  const abilities = reportAbilities(access);
+  const granted = reportAbilities(access);
+  const abilities = readOnly
+    ? { ...granted, canCreate: false, canSubmit: false, canAttach: false }
+    : granted;
   const kinds = readableKinds(access);
   const [filters, setFilters] = useState<ReportFilters>(INITIAL_FILTERS);
   const [page, setPage] = useState(1);
@@ -85,6 +96,15 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
     retry: false,
     refetchOnWindowFocus: true,
   });
+  // EVE-229: an overseeing manager reads the overseen department's reports
+  // but reviews only the ones submitted to them, as the API enforces.
+  const selectedOverseen = isOverseenRecord(
+    access,
+    detailQuery.data?.departmentId,
+  );
+  const reviewAllowed =
+    abilities.canReview &&
+    (!selectedOverseen || detailQuery.data?.reportToId === access.userId);
 
   // Enrichment is optional. The reports API, not these directory queries,
   // performs the report visibility check and supplies all report metrics.
@@ -339,7 +359,7 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
           : null
       }
       canCreate={abilities.canCreate}
-      canReview={abilities.canReview}
+      canReview={reviewAllowed}
       isSuperAdmin={access.role === "SUPER_ADMIN"}
       recipients={(recipientsQuery.data ?? []).map((person) => ({
         id: person.id,
@@ -359,7 +379,7 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
             ? reportPersonName(item.author)
             : (authorNames[item.authorId] ?? "A manager"),
         }))}
-      canAttach={abilities.canAttach}
+      canAttach={abilities.canAttach && !selectedOverseen}
       busy={busy}
       notice={displayNotice}
       errorMessage={
@@ -390,14 +410,14 @@ export function ReportsManager({ access }: { access: CurrentAccess }) {
           : undefined
       }
       onStartReview={
-        abilities.canReview
+        reviewAllowed
           ? (id) => {
               void startReview(id);
             }
           : undefined
       }
       onReview={
-        abilities.canReview
+        reviewAllowed
           ? (id, outcome, note) => {
               void review(id, outcome, note);
             }

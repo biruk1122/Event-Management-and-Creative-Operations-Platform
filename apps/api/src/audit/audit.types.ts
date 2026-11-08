@@ -12,6 +12,7 @@ export type SupportedAuditAction =
   | "event.team_assigned"
   | "event.team_removed"
   | "event.budget_changed"
+  | "campaign.status_changed"
   | "event.milestone.created"
   | "event.milestone.updated"
   | "event.milestone.deleted"
@@ -86,6 +87,7 @@ export interface AppendAuditRecordInput {
   resourceType:
     | "event"
     | "event_milestone"
+    | "campaign"
     | "task"
     | "talent"
     | "managed_file"

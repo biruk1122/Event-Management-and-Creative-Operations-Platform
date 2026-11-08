@@ -21,9 +21,11 @@ const CANCELLED_CLASS = "text-destructive";
 export function CampaignStatusBadge({ status }: { status: CampaignStatus }) {
   switch (status) {
     case "PLANNED":
+    case "APPROVED":
       return <Badge variant="secondary">{campaignStatusLabel(status)}</Badge>;
     case "ACTIVE":
       return <Badge>{campaignStatusLabel(status)}</Badge>;
+    case "PAUSED":
     case "COMPLETED":
       return <Badge variant="outline">{campaignStatusLabel(status)}</Badge>;
     case "CANCELLED":

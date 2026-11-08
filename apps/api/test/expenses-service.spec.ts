@@ -62,6 +62,7 @@ describe("ExpensesService", () => {
   };
   let permissions: {
     getEffectiveGrants: ReturnType<typeof vi.fn>;
+    overseenDepartmentIdsFor?: ReturnType<typeof vi.fn>;
   };
   let service: ExpensesService;
 
@@ -81,7 +82,11 @@ describe("ExpensesService", () => {
       submit: vi.fn().mockResolvedValue(makeExpense({ status: "SUBMITTED" })),
       review: vi.fn().mockResolvedValue(makeExpense({ status: "APPROVED" })),
     };
-    permissions = { getEffectiveGrants: vi.fn().mockResolvedValue([]) };
+    permissions = {
+      getEffectiveGrants: vi.fn().mockResolvedValue([]),
+      // No department oversight unless a test sets it (EVE-229).
+      overseenDepartmentIdsFor: vi.fn().mockResolvedValue([]),
+    };
     service = new ExpensesService(repo as never, permissions as never);
   });
 

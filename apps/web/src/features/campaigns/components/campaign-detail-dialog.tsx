@@ -35,7 +35,11 @@ import {
 import { CampaignActivities } from "./campaign-activities";
 import { CampaignFields } from "./campaign-fields";
 import { CampaignStatusBadge } from "./status-badges";
-import type { CampaignAbilities } from "../lib/campaign-access";
+import {
+  campaignAbilitiesFor,
+  campaignMovesFor,
+  type CampaignAbilities,
+} from "../lib/campaign-access";
 import {
   fieldsFromCampaign,
   toFormValues,
@@ -62,7 +66,7 @@ import {
   budgetSummary,
   campaignStatusLabel,
   campaignTypeLabel,
-  NEXT_STATUSES,
+  nextCampaignStatuses,
   personName,
   scheduleSummary,
   subjectSummary,
@@ -166,7 +170,7 @@ function CampaignDetailBody({
   users,
   teams,
   events,
-  abilities,
+  abilities: baseAbilities,
   getCampaign = defaultGetCampaign,
   getBudget = defaultGetCampaignBudget,
   listActivities,
@@ -198,6 +202,13 @@ function CampaignDetailBody({
     "overview",
   );
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  // A campaign of a department the viewer only oversees (EVE-229) is
+  // read-only, whatever the viewer's own department grants allow.
+  const viewer = promotionAccess ?? marketingAccess;
+  const abilities =
+    viewer && campaign
+      ? campaignAbilitiesFor(viewer, campaign, baseAbilities)
+      : baseAbilities;
   const [budget, setBudget] = useState<CampaignBudget | null>(null);
   const [budgetReadable, setBudgetReadable] = useState(abilities.canReadBudget);
 
@@ -454,7 +465,9 @@ function CampaignDetailBody({
 
   const assignedTeamIds = new Set(campaign.teams.map((team) => team.id));
   const addableTeams = teams.filter((team) => !assignedTeamIds.has(team.id));
-  const moves = NEXT_STATUSES[campaign.status];
+  const moves = viewer
+    ? campaignMovesFor(viewer, campaign)
+    : nextCampaignStatuses(campaign);
 
   return (
     <>
@@ -517,6 +530,7 @@ function CampaignDetailBody({
         <PromotionOperationsPanel
           campaignId={campaign.id}
           campaignName={campaign.name}
+          campaignDepartmentId={campaign.departmentId}
           access={promotionAccess}
         />
       ) : view === "marketing" &&

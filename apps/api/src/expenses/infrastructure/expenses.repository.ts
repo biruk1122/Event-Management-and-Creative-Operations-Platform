@@ -39,6 +39,8 @@ export type ExpenseRecord = Prisma.ExpenseGetPayload<{
 export interface ExpenseVisibility {
   organization: boolean;
   departmentId?: string;
+  /** Departments the caller oversees read-only (EVE-229). */
+  overseenDepartmentIds?: string[];
   selfUserId?: string;
 }
 
@@ -80,6 +82,8 @@ function visibleWhere(visibility: ExpenseVisibility): Prisma.ExpenseWhereInput {
   const or: Prisma.ExpenseWhereInput[] = [];
   if (visibility.departmentId)
     or.push({ departmentId: visibility.departmentId });
+  if (visibility.overseenDepartmentIds?.length)
+    or.push({ departmentId: { in: visibility.overseenDepartmentIds } });
   if (visibility.selfUserId) or.push({ createdById: visibility.selfUserId });
   return or.length ? { OR: or } : { id: { in: [] } };
 }

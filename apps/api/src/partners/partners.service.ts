@@ -57,9 +57,17 @@ export class PartnersService {
     const departmentId = department
       ? await this.repository.findUserDepartmentId(actingUserId)
       : null;
+    // Read-only oversight (EVE-229): `partner.read` only.
+    const overseenDepartmentIds = organization
+      ? []
+      : await this.permissions.overseenDepartmentIdsFor(
+          actingUserId,
+          permissionKey,
+        );
     return {
       organization,
       ...(departmentId ? { departmentId } : {}),
+      ...(overseenDepartmentIds.length > 0 ? { overseenDepartmentIds } : {}),
       ...(self ? { selfUserId: actingUserId } : {}),
     };
   }
@@ -84,6 +92,16 @@ export class PartnersService {
         await this.repository.findUserDepartmentId(actingUserId);
       if (departmentId && departmentId === partner.departmentId) return true;
     }
+    if (
+      partner.departmentId &&
+      (
+        await this.permissions.overseenDepartmentIdsFor(
+          actingUserId,
+          permissionKey,
+        )
+      ).includes(partner.departmentId)
+    )
+      return true;
     if (await this.permissions.hasGrant(actingUserId, permissionKey, "SELF")) {
       if (partner.owner?.id === actingUserId) return true;
     }

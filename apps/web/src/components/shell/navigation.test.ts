@@ -150,6 +150,8 @@ describe("shell destinations", () => {
       "/expenses",
       "/suppliers",
       "/projects/production",
+      // EVE-229: Promotion staff also reach their own department workspace.
+      "/promotion",
       "/campaigns",
       "/partners",
       "/shared-with-me",
@@ -234,5 +236,36 @@ describe("shell destinations", () => {
       "Projects",
     );
     expect(activeDestination(items, "/projects-unknown")).toBeUndefined();
+  });
+});
+
+describe("Promotion workspace entry (EVE-229)", () => {
+  const promotionWorkspace = (value: CurrentAccess) =>
+    destinations(value).some((item) => String(item.href) === "/promotion");
+
+  it("shows the workspace to Promotion staff and the overseeing Marketing Manager only", () => {
+    expect(
+      promotionWorkspace({
+        ...access([], { id: "dept-promo", name: "Promotion", active: true }),
+        role: "DEPARTMENT_MEMBER",
+      }),
+    ).toBe(true);
+    expect(
+      promotionWorkspace({
+        ...access([], { id: "dept-mkt", name: "Marketing", active: true }),
+        role: "DEPARTMENT_MANAGER",
+        overseenDepartments: [{ id: "dept-promo", name: "Promotion" }],
+      }),
+    ).toBe(true);
+    expect(
+      promotionWorkspace({
+        ...access([], { id: "dept-mkt", name: "Marketing", active: true }),
+        role: "DEPARTMENT_MEMBER",
+      }),
+    ).toBe(false);
+    expect(promotionWorkspace({ ...access([]), role: "ADMIN" })).toBe(false);
+    expect(promotionWorkspace({ ...access([]), role: "SUPER_ADMIN" })).toBe(
+      true,
+    );
   });
 });

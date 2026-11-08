@@ -6,6 +6,7 @@ import {
   campaignStatusLabel,
   campaignTypeLabel,
   NEXT_STATUSES,
+  nextCampaignStatuses,
   personName,
   progressOf,
   progressSummary,
@@ -61,6 +62,23 @@ describe("campaigns-types helpers", () => {
     expect(NEXT_STATUSES.CANCELLED).toEqual([]);
     expect(NEXT_STATUSES.PLANNED).toEqual(["ACTIVE", "CANCELLED"]);
     expect(NEXT_STATUSES.ACTIVE).toEqual(["COMPLETED", "CANCELLED"]);
+    // APPROVED and PAUSED never belong to a marketing campaign.
+    expect(NEXT_STATUSES.APPROVED).toEqual([]);
+    expect(NEXT_STATUSES.PAUSED).toEqual([]);
+  });
+
+  it("gives promotion campaigns the approval and pause lifecycle (EVE-229)", () => {
+    const promotion = (
+      status: Parameters<typeof nextCampaignStatuses>[0]["status"],
+    ) => nextCampaignStatuses({ campaignType: "PROMOTION", status });
+    expect(promotion("PLANNED")).toEqual(["APPROVED", "CANCELLED"]);
+    expect(promotion("APPROVED")).toEqual(["ACTIVE", "CANCELLED"]);
+    expect(promotion("ACTIVE")).toEqual(["PAUSED", "COMPLETED", "CANCELLED"]);
+    expect(promotion("PAUSED")).toEqual(["ACTIVE", "COMPLETED", "CANCELLED"]);
+    expect(promotion("COMPLETED")).toEqual([]);
+    expect(
+      nextCampaignStatuses({ campaignType: "MARKETING", status: "PLANNED" }),
+    ).toEqual(["ACTIVE", "CANCELLED"]);
   });
 
   describe("progress", () => {

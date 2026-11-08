@@ -204,7 +204,12 @@ export class CampaignsController {
     @Param("id") id: string,
     @Body() body: TransitionCampaignDto,
   ): Promise<CampaignResponse> {
-    return this.campaigns.transition(actingUserId(request), id, body.status);
+    return this.campaigns.transition(
+      actingUserId(request),
+      id,
+      body.status,
+      request.id,
+    );
   }
 
   @Put(":id/manager")

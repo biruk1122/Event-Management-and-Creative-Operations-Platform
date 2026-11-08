@@ -11,7 +11,13 @@ import { reportKeys } from "../api/reports-queries";
 import { reportAbilities } from "../lib/reports-access";
 import { ReportsManager } from "./reports-manager";
 
-export function ReportsScreen() {
+export function ReportsScreen({
+  readOnly = false,
+}: {
+  /** Embedded where the viewer only oversees the reports (EVE-229): no
+   * create or submit controls. Reviewing a report sent to the viewer stays. */
+  readOnly?: boolean;
+} = {}) {
   const access = useCurrentAccess();
   const client = useQueryClient();
   const allowed = access.data ? reportAbilities(access.data).canRead : false;
@@ -52,5 +58,5 @@ export function ReportsScreen() {
   if (!allowed) return <p role="alert">You do not have access to reports.</p>;
 
   const key = reportKeys(access.data).all.join(":");
-  return <ReportsManager key={key} access={access.data} />;
+  return <ReportsManager key={key} access={access.data} readOnly={readOnly} />;
 }

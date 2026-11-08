@@ -32,31 +32,60 @@ export const CAMPAIGN_TYPE_LABELS: Record<CampaignType, string> = {
 
 export const CAMPAIGN_STATUSES: readonly CampaignStatus[] = [
   "PLANNED",
+  "APPROVED",
   "ACTIVE",
+  "PAUSED",
   "COMPLETED",
   "CANCELLED",
 ];
 
 export const CAMPAIGN_STATUS_LABELS: Record<CampaignStatus, string> = {
   PLANNED: "Planned",
+  APPROVED: "Approved",
   ACTIVE: "Active",
+  PAUSED: "Paused",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
 };
 
 /**
- * The lifecycle moves the transition control offers from each state. Mirrors
- * the graph `CampaignsService` enforces: `COMPLETED` and `CANCELLED` are
- * terminal. Entry criteria and who may make a move are open in OD-03 and owned
- * by the API.
+ * The marketing lifecycle moves the transition control offers from each
+ * state. Mirrors the graph `CampaignsService` enforces: `COMPLETED` and
+ * `CANCELLED` are terminal; APPROVED and PAUSED never apply to marketing.
  */
 export const NEXT_STATUSES: Record<CampaignStatus, readonly CampaignStatus[]> =
   {
     PLANNED: ["ACTIVE", "CANCELLED"],
+    APPROVED: [],
     ACTIVE: ["COMPLETED", "CANCELLED"],
+    PAUSED: [],
     COMPLETED: [],
     CANCELLED: [],
   };
+
+/** The promotion lifecycle (EVE-229): approval first, and a pause. */
+export const PROMOTION_NEXT_STATUSES: Record<
+  CampaignStatus,
+  readonly CampaignStatus[]
+> = {
+  PLANNED: ["APPROVED", "CANCELLED"],
+  APPROVED: ["ACTIVE", "CANCELLED"],
+  ACTIVE: ["PAUSED", "COMPLETED", "CANCELLED"],
+  PAUSED: ["ACTIVE", "COMPLETED", "CANCELLED"],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
+/** The moves a campaign's own lifecycle allows from its current status. */
+export function nextCampaignStatuses(
+  campaign: Pick<Campaign, "campaignType" | "status">,
+): CampaignStatus[] {
+  const graph =
+    campaign.campaignType === "PROMOTION"
+      ? PROMOTION_NEXT_STATUSES
+      : NEXT_STATUSES;
+  return [...graph[campaign.status]];
+}
 
 export const ACTIVITY_STATUSES: readonly CampaignActivityStatus[] = [
   "PLANNED",

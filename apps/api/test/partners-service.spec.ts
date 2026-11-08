@@ -87,6 +87,7 @@ describe("PartnersService", () => {
         (u: string, k: string, s: PermissionScope) => Promise<boolean>
       >
     >;
+    overseenDepartmentIdsFor?: ReturnType<typeof vi.fn>;
   };
   let service: PartnersService;
 
@@ -102,7 +103,11 @@ describe("PartnersService", () => {
       listActivities: vi.fn().mockResolvedValue({ items: [], total: 0 }),
       createActivity: vi.fn().mockResolvedValue(makeActivity()),
     };
-    permissions = { hasGrant: vi.fn().mockResolvedValue(true) };
+    permissions = {
+      hasGrant: vi.fn().mockResolvedValue(true),
+      // No department oversight unless a test sets it (EVE-229).
+      overseenDepartmentIdsFor: vi.fn().mockResolvedValue([]),
+    };
     service = new PartnersService(repository as never, permissions as never);
   });
 

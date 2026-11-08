@@ -4983,7 +4983,13 @@ export interface components {
        * @description Current lifecycle state.
        * @enum {string}
        */
-      status: "PLANNED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+      status:
+        | "PLANNED"
+        | "APPROVED"
+        | "ACTIVE"
+        | "PAUSED"
+        | "COMPLETED"
+        | "CANCELLED";
       /** @description Teams assigned to this campaign, from the connected workspace. */
       teams: components["schemas"]["CampaignTeamSummary"][];
       /** Format: date-time */
@@ -5940,6 +5946,8 @@ export interface components {
     CurrentAccessResponse: {
       department?: components["schemas"]["AccessDepartmentResponse"] | null;
       grants: components["schemas"]["EffectivePermissionResponse"][];
+      /** @description Departments this account oversees read-only. Empty unless the account manages a department that oversees others. */
+      overseenDepartments?: components["schemas"]["OverseenDepartmentResponse"][];
       /** @enum {string|null} */
       role?:
         | "SUPER_ADMIN"
@@ -7291,6 +7299,11 @@ export interface components {
         | "TALENT_ASSIGNMENT_CANCELLED";
     };
     Object: Record<string, never>;
+    OverseenDepartmentResponse: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
     OvertimeApprovalResponse: {
       approvedMinutes: number | null;
       /** Format: uuid */
@@ -9062,7 +9075,13 @@ export interface components {
        * @description The lifecycle state to move to. Must be reachable from the current state under the approved graph.
        * @enum {string}
        */
-      status: "PLANNED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+      status:
+        | "PLANNED"
+        | "APPROVED"
+        | "ACTIVE"
+        | "PAUSED"
+        | "COMPLETED"
+        | "CANCELLED";
     };
     TransitionEventDto: {
       /**
@@ -11459,7 +11478,13 @@ export interface operations {
   Campaigns_list_v1: {
     parameters: {
       query?: {
-        status?: "PLANNED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+        status?:
+          | "PLANNED"
+          | "APPROVED"
+          | "ACTIVE"
+          | "PAUSED"
+          | "COMPLETED"
+          | "CANCELLED";
         campaignType?: "MARKETING" | "PROMOTION";
         /** @description Restrict to campaigns that relate to this event. */
         eventId?: string;

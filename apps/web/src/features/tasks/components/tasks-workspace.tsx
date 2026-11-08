@@ -152,6 +152,9 @@ export interface TaskCollaborationActions {
    * subtasks (`canAssign` above), not by editing who else works on a task
    * someone else assigned to them. */
   canManageAssignees: (task: Task) => boolean;
+  /** Per-task: a task of a department the viewer only oversees (EVE-229).
+   * Read-only, so the blanket controls above are hidden for it too. */
+  isReadOnly?: (task: Task) => boolean;
   assignmentDirectoryMessage?: string;
   addComment: (id: string, content: string) => Promise<unknown>;
   addChecklistItem: (id: string, description: string) => Promise<unknown>;
@@ -671,10 +674,31 @@ function CalendarView({
   );
 }
 
+/** The same actions with every control off, for a read-only task. */
+function readOnlyCollaboration(
+  actions: TaskCollaborationActions,
+): TaskCollaborationActions {
+  const never = () => false;
+  return {
+    ...actions,
+    canComment: false,
+    canEditChecklist: never,
+    canManageUnattributedChecklistItems: false,
+    canToggleChecklist: never,
+    canTransition: never,
+    canSubmit: never,
+    canReview: never,
+    canSetReportTo: false,
+    canUpload: false,
+    canAssign: false,
+    canManageAssignees: never,
+  };
+}
+
 function TaskDetailDialog({
   preview,
   onClose,
-  collaboration,
+  collaboration: baseCollaboration,
   onSelectTask,
 }: {
   preview: TaskCollaborationPreview | null;
@@ -694,6 +718,12 @@ function TaskDetailDialog({
   const [actionError, setActionError] = useState<string | null>(null);
   const [subtaskCreateOpen, setSubtaskCreateOpen] = useState(false);
   const selectedTask = preview?.task;
+  const collaboration =
+    baseCollaboration &&
+    selectedTask &&
+    baseCollaboration.isReadOnly?.(selectedTask)
+      ? readOnlyCollaboration(baseCollaboration)
+      : baseCollaboration;
   const detail = useQuery({
     queryKey: collaboration?.detailKey(selectedTask?.id ?? "") ?? [
       "task-preview",
