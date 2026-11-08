@@ -47,6 +47,7 @@ export type Destination = {
     | "documents"
     | "sharedWithMe"
     | "roles"
+    | "sms"
     | "workspaces"
     | "attendance"
     | "leave";
@@ -254,6 +255,13 @@ export function destinations(access: CurrentAccess): Destination[] {
     "Roles and permissions",
     "Organization",
     "roles",
+  );
+  add(
+    holds("settings.read", ["ORGANIZATION"]),
+    "/settings/sms",
+    "SMS",
+    "Organization",
+    "sms",
   );
   return items;
 }

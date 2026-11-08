@@ -210,6 +210,8 @@ model User {
   // Scoped visibility and the department roster both filter users by department.
   @@index([departmentId])
   smsMessages SmsMessage[] @relation("SmsMessageRecipient")
+  smsRuntimeSettingsUpdates SmsRuntimeSettings[] @relation("SmsRuntimeSettingsUpdater")
+  smsCategorySettingUpdates SmsCategorySetting[] @relation("SmsCategorySettingUpdater")
   @@map("users")
 }
 
@@ -3857,4 +3859,30 @@ model SmsDeliveryAttempt {
 
   @@unique([smsMessageId, attemptNumber])
   @@map("sms_delivery_attempts")
+}
+
+/// Runtime SMS switches. A single row (id = 1). Delivery starts disabled, and
+/// the environment switch AFROMESSAGE_ENABLED still overrides it.
+model SmsRuntimeSettings {
+  id            Int      @id @default(1) @db.SmallInt
+  globalEnabled Boolean  @default(false) @map("global_enabled")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedById   String?  @map("updated_by_id") @db.Uuid
+
+  updatedBy User? @relation("SmsRuntimeSettingsUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("sms_runtime_settings")
+}
+
+/// Per-category runtime switch. A category with no row is enabled.
+model SmsCategorySetting {
+  category    SmsCategory
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedById String?  @map("updated_by_id") @db.Uuid
+
+  updatedBy User? @relation("SmsCategorySettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@id([category])
+  @@map("sms_category_settings")
 }

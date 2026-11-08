@@ -15,14 +15,27 @@ import type { ClaimedOutboxDelivery } from "../outbox/outbox.types.js";
 import { ENVIRONMENT, type Environment } from "../config/environment.js";
 import {
   smsCallbackNotFound,
+  smsInvalidDateRange,
   smsMessageNotFound,
   smsMessageNotResolvable,
+  smsSettingsInvalid,
 } from "./sms.errors.js";
 import {
   SmsRepository,
   type DispatchView,
+  type SmsMessageDetailRow,
   type SmsMessageRow,
 } from "./sms.repository.js";
+
+/** Runtime settings for administrators. Provider values are presence flags, never secrets. */
+export interface SmsSettingsView {
+  environmentEnabled: boolean;
+  globalEnabled: boolean;
+  effectiveEnabled: boolean;
+  categories: { category: SmsCategory; enabled: boolean }[];
+  updatedAt: Date | null;
+  provider: SmsServiceStatus;
+}
 
 /**
  * A category rule checked at send time. Returns a reason to cancel the message,
@@ -37,6 +50,7 @@ import { StatusCheckRateLimiter } from "./sms-rate-limiter.js";
 import { normalizeEthiopianPhone } from "./phone.js";
 import { renderTemplate, type SmsTemplateName } from "./templates.js";
 import {
+  SMS_CATEGORIES,
   SMS_CONSUMER_NAME,
   SMS_CONSUMER_VERSION,
   type SmsCategory,
@@ -278,6 +292,25 @@ export class SmsService {
       return;
     }
 
+    // Recheck the runtime switches immediately before sending. A disable made
+    // after queueing still stops the message, and it stays in history.
+    const switches = await this.repository.findDispatchSwitches(
+      message.category,
+    );
+    if (!switches.globalEnabled) {
+      await this.repository.setStatus(null, id, "CANCELLED", "GLOBAL_DISABLED");
+      return;
+    }
+    if (!switches.categoryEnabled) {
+      await this.repository.setStatus(
+        null,
+        id,
+        "CANCELLED",
+        "CATEGORY_DISABLED",
+      );
+      return;
+    }
+
     const attemptNumber = await this.repository.claimForSend(id);
     if (attemptNumber === null) return;
 
@@ -388,10 +421,119 @@ export class SmsService {
   list(input: {
     status?: SmsStatus;
     category?: SmsCategory;
+    recipientUserId?: string;
+    createdFrom?: Date;
+    createdTo?: Date;
     page: number;
     pageSize: number;
   }): Promise<{ items: SmsMessageRow[]; total: number }> {
+    if (
+      input.createdFrom &&
+      input.createdTo &&
+      input.createdFrom > input.createdTo
+    ) {
+      throw smsInvalidDateRange();
+    }
     return this.repository.list(input);
+  }
+
+  /** Users to pick as a history filter. Names and ids only. */
+  searchRecipients(query: string) {
+    return this.repository.searchRecipients(query);
+  }
+
+  /** One message with its delivery attempts. Raises not-found for an unknown id. */
+  async detail(id: string): Promise<SmsMessageDetailRow> {
+    const row = await this.repository.findDetail(id);
+    if (!row) throw smsMessageNotFound();
+    return row;
+  }
+
+  /** Runtime settings as administrators see them. Provider values are presence flags only. */
+  async settings(): Promise<SmsSettingsView> {
+    const runtime = await this.repository.readRuntimeSettings();
+    const environmentEnabled = this.environment.AFROMESSAGE_ENABLED;
+    return {
+      environmentEnabled,
+      globalEnabled: runtime.globalEnabled,
+      effectiveEnabled: environmentEnabled && runtime.globalEnabled,
+      categories: SMS_CATEGORIES.map((category) => ({
+        category,
+        enabled: runtime.categories.get(category) ?? true,
+      })),
+      updatedAt: runtime.updatedAt,
+      provider: this.status(),
+    };
+  }
+
+  /**
+   * Changes runtime switches. Only Super Admin reaches this, through the
+   * controller's settings.update check. The environment switch still applies on
+   * top of these values. Each real change is audited, with no provider values.
+   */
+  async updateSettings(input: {
+    actingUserId: string;
+    requestId: string;
+    globalEnabled?: boolean;
+    categories?: Record<string, boolean>;
+  }): Promise<SmsSettingsView> {
+    const categories = input.categories ?? {};
+    if (
+      input.globalEnabled !== undefined &&
+      typeof input.globalEnabled !== "boolean"
+    ) {
+      throw smsSettingsInvalid("globalEnabled must be true or false.");
+    }
+    for (const [key, value] of Object.entries(categories)) {
+      if (!(SMS_CATEGORIES as readonly string[]).includes(key)) {
+        throw smsSettingsInvalid(`Unknown SMS category: ${key}.`);
+      }
+      if (typeof value !== "boolean") {
+        throw smsSettingsInvalid(`The value for ${key} must be true or false.`);
+      }
+    }
+    const changes = Object.entries(categories).map(([category, enabled]) => ({
+      category: category as SmsCategory,
+      enabled,
+    }));
+
+    await this.db.$transaction(async (tx) => {
+      const before = await this.repository.readRuntimeSettings(tx);
+      await this.repository.writeRuntimeSettings(tx, {
+        actorUserId: input.actingUserId,
+        ...(input.globalEnabled !== undefined
+          ? { globalEnabled: input.globalEnabled }
+          : {}),
+        categories: changes,
+      });
+      const changedCategories = changes
+        .filter(
+          (change) =>
+            (before.categories.get(change.category) ?? true) !== change.enabled,
+        )
+        .map((change) => `${change.category}:${change.enabled ? "on" : "off"}`);
+      const globalAfter = input.globalEnabled ?? before.globalEnabled;
+      if (
+        globalAfter === before.globalEnabled &&
+        changedCategories.length === 0
+      )
+        return;
+      await this.audit.append(tx, {
+        action: "sms.settings.updated",
+        actorKind: AuditActorKind.USER,
+        actorUserId: input.actingUserId,
+        requestId: input.requestId,
+        resourceType: "sms_settings",
+        resourceId: null,
+        outcome: AuditOutcome.SUCCEEDED,
+        metadata: {
+          globalEnabledBefore: before.globalEnabled,
+          globalEnabledAfter: globalAfter,
+          changedCategories: changedCategories.join(",") || null,
+        },
+      });
+    });
+    return this.settings();
   }
 
   /**

@@ -68,6 +68,7 @@ export type SupportedAuditAction =
   | "sms.provider.tested"
   | "sms.message.resolved"
   | "sms.enqueue_failed"
+  | "sms.settings.updated"
   | "leave.type.updated"
   | "leave.grant.created"
   | "leave.request.submitted"
@@ -104,6 +105,7 @@ export interface AppendAuditRecordInput {
     | "leave_grant"
     | "leave_request"
     | "sms_message"
+    | "sms_settings"
     | "meeting";
   resourceId: string | null;
   workspaceContext?: string;

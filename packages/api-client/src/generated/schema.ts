@@ -3386,6 +3386,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/sms/messages/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** One SMS with its delivery attempts. Phone numbers are masked and provider text is reduced */
+    get: operations["SmsAdmin_detail_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/sms/messages/{id}/resolve": {
     parameters: {
       query?: never;
@@ -3401,6 +3418,41 @@ export interface paths {
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sms/recipients": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Find users to filter the SMS history by. Returns names and user ids only, never contact details */
+    get: operations["SmsAdmin_recipients_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sms/settings": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Runtime SMS settings and provider configuration status. Never returns secret values */
+    get: operations["SmsAdmin_settings_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Change runtime SMS switches. The environment switch still overrides them. Changes are audited */
+    patch: operations["SmsAdmin_updateSettings_v1"];
     trace?: never;
   };
   "/api/v1/sms/status": {
@@ -8371,6 +8423,54 @@ export interface components {
       ok: boolean;
       reason?: string;
     };
+    SmsDeliveryAttemptResponse: {
+      attemptNumber: number;
+      error: string | null;
+      /** Format: date-time */
+      finishedAt: string | null;
+      /** @example REJECTED */
+      outcome: string;
+      providerHttpStatus: number | null;
+      /** @description Provider acknowledgement and status tokens only. Free text is withheld. */
+      providerResponse:
+        components["schemas"]["SmsProviderAcknowledgementResponse"] | null;
+      /** Format: date-time */
+      startedAt: string;
+    };
+    SmsMessageDetailResponse: {
+      /** Format: date-time */
+      acceptedAt: string | null;
+      attempts: number;
+      body: string;
+      /** Format: date-time */
+      callbackReceivedAt: string | null;
+      callbackStatus: string | null;
+      /** @example TEST */
+      category: string;
+      /** Format: date-time */
+      createdAt: string;
+      deliveryAttempts: components["schemas"]["SmsDeliveryAttemptResponse"][];
+      /** Format: uuid */
+      id: string;
+      lastError: string | null;
+      providerMessageId: string | null;
+      providerStatus: string | null;
+      /** Format: date-time */
+      providerStatusCheckedAt: string | null;
+      /** @example Dana Okafor */
+      recipientName: string | null;
+      /** @example +251******123 */
+      recipientPhoneMasked: string | null;
+      /** Format: uuid */
+      recipientUserId: string | null;
+      skipReason: string | null;
+      /** Format: date-time */
+      sourceDueAt: string | null;
+      /** @example ACCEPTED */
+      status: string;
+      /** @example test.connection */
+      templateKey: string;
+    };
     SmsMessageResponse: {
       /** Format: date-time */
       acceptedAt: string | null;
@@ -8400,6 +8500,21 @@ export interface components {
       /** @example test.connection */
       templateKey: string;
     };
+    SmsProviderAcknowledgementResponse: {
+      /** @example success */
+      acknowledge: string | null;
+      /** @example Send in progress */
+      status: string | null;
+    };
+    SmsRecipientListResponse: {
+      items: components["schemas"]["SmsRecipientResponse"][];
+    };
+    SmsRecipientResponse: {
+      /** Format: uuid */
+      id: string;
+      /** @example Hanna Bekele */
+      name: string;
+    };
     SmsServiceStatusResponse: {
       /** @description Whether the provider key is set. The key itself is never returned. */
       apiKeyConfigured: boolean;
@@ -8407,6 +8522,23 @@ export interface components {
       enabled: boolean;
       senderConfigured: boolean;
       timeoutMs: number;
+    };
+    SmsSettingsCategoryResponse: {
+      /** @example TASK_ASSIGNED */
+      category: string;
+      enabled: boolean;
+    };
+    SmsSettingsResponse: {
+      categories: components["schemas"]["SmsSettingsCategoryResponse"][];
+      /** @description True only when the environment and runtime switches are both on. */
+      effectiveEnabled: boolean;
+      /** @description The environment switch (AFROMESSAGE_ENABLED). It always overrides runtime settings. */
+      environmentEnabled: boolean;
+      /** @description The runtime global switch. Starts disabled. */
+      globalEnabled: boolean;
+      provider: components["schemas"]["SmsServiceStatusResponse"];
+      /** Format: date-time */
+      updatedAt: string | null;
     };
     SubmitReportDto: {
       /**
@@ -9299,6 +9431,14 @@ export interface components {
       description?: string;
       /** @example Regional Coordinator */
       name?: string;
+    };
+    UpdateSmsSettingsDto: {
+      /** @description Per-category switches, keyed by category name. */
+      categories?: {
+        [key: string]: boolean;
+      };
+      /** @description Global SMS switch. The environment switch still applies. */
+      globalEnabled?: boolean;
     };
     UpdateSupplierDto: {
       /** @example Catering */
@@ -23767,6 +23907,12 @@ export interface operations {
           | "MEETING_REMINDER"
           | "MEETING_CANCELLED"
           | "REPORT_SUBMITTED";
+        /** @description Only messages for this recipient user. */
+        recipientUserId?: string;
+        /** @description Created at or after this instant. */
+        createdFrom?: string;
+        /** @description Created at or before this instant. */
+        createdTo?: string;
         page?: number;
         pageSize?: number;
       };
@@ -23793,6 +23939,51 @@ export interface operations {
         };
       };
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SmsAdmin_detail_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SmsMessageDetailResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -23841,6 +24032,118 @@ export interface operations {
         };
       };
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SmsAdmin_recipients_v1: {
+    parameters: {
+      query: {
+        /** @description A name fragment, or a full user ID. */
+        q: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SmsRecipientListResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SmsAdmin_settings_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SmsSettingsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  SmsAdmin_updateSettings_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateSmsSettingsDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SmsSettingsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
         headers: {
           [name: string]: unknown;
         };

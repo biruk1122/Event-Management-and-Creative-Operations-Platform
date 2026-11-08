@@ -55,6 +55,28 @@ export interface SmsMessageRow {
   createdAt: Date;
 }
 
+export interface SmsDeliveryAttemptRow {
+  attemptNumber: number;
+  outcome: string;
+  providerHttpStatus: number | null;
+  /** Raw provider response. The controller reduces it with safeProviderResponse before it leaves the API. */
+  providerResponse: Prisma.JsonValue | null;
+  error: string | null;
+  startedAt: Date;
+  finishedAt: Date | null;
+}
+
+export interface SmsMessageDetailRow extends SmsMessageRow {
+  callbackReceivedAt: Date | null;
+  sourceDueAt: Date | null;
+  attemptLog: SmsDeliveryAttemptRow[];
+}
+
+type SettingsClient = Pick<
+  Prisma.TransactionClient,
+  "smsRuntimeSettings" | "smsCategorySetting"
+>;
+
 const RECIPIENT_SELECT = {
   select: { id: true, firstName: true, lastName: true },
 } as const;
@@ -335,12 +357,26 @@ export class SmsRepository {
   async list(input: {
     status?: SmsStatus;
     category?: SmsCategory;
+    recipientUserId?: string;
+    createdFrom?: Date;
+    createdTo?: Date;
     page: number;
     pageSize: number;
   }): Promise<{ items: SmsMessageRow[]; total: number }> {
     const where: Prisma.SmsMessageWhereInput = {
       ...(input.status ? { status: input.status } : {}),
       ...(input.category ? { category: input.category } : {}),
+      ...(input.recipientUserId
+        ? { recipientUserId: input.recipientUserId }
+        : {}),
+      ...(input.createdFrom || input.createdTo
+        ? {
+            createdAt: {
+              ...(input.createdFrom ? { gte: input.createdFrom } : {}),
+              ...(input.createdTo ? { lte: input.createdTo } : {}),
+            },
+          }
+        : {}),
     };
     const [rows, total] = await Promise.all([
       this.db.smsMessage.findMany({
@@ -377,6 +413,155 @@ export class SmsRepository {
         createdAt: row.createdAt,
       })),
       total,
+    };
+  }
+
+  /** The switches a dispatch reads just before sending. Missing rows mean the defaults: global off, category on. */
+  async findDispatchSwitches(
+    category: DbSmsCategory,
+  ): Promise<{ globalEnabled: boolean; categoryEnabled: boolean }> {
+    const [runtime, categorySetting] = await Promise.all([
+      this.db.smsRuntimeSettings.findUnique({
+        where: { id: 1 },
+        select: { globalEnabled: true },
+      }),
+      this.db.smsCategorySetting.findUnique({
+        where: { category },
+        select: { enabled: true },
+      }),
+    ]);
+    return {
+      globalEnabled: runtime?.globalEnabled ?? false,
+      categoryEnabled: categorySetting?.enabled ?? true,
+    };
+  }
+
+  /** Users to pick as a history filter. Returns ids and names only, never contact details. */
+  searchRecipients(
+    query: string,
+  ): Promise<
+    { id: string; firstName: string | null; lastName: string | null }[]
+  > {
+    const term = query.trim();
+    const isId =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        term,
+      );
+    return this.db.user.findMany({
+      where: isId
+        ? { id: term.toLowerCase() }
+        : {
+            OR: [
+              { firstName: { contains: term, mode: "insensitive" } },
+              { lastName: { contains: term, mode: "insensitive" } },
+            ],
+          },
+      select: { id: true, firstName: true, lastName: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { id: "asc" }],
+      take: 20,
+    });
+  }
+
+  /** Current runtime values. Categories without a row are enabled. */
+  async readRuntimeSettings(client: SettingsClient = this.db): Promise<{
+    globalEnabled: boolean;
+    updatedAt: Date | null;
+    categories: Map<DbSmsCategory, boolean>;
+  }> {
+    const [runtime, rows] = await Promise.all([
+      client.smsRuntimeSettings.findUnique({
+        where: { id: 1 },
+        select: { globalEnabled: true, updatedAt: true },
+      }),
+      client.smsCategorySetting.findMany({
+        select: { category: true, enabled: true },
+      }),
+    ]);
+    return {
+      globalEnabled: runtime?.globalEnabled ?? false,
+      updatedAt: runtime?.updatedAt ?? null,
+      categories: new Map(rows.map((row) => [row.category, row.enabled])),
+    };
+  }
+
+  async writeRuntimeSettings(
+    tx: Prisma.TransactionClient,
+    input: {
+      actorUserId: string;
+      globalEnabled?: boolean;
+      categories: { category: DbSmsCategory; enabled: boolean }[];
+    },
+  ): Promise<void> {
+    if (input.globalEnabled !== undefined) {
+      await tx.smsRuntimeSettings.upsert({
+        where: { id: 1 },
+        create: {
+          id: 1,
+          globalEnabled: input.globalEnabled,
+          updatedById: input.actorUserId,
+        },
+        update: {
+          globalEnabled: input.globalEnabled,
+          updatedById: input.actorUserId,
+        },
+      });
+    }
+    for (const change of input.categories) {
+      await tx.smsCategorySetting.upsert({
+        where: { category: change.category },
+        create: {
+          category: change.category,
+          enabled: change.enabled,
+          updatedById: input.actorUserId,
+        },
+        update: { enabled: change.enabled, updatedById: input.actorUserId },
+      });
+    }
+  }
+
+  /** One message with its delivery attempts. Provider text is reduced to fixed fields and redacted of phone numbers. */
+  async findDetail(id: string): Promise<SmsMessageDetailRow | null> {
+    const row = await this.db.smsMessage.findUnique({
+      where: { id },
+      include: {
+        recipient: RECIPIENT_SELECT,
+        attemptLog: { orderBy: { attemptNumber: "asc" } },
+      },
+    });
+    if (!row) return null;
+    return {
+      id: row.id,
+      category: row.category,
+      status: row.status,
+      recipientUserId: row.recipientUserId,
+      recipientName: row.recipient
+        ? [row.recipient.firstName, row.recipient.lastName]
+            .filter(Boolean)
+            .join(" ") || null
+        : null,
+      recipientPhone: row.recipientPhone,
+      templateKey: row.templateKey,
+      body: row.body,
+      skipReason: row.skipReason,
+      providerMessageId: row.providerMessageId,
+      providerStatus: row.providerStatus,
+      providerStatusCheckedAt: row.providerStatusCheckedAt,
+      callbackStatus: row.callbackStatus,
+      callbackReceivedAt: row.callbackReceivedAt,
+      attempts: row.attempts,
+      lastError: row.lastError,
+      acceptedAt: row.acceptedAt,
+      sourceDueAt: row.sourceDueAt,
+      createdAt: row.createdAt,
+      attemptLog: row.attemptLog.map((attempt) => ({
+        attemptNumber: attempt.attemptNumber,
+        outcome: attempt.outcome,
+        providerHttpStatus: attempt.providerHttpStatus,
+        providerResponse: attempt.providerResponse,
+        error: attempt.error,
+        startedAt: attempt.startedAt,
+        finishedAt: attempt.finishedAt,
+      })),
     };
   }
 }

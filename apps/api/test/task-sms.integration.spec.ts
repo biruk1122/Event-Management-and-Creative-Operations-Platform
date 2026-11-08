@@ -97,6 +97,12 @@ describe("task SMS (Phase 2)", () => {
       ),
     });
     await seedRbac(prisma);
+    // Runtime SMS delivery starts disabled. These specs test delivery, so turn it on explicitly.
+    await prisma.smsRuntimeSettings.upsert({
+      where: { id: 1 },
+      create: { id: 1, globalEnabled: true },
+      update: { globalEnabled: true },
+    });
 
     const [
       { Test },

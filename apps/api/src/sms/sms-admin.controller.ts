@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -29,11 +31,21 @@ import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import {
   PaginatedSmsMessagesResponse,
   SmsConnectionTestResponse,
+  SmsMessageDetailResponse,
   SmsMessageResponse,
+  SmsRecipientListResponse,
   SmsServiceStatusResponse,
+  SmsSettingsResponse,
 } from "./sms.contracts.js";
-import { ListSmsMessagesQueryDto, ResolveSmsMessageDto } from "./sms.dto.js";
-import { SmsService } from "./sms.service.js";
+import {
+  ListSmsMessagesQueryDto,
+  ResolveSmsMessageDto,
+  SearchSmsRecipientsQueryDto,
+  UpdateSmsSettingsDto,
+} from "./sms.dto.js";
+import { SmsService, type SmsSettingsView } from "./sms.service.js";
+import { safeProviderResponse, safeText } from "./sms-redaction.js";
+import { smsPersonName } from "./sms-format.js";
 import { maskPhone } from "./phone.js";
 import type { SmsMessageRow } from "./sms.repository.js";
 
@@ -54,13 +66,24 @@ function toResponse(row: SmsMessageRow): SmsMessageResponse {
     body: row.body,
     skipReason: row.skipReason,
     providerMessageId: row.providerMessageId,
-    providerStatus: row.providerStatus,
+    providerStatus: safeText(row.providerStatus),
     providerStatusCheckedAt: row.providerStatusCheckedAt?.toISOString() ?? null,
     callbackStatus: row.callbackStatus,
     attempts: row.attempts,
-    lastError: row.lastError,
+    lastError: safeText(row.lastError),
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
+  };
+}
+
+function toSettingsResponse(view: SmsSettingsView): SmsSettingsResponse {
+  return {
+    environmentEnabled: view.environmentEnabled,
+    globalEnabled: view.globalEnabled,
+    effectiveEnabled: view.effectiveEnabled,
+    categories: view.categories,
+    updatedAt: view.updatedAt?.toISOString() ?? null,
+    provider: view.provider,
   };
 }
 
@@ -101,6 +124,13 @@ export class SmsAdminController {
     const { items, total } = await this.sms.list({
       ...(query.status ? { status: query.status } : {}),
       ...(query.category ? { category: query.category } : {}),
+      ...(query.recipientUserId
+        ? { recipientUserId: query.recipientUserId }
+        : {}),
+      ...(query.createdFrom
+        ? { createdFrom: new Date(query.createdFrom) }
+        : {}),
+      ...(query.createdTo ? { createdTo: new Date(query.createdTo) } : {}),
       page: query.page,
       pageSize: query.pageSize,
     });
@@ -110,6 +140,88 @@ export class SmsAdminController {
       page: query.page,
       pageSize: query.pageSize,
     };
+  }
+
+  @Get("messages/:id")
+  @RequirePermissions("settings.read")
+  @ApiOperation({
+    summary:
+      "One SMS with its delivery attempts. Phone numbers are masked and provider text is reduced",
+  })
+  @ApiOkResponse({ type: SmsMessageDetailResponse })
+  @ApiNotFoundResponse({ type: ProblemDetails })
+  async detail(
+    @Param("id", new ParseUUIDPipe()) id: string,
+  ): Promise<SmsMessageDetailResponse> {
+    const row = await this.sms.detail(id);
+    return {
+      ...toResponse(row),
+      callbackReceivedAt: row.callbackReceivedAt?.toISOString() ?? null,
+      sourceDueAt: row.sourceDueAt?.toISOString() ?? null,
+      deliveryAttempts: row.attemptLog.map((attempt) => ({
+        attemptNumber: attempt.attemptNumber,
+        outcome: attempt.outcome,
+        providerHttpStatus: attempt.providerHttpStatus,
+        providerResponse: safeProviderResponse(attempt.providerResponse),
+        error: safeText(attempt.error),
+        startedAt: attempt.startedAt.toISOString(),
+        finishedAt: attempt.finishedAt?.toISOString() ?? null,
+      })),
+    };
+  }
+
+  @Get("recipients")
+  @RequirePermissions("settings.read")
+  @ApiOperation({
+    summary:
+      "Find users to filter the SMS history by. Returns names and user ids only, never contact details",
+  })
+  @ApiOkResponse({ type: SmsRecipientListResponse })
+  async recipients(
+    @Query() query: SearchSmsRecipientsQueryDto,
+  ): Promise<SmsRecipientListResponse> {
+    const rows = await this.sms.searchRecipients(query.q);
+    return {
+      items: rows.map((row) => ({
+        id: row.id,
+        name: smsPersonName(row, "Unnamed user"),
+      })),
+    };
+  }
+
+  @Get("settings")
+  @RequirePermissions("settings.read")
+  @ApiOperation({
+    summary:
+      "Runtime SMS settings and provider configuration status. Never returns secret values",
+  })
+  @ApiOkResponse({ type: SmsSettingsResponse })
+  async settings(): Promise<SmsSettingsResponse> {
+    return toSettingsResponse(await this.sms.settings());
+  }
+
+  @Patch("settings")
+  @RequirePermissions("settings.update")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @ApiOperation({
+    summary:
+      "Change runtime SMS switches. The environment switch still overrides them. Changes are audited",
+  })
+  @ApiOkResponse({ type: SmsSettingsResponse })
+  async updateSettings(
+    @Req() request: RequestWithContext,
+    @Body() body: UpdateSmsSettingsDto,
+  ): Promise<SmsSettingsResponse> {
+    const view = await this.sms.updateSettings({
+      actingUserId: actingUserId(request),
+      requestId: request.id,
+      ...(body.globalEnabled !== undefined
+        ? { globalEnabled: body.globalEnabled }
+        : {}),
+      ...(body.categories ? { categories: body.categories } : {}),
+    });
+    return toSettingsResponse(view);
   }
 
   @Post("test-connection")
