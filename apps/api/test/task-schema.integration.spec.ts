@@ -697,7 +697,7 @@ describe("task assignment and collaboration schema", () => {
       expect.arrayContaining([
         "audit_records_occurred_at_id_idx",
         "audit_records_action_occurred_at_idx",
-        "audit_records_resource_lookup_idx",
+        "audit_records_resource_type_resource_id_occurred_at_idx",
       ]),
     );
 
