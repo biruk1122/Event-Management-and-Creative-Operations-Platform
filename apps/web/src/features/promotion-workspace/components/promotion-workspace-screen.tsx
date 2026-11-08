@@ -25,6 +25,7 @@ import { PartnersScreen } from "@/features/partners/components/partners-screen";
 import { ReportsScreen } from "@/features/reports/components/reports-screen";
 import { TasksScreen } from "@/features/tasks/components/tasks-screen";
 
+import { PromotionActivitiesView } from "./promotion-activities-view";
 import {
   canEnterPromotionWorkspace,
   promotionSections,
@@ -190,6 +191,10 @@ export function PromotionWorkspaceScreen() {
           />
         ) : definition?.comingInPhase ? (
           <ComingLater definition={definition} />
+        ) : current === "activities" ? (
+          <PromotionActivitiesView mode="list" />
+        ) : current === "calendar" ? (
+          <PromotionActivitiesView mode="calendar" />
         ) : current === "campaigns" ? (
           <CampaignsScreen
             initialType="PROMOTION"

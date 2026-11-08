@@ -19,6 +19,9 @@ const record = {
   campaignActivityId: ACTIVITY,
   campaignId: CAMPAIGN,
   channel: "RADIO_PROMOTION",
+  location: null,
+  requiredResources: null,
+  assignees: [],
   activity: {
     id: ACTIVITY,
     campaignId: CAMPAIGN,

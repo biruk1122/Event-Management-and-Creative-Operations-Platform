@@ -758,6 +758,67 @@
         "required": ["amount", "currency"],
         "type": "object"
       },
+      "CampaignMetricResponse": {
+        "properties": {
+          "campaignId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "key": {
+            "enum": [
+              "REACH",
+              "ENGAGEMENT",
+              "TICKETS_SOLD",
+              "ATTENDANCE",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "recordedBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CampaignPersonSummary"
+              }
+            ],
+            "description": "Who recorded it; null once that user is gone.",
+            "nullable": true,
+            "type": "object"
+          },
+          "recordedOn": {
+            "description": "YYYY-MM-DD.",
+            "example": "2026-11-01",
+            "type": "string"
+          },
+          "sourceNote": {
+            "nullable": true,
+            "type": "string"
+          },
+          "value": {
+            "description": "The value as recorded, with two decimal places.",
+            "example": "12500.00",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "campaignId",
+          "key",
+          "value",
+          "recordedOn",
+          "sourceNote",
+          "recordedBy",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "CampaignPersonSummary": {
         "properties": {
           "email": {
@@ -874,6 +935,12 @@
             "example": "Autumn Launch Push",
             "type": "string"
           },
+          "objectives": {
+            "description": "What the campaign is meant to achieve.",
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
           "participants": {
             "description": "Employees assigned to this campaign individually, from the connected workspace.",
             "items": {
@@ -887,8 +954,20 @@
             "nullable": true,
             "type": "string"
           },
+          "productionId": {
+            "description": "A production this campaign promotes. See projectId.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "progress": {
             "$ref": "#/components/schemas/CampaignProgress"
+          },
+          "projectId": {
+            "description": "A project this campaign promotes. At most one of project, production or artist is linked.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
           },
           "startAt": {
             "description": "UTC start. Null while the campaign is not yet scheduled.",
@@ -906,6 +985,12 @@
               "COMPLETED",
               "CANCELLED"
             ],
+            "type": "string"
+          },
+          "talentId": {
+            "description": "An artist this campaign promotes. See projectId.",
+            "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "teams": {
@@ -938,6 +1023,10 @@
           "eventId",
           "departmentId",
           "productName",
+          "objectives",
+          "projectId",
+          "productionId",
+          "talentId",
           "progress",
           "manager",
           "teams",
@@ -961,6 +1050,38 @@
           }
         },
         "required": ["id", "name"],
+        "type": "object"
+      },
+      "CampaignUpdateResponse": {
+        "properties": {
+          "author": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CampaignPersonSummary"
+              }
+            ],
+            "description": "Who wrote the update; null once that user is gone.",
+            "nullable": true,
+            "type": "object"
+          },
+          "campaignId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 2000,
+            "type": "string"
+          }
+        },
+        "required": ["id", "campaignId", "note", "author", "createdAt"],
         "type": "object"
       },
       "ChangeTaskReviewerDto": {
@@ -1263,6 +1384,12 @@
             "minLength": 1,
             "type": "string"
           },
+          "objectives": {
+            "example": "Launch the new range across the region.",
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          },
           "productName": {
             "description": "The product this campaign promotes. Cannot be combined with `eventId`.",
             "example": "Nexo Energy Drink",
@@ -1270,13 +1397,39 @@
             "minLength": 1,
             "type": "string"
           },
+          "productionId": {
+            "description": "A production this campaign promotes. At most one of projectId, productionId or talentId may be set.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "projectId": {
+            "description": "A project this campaign promotes. At most one of projectId, productionId or talentId may be set.",
+            "format": "uuid",
+            "type": "string"
+          },
           "startAt": {
             "description": "UTC start. If both ends are given, the end may not precede it.",
             "format": "date-time",
             "type": "string"
+          },
+          "talentId": {
+            "description": "An artist this campaign promotes. At most one of projectId, productionId or talentId may be set.",
+            "format": "uuid",
+            "type": "string"
           }
         },
         "required": ["name", "campaignType"],
+        "type": "object"
+      },
+      "CreateCampaignUpdateDto": {
+        "properties": {
+          "note": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["note"],
         "type": "object"
       },
       "CreateChannelDto": {
@@ -6403,6 +6556,54 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedCampaignMetricsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignMetricResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 2,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
+      "PaginatedCampaignUpdatesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignUpdateResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 3,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
       "PaginatedCampaignsResponse": {
         "properties": {
           "items": {
@@ -6773,6 +6974,30 @@
           "items": {
             "items": {
               "$ref": "#/components/schemas/PromotionActivityResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 4,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
+      "PaginatedPromotionActivityListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionActivityListItemResponse"
             },
             "type": "array"
           },
@@ -7830,10 +8055,23 @@
         "required": ["id", "name"],
         "type": "object"
       },
-      "PromotionActivityResponse": {
+      "PromotionActivityListItemResponse": {
         "properties": {
           "activity": {
             "$ref": "#/components/schemas/CampaignActivityResponse"
+          },
+          "assignees": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionAssigneeResponse"
+            },
+            "type": "array"
+          },
+          "campaignId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "campaignName": {
+            "type": "string"
           },
           "channel": {
             "enum": [
@@ -7847,6 +8085,16 @@
             ],
             "type": "string"
           },
+          "location": {
+            "maxLength": 500,
+            "nullable": true,
+            "type": "string"
+          },
+          "requiredResources": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
           "talents": {
             "items": {
               "$ref": "#/components/schemas/PromotionTalentResponse"
@@ -7854,7 +8102,66 @@
             "type": "array"
           }
         },
-        "required": ["activity", "channel", "talents"],
+        "required": [
+          "activity",
+          "channel",
+          "talents",
+          "location",
+          "requiredResources",
+          "assignees",
+          "campaignId",
+          "campaignName"
+        ],
+        "type": "object"
+      },
+      "PromotionActivityResponse": {
+        "properties": {
+          "activity": {
+            "$ref": "#/components/schemas/CampaignActivityResponse"
+          },
+          "assignees": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionAssigneeResponse"
+            },
+            "type": "array"
+          },
+          "channel": {
+            "enum": [
+              "CONTENT_CREATION",
+              "SOCIAL_MEDIA",
+              "INFLUENCER_MARKETING",
+              "RADIO_PROMOTION",
+              "TELEVISION",
+              "SCREENS_DIGITAL_MEDIA",
+              "ADVERTISING"
+            ],
+            "type": "string"
+          },
+          "location": {
+            "maxLength": 500,
+            "nullable": true,
+            "type": "string"
+          },
+          "requiredResources": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          },
+          "talents": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionTalentResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "activity",
+          "channel",
+          "talents",
+          "location",
+          "requiredResources",
+          "assignees"
+        ],
         "type": "object"
       },
       "PromotionAnalyticsResponse": {
@@ -7882,6 +8189,28 @@
           }
         },
         "required": ["asOf", "freshness", "campaignId", "items"],
+        "type": "object"
+      },
+      "PromotionAssigneeResponse": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "firstName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["id", "email", "firstName", "lastName"],
         "type": "object"
       },
       "PromotionChannelProgress": {
@@ -7980,6 +8309,39 @@
           }
         },
         "required": ["checks", "status", "timestamp"],
+        "type": "object"
+      },
+      "RecordCampaignMetricDto": {
+        "properties": {
+          "key": {
+            "enum": [
+              "REACH",
+              "ENGAGEMENT",
+              "TICKETS_SOLD",
+              "ATTENDANCE",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "recordedOn": {
+            "description": "The day the figure was recorded (YYYY-MM-DD).",
+            "example": "2026-11-01",
+            "type": "string"
+          },
+          "sourceNote": {
+            "description": "Where the figure came from, for example a platform report.",
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "value": {
+            "description": "The value exactly as recorded, with at most two decimal places. It is stored and shown as given; nothing is computed from it.",
+            "maximum": 999999999999,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["key", "value", "recordedOn"],
         "type": "object"
       },
       "RegisterKioskDto": {
@@ -11207,14 +11569,38 @@
             "minLength": 1,
             "type": "string"
           },
+          "objectives": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "nullable": true,
+            "type": "string"
+          },
           "productName": {
             "maxLength": 200,
             "minLength": 1,
             "nullable": true,
             "type": "string"
           },
+          "productionId": {
+            "description": "A production this campaign promotes. Send null to clear.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "projectId": {
+            "description": "A project this campaign promotes. Send null to clear.",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "startAt": {
             "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "talentId": {
+            "description": "An artist this campaign promotes. Send null to clear.",
+            "format": "uuid",
             "nullable": true,
             "type": "string"
           }
@@ -11892,6 +12278,21 @@
           }
         },
         "required": ["channel"],
+        "type": "object"
+      },
+      "UpdatePromotionDetailsDto": {
+        "properties": {
+          "location": {
+            "maxLength": 500,
+            "nullable": true,
+            "type": "string"
+          },
+          "requiredResources": {
+            "maxLength": 2000,
+            "nullable": true,
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "UpdateReadCursorDto": {
@@ -15558,6 +15959,413 @@
         "tags": ["Campaign platform"]
       }
     },
+    "/api/v1/campaigns/{campaignId}/files": {
+      "get": {
+        "operationId": "CampaignFileManagement_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedManagedFilesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List available files attached to a campaign",
+        "tags": ["Managed files"]
+      }
+    },
+    "/api/v1/campaigns/{campaignId}/files/upload-intents": {
+      "post": {
+        "operationId": "CampaignFileManagement_createUploadIntent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadIntentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadIntentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid filename or upload declaration"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a 10-minute direct-upload grant for a campaign file",
+        "tags": ["Managed files"]
+      }
+    },
+    "/api/v1/campaigns/{campaignId}/files/{fileId}": {
+      "delete": {
+        "operationId": "CampaignFileManagement_remove_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "File detached"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No available file exists for this campaign"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Detach a campaign file and begin its 30-day retention window",
+        "tags": ["Managed files"]
+      }
+    },
+    "/api/v1/campaigns/{campaignId}/files/{fileId}/download": {
+      "get": {
+        "operationId": "CampaignFileManagement_download_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadGrantResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "No available file exists for this campaign"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Issue a five-minute private download grant for a campaign file",
+        "tags": ["Managed files"]
+      }
+    },
+    "/api/v1/campaigns/{campaignId}/files/{fileId}/finalize": {
+      "post": {
+        "operationId": "CampaignFileManagement_finalize_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedFileResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Campaign or upload intent not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Intent expired, upload missing, unsafe, or already finalized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "File scanner unavailable"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Verify, scan, and attach a completed direct upload to a campaign",
+        "tags": ["Managed files"]
+      }
+    },
     "/api/v1/campaigns/{id}": {
       "delete": {
         "operationId": "Campaigns_remove_v1",
@@ -16359,6 +17167,199 @@
         "tags": ["Campaign platform"]
       }
     },
+    "/api/v1/campaigns/{id}/metrics": {
+      "get": {
+        "operationId": "Campaigns_listMetrics_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": false,
+            "schema": {
+              "enum": [
+                "REACH",
+                "ENGAGEMENT",
+                "TICKETS_SOLD",
+                "ATTENDANCE",
+                "OTHER"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedCampaignMetricsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List recorded metrics, latest recording day first",
+        "tags": ["Campaign platform"]
+      },
+      "post": {
+        "operationId": "Campaigns_recordMetric_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordCampaignMetricDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignMetricResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Record a metric exactly as given (append-only, nothing computed)",
+        "tags": ["Campaign platform"]
+      }
+    },
     "/api/v1/campaigns/{id}/teams/{teamId}": {
       "delete": {
         "operationId": "Campaigns_unassignTeam_v1",
@@ -16601,6 +17602,174 @@
           }
         ],
         "summary": "Move a campaign to another lifecycle state",
+        "tags": ["Campaign platform"]
+      }
+    },
+    "/api/v1/campaigns/{id}/updates": {
+      "get": {
+        "operationId": "Campaigns_listUpdates_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedCampaignUpdatesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List a campaign's updates log, newest first",
+        "tags": ["Campaign platform"]
+      },
+      "post": {
+        "operationId": "Campaigns_addUpdate_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCampaignUpdateDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignUpdateResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Add an entry to the updates log (append-only)",
         "tags": ["Campaign platform"]
       }
     },
@@ -31364,6 +32533,156 @@
         "tags": ["General project management"]
       }
     },
+    "/api/v1/promotion/activities": {
+      "get": {
+        "operationId": "PromotionActivities_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "campaignId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "channel",
+            "required": false,
+            "schema": {
+              "enum": [
+                "CONTENT_CREATION",
+                "SOCIAL_MEDIA",
+                "INFLUENCER_MARKETING",
+                "RADIO_PROMOTION",
+                "TELEVISION",
+                "SCREENS_DIGITAL_MEDIA",
+                "ADVERTISING"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Matches the activity name.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Activities starting at or after this instant.",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Activities starting at or before this instant.",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "START_AT",
+              "enum": ["START_AT", "NAME"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedPromotionActivityListResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List promotion activities across the promotion campaigns you can read",
+        "tags": ["Campaign platform"]
+      }
+    },
     "/api/v1/promotion/campaigns/{campaignId}/activities": {
       "get": {
         "operationId": "Promotion_list_v1",
@@ -31787,6 +33106,265 @@
           }
         ],
         "summary": "Attach promotion channel and optional talents to an existing campaign activity",
+        "tags": ["Promotion operations"]
+      }
+    },
+    "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/assignees/{userId}": {
+      "delete": {
+        "operationId": "Promotion_unassignEmployee_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activityId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionActivityResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Remove an employee from the activity",
+        "tags": ["Promotion operations"]
+      },
+      "put": {
+        "operationId": "Promotion_assignEmployee_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activityId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionActivityResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Assign an active employee of the campaign's department to the activity",
+        "tags": ["Promotion operations"]
+      }
+    },
+    "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/details": {
+      "patch": {
+        "operationId": "Promotion_updateDetails_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "activityId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePromotionDetailsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionActivityResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Set an activity's location and required resources (campaign department only)",
         "tags": ["Promotion operations"]
       }
     },

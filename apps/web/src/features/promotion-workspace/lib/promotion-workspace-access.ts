@@ -119,14 +119,14 @@ export interface PromotionSectionDefinition {
 const SECTION_DEFINITIONS: readonly PromotionSectionDefinition[] = [
   { id: "overview", label: "Overview", comingInPhase: null },
   { id: "campaigns", label: "Campaigns", comingInPhase: null },
-  { id: "activities", label: "Promotional Activities", comingInPhase: 2 },
+  { id: "activities", label: "Promotional Activities", comingInPhase: null },
   { id: "tasks", label: "Team Tasks", comingInPhase: null },
   { id: "partnerships", label: "Partnerships", comingInPhase: null },
   { id: "creative-requests", label: "Creative Requests", comingInPhase: 3 },
   { id: "event-promotions", label: "Event Promotions", comingInPhase: 5 },
   { id: "budget", label: "Budget", comingInPhase: 4 },
   { id: "reports", label: "Reports", comingInPhase: null },
-  { id: "calendar", label: "Calendar", comingInPhase: 5 },
+  { id: "calendar", label: "Calendar", comingInPhase: null },
 ];
 
 function holds(access: CurrentAccess, key: string): boolean {

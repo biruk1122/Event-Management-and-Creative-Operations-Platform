@@ -115,6 +115,14 @@ function renderDialog(
     ),
     onChanged: vi.fn(),
     onDeleted: vi.fn(),
+    listUpdates: vi.fn(() => Promise.resolve([])),
+    addUpdate: vi.fn(() =>
+      Promise.resolve({ status: "failed" as const, message: "unused" }),
+    ),
+    listMetrics: vi.fn(() => Promise.resolve([])),
+    recordMetric: vi.fn(() =>
+      Promise.resolve({ status: "failed" as const, message: "unused" }),
+    ),
     ...overrides,
   };
   render(<CampaignDetailDialog {...props} />);

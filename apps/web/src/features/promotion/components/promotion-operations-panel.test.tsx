@@ -38,6 +38,9 @@ const activity = makeActivity({ id: "activity-1", name: "Launch teaser" });
 const detail: PromotionActivity = {
   activity,
   channel: "SOCIAL_MEDIA",
+  location: null,
+  requiredResources: null,
+  assignees: [],
   talents: [],
 };
 

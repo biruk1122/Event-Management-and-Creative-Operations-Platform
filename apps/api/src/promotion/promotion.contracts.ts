@@ -17,6 +17,21 @@ export class PromotionTalentResponse {
   createdAt!: string;
 }
 
+/** An employee working a promotion activity (EVE-231). */
+export class PromotionAssigneeResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ format: "email" })
+  email!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  firstName!: string | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  lastName!: string | null;
+}
+
 export class PromotionActivityResponse {
   @ApiProperty({ type: CampaignActivityResponse })
   activity!: CampaignActivityResponse;
@@ -26,6 +41,38 @@ export class PromotionActivityResponse {
 
   @ApiProperty({ type: [PromotionTalentResponse] })
   talents!: PromotionTalentResponse[];
+
+  @ApiProperty({ type: String, nullable: true, maxLength: 500 })
+  location!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, maxLength: 2000 })
+  requiredResources!: string | null;
+
+  @ApiProperty({ type: [PromotionAssigneeResponse] })
+  assignees!: PromotionAssigneeResponse[];
+}
+
+/** One activity in the cross-campaign list, with the campaign it belongs to. */
+export class PromotionActivityListItemResponse extends PromotionActivityResponse {
+  @ApiProperty({ format: "uuid" })
+  campaignId!: string;
+
+  @ApiProperty()
+  campaignName!: string;
+}
+
+export class PaginatedPromotionActivityListResponse {
+  @ApiProperty({ type: [PromotionActivityListItemResponse] })
+  items!: PromotionActivityListItemResponse[];
+
+  @ApiProperty({ example: 1 })
+  page!: number;
+
+  @ApiProperty({ example: 25 })
+  pageSize!: number;
+
+  @ApiProperty({ example: 4 })
+  total!: number;
 }
 
 export class PaginatedPromotionActivitiesResponse {

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 
 import { AuthModule } from "../auth/auth.module.js";
 import { AuditModule } from "../audit/audit.module.js";
+import { CampaignsModule } from "../campaigns/campaigns.module.js";
 import { PermissionsModule } from "../common/security/permissions.module.js";
 import { ENVIRONMENT, type Environment } from "../config/environment.js";
 import { DiscussModule } from "../discuss/discuss.module.js";
@@ -14,6 +15,7 @@ import { SharedRecordsModule } from "../shared-records/shared-records.module.js"
 import { TalentModule } from "../talent/talent.module.js";
 import { TasksModule } from "../tasks/tasks.module.js";
 import { TalentFileManagementController } from "./talent-file-management.controller.js";
+import { CampaignFileManagementController } from "./campaign-file-management.controller.js";
 import { DocumentFileManagementController } from "./document-file-management.controller.js";
 import { ExpenseFileManagementController } from "./expense-file-management.controller.js";
 import { FileManagementController } from "./file-management.controller.js";
@@ -38,6 +40,7 @@ import { S3ObjectStorage } from "./storage/s3-object-storage.js";
   imports: [
     AuditModule,
     AuthModule,
+    CampaignsModule,
     DiscussModule,
     DocumentsModule,
     EventsModule,
@@ -50,6 +53,7 @@ import { S3ObjectStorage } from "./storage/s3-object-storage.js";
     TasksModule,
   ],
   controllers: [
+    CampaignFileManagementController,
     TalentFileManagementController,
     DocumentFileManagementController,
     ExpenseFileManagementController,

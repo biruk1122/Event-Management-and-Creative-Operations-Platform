@@ -15,8 +15,10 @@ import {
 import type {
   CampaignFieldErrors,
   CampaignFieldValues,
+  RelatedLinkKind,
   SubjectKind,
 } from "../lib/campaigns-form";
+import { CampaignLinkPicker } from "./campaign-link-picker";
 import {
   CAMPAIGN_TYPE_LABELS,
   CAMPAIGN_TYPES,
@@ -53,6 +55,7 @@ export function CampaignFields({
     name: useId(),
     type: useId(),
     description: useId(),
+    objectives: useId(),
     audience: useId(),
     startAt: useId(),
     endAt: useId(),
@@ -117,6 +120,19 @@ export function CampaignFields({
         {errors.description ? (
           <p className="text-destructive text-sm">{errors.description}</p>
         ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={ids.objectives}>Objectives</Label>
+        <textarea
+          id={ids.objectives}
+          rows={2}
+          value={values.objectives}
+          disabled={disabled}
+          placeholder="What should this campaign achieve?"
+          className="border-input placeholder:text-muted-foreground focus-visible:ring-ring/50 flex w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs focus-visible:ring-3 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          onChange={(event) => onChange("objectives", event.target.value)}
+        />
       </div>
 
       <div className="space-y-2">
@@ -217,6 +233,15 @@ export function CampaignFields({
           ) : null}
         </div>
       ) : null}
+
+      <CampaignLinkPicker
+        kind={values.linkKind}
+        linkId={values.linkId}
+        error={errors.linkId}
+        disabled={disabled}
+        onKindChange={(kind: RelatedLinkKind) => onChange("linkKind", kind)}
+        onLinkChange={(id) => onChange("linkId", id)}
+      />
 
       {values.subjectKind === "PRODUCT" ? (
         <div className="space-y-2">

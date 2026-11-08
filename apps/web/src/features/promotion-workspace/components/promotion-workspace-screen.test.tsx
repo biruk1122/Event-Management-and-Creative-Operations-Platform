@@ -39,6 +39,11 @@ vi.mock("@/features/partners/components/partners-screen", () => ({
     <p>partners:{props.readOnly ? "read-only" : "editable"}</p>
   ),
 }));
+vi.mock("./promotion-activities-view", () => ({
+  PromotionActivitiesView: (props: { mode: string }) => (
+    <p>activities:{props.mode}</p>
+  ),
+}));
 vi.mock("@/features/reports/components/reports-screen", () => ({
   ReportsScreen: (props: { readOnly?: boolean }) => (
     <p>reports:{props.readOnly ? "read-only" : "editable"}</p>
@@ -98,6 +103,17 @@ describe("PromotionWorkspaceScreen", () => {
       "page",
     );
     expect(screen.queryByText("View-only oversight")).not.toBeInTheDocument();
+  });
+
+  it("shows the promotional activities list and calendar, built in this phase", () => {
+    signedIn(promotionManager);
+    state.search = "tab=activities";
+    const { unmount } = render(<PromotionWorkspaceScreen />);
+    expect(screen.getByText("activities:list")).toBeInTheDocument();
+    unmount();
+    state.search = "tab=calendar";
+    render(<PromotionWorkspaceScreen />);
+    expect(screen.getByText("activities:calendar")).toBeInTheDocument();
   });
 
   it("keeps the section in the URL", async () => {

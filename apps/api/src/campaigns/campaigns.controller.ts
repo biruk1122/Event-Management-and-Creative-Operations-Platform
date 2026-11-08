@@ -38,13 +38,23 @@ import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import {
   CampaignActivityResponse,
   CampaignBudgetResponse,
+  CampaignMetricResponse,
   CampaignResponse,
+  CampaignUpdateResponse,
   PaginatedCampaignActivitiesResponse,
+  PaginatedCampaignMetricsResponse,
   PaginatedCampaignsResponse,
+  PaginatedCampaignUpdatesResponse,
 } from "./campaigns.contracts.js";
 import { CampaignsService } from "./campaigns.service.js";
 import { AssignCampaignManagerDto } from "./dto/assign-campaign-manager.dto.js";
 import { CreateCampaignActivityDto } from "./dto/create-campaign-activity.dto.js";
+import {
+  CreateCampaignUpdateDto,
+  ListCampaignMetricsQueryDto,
+  ListCampaignUpdatesQueryDto,
+  RecordCampaignMetricDto,
+} from "./dto/campaign-detail.dto.js";
 import { CreateCampaignDto } from "./dto/create-campaign.dto.js";
 import { ListCampaignActivitiesQueryDto } from "./dto/list-campaign-activities-query.dto.js";
 import { ListCampaignsQueryDto } from "./dto/list-campaigns-query.dto.js";
@@ -333,6 +343,79 @@ export class CampaignsController {
     @Param("id") id: string,
   ): Promise<void> {
     await this.campaigns.remove(actingUserId(request), id, request.id);
+  }
+
+  @Get(":id/updates")
+  @RequirePermissions("campaign.read")
+  @ApiOperation({ summary: "List a campaign's updates log, newest first" })
+  @ApiOkResponse({ type: PaginatedCampaignUpdatesResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Campaign not found",
+  })
+  async listUpdates(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Query() query: ListCampaignUpdatesQueryDto,
+  ): Promise<PaginatedCampaignUpdatesResponse> {
+    return this.campaigns.listUpdates(actingUserId(request), id, query);
+  }
+
+  @Post(":id/updates")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("campaign.update")
+  @ApiOperation({ summary: "Add an entry to the updates log (append-only)" })
+  @ApiCreatedResponse({ type: CampaignUpdateResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Campaign not found",
+  })
+  async addUpdate(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: CreateCampaignUpdateDto,
+  ): Promise<CampaignUpdateResponse> {
+    return this.campaigns.addUpdate(actingUserId(request), id, body);
+  }
+
+  @Get(":id/metrics")
+  @RequirePermissions("campaign.read")
+  @ApiOperation({
+    summary: "List recorded metrics, latest recording day first",
+  })
+  @ApiOkResponse({ type: PaginatedCampaignMetricsResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Campaign not found",
+  })
+  async listMetrics(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Query() query: ListCampaignMetricsQueryDto,
+  ): Promise<PaginatedCampaignMetricsResponse> {
+    return this.campaigns.listMetrics(actingUserId(request), id, query);
+  }
+
+  @Post(":id/metrics")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("campaign.update")
+  @ApiOperation({
+    summary: "Record a metric exactly as given (append-only, nothing computed)",
+  })
+  @ApiCreatedResponse({ type: CampaignMetricResponse })
+  @ApiBadRequestResponse({ type: ProblemDetails })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Campaign not found",
+  })
+  async recordMetric(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+    @Body() body: RecordCampaignMetricDto,
+  ): Promise<CampaignMetricResponse> {
+    return this.campaigns.recordMetric(actingUserId(request), id, body);
   }
 
   @Get(":id/activities")

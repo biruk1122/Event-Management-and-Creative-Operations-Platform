@@ -82,9 +82,14 @@ function createBody(values: CreateCampaignValues) {
   const description = nullable(values.description);
   const audience = nullable(values.audience);
   const productName = nullable(values.productName);
+  const objectives = nullable(values.objectives);
   return {
     name: values.name.trim(),
     campaignType: values.campaignType,
+    ...(objectives ? { objectives } : {}),
+    ...(values.projectId ? { projectId: values.projectId } : {}),
+    ...(values.productionId ? { productionId: values.productionId } : {}),
+    ...(values.talentId ? { talentId: values.talentId } : {}),
     ...(description ? { description } : {}),
     ...(audience ? { audience } : {}),
     ...(start ? { startAt: start } : {}),
@@ -110,6 +115,10 @@ function updateBody(values: EditCampaignValues) {
     endAt: toIsoUtc(values.endAt),
     eventId: values.eventId,
     productName: nullable(values.productName),
+    objectives: nullable(values.objectives),
+    projectId: values.projectId,
+    productionId: values.productionId,
+    talentId: values.talentId,
   };
 }
 

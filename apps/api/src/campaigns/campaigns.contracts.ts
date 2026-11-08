@@ -2,6 +2,7 @@ import { ApiProperty } from "@nestjs/swagger";
 
 import {
   CampaignActivityStatus,
+  CampaignMetricKey,
   CampaignStatus,
   CampaignType,
 } from "../generated/prisma/client.js";
@@ -158,6 +159,39 @@ export class CampaignResponse {
   })
   productName!: string | null;
 
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    maxLength: 2000,
+    description: "What the campaign is meant to achieve.",
+  })
+  objectives!: string | null;
+
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description:
+      "A project this campaign promotes. At most one of project, production or artist is linked.",
+  })
+  projectId!: string | null;
+
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description: "A production this campaign promotes. See projectId.",
+  })
+  productionId!: string | null;
+
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description: "An artist this campaign promotes. See projectId.",
+  })
+  talentId!: string | null;
+
   @ApiProperty({ type: CampaignProgress })
   progress!: CampaignProgress;
 
@@ -295,5 +329,92 @@ export class PaginatedCampaignActivitiesResponse {
     example: 4,
     description: "Total activities matching the filter.",
   })
+  total!: number;
+}
+
+/** One entry in a campaign's updates log (EVE-231). Append-only. */
+export class CampaignUpdateResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ format: "uuid" })
+  campaignId!: string;
+
+  @ApiProperty({ maxLength: 2000 })
+  note!: string;
+
+  @ApiProperty({
+    type: CampaignPersonSummary,
+    nullable: true,
+    description: "Who wrote the update; null once that user is gone.",
+  })
+  author!: CampaignPersonSummary | null;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+}
+
+/** A page of a campaign's updates, newest first. */
+export class PaginatedCampaignUpdatesResponse {
+  @ApiProperty({ type: [CampaignUpdateResponse] })
+  items!: CampaignUpdateResponse[];
+
+  @ApiProperty({ example: 1 })
+  page!: number;
+
+  @ApiProperty({ example: 25 })
+  pageSize!: number;
+
+  @ApiProperty({ example: 3 })
+  total!: number;
+}
+
+/** A recorded indicator, exactly as it was recorded (EVE-231). */
+export class CampaignMetricResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ format: "uuid" })
+  campaignId!: string;
+
+  @ApiProperty({ enum: CampaignMetricKey })
+  key!: CampaignMetricKey;
+
+  @ApiProperty({
+    type: String,
+    example: "12500.00",
+    description: "The value as recorded, with two decimal places.",
+  })
+  value!: string;
+
+  @ApiProperty({ example: "2026-11-01", description: "YYYY-MM-DD." })
+  recordedOn!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  sourceNote!: string | null;
+
+  @ApiProperty({
+    type: CampaignPersonSummary,
+    nullable: true,
+    description: "Who recorded it; null once that user is gone.",
+  })
+  recordedBy!: CampaignPersonSummary | null;
+
+  @ApiProperty({ format: "date-time" })
+  createdAt!: string;
+}
+
+/** A page of recorded metrics, newest recording day first. */
+export class PaginatedCampaignMetricsResponse {
+  @ApiProperty({ type: [CampaignMetricResponse] })
+  items!: CampaignMetricResponse[];
+
+  @ApiProperty({ example: 1 })
+  page!: number;
+
+  @ApiProperty({ example: 25 })
+  pageSize!: number;
+
+  @ApiProperty({ example: 2 })
   total!: number;
 }
