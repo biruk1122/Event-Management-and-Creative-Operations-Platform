@@ -147,6 +147,28 @@ describe("AfroMessage provider outcomes", () => {
     expect(headers.Authorization).toBe(`Bearer ${API_KEY}`);
   });
 
+  it("omits the sender when none is configured and sends from the identifier", async () => {
+    const fetchImpl = vi.fn<FetchLike>(async () =>
+      jsonResponse(200, {
+        acknowledge: "success",
+        response: { status: "ok", message_id: "id-2" },
+      }),
+    );
+    await providerWith(fetchImpl).send({
+      ...SEND,
+      sender: "",
+      identifierId: "e80ad9d8-adf3-463f-80f4-7c4b39f7f164",
+    });
+    const body: unknown = JSON.parse(
+      fetchImpl.mock.calls[0]![1].body as string,
+    );
+    expect(body).toEqual({
+      to: "+251912345678",
+      message: "LELA: test",
+      from: "e80ad9d8-adf3-463f-80f4-7c4b39f7f164",
+    });
+  });
+
   it("never returns the API key or the recipient phone in any outcome", async () => {
     const fetchImpl = vi.fn<FetchLike>(async () =>
       jsonResponse(200, {

@@ -35,10 +35,12 @@ export class AfroMessageProvider implements SmsProvider {
 
   async send(request: SendRequest): Promise<SendOutcome> {
     const body: Record<string, string> = {
-      sender: request.sender,
       to: request.to,
       message: request.message,
     };
+    // The sender name is only for verified accounts; without one, AfroMessage
+    // sends from the account's identifier (short code).
+    if (request.sender) body.sender = request.sender;
     if (request.identifierId) body.from = request.identifierId;
 
     const result = await this.call("POST", "/send", body);
