@@ -213,7 +213,7 @@ describe("MeetingsService", () => {
       }),
     );
     await expectCode(
-      service.update(ACTOR, "meeting-1", { title: "No" }),
+      service.update(ACTOR, "meeting-1", { title: "No" }, "request-1"),
       "PERMISSION_DENIED",
     );
     expect(repository.update).not.toHaveBeenCalled();
@@ -229,7 +229,12 @@ describe("MeetingsService", () => {
       repository.findById!.mockResolvedValue(completed);
       repository.update!.mockResolvedValue(completed);
       await expect(
-        service.update(ACTOR, completed.id, { title: "Corrected title" }),
+        service.update(
+          ACTOR,
+          completed.id,
+          { title: "Corrected title" },
+          "request-1",
+        ),
       ).resolves.toMatchObject({
         title: "Corrected title",
         status: "COMPLETED",
@@ -241,7 +246,7 @@ describe("MeetingsService", () => {
         makeMeeting({ status: MeetingStatus.CANCELLED }),
       );
       await expectCode(
-        service.update(ACTOR, "meeting-1", { title: "No" }),
+        service.update(ACTOR, "meeting-1", { title: "No" }, "request-1"),
         "MEETING_CANCELLED",
       );
       expect(repository.update).not.toHaveBeenCalled();

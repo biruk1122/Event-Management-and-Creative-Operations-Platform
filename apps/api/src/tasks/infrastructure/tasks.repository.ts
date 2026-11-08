@@ -16,6 +16,7 @@ import { DatabaseService } from "../../database/database.service.js";
 import { AuditWriterService } from "../../audit/audit-writer.service.js";
 import type { SupportedAuditAction } from "../../audit/audit.types.js";
 import { OutboxWriterService } from "../../outbox/outbox-writer.service.js";
+import { TasksSmsService } from "../tasks-sms.service.js";
 import { computeTaskProgress } from "../tasks-progress.domain.js";
 
 const UUID_PATTERN =
@@ -408,6 +409,7 @@ export class TasksRepository {
     private readonly db: DatabaseService,
     private readonly audit: AuditWriterService,
     private readonly outbox: OutboxWriterService,
+    private readonly taskSms: TasksSmsService,
   ) {}
 
   async findUserDepartmentId(userId: string): Promise<string | null> {
@@ -1548,6 +1550,22 @@ export class TasksRepository {
           payload: { assigneeUserId: userId },
           consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
         });
+        // Same transaction as the in-app notification: the SMS is queued only if the assignment is made.
+        const assignment = await tx.taskAssignment.findUnique({
+          where: { taskId_userId: { taskId, userId } },
+          select: { id: true, assignedById: true },
+        });
+        if (assignment) {
+          await this.taskSms.enqueueAssignment(tx, {
+            taskId,
+            assignmentId: assignment.id,
+            taskTitle: task.title,
+            dueAt: task.dueAt,
+            assigneeUserId: userId,
+            assignedById: actorId,
+            requestId,
+          });
+        }
       }
       return task ? toTaskRecord(task) : null;
     });

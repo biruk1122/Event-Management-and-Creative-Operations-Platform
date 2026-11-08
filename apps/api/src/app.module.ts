@@ -5,6 +5,7 @@ import { Module } from "@nestjs/common";
 import { AnalyticsModule } from "./analytics/analytics.module.js";
 import { DashboardsModule } from "./dashboards/dashboards.module.js";
 import { LoggerModule } from "nestjs-pino";
+import { logUrl } from "./common/http/log-url.js";
 
 import { AttendanceModule } from "./attendance/attendance.module.js";
 import { KioskModule } from "./attendance/kiosk/kiosk.module.js";
@@ -27,6 +28,7 @@ import { FileManagementModule } from "./file-management/file-management.module.j
 import { HealthModule } from "./health/health.module.js";
 import { LettersModule } from "./letters/letters.module.js";
 import { LeaveModule } from "./leave/leave.module.js";
+import { SmsModule } from "./sms/sms.module.js";
 import { MeetingsModule } from "./meetings/meetings.module.js";
 import { MarketingModule } from "./marketing/marketing.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
@@ -71,7 +73,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
           req: (request: IncomingMessage & { id?: string }) => ({
             id: request.id,
             method: request.method,
-            url: request.url?.split("?")[0],
+            url: logUrl(request.url),
           }),
         },
         redact: {
@@ -93,6 +95,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     EventShiftsModule,
     AttendanceReviewModule,
     LeaveModule,
+    SmsModule,
     MeetingsModule,
     CalendarModule,
     RbacModule,

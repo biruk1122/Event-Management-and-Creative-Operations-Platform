@@ -6834,6 +6834,27 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedSmsMessagesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SmsMessageResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": ["items", "total", "page", "pageSize"],
+        "type": "object"
+      },
       "PaginatedSuppliersResponse": {
         "properties": {
           "items": {
@@ -8566,6 +8587,17 @@
         "required": ["reason"],
         "type": "object"
       },
+      "ResolveSmsMessageDto": {
+        "properties": {
+          "decision": {
+            "description": "CANCEL closes an uncertain send without sending. REQUEUE sends it again; only use it when the message was not delivered.",
+            "enum": ["CANCEL", "REQUEUE"],
+            "type": "string"
+          }
+        },
+        "required": ["decision"],
+        "type": "object"
+      },
       "RespondToMeetingDto": {
         "properties": {
           "response": {
@@ -9147,6 +9179,403 @@
           }
         },
         "required": ["reason"],
+        "type": "object"
+      },
+      "SmsConnectionTestResponse": {
+        "properties": {
+          "balance": {
+            "type": "string"
+          },
+          "estimatedMessages": {
+            "type": "string"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": ["ok"],
+        "type": "object"
+      },
+      "SmsDeliveryAttemptResponse": {
+        "properties": {
+          "attemptNumber": {
+            "type": "number"
+          },
+          "error": {
+            "nullable": true,
+            "type": "string"
+          },
+          "finishedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "outcome": {
+            "example": "REJECTED",
+            "type": "string"
+          },
+          "providerHttpStatus": {
+            "nullable": true,
+            "type": "number"
+          },
+          "providerResponse": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SmsProviderAcknowledgementResponse"
+              }
+            ],
+            "description": "Provider acknowledgement and status tokens only. Free text is withheld.",
+            "nullable": true,
+            "type": "object"
+          },
+          "startedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attemptNumber",
+          "outcome",
+          "providerHttpStatus",
+          "providerResponse",
+          "error",
+          "startedAt",
+          "finishedAt"
+        ],
+        "type": "object"
+      },
+      "SmsMessageDetailResponse": {
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "body": {
+            "type": "string"
+          },
+          "callbackReceivedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "callbackStatus": {
+            "nullable": true,
+            "type": "string"
+          },
+          "category": {
+            "example": "TEST",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deliveryAttempts": {
+            "items": {
+              "$ref": "#/components/schemas/SmsDeliveryAttemptResponse"
+            },
+            "type": "array"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastError": {
+            "nullable": true,
+            "type": "string"
+          },
+          "providerMessageId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "providerStatus": {
+            "nullable": true,
+            "type": "string"
+          },
+          "providerStatusCheckedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "recipientName": {
+            "example": "Dana Okafor",
+            "nullable": true,
+            "type": "string"
+          },
+          "recipientPhoneMasked": {
+            "example": "+251******123",
+            "nullable": true,
+            "type": "string"
+          },
+          "recipientUserId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "skipReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "sourceDueAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "example": "ACCEPTED",
+            "type": "string"
+          },
+          "templateKey": {
+            "example": "test.connection",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "status",
+          "recipientUserId",
+          "recipientName",
+          "recipientPhoneMasked",
+          "templateKey",
+          "body",
+          "skipReason",
+          "providerMessageId",
+          "providerStatus",
+          "providerStatusCheckedAt",
+          "callbackStatus",
+          "attempts",
+          "lastError",
+          "acceptedAt",
+          "createdAt",
+          "callbackReceivedAt",
+          "sourceDueAt",
+          "deliveryAttempts"
+        ],
+        "type": "object"
+      },
+      "SmsMessageResponse": {
+        "properties": {
+          "acceptedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "attempts": {
+            "type": "number"
+          },
+          "body": {
+            "type": "string"
+          },
+          "callbackStatus": {
+            "nullable": true,
+            "type": "string"
+          },
+          "category": {
+            "example": "TEST",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastError": {
+            "nullable": true,
+            "type": "string"
+          },
+          "providerMessageId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "providerStatus": {
+            "nullable": true,
+            "type": "string"
+          },
+          "providerStatusCheckedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "recipientName": {
+            "example": "Dana Okafor",
+            "nullable": true,
+            "type": "string"
+          },
+          "recipientPhoneMasked": {
+            "example": "+251******123",
+            "nullable": true,
+            "type": "string"
+          },
+          "recipientUserId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "skipReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "example": "ACCEPTED",
+            "type": "string"
+          },
+          "templateKey": {
+            "example": "test.connection",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "category",
+          "status",
+          "recipientUserId",
+          "recipientName",
+          "recipientPhoneMasked",
+          "templateKey",
+          "body",
+          "skipReason",
+          "providerMessageId",
+          "providerStatus",
+          "providerStatusCheckedAt",
+          "callbackStatus",
+          "attempts",
+          "lastError",
+          "acceptedAt",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "SmsProviderAcknowledgementResponse": {
+        "properties": {
+          "acknowledge": {
+            "example": "success",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "example": "Send in progress",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["acknowledge", "status"],
+        "type": "object"
+      },
+      "SmsRecipientListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SmsRecipientResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["items"],
+        "type": "object"
+      },
+      "SmsRecipientResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "example": "Hanna Bekele",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
+        "type": "object"
+      },
+      "SmsServiceStatusResponse": {
+        "properties": {
+          "apiKeyConfigured": {
+            "description": "Whether the provider key is set. The key itself is never returned.",
+            "type": "boolean"
+          },
+          "callbackConfigured": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "senderConfigured": {
+            "type": "boolean"
+          },
+          "timeoutMs": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled",
+          "apiKeyConfigured",
+          "senderConfigured",
+          "callbackConfigured",
+          "timeoutMs"
+        ],
+        "type": "object"
+      },
+      "SmsSettingsCategoryResponse": {
+        "properties": {
+          "category": {
+            "example": "TASK_ASSIGNED",
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": ["category", "enabled"],
+        "type": "object"
+      },
+      "SmsSettingsResponse": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/SmsSettingsCategoryResponse"
+            },
+            "type": "array"
+          },
+          "effectiveEnabled": {
+            "description": "True only when the environment and runtime switches are both on.",
+            "type": "boolean"
+          },
+          "environmentEnabled": {
+            "description": "The environment switch (AFROMESSAGE_ENABLED). It always overrides runtime settings.",
+            "type": "boolean"
+          },
+          "globalEnabled": {
+            "description": "The runtime global switch. Starts disabled.",
+            "type": "boolean"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/SmsServiceStatusResponse"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "environmentEnabled",
+          "globalEnabled",
+          "effectiveEnabled",
+          "categories",
+          "updatedAt",
+          "provider"
+        ],
         "type": "object"
       },
       "SubmitReportDto": {
@@ -11544,6 +11973,22 @@
             "maxLength": 100,
             "minLength": 1,
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UpdateSmsSettingsDto": {
+        "properties": {
+          "categories": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "description": "Per-category switches, keyed by category name.",
+            "type": "object"
+          },
+          "globalEnabled": {
+            "description": "Global SMS switch. The environment switch still applies.",
+            "type": "boolean"
           }
         },
         "type": "object"
@@ -33885,6 +34330,525 @@
         ],
         "summary": "Search active employees to share a record with",
         "tags": ["Administration: Letters"]
+      }
+    },
+    "/api/v1/sms/messages": {
+      "get": {
+        "operationId": "SmsAdmin_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "PENDING",
+                "SENDING",
+                "ACCEPTED",
+                "DELIVERED",
+                "FAILED",
+                "UNCERTAIN",
+                "CANCELLED",
+                "SKIPPED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "enum": [
+                "TEST",
+                "TASK_ASSIGNED",
+                "TASK_REMINDER",
+                "TASK_OVERDUE",
+                "MEETING_INVITATION",
+                "MEETING_CHANGED",
+                "MEETING_REMINDER",
+                "MEETING_CANCELLED",
+                "REPORT_SUBMITTED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only messages for this recipient user.",
+            "in": "query",
+            "name": "recipientUserId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Created at or after this instant.",
+            "in": "query",
+            "name": "createdFrom",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Created at or before this instant.",
+            "in": "query",
+            "name": "createdTo",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedSmsMessagesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "SMS history, newest first. Phone numbers are masked",
+        "tags": ["SMS"]
+      }
+    },
+    "/api/v1/sms/messages/{id}": {
+      "get": {
+        "operationId": "SmsAdmin_detail_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsMessageDetailResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "One SMS with its delivery attempts. Phone numbers are masked and provider text is reduced",
+        "tags": ["SMS"]
+      }
+    },
+    "/api/v1/sms/messages/{id}/resolve": {
+      "post": {
+        "operationId": "SmsAdmin_resolve_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveSmsMessageDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Resolved"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Resolve an uncertain SMS: cancel it, or requeue it on purpose. Never automatic",
+        "tags": ["SMS"]
+      }
+    },
+    "/api/v1/sms/recipients": {
+      "get": {
+        "operationId": "SmsAdmin_recipients_v1",
+        "parameters": [
+          {
+            "description": "A name fragment, or a full user ID.",
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 2,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsRecipientListResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Find users to filter the SMS history by. Returns names and user ids only, never contact details",
+        "tags": ["SMS"]
+      }
+    },
+    "/api/v1/sms/settings": {
+      "get": {
+        "operationId": "SmsAdmin_settings_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsSettingsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Runtime SMS settings and provider configuration status. Never returns secret values",
+        "tags": ["SMS"]
+      },
+      "patch": {
+        "operationId": "SmsAdmin_updateSettings_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSmsSettingsDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsSettingsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Change runtime SMS switches. The environment switch still overrides them. Changes are audited",
+        "tags": ["SMS"]
+      }
+    },
+    "/api/v1/sms/status": {
+      "get": {
+        "operationId": "SmsAdmin_status_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsServiceStatusResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "SMS service status. Reports whether settings are present, never their values",
+        "tags": ["SMS"]
+      }
+    },
+    "/api/v1/sms/test-connection": {
+      "post": {
+        "operationId": "SmsAdmin_testConnection_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmsConnectionTestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Check provider credentials by reading the balance. Sends no SMS",
+        "tags": ["SMS"]
       }
     },
     "/api/v1/suppliers": {

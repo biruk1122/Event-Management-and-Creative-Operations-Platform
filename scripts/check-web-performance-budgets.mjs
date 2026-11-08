@@ -15,7 +15,10 @@ const budgets = {
   // has genuinely grown" pattern as the end-to-end job's own timeout-minutes
   // increase. 750 KiB is no longer safe headroom; 950 restores real margin
   // without rubber-stamping unbounded future growth.
-  javascript: { each: 250 * KIB, total: 950 * KIB },
+  // Measured at 957.6 KiB (was 948.6 KiB) after SMS Phases 1-5 added the SMS
+  // settings and history UI, about 9 KiB. 1000 KiB restores headroom for the
+  // same reason; the 250 KiB per-asset limit is unchanged.
+  javascript: { each: 250 * KIB, total: 1000 * KIB },
   css: { each: 75 * KIB, total: 150 * KIB },
   image: { each: 500 * KIB, total: 1_500 * KIB },
 };

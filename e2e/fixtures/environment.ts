@@ -49,13 +49,38 @@ export function runDirectory(): string {
  * before Playwright starts.
  */
 export function baseDatabaseUrl(): string {
-  const url = process.env.DATABASE_URL;
+  const url = process.env.INTEGRATION_DATABASE_URL;
   if (!url) {
     throw new Error(
-      "DATABASE_URL is required to run the end-to-end harness. Start PostgreSQL and set it in .env.",
+      "INTEGRATION_DATABASE_URL is required. The end-to-end harness runs only against a dedicated test database and never falls back to DATABASE_URL.",
     );
   }
+  assertTestDatabaseUrl(url);
   return url;
+}
+
+/**
+ * Refuses any URL whose database name does not end in "_test", or that names
+ * the development database from DATABASE_URL. Used before anything connects.
+ */
+export function assertTestDatabaseUrl(url: string): void {
+  const name = new URL(url).pathname.slice(1);
+  if (!name.endsWith("_test")) {
+    throw new Error(
+      `The end-to-end database must end in _test; got "${name}". Refusing to run.`,
+    );
+  }
+  // global-setup.ts replaces DATABASE_URL with this run's test URL, so after it
+  // runs the original development URL is kept in E2E_DEVELOPMENT_DATABASE_URL.
+  const development =
+    process.env.E2E_DEVELOPMENT_DATABASE_URL !== undefined
+      ? process.env.E2E_DEVELOPMENT_DATABASE_URL
+      : process.env.DATABASE_URL;
+  if (development && new URL(development).pathname.slice(1) === name) {
+    throw new Error(
+      `The end-to-end database "${name}" is the development database. Refusing to run.`,
+    );
+  }
 }
 
 /**

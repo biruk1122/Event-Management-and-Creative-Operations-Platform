@@ -6,6 +6,7 @@ import { defineConfig, devices } from "@playwright/test";
 import {
   apiBaseUrl,
   apiReadinessUrl,
+  assertTestDatabaseUrl,
   datasourceMarkerPath,
   loadRepositoryEnv,
   runDirectory,
@@ -26,6 +27,8 @@ const isManagedRun = Boolean(process.env.E2E_RUN_ID);
 const { databaseUrl } = JSON.parse(
   readFileSync(datasourceMarkerPath(), "utf8"),
 ) as { databaseUrl: string };
+// Never start the servers against anything but the provisioned test database.
+assertTestDatabaseUrl(databaseUrl);
 const sharedEnv = { ...serverEnv(), DATABASE_URL: databaseUrl };
 // The web server is a production build, while the API needs the explicitly
 // test-only scanner to exercise a real direct-upload/finalize workflow. The

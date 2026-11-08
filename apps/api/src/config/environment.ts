@@ -86,6 +86,28 @@ const environmentSchema = z.object({
   JITSI_JWT_ENABLED: booleanFromString.default(false),
   JITSI_APP_ID: z.string().default(""),
   JITSI_APP_SECRET: z.string().default(""),
+  // AfroMessage SMS. Disabled by default. Enabling it requires the key, the
+  // sender and a callback token of at least 32 characters (see
+  // assertAfroMessageSettings). No secret has a placeholder default.
+  AFROMESSAGE_ENABLED: booleanFromString.default(false),
+  AFROMESSAGE_API_KEY: z.string().default(""),
+  AFROMESSAGE_SENDER_ID: z.string().default(""),
+  AFROMESSAGE_IDENTIFIER_ID: z.string().default(""),
+  AFROMESSAGE_BASE_URL: z.url().default("https://api.afromessage.com/api"),
+  AFROMESSAGE_CALLBACK_TOKEN: z.string().default(""),
+  AFROMESSAGE_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1000)
+    .max(20_000)
+    .default(10_000),
+  /** Minutes before a meeting starts when participants get a reminder SMS. */
+  MEETING_REMINDER_MINUTES: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(1440)
+    .default(30),
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
@@ -103,7 +125,30 @@ export function validateEnvironment(
     );
   }
 
+  assertAfroMessageSettings(result.data);
   return result.data;
+}
+
+/** SMS cannot be turned on with missing or weak settings. Checked after parsing, so the schema stays unchanged. */
+function assertAfroMessageSettings(environment: Environment): void {
+  if (!environment.AFROMESSAGE_ENABLED) return;
+  const problems: string[] = [];
+  if (!environment.AFROMESSAGE_API_KEY)
+    problems.push(
+      "AFROMESSAGE_API_KEY is required when AFROMESSAGE_ENABLED is true",
+    );
+  if (!environment.AFROMESSAGE_SENDER_ID)
+    problems.push(
+      "AFROMESSAGE_SENDER_ID is required when AFROMESSAGE_ENABLED is true",
+    );
+  if (environment.AFROMESSAGE_CALLBACK_TOKEN.length < 32) {
+    problems.push(
+      "AFROMESSAGE_CALLBACK_TOKEN must be at least 32 characters when AFROMESSAGE_ENABLED is true",
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(`Environment validation failed: ${problems.join("; ")}`);
+  }
 }
 
 export function parseCorsOrigins(value: string): string[] {

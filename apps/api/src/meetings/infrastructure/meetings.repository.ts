@@ -12,6 +12,7 @@ import {
 import { DatabaseService } from "../../database/database.service.js";
 import { OutboxWriterService } from "../../outbox/outbox-writer.service.js";
 import type { MeetingParticipantInvitedEventPayload } from "../../outbox/outbox.types.js";
+import { MeetingsSmsService } from "../meetings-sms.service.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -203,11 +204,27 @@ async function lockMeeting(
   return rows.length === 1;
 }
 
+/** Start time, end time and location are what a participant acts on. Title, description and notes are not notified. */
+function isTimeOrLocationChange(
+  current: { startAt: Date; endAt: Date; location: string | null },
+  fields: UpdateMeetingFields,
+): boolean {
+  return (
+    (fields.startAt !== undefined &&
+      fields.startAt.getTime() !== current.startAt.getTime()) ||
+    (fields.endAt !== undefined &&
+      fields.endAt.getTime() !== current.endAt.getTime()) ||
+    (fields.location !== undefined &&
+      (fields.location ?? "") !== (current.location ?? ""))
+  );
+}
+
 @Injectable()
 export class MeetingsRepository {
   constructor(
     private readonly db: DatabaseService,
     private readonly outbox: OutboxWriterService,
+    private readonly meetingsSms: MeetingsSmsService,
   ) {}
 
   async findUserDepartmentId(userId: string): Promise<string | null> {
@@ -381,6 +398,16 @@ export class MeetingsRepository {
           input.workspaceId,
           input.correlationId,
         );
+        await this.meetingsSms.enqueueInvitation(tx, {
+          id: meeting.id,
+          title: input.title,
+          startAt: input.startAt,
+          endAt: input.endAt,
+          location: input.location ?? null,
+          userId: participantUserId,
+          organizerId: input.organizerId,
+          requestId: input.correlationId,
+        });
       }
       const created = await tx.meeting.findUniqueOrThrow({
         where: { id: meeting.id },
@@ -394,16 +421,24 @@ export class MeetingsRepository {
     id: string,
     organizerId: string,
     fields: UpdateMeetingFields,
+    requestId: string,
   ): Promise<MeetingRecord | "not_found" | "forbidden" | "cancelled"> {
     return this.db.$transaction(async (tx) => {
       if (!(await lockMeeting(tx, id))) return "not_found";
       const current = await tx.meeting.findUnique({
         where: { id },
-        select: { organizerId: true, status: true },
+        select: {
+          organizerId: true,
+          status: true,
+          startAt: true,
+          endAt: true,
+          location: true,
+        },
       });
       if (!current) return "not_found";
       if (current.organizerId !== organizerId) return "forbidden";
       if (current.status === MeetingStatus.CANCELLED) return "cancelled";
+      const timeOrPlaceChanged = isTimeOrLocationChange(current, fields);
       const updated = await tx.meeting.update({
         where: { id },
         data: updateData(fields),
@@ -420,6 +455,18 @@ export class MeetingsRepository {
           ...(fields.endAt !== undefined ? { endAt: fields.endAt } : {}),
         },
       });
+      if (timeOrPlaceChanged && updated.status === MeetingStatus.SCHEDULED) {
+        await this.meetingsSms.enqueueChanged(tx, {
+          id,
+          title: updated.title,
+          startAt: updated.startAt,
+          endAt: updated.endAt,
+          location: updated.location,
+          changedAt: updated.updatedAt,
+          organizerId,
+          requestId,
+        });
+      }
       return toRecord(updated);
     });
   }
@@ -496,6 +543,7 @@ export class MeetingsRepository {
           description: true,
           startAt: true,
           endAt: true,
+          location: true,
         },
       });
       if (!current) return "not_found";
@@ -531,6 +579,16 @@ export class MeetingsRepository {
         current.workspaceId,
         correlationId,
       );
+      await this.meetingsSms.enqueueInvitation(tx, {
+        id,
+        title: current.title,
+        startAt: current.startAt,
+        endAt: current.endAt,
+        location: current.location,
+        userId,
+        organizerId,
+        requestId: correlationId,
+      });
       const updated = await tx.meeting.findUniqueOrThrow({
         where: { id },
         select: MEETING_SELECT,
@@ -616,6 +674,7 @@ export class MeetingsRepository {
     id: string,
     organizerId: string,
     status: "COMPLETED" | "CANCELLED",
+    requestId: string,
   ): Promise<MeetingRecord | "not_found" | "forbidden" | "invalid_transition"> {
     return this.db.$transaction(async (tx) => {
       if (!(await lockMeeting(tx, id))) return "not_found";
@@ -634,6 +693,15 @@ export class MeetingsRepository {
       });
       if (status === MeetingStatus.CANCELLED) {
         await tx.calendarEntry.deleteMany({ where: { meetingId: id } });
+        await this.meetingsSms.enqueueCancelled(tx, {
+          id,
+          title: updated.title,
+          startAt: updated.startAt,
+          endAt: updated.endAt,
+          location: updated.location,
+          organizerId,
+          requestId,
+        });
       }
       return toRecord(updated);
     });

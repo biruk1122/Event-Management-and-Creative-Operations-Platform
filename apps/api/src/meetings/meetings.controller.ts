@@ -189,7 +189,7 @@ export class MeetingsController {
     @Param("id") id: string,
     @Body() body: UpdateMeetingDto,
   ): Promise<MeetingResponse> {
-    return this.meetings.update(actingUserId(request), id, body);
+    return this.meetings.update(actingUserId(request), id, body, request.id);
   }
 
   @Delete(":id")
@@ -364,6 +364,11 @@ export class MeetingsController {
     @Param("id") id: string,
     @Body() body: TransitionMeetingDto,
   ): Promise<MeetingResponse> {
-    return this.meetings.transition(actingUserId(request), id, body.status);
+    return this.meetings.transition(
+      actingUserId(request),
+      id,
+      body.status,
+      request.id,
+    );
   }
 }

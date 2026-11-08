@@ -12,6 +12,7 @@ import {
   TasksSchedulerRepository,
   type DueTaskCandidate,
 } from "./infrastructure/tasks-scheduler.repository.js";
+import { TasksSmsService } from "./tasks-sms.service.js";
 
 const TASK_DUE_RULE = { name: "task.due", version: 1 } as const;
 const TASK_OVERDUE_RULE = { name: "task.overdue", version: 1 } as const;
@@ -50,6 +51,7 @@ export class TasksSchedulerService implements OnModuleInit, OnModuleDestroy {
     private readonly db: DatabaseService,
     private readonly repository: TasksSchedulerRepository,
     private readonly outbox: OutboxWriterService,
+    private readonly taskSms: TasksSmsService,
   ) {}
 
   onModuleInit(): void {
@@ -117,6 +119,10 @@ export class TasksSchedulerService implements OnModuleInit, OnModuleDestroy {
         payload: { occurrenceKey: occurrenceKey(rule, task.id, task.dueAt) },
         consumers: [{ consumerName: "notifications", consumerVersion: 1 }],
       });
+      // Overdue SMS rides on the same once-per-task claim, in the same transaction.
+      if (eventName === "task.overdue") {
+        await this.taskSms.queueOverdue(tx, task.id, task.dueAt);
+      }
     });
   }
 }

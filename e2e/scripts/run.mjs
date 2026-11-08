@@ -35,6 +35,9 @@ const environment = {
   API_PORT: String(apiPort),
   CORS_ORIGINS: webBaseUrl,
   E2E_RUN_ID: runId,
+  // This launcher drops the run schema itself, after Playwright has stopped
+  // its servers; global-teardown.ts leaves it alone when this is set.
+  E2E_MANAGED_TEARDOWN: "1",
   NEXT_PUBLIC_API_URL: `${apiBaseUrl}/api/v1`,
   NEXT_PUBLIC_WS_URL: apiBaseUrl,
   WEB_PORT: String(webPort),
@@ -49,11 +52,20 @@ execFileSync(process.execPath, ["scripts/provision.mjs"], {
   env: environment,
   stdio: "inherit",
 });
-execFileSync(
-  process.execPath,
-  [playwrightCli, "test", ...process.argv.slice(2)],
-  {
+try {
+  execFileSync(
+    process.execPath,
+    [playwrightCli, "test", ...process.argv.slice(2)],
+    {
+      env: environment,
+      stdio: "inherit",
+    },
+  );
+} finally {
+  // Playwright has stopped every webServer by the time its process exits, so the
+  // schema can be dropped without the API still polling it.
+  execFileSync(process.execPath, ["scripts/teardown.mjs"], {
     env: environment,
     stdio: "inherit",
-  },
-);
+  });
+}

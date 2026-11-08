@@ -43,7 +43,17 @@ describe("meeting persistence", () => {
       prisma as never,
       new OutboxRepository(prisma as never),
     );
-    repository = new MeetingsRepository(prisma as never, outbox);
+    // Persistence-only spec: SMS queueing is covered by meeting-sms.integration.spec.ts.
+    const noSms = {
+      enqueueInvitation: () => Promise.resolve(),
+      enqueueChanged: () => Promise.resolve(),
+      enqueueCancelled: () => Promise.resolve(),
+    };
+    repository = new MeetingsRepository(
+      prisma as never,
+      outbox,
+      noSms as never,
+    );
     scheduler = new MeetingsSchedulerRepository(prisma as never);
   });
 
@@ -79,10 +89,20 @@ describe("meeting persistence", () => {
 
   it("edits completed meeting details and all calendar projections without reopening it", async () => {
     const meeting = await create({ participantIds: [await user()] });
-    await repository.transition(meeting.id, meeting.organizer.id, "COMPLETED");
-    const updated = await repository.update(meeting.id, meeting.organizer.id, {
-      title: "Corrected completed meeting",
-    });
+    await repository.transition(
+      meeting.id,
+      meeting.organizer.id,
+      "COMPLETED",
+      "request-persistence",
+    );
+    const updated = await repository.update(
+      meeting.id,
+      meeting.organizer.id,
+      {
+        title: "Corrected completed meeting",
+      },
+      "request-persistence",
+    );
     expect(updated).toMatchObject({
       title: "Corrected completed meeting",
       status: MeetingStatus.COMPLETED,
@@ -99,11 +119,17 @@ describe("meeting persistence", () => {
       cancelled.id,
       cancelled.organizer.id,
       "CANCELLED",
+      "request-persistence",
     );
     expect(
-      await repository.update(cancelled.id, cancelled.organizer.id, {
-        title: "No",
-      }),
+      await repository.update(
+        cancelled.id,
+        cancelled.organizer.id,
+        {
+          title: "No",
+        },
+        "request-persistence",
+      ),
     ).toBe("cancelled");
   });
 
@@ -214,11 +240,16 @@ describe("meeting persistence", () => {
     const meeting = await create({ participantIds: [await user()] });
     const startAt = new Date("2030-01-02T10:00:00.000Z");
     const endAt = new Date("2030-01-02T11:00:00.000Z");
-    const updated = await repository.update(meeting.id, meeting.organizer.id, {
-      title: "Rescheduled",
-      startAt,
-      endAt,
-    });
+    const updated = await repository.update(
+      meeting.id,
+      meeting.organizer.id,
+      {
+        title: "Rescheduled",
+        startAt,
+        endAt,
+      },
+      "request-persistence",
+    );
     if (typeof updated === "string") throw new Error(updated);
     expect(updated.title).toBe("Rescheduled");
     const projections = await prisma.calendarEntry.findMany({
@@ -273,6 +304,7 @@ describe("meeting persistence", () => {
       meeting.id,
       meeting.organizer.id,
       "CANCELLED",
+      "request-persistence",
     );
     if (typeof cancelled === "string") throw new Error(cancelled);
     expect(cancelled.status).toBe(MeetingStatus.CANCELLED);
@@ -325,7 +357,12 @@ describe("meeting persistence", () => {
         scheduler.tryClaim(tx as never, candidate!),
       ),
     ).toBe(false);
-    await repository.transition(meeting.id, meeting.organizer.id, "COMPLETED");
+    await repository.transition(
+      meeting.id,
+      meeting.organizer.id,
+      "COMPLETED",
+      "request-persistence",
+    );
     expect(
       (
         await scheduler.findReminderCandidates(

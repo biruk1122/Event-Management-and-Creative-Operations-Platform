@@ -48,11 +48,28 @@ const TEST_USERS = [
   },
 ];
 
-function baseDatabaseUrl() {
-  const url = process.env.DATABASE_URL;
+/**
+ * The dedicated test database the harness provisions run schemas in. It must be
+ * named explicitly in INTEGRATION_DATABASE_URL, must end in "_test", and must
+ * differ from the development database. There is no fallback to DATABASE_URL.
+ */
+function testDatabaseUrl() {
+  const url = process.env.INTEGRATION_DATABASE_URL;
   if (!url) {
     throw new Error(
-      "DATABASE_URL is required to run the end-to-end harness. Start PostgreSQL and set it in .env.",
+      "INTEGRATION_DATABASE_URL is required. The end-to-end harness runs only against a dedicated test database (name ending in _test) and never falls back to DATABASE_URL.",
+    );
+  }
+  const name = new URL(url).pathname.slice(1);
+  if (!name.endsWith("_test")) {
+    throw new Error(
+      `INTEGRATION_DATABASE_URL must name a database ending in _test; got "${name}". Refusing to run.`,
+    );
+  }
+  const development = process.env.DATABASE_URL;
+  if (development && new URL(development).pathname.slice(1) === name) {
+    throw new Error(
+      `INTEGRATION_DATABASE_URL names the development database "${name}". Refusing to run.`,
     );
   }
   return url;
@@ -87,7 +104,7 @@ async function main() {
     );
   }
 
-  const base = baseDatabaseUrl();
+  const base = testDatabaseUrl();
   const schema = `${SCHEMA_PREFIX}${runId}_${randomBytes(4).toString("hex")}`;
   const adminUrl = withSchema(base, "public");
   const scopedUrl = withSchema(base, schema);
