@@ -37,6 +37,8 @@ export default function globalSetup(): void {
     );
   }
 
+  // Keep the development URL so later guards can still compare against it.
+  process.env.E2E_DEVELOPMENT_DATABASE_URL ??= process.env.DATABASE_URL ?? "";
   process.env.DATABASE_URL = datasource.databaseUrl;
   process.env.E2E_SCHEMA = datasource.schema;
   process.env.E2E_ADMIN_DATABASE_URL = datasource.adminUrl;

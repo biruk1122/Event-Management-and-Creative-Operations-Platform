@@ -27,6 +27,8 @@ env:
   AUTH_REFRESH_TOKEN_TTL: 30d
   CORS_ORIGINS: http://127.0.0.1:3000
   DATABASE_URL: postgresql://event_platform:event_platform_ci@127.0.0.1:5432/event_platform?schema=public
+  # Integration and end-to-end tests refuse any database not ending in _test.
+  INTEGRATION_DATABASE_URL: postgresql://event_platform:event_platform_ci@127.0.0.1:5432/event_platform_test?schema=public
   FILE_STORAGE_ACCESS_KEY: minioadmin
   FILE_STORAGE_BUCKET: event-platform-files
   FILE_STORAGE_ENDPOINT: http://127.0.0.1:9000
@@ -125,6 +127,9 @@ jobs:
         run: |
           pnpm db:migrate:deploy
           pnpm db:migrate:status
+
+      - name: Create dedicated test database
+        run: PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE event_platform_test"
 
       - name: Run database integration tests
         run: pnpm test:integration
@@ -291,6 +296,9 @@ jobs:
         run: |
           docker compose up --build --detach --wait minio
           docker compose run --rm minio-init
+
+      - name: Create dedicated test database
+        run: PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE event_platform_test"
 
       - name: Run end-to-end smoke journey
         run: pnpm e2e
