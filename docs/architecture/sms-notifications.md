@@ -42,7 +42,8 @@ The provider calls `GET /api/v1/sms/callbacks/:token?message_id=…&status=…`.
 Environment variables only; there is no settings table yet. See `.env.example`.
 
 - `AFROMESSAGE_ENABLED` (default `false`)
-- `AFROMESSAGE_API_KEY`, `AFROMESSAGE_SENDER_ID` (required when enabled)
+- `AFROMESSAGE_API_KEY` (required when enabled)
+- `AFROMESSAGE_SENDER_ID` (optional; verified accounts only, omitted from the request when empty)
 - `AFROMESSAGE_CALLBACK_TOKEN` (at least 32 characters when enabled)
 - `AFROMESSAGE_IDENTIFIER_ID`, `AFROMESSAGE_BASE_URL`, `AFROMESSAGE_TIMEOUT_MS` (1000–20000)
 

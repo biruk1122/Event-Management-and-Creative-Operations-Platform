@@ -86,9 +86,10 @@ const environmentSchema = z.object({
   JITSI_JWT_ENABLED: booleanFromString.default(false),
   JITSI_APP_ID: z.string().default(""),
   JITSI_APP_SECRET: z.string().default(""),
-  // AfroMessage SMS. Disabled by default. Enabling it requires the key, the
-  // sender and a callback token of at least 32 characters (see
-  // assertAfroMessageSettings). No secret has a placeholder default.
+  // AfroMessage SMS. Disabled by default. Enabling it requires the key and a
+  // callback token of at least 32 characters (see assertAfroMessageSettings).
+  // The sender name is optional: it exists only for verified accounts.
+  // No secret has a placeholder default.
   AFROMESSAGE_ENABLED: booleanFromString.default(false),
   AFROMESSAGE_API_KEY: z.string().default(""),
   AFROMESSAGE_SENDER_ID: z.string().default(""),
@@ -136,10 +137,6 @@ function assertAfroMessageSettings(environment: Environment): void {
   if (!environment.AFROMESSAGE_API_KEY)
     problems.push(
       "AFROMESSAGE_API_KEY is required when AFROMESSAGE_ENABLED is true",
-    );
-  if (!environment.AFROMESSAGE_SENDER_ID)
-    problems.push(
-      "AFROMESSAGE_SENDER_ID is required when AFROMESSAGE_ENABLED is true",
     );
   if (environment.AFROMESSAGE_CALLBACK_TOKEN.length < 32) {
     problems.push(

@@ -73,6 +73,7 @@ export interface SendRequest {
   /** Normalized E.164 number, for example +251912345678. */
   to: string;
   message: string;
+  /** Verified sender name. Empty means it is omitted from the request. */
   sender: string;
   identifierId?: string;
 }
