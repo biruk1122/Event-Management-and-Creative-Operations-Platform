@@ -259,7 +259,22 @@ test.describe("Campaign platform — end to end", () => {
 
       // Move through the approved lifecycle graph, cross-checking the
       // authoritative status after each move (the UI resets its picker to a
-      // placeholder rather than showing the current value).
+      // placeholder rather than showing the current value). A promotion
+      // campaign is approved before it goes live (EVE-229), and this journey
+      // runs as Super Admin, who may approve.
+      await detail.getByRole("combobox", { name: "Move to" }).click();
+      await page
+        .getByRole("option", { name: "Approved", exact: true })
+        .click();
+      await expect
+        .poll(async () => {
+          const response = await page.request.get(
+            `${apiBaseUrl}/api/v1/campaigns/${campaignId}`,
+          );
+          return ((await response.json()) as ApiCampaign).status;
+        })
+        .toBe("APPROVED");
+
       await detail.getByRole("combobox", { name: "Move to" }).click();
       await page.getByRole("option", { name: "Active", exact: true }).click();
       await expect
