@@ -262,6 +262,33 @@ describe("CreativeRequestDetail", () => {
     expect(await screen.findByText("No files yet.")).toBeInTheDocument();
   });
 
+  it("asks for a deliverable file before delivering (EVE-233)", async () => {
+    render(
+      <CreativeRequestDetail
+        request={request({
+          status: "IN_PROGRESS",
+          abilities: {
+            moves: ["DELIVERED"],
+            canAddFeedback: true,
+            canAttach: ["DELIVERABLE"],
+            readOnly: false,
+          },
+        })}
+        queryKey={["test"]}
+        onChanged={vi.fn()}
+      />,
+      { wrapper },
+    );
+    await screen.findByText("No files yet.");
+    await userEvent.click(screen.getByRole("button", { name: "Deliver" }));
+    expect(
+      screen.getByText(
+        "Attach at least one deliverable file before delivering.",
+      ),
+    ).toBeInTheDocument();
+    expect(gateway.moveCreativeRequest).not.toHaveBeenCalled();
+  });
+
   it("offers uploads only for the kinds the viewer may add", async () => {
     render(
       <CreativeRequestDetail

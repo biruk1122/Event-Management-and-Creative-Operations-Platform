@@ -556,6 +556,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/campaigns/budget-summaries": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Budget summaries of the campaigns whose budget the caller can read (EVE-233) */
+    get: operations["Campaigns_listBudgetSummaries_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/campaigns/for-event/{eventId}": {
     parameters: {
       query?: never;
@@ -724,6 +741,23 @@ export interface paths {
     get: operations["Campaigns_getBudget_v1"];
     /** Set or clear the campaign budget (sensitive) */
     put: operations["Campaigns_setBudget_v1"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/campaigns/{id}/budget-summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** A campaign's budget against its expenses and partnerships (EVE-233) */
+    get: operations["Campaigns_budgetSummary_v1"];
+    put?: never;
     post?: never;
     delete?: never;
     options?: never;
@@ -2886,6 +2920,74 @@ export interface paths {
     put?: never;
     /** Add a note to a partner's activity log */
     post: operations["Partners_createActivity_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/partners/{partnerId}/files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List available files attached to a partner */
+    get: operations["PartnerFileManagement_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/partners/{partnerId}/files/upload-intents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a direct-upload grant for a partnership document */
+    post: operations["PartnerFileManagement_createUploadIntent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/partners/{partnerId}/files/{fileId}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a private download grant for a partnership document */
+    get: operations["PartnerFileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/partners/{partnerId}/files/{fileId}/finalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify, scan, and attach a completed partnership document upload */
+    post: operations["PartnerFileManagement_finalize_v1"];
     delete?: never;
     options?: never;
     head?: never;
@@ -5296,6 +5398,26 @@ export interface components {
       /** Format: date-time */
       updatedAt: string;
     };
+    CampaignBudgetActivityLine: {
+      /** @description Null for spending not tied to an activity. */
+      activityName: string | null;
+      /** Format: uuid */
+      campaignActivityId: string | null;
+      /** @example 1200.00 */
+      spent: string;
+    };
+    CampaignBudgetPartnership: {
+      /** @example 50000.00 */
+      agreedValueAmount: string | null;
+      /** @example ETB */
+      agreedValueCurrency: string | null;
+      /** Format: uuid */
+      id: string;
+      organizationName: string;
+      partnershipName: string | null;
+      /** @example COMMITTED */
+      status: string;
+    };
     CampaignBudgetResponse: {
       /**
        * @description Decimal string with two fraction digits. Null when no budget is set.
@@ -5307,6 +5429,50 @@ export interface components {
        * @example ETB
        */
       currency: string | null;
+    };
+    CampaignBudgetSummaryResponse: {
+      /** @example 25000.00 */
+      allocated: string | null;
+      /**
+       * @description Approved expenses.
+       * @example 9800.00
+       */
+      approved: string;
+      byActivity: components["schemas"]["CampaignBudgetActivityLine"][];
+      /** Format: uuid */
+      campaignId: string;
+      campaignName: string;
+      /** @example PROMOTION */
+      campaignType: string;
+      /**
+       * @description Agreed value of committed and completed partnerships, in the budget's currency. Not spending.
+       * @example 50000.00
+       */
+      committedPartnershipValue: string;
+      /** @example ETB */
+      currency: string | null;
+      /** @description Submitted or approved expenses in another currency, left out of the totals. */
+      otherCurrencyExpenseCount: number;
+      otherCurrencyPartnershipCount: number;
+      overBudget: boolean;
+      /** @description The campaign's partnerships the caller can read. */
+      partnerships: components["schemas"]["CampaignBudgetPartnership"][];
+      /**
+       * @description Expenses submitted and awaiting approval.
+       * @example 1350.00
+       */
+      pending: string;
+      /** @example 13850.00 */
+      remaining: string | null;
+      /**
+       * @description Approved plus pending.
+       * @example 11150.00
+       */
+      spent: string;
+      /** @example ACTIVE */
+      status: string;
+      /** @example 44.6 */
+      utilizationPercent: number | null;
     };
     CampaignMetricResponse: {
       /** Format: uuid */
@@ -5918,6 +6084,16 @@ export interface components {
        * @example 1350
        */
       actualAmount: number;
+      /**
+       * Format: uuid
+       * @description One of the campaign's activities. Requires campaignId.
+       */
+      campaignActivityId?: string;
+      /**
+       * Format: uuid
+       * @description The campaign this expense belongs to (EVE-233). An expense needs an event, a production or a campaign.
+       */
+      campaignId?: string;
       /** @enum {string} */
       category:
         | "VENUE"
@@ -5941,6 +6117,11 @@ export interface components {
        */
       eventId?: string;
       /**
+       * @description The day the money was spent (YYYY-MM-DD).
+       * @example 2026-11-09
+       */
+      expenseDate?: string;
+      /**
        * @description This line item's planned amount, at most two fraction digits.
        * @example 1200
        */
@@ -5952,6 +6133,8 @@ export interface components {
       productionId?: string;
       /** Format: uuid */
       supplierId?: string;
+      /** @example Flyer printing */
+      title?: string;
     };
     CreateHolidayDto: {
       /** Format: date */
@@ -6071,6 +6254,27 @@ export interface components {
     };
     CreatePartnerDto: {
       /**
+       * @description The value agreed with the partner, at most two fraction digits. A commitment, never an expense.
+       * @example 50000
+       */
+      agreedValueAmount?: number;
+      /**
+       * @description ISO-4217 code.
+       * @example ETB
+       */
+      agreedValueCurrency?: string;
+      agreementDetails?: string;
+      /**
+       * @description YYYY-MM-DD
+       * @example 2027-01-31
+       */
+      agreementEndOn?: string;
+      /**
+       * @description YYYY-MM-DD
+       * @example 2026-11-01
+       */
+      agreementStartOn?: string;
+      /**
        * Format: uuid
        * @description The campaign this opportunity relates to, where applicable.
        */
@@ -6104,6 +6308,17 @@ export interface components {
        * @description The user responsible for this relationship. Must belong to the same department as the partner, when the partner has one.
        */
       ownerId?: string;
+      /** @example Summer festival media partnership */
+      partnershipName?: string;
+      /** @enum {string} */
+      partnershipType?:
+        | "BRAND"
+        | "SPONSOR"
+        | "INFLUENCER"
+        | "MEDIA"
+        | "ADVERTISING_AGENCY"
+        | "PROMOTIONAL_PARTNER"
+        | "OTHER";
       /** @example Co-branded media placement, estimated 5,000 ETB in kind */
       proposedContribution?: string;
     };
@@ -7351,6 +7566,13 @@ export interface components {
     ExpenseResponse: {
       /** @example 1350.00 */
       actualAmount: string;
+      /**
+       * Format: uuid
+       * @description One of the campaign's activities (EVE-233).
+       */
+      campaignActivityId: string | null;
+      /** Format: uuid */
+      campaignId: string | null;
       /** @enum {string} */
       category:
         | "VENUE"
@@ -7376,6 +7598,11 @@ export interface components {
        * @description Null when this expense is recorded directly against a production (productionId set instead).
        */
       eventId: string | null;
+      /**
+       * @description The day the money was spent (YYYY-MM-DD).
+       * @example 2026-11-09
+       */
+      expenseDate: string | null;
       /** Format: uuid */
       id: string;
       /**
@@ -7399,8 +7626,12 @@ export interface components {
       submittedAt: string | null;
       /** Format: uuid */
       supplierId: string | null;
+      /** @example Flyer printing */
+      title: string | null;
       /** Format: date-time */
       updatedAt: string;
+      /** Format: uuid */
+      updatedById: string | null;
     };
     ExpenseReviewSummary: {
       /** Format: uuid */
@@ -8023,6 +8254,15 @@ export interface components {
        */
       total: number;
     };
+    PaginatedCampaignBudgetSummariesResponse: {
+      items: components["schemas"]["CampaignBudgetSummaryResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 3 */
+      total: number;
+    };
     PaginatedCampaignMetricsResponse: {
       items: components["schemas"]["CampaignMetricResponse"][];
       /** @example 1 */
@@ -8380,6 +8620,18 @@ export interface components {
     };
     PartnerResponse: {
       /**
+       * @description The agreed value. A commitment, never counted as spending.
+       * @example 50000.00
+       */
+      agreedValueAmount: string | null;
+      /** @example ETB */
+      agreedValueCurrency: string | null;
+      agreementDetails: string | null;
+      /** @example 2027-01-31 */
+      agreementEndOn: string | null;
+      /** @example 2026-11-01 */
+      agreementStartOn: string | null;
+      /**
        * Format: uuid
        * @description The campaign this opportunity relates to, where applicable.
        */
@@ -8415,6 +8667,17 @@ export interface components {
       organizationName: string;
       /** @description The user responsible for this relationship. */
       owner: components["schemas"]["PartnerPersonSummary"] | null;
+      partnershipName: string | null;
+      /** @enum {string|null} */
+      partnershipType:
+        | "BRAND"
+        | "SPONSOR"
+        | "INFLUENCER"
+        | "MEDIA"
+        | "ADVERTISING_AGENCY"
+        | "PROMOTIONAL_PARTNER"
+        | "OTHER"
+        | null;
       /** @example Co-branded media placement, estimated 5,000 ETB in kind */
       proposedContribution: string | null;
       /** @enum {string} */
@@ -8426,6 +8689,7 @@ export interface components {
         | "COMPLETED";
       /** Format: date-time */
       updatedAt: string;
+      updatedBy: components["schemas"]["PartnerPersonSummary"] | null;
     };
     PermissionResponse: {
       /** @example Record Approved or Changes Requested while a task is Under Review. */
@@ -10065,6 +10329,11 @@ export interface components {
     };
     UpdateExpenseDto: {
       actualAmount?: number;
+      /**
+       * Format: uuid
+       * @description One of the expense's campaign activities (EVE-233).
+       */
+      campaignActivityId?: string | null;
       /** @enum {string} */
       category?:
         | "VENUE"
@@ -10078,9 +10347,12 @@ export interface components {
       /** @description ISO-4217 alphabetic code. */
       currency?: string;
       description?: string;
+      /** @example 2026-11-09 */
+      expenseDate?: string | null;
       plannedAmount?: number | null;
       /** Format: uuid */
       supplierId?: string | null;
+      title?: string | null;
     };
     UpdateHolidayDto: {
       /** Format: date */
@@ -10126,6 +10398,14 @@ export interface components {
       content: string;
     };
     UpdatePartnerDto: {
+      agreedValueAmount?: number | null;
+      /** @example ETB */
+      agreedValueCurrency?: string | null;
+      agreementDetails?: string | null;
+      /** @example 2027-01-31 */
+      agreementEndOn?: string | null;
+      /** @example 2026-11-01 */
+      agreementStartOn?: string | null;
       /** Format: uuid */
       campaignId?: string | null;
       category?: string;
@@ -10144,6 +10424,17 @@ export interface components {
        * @description The user responsible for this relationship. Must belong to the same department as the partner, when the partner has one.
        */
       ownerId?: string | null;
+      partnershipName?: string | null;
+      /** @enum {string|null} */
+      partnershipType?:
+        | "BRAND"
+        | "SPONSOR"
+        | "INFLUENCER"
+        | "MEDIA"
+        | "ADVERTISING_AGENCY"
+        | "PROMOTIONAL_PARTNER"
+        | "OTHER"
+        | null;
       proposedContribution?: string | null;
       /** @enum {string} */
       status?:
@@ -12399,6 +12690,47 @@ export interface operations {
       };
     };
   };
+  Campaigns_listBudgetSummaries_v1: {
+    parameters: {
+      query?: {
+        campaignType?: "MARKETING" | "PROMOTION";
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedCampaignBudgetSummariesResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Campaigns_listForEvent_v1: {
     parameters: {
       query?: never;
@@ -13189,6 +13521,54 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Campaigns_budgetSummary_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CampaignBudgetSummaryResponse"];
         };
       };
       /** @description Not authenticated */
@@ -19080,6 +19460,8 @@ export interface operations {
       query?: {
         eventId?: string;
         productionId?: string;
+        campaignId?: string;
+        campaignActivityId?: string;
         status?: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
         category?:
           | "VENUE"
@@ -22202,6 +22584,14 @@ export interface operations {
         eventId?: string;
         /** @description Restrict to partners owned by this user. */
         ownerId?: string;
+        partnershipType?:
+          | "BRAND"
+          | "SPONSOR"
+          | "INFLUENCER"
+          | "MEDIA"
+          | "ADVERTISING_AGENCY"
+          | "PROMOTIONAL_PARTNER"
+          | "OTHER";
         /** @description Case-insensitive match against the organization name. */
         search?: string;
         page?: components["schemas"]["Object"];
@@ -22487,6 +22877,243 @@ export interface operations {
         };
       };
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  PartnerFileManagement_list_v1: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path: {
+        partnerId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedManagedFilesResponse"];
+        };
+      };
+      /** @description Invalid pagination query */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside partner scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Partner not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  PartnerFileManagement_createUploadIntent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        partnerId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUploadIntentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UploadIntentResponse"];
+        };
+      };
+      /** @description Invalid upload declaration */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside partner scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Partner not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  PartnerFileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        partnerId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside partner scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Partner document not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  PartnerFileManagement_finalize_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        partnerId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManagedFileResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing permission, outside partner scope, or invalid CSRF token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Partner or intent not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Intent expired, upload missing, unsafe, or already finalized */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description File scanner unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

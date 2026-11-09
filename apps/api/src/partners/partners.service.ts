@@ -1,6 +1,7 @@
-import { Injectable } from "@nestjs/common";
+import { ForbiddenException, Injectable } from "@nestjs/common";
 
 import { PermissionsService } from "../common/security/permissions.service.js";
+import type { Prisma } from "../generated/prisma/client.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import type { CreatePartnerActivityDto } from "./dto/create-partner-activity.dto.js";
 import type { CreatePartnerDto } from "./dto/create-partner.dto.js";
@@ -14,6 +15,8 @@ import type {
   PartnerResponse,
 } from "./partners.contracts.js";
 import {
+  partnerAgreedValueIncomplete,
+  partnerAgreementDatesInvalid,
   partnerCampaignNotFound,
   partnerDepartmentNotFound,
   partnerNotFound,
@@ -147,6 +150,9 @@ export class PartnersService {
       ...(query.campaignId ? { campaignId: query.campaignId } : {}),
       ...(query.eventId ? { eventId: query.eventId } : {}),
       ...(query.ownerId ? { ownerId: query.ownerId } : {}),
+      ...(query.partnershipType
+        ? { partnershipType: query.partnershipType }
+        : {}),
       ...(query.search?.trim() ? { search: query.search.trim() } : {}),
       page: query.page,
       pageSize: query.pageSize,
@@ -211,6 +217,12 @@ export class PartnersService {
       throw partnerDepartmentNotFound();
 
     await this.assertOwnerEligible(departmentId, dto.ownerId);
+    assertAgreement({
+      startOn: dto.agreementStartOn ?? null,
+      endOn: dto.agreementEndOn ?? null,
+      amount: dto.agreedValueAmount ?? null,
+      currency: dto.agreedValueCurrency ?? null,
+    });
 
     const followUpAt = dto.followUpAt ? new Date(dto.followUpAt) : undefined;
 
@@ -236,6 +248,27 @@ export class PartnersService {
       ...(dto.notes !== undefined ? { notes: dto.notes.trim() } : {}),
       ...(followUpAt ? { followUpAt } : {}),
       ...(dto.ownerId ? { ownerId: dto.ownerId } : {}),
+      ...(dto.partnershipName !== undefined
+        ? { partnershipName: dto.partnershipName.trim() }
+        : {}),
+      ...(dto.partnershipType !== undefined
+        ? { partnershipType: dto.partnershipType }
+        : {}),
+      ...(dto.agreementDetails !== undefined
+        ? { agreementDetails: dto.agreementDetails.trim() }
+        : {}),
+      ...(dto.agreementStartOn !== undefined
+        ? { agreementStartOn: new Date(dto.agreementStartOn) }
+        : {}),
+      ...(dto.agreementEndOn !== undefined
+        ? { agreementEndOn: new Date(dto.agreementEndOn) }
+        : {}),
+      ...(dto.agreedValueAmount !== undefined
+        ? { agreedValueAmount: dto.agreedValueAmount.toFixed(2) }
+        : {}),
+      ...(dto.agreedValueCurrency !== undefined
+        ? { agreedValueCurrency: dto.agreedValueCurrency }
+        : {}),
     });
 
     if (result === "campaign_not_found") throw partnerCampaignNotFound();
@@ -256,8 +289,72 @@ export class PartnersService {
         dto.ownerId,
       );
     }
+    // The agreement as it will be after this edit.
+    assertAgreement({
+      startOn:
+        dto.agreementStartOn !== undefined
+          ? dto.agreementStartOn
+          : isoDate(partner.agreementStartOn),
+      endOn:
+        dto.agreementEndOn !== undefined
+          ? dto.agreementEndOn
+          : isoDate(partner.agreementEndOn),
+      amount:
+        dto.agreedValueAmount !== undefined
+          ? dto.agreedValueAmount
+          : partner.agreedValueAmount === null
+            ? null
+            : Number(partner.agreedValueAmount),
+      currency:
+        dto.agreedValueCurrency !== undefined
+          ? dto.agreedValueCurrency
+          : partner.agreedValueCurrency,
+    });
 
     const result = await this.repository.update(id, {
+      updatedById: actingUserId,
+      ...(dto.partnershipName !== undefined
+        ? {
+            partnershipName:
+              dto.partnershipName === null ? null : dto.partnershipName.trim(),
+          }
+        : {}),
+      ...(dto.partnershipType !== undefined
+        ? { partnershipType: dto.partnershipType }
+        : {}),
+      ...(dto.agreementDetails !== undefined
+        ? {
+            agreementDetails:
+              dto.agreementDetails === null
+                ? null
+                : dto.agreementDetails.trim(),
+          }
+        : {}),
+      ...(dto.agreementStartOn !== undefined
+        ? {
+            agreementStartOn:
+              dto.agreementStartOn === null
+                ? null
+                : new Date(dto.agreementStartOn),
+          }
+        : {}),
+      ...(dto.agreementEndOn !== undefined
+        ? {
+            agreementEndOn:
+              dto.agreementEndOn === null ? null : new Date(dto.agreementEndOn),
+          }
+        : {}),
+      ...(dto.agreedValueAmount !== undefined
+        ? {
+            agreedValueAmount:
+              dto.agreedValueAmount === null
+                ? null
+                : dto.agreedValueAmount.toFixed(2),
+          }
+        : {}),
+      ...(dto.agreedValueCurrency !== undefined
+        ? { agreedValueCurrency: dto.agreedValueCurrency }
+        : {}),
       ...(dto.organizationName !== undefined
         ? { organizationName: dto.organizationName.trim() }
         : {}),
@@ -307,6 +404,87 @@ export class PartnersService {
     if (result === "campaign_not_found") throw partnerCampaignNotFound();
     if (result === "event_not_found") throw partnerRelatedEventNotFound();
     return toPartnerResponse(result);
+  }
+
+  // File pipeline hooks (EVE-233), mirroring ReportsService's attachment methods.
+
+  /** Checks the caller may attach a document to this partner. */
+  async authorizeAttachment(actingUserId: string, id: string): Promise<void> {
+    await this.authorize(actingUserId, id, "partner.attachment.create");
+  }
+
+  /** Rechecks scope with the partner row locked, inside the file transaction. */
+  async lockAttachmentFinalization(
+    tx: Prisma.TransactionClient,
+    input: { actingUserId: string; partnerId: string },
+  ): Promise<void> {
+    await this.authorize(
+      input.actingUserId,
+      input.partnerId,
+      "partner.attachment.create",
+    );
+    if (!(await this.repository.lockForAttachment(tx, input.partnerId)))
+      throw partnerNotFound();
+  }
+
+  async recordAttachment(
+    tx: Prisma.TransactionClient,
+    input: { actingUserId: string; partnerId: string; fileId: string },
+  ): Promise<void> {
+    await this.repository.createAttachment(tx, {
+      partnerId: input.partnerId,
+      fileId: input.fileId,
+      attachedById: input.actingUserId,
+    });
+  }
+
+  async listAttachmentFileIds(
+    actingUserId: string,
+    id: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ fileIds: string[]; total: number }> {
+    await this.authorize(actingUserId, id, "partner.read");
+    return this.repository.listAttachmentFileIds(id, page, pageSize);
+  }
+
+  async readAttachmentContext(
+    actingUserId: string,
+    id: string,
+    fileId: string,
+  ): Promise<Record<string, never> | null> {
+    await this.authorize(actingUserId, id, "partner.read");
+    return (await this.repository.hasAttachment(id, fileId)) ? {} : null;
+  }
+
+  /**
+   * The partners of some campaigns, grouped by campaign, as far as the caller
+   * may read partners (EVE-233 budget summary). A caller without
+   * `partner.read` gets an empty map; any other failure is raised.
+   */
+  async listForCampaigns(
+    actingUserId: string,
+    campaignIds: readonly string[],
+  ): Promise<Map<string, PartnerResponse[]>> {
+    const result = new Map<string, PartnerResponse[]>();
+    if (campaignIds.length === 0) return result;
+    let visibility: PartnerVisibility;
+    try {
+      visibility = await this.visibilityFor(actingUserId, "partner.read");
+    } catch (error) {
+      if (error instanceof ForbiddenException) return result;
+      throw error;
+    }
+    for (const record of await this.repository.listForCampaigns(
+      campaignIds,
+      visibility,
+    )) {
+      if (!record.campaignId) continue;
+      const list = result.get(record.campaignId) ?? [];
+      list.push(toPartnerResponse(record));
+      result.set(record.campaignId, list);
+    }
+    return result;
   }
 
   async listActivities(
@@ -361,9 +539,38 @@ function toPartnerResponse(record: PartnerRecord): PartnerResponse {
     followUpAt: record.followUpAt ? record.followUpAt.toISOString() : null,
     owner: record.owner,
     createdBy: record.createdBy,
+    updatedBy: record.updatedBy,
+    partnershipName: record.partnershipName,
+    partnershipType: record.partnershipType,
+    agreementDetails: record.agreementDetails,
+    agreementStartOn: isoDate(record.agreementStartOn),
+    agreementEndOn: isoDate(record.agreementEndOn),
+    agreedValueAmount:
+      record.agreedValueAmount === null
+        ? null
+        : record.agreedValueAmount.toFixed(2),
+    agreedValueCurrency: record.agreedValueCurrency?.trim() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };
+}
+
+function isoDate(value: Date | null): string | null {
+  return value ? value.toISOString().slice(0, 10) : null;
+}
+
+/** EVE-233: an agreement ends on or after it starts, and an agreed value
+ * always comes with its currency. */
+function assertAgreement(input: {
+  startOn: string | null;
+  endOn: string | null;
+  amount: number | null;
+  currency: string | null;
+}): void {
+  if (input.startOn && input.endOn && input.endOn < input.startOn)
+    throw partnerAgreementDatesInvalid();
+  if ((input.amount === null) !== (input.currency === null))
+    throw partnerAgreedValueIncomplete();
 }
 
 function toActivityResponse(

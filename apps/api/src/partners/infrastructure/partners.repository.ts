@@ -1,7 +1,10 @@
 import { Injectable } from "@nestjs/common";
 
 import { Prisma, UserAccountStatus } from "../../generated/prisma/client.js";
-import type { PartnerStatus } from "../../generated/prisma/client.js";
+import type {
+  PartnershipType,
+  PartnerStatus,
+} from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
 
 const UUID_PATTERN =
@@ -40,8 +43,16 @@ export interface PartnerRecord {
   proposedContribution: string | null;
   notes: string | null;
   followUpAt: Date | null;
+  partnershipName: string | null;
+  partnershipType: PartnershipType | null;
+  agreementDetails: string | null;
+  agreementStartOn: Date | null;
+  agreementEndOn: Date | null;
+  agreedValueAmount: Prisma.Decimal | null;
+  agreedValueCurrency: string | null;
   owner: PartnerPersonRecord | null;
   createdBy: PartnerPersonRecord | null;
+  updatedBy: PartnerPersonRecord | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,6 +84,7 @@ export interface ListPartnersInput {
   campaignId?: string;
   eventId?: string;
   ownerId?: string;
+  partnershipType?: PartnershipType;
   search?: string;
   page: number;
   pageSize: number;
@@ -92,6 +104,13 @@ export interface CreatePartnerInput {
   notes?: string;
   followUpAt?: Date;
   ownerId?: string;
+  partnershipName?: string;
+  partnershipType?: PartnershipType;
+  agreementDetails?: string;
+  agreementStartOn?: Date;
+  agreementEndOn?: Date;
+  agreedValueAmount?: string;
+  agreedValueCurrency?: string;
   createdById: string;
 }
 
@@ -108,6 +127,14 @@ export interface UpdatePartnerFields {
   notes?: string | null;
   followUpAt?: Date | null;
   ownerId?: string | null;
+  partnershipName?: string | null;
+  partnershipType?: PartnershipType | null;
+  agreementDetails?: string | null;
+  agreementStartOn?: Date | null;
+  agreementEndOn?: Date | null;
+  agreedValueAmount?: string | null;
+  agreedValueCurrency?: string | null;
+  updatedById: string;
 }
 
 export interface ListPartnerActivitiesInput {
@@ -152,8 +179,16 @@ const PARTNER_SELECT = {
   proposedContribution: true,
   notes: true,
   followUpAt: true,
+  partnershipName: true,
+  partnershipType: true,
+  agreementDetails: true,
+  agreementStartOn: true,
+  agreementEndOn: true,
+  agreedValueAmount: true,
+  agreedValueCurrency: true,
   owner: { select: PERSON_SELECT },
   createdBy: { select: PERSON_SELECT },
+  updatedBy: { select: PERSON_SELECT },
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -194,8 +229,16 @@ function toRecord(raw: RawPartner): PartnerRecord {
     proposedContribution: raw.proposedContribution,
     notes: raw.notes,
     followUpAt: raw.followUpAt,
+    partnershipName: raw.partnershipName,
+    partnershipType: raw.partnershipType,
+    agreementDetails: raw.agreementDetails,
+    agreementStartOn: raw.agreementStartOn,
+    agreementEndOn: raw.agreementEndOn,
+    agreedValueAmount: raw.agreedValueAmount,
+    agreedValueCurrency: raw.agreedValueCurrency,
     owner: raw.owner ?? null,
     createdBy: raw.createdBy ?? null,
+    updatedBy: raw.updatedBy ?? null,
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   };
@@ -216,6 +259,20 @@ function updateData(fields: UpdatePartnerFields): Prisma.PartnerUpdateInput {
     data.proposedContribution = fields.proposedContribution;
   if (fields.notes !== undefined) data.notes = fields.notes;
   if (fields.followUpAt !== undefined) data.followUpAt = fields.followUpAt;
+  for (const key of [
+    "partnershipName",
+    "partnershipType",
+    "agreementDetails",
+    "agreementStartOn",
+    "agreementEndOn",
+    "agreedValueAmount",
+    "agreedValueCurrency",
+  ] as const) {
+    if (fields[key] !== undefined) {
+      (data as Record<string, unknown>)[key] = fields[key];
+    }
+  }
+  data.updatedBy = { connect: { id: fields.updatedById } };
   if (fields.campaignId !== undefined) {
     data.campaign = fields.campaignId
       ? { connect: { id: fields.campaignId } }
@@ -289,6 +346,21 @@ export class PartnersRepository {
     return raw ? toRecord(raw) : null;
   }
 
+  /** Every partner of these campaigns that the caller can see (EVE-233). */
+  async listForCampaigns(
+    campaignIds: readonly string[],
+    visibility: PartnerVisibility,
+  ): Promise<PartnerRecord[]> {
+    const ids = campaignIds.filter(isUuid);
+    if (ids.length === 0) return [];
+    const items = await this.db.partner.findMany({
+      where: { AND: [{ campaignId: { in: ids } }, visibleWhere(visibility)] },
+      select: PARTNER_SELECT,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    return items.map(toRecord);
+  }
+
   async list(
     input: ListPartnersInput,
   ): Promise<{ items: PartnerRecord[]; total: number }> {
@@ -299,6 +371,9 @@ export class PartnersRepository {
       ...(input.campaignId ? { campaignId: input.campaignId } : {}),
       ...(input.eventId ? { eventId: input.eventId } : {}),
       ...(input.ownerId ? { ownerId: input.ownerId } : {}),
+      ...(input.partnershipType
+        ? { partnershipType: input.partnershipType }
+        : {}),
       ...(input.search
         ? { organizationName: { contains: input.search, mode: "insensitive" } }
         : {}),
@@ -351,6 +426,28 @@ export class PartnersRepository {
           ? { followUpAt: input.followUpAt }
           : {}),
         ...(input.ownerId ? { ownerId: input.ownerId } : {}),
+        ...(input.partnershipName !== undefined
+          ? { partnershipName: input.partnershipName }
+          : {}),
+        ...(input.partnershipType !== undefined
+          ? { partnershipType: input.partnershipType }
+          : {}),
+        ...(input.agreementDetails !== undefined
+          ? { agreementDetails: input.agreementDetails }
+          : {}),
+        ...(input.agreementStartOn !== undefined
+          ? { agreementStartOn: input.agreementStartOn }
+          : {}),
+        ...(input.agreementEndOn !== undefined
+          ? { agreementEndOn: input.agreementEndOn }
+          : {}),
+        ...(input.agreedValueAmount !== undefined
+          ? { agreedValueAmount: input.agreedValueAmount }
+          : {}),
+        ...(input.agreedValueCurrency !== undefined
+          ? { agreedValueCurrency: input.agreedValueCurrency }
+          : {}),
+        updatedById: input.createdById,
       },
       select: PARTNER_SELECT,
     });
@@ -400,6 +497,60 @@ export class PartnersRepository {
       }
       throw error;
     }
+  }
+
+  /** Locks the partner row for an attachment finalization (EVE-233). */
+  async lockForAttachment(
+    tx: Prisma.TransactionClient,
+    id: string,
+  ): Promise<boolean> {
+    if (!isUuid(id)) return false;
+    const rows = await tx.$queryRaw<{ id: string }[]>(
+      Prisma.sql`SELECT id FROM partners WHERE id = ${id}::uuid FOR UPDATE`,
+    );
+    return rows.length === 1;
+  }
+
+  async createAttachment(
+    tx: Prisma.TransactionClient,
+    input: { partnerId: string; fileId: string; attachedById: string },
+  ): Promise<void> {
+    await tx.partnerAttachment.create({
+      data: {
+        partnerId: input.partnerId,
+        managedFileId: input.fileId,
+        attachedById: input.attachedById,
+      },
+    });
+  }
+
+  async listAttachmentFileIds(
+    partnerId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ fileIds: string[]; total: number }> {
+    if (!isUuid(partnerId)) return { fileIds: [], total: 0 };
+    const where = { partnerId };
+    const [rows, total] = await Promise.all([
+      this.db.partnerAttachment.findMany({
+        where,
+        select: { managedFileId: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.partnerAttachment.count({ where }),
+    ]);
+    return { fileIds: rows.map((row) => row.managedFileId), total };
+  }
+
+  async hasAttachment(partnerId: string, fileId: string): Promise<boolean> {
+    if (!isUuid(partnerId) || !isUuid(fileId)) return false;
+    return (
+      (await this.db.partnerAttachment.count({
+        where: { partnerId, managedFileId: fileId },
+      })) === 1
+    );
   }
 
   async listActivities(

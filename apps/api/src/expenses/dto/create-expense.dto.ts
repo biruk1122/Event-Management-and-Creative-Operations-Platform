@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsEnum,
+  IsISO8601,
   IsNumber,
   IsOptional,
   IsString,
@@ -34,6 +35,40 @@ export class CreateExpenseDto {
   @IsOptional()
   @IsUUID()
   productionId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "The campaign this expense belongs to (EVE-233). An expense needs an event, a production or a campaign.",
+  })
+  @IsOptional()
+  @IsUUID()
+  campaignId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description: "One of the campaign's activities. Requires campaignId.",
+  })
+  @IsOptional()
+  @IsUUID()
+  campaignActivityId?: string;
+
+  @ApiPropertyOptional({ example: "Flyer printing", maxLength: 200 })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  @Matches(NOT_BLANK, { message: "title must not be blank" })
+  title?: string;
+
+  @ApiPropertyOptional({
+    example: "2026-11-09",
+    description: "The day the money was spent (YYYY-MM-DD).",
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: "expenseDate must be YYYY-MM-DD" })
+  @IsISO8601({ strict: true })
+  expenseDate?: string;
 
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()

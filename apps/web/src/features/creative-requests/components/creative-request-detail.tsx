@@ -137,6 +137,16 @@ export function CreativeRequestDetail({
 
   function startMove(to: CreativeRequestStatus) {
     setNotice("");
+    // EVE-233: work comes back with at least one deliverable file. The API
+    // checks this too; saying so here saves a round trip.
+    if (
+      to === "DELIVERED" &&
+      files.data &&
+      !files.data.items.some((file) => file.kind === "DELIVERABLE")
+    ) {
+      setError("Attach at least one deliverable file before delivering.");
+      return;
+    }
     if (NEEDS_TEXT[to]) {
       setPendingMove(to);
       setMoveText("");

@@ -1,5 +1,8 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import {
+  IsNumber,
+  Max,
+  Min,
   IsEmail,
   IsEnum,
   IsISO8601,
@@ -12,7 +15,10 @@ import {
   ValidateIf,
 } from "class-validator";
 
-import { PartnerStatus } from "../../generated/prisma/client.js";
+import {
+  PartnershipType,
+  PartnerStatus,
+} from "../../generated/prisma/client.js";
 
 /** Rejects a value that is empty once trimmed. */
 const NOT_BLANK = /\S/;
@@ -116,4 +122,62 @@ export class UpdatePartnerDto {
   @ValidateIf((_, value) => value !== null)
   @IsUUID()
   ownerId?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 200 })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  @Matches(NOT_BLANK, { message: "partnershipName must not be blank" })
+  partnershipName?: string | null;
+
+  @ApiPropertyOptional({ enum: PartnershipType, nullable: true })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsEnum(PartnershipType)
+  partnershipType?: PartnershipType | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 5000 })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(5000)
+  @Matches(NOT_BLANK, { message: "agreementDetails must not be blank" })
+  agreementDetails?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, example: "2026-11-01" })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "agreementStartOn must be YYYY-MM-DD",
+  })
+  @IsISO8601({ strict: true })
+  agreementStartOn?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, example: "2027-01-31" })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "agreementEndOn must be YYYY-MM-DD",
+  })
+  @IsISO8601({ strict: true })
+  agreementEndOn?: string | null;
+
+  @ApiPropertyOptional({ type: Number, nullable: true, minimum: 0 })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999.99)
+  agreedValueAmount?: number | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, example: "ETB" })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @Matches(/^[A-Z]{3}$/, {
+    message: "agreedValueCurrency must be a three-letter ISO-4217 code",
+  })
+  agreedValueCurrency?: string | null;
 }

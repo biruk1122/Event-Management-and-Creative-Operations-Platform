@@ -11,7 +11,10 @@ import {
   Min,
 } from "class-validator";
 
-import { PartnerStatus } from "../../generated/prisma/client.js";
+import {
+  PartnershipType,
+  PartnerStatus,
+} from "../../generated/prisma/client.js";
 
 export class ListPartnersQueryDto {
   @ApiPropertyOptional({ enum: PartnerStatus })
@@ -50,6 +53,11 @@ export class ListPartnersQueryDto {
   @IsOptional()
   @IsUUID()
   ownerId?: string;
+
+  @ApiPropertyOptional({ enum: PartnershipType })
+  @IsOptional()
+  @IsEnum(PartnershipType)
+  partnershipType?: PartnershipType;
 
   @ApiPropertyOptional({
     description: "Case-insensitive match against the organization name.",

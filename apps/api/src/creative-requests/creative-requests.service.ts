@@ -36,6 +36,7 @@ import type {
 import {
   creativeRequestCampaignNotFound,
   creativeRequestConcurrentChange,
+  creativeRequestDeliverableRequired,
   creativeRequestDepartmentUnavailable,
   creativeRequestEventNotFound,
   creativeRequestFileNotAllowed,
@@ -532,6 +533,15 @@ export class CreativeRequestsService {
     const actor = await this.actor(userId);
     const request = await this.load(actor, id);
     this.assertMove(actor, request, to);
+    // EVE-233: the work comes back with at least one deliverable file.
+    if (
+      to === CreativeRequestStatus.DELIVERED &&
+      (await this.repository.countAttachments(
+        id,
+        CreativeRequestFileKind.DELIVERABLE,
+      )) === 0
+    )
+      throw creativeRequestDeliverableRequired();
     const now = new Date();
     const stamps: Prisma.CreativeRequestUncheckedUpdateManyInput =
       to === CreativeRequestStatus.DECLINED

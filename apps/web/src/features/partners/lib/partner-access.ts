@@ -28,6 +28,8 @@ export interface PartnerAbilities {
   canCreate: boolean;
   canUpdate: boolean;
   canAddActivity: boolean;
+  /** EVE-233: may attach partnership documents. */
+  canAttach: boolean;
   /** Only an organization- or department-scoped caller may browse the full
    * directory; a self-scoped caller only ever sees their own relationships,
    * so filters like status/search apply but ownership filtering does not. */
@@ -45,6 +47,7 @@ export function partnerAbilities(access: CurrentAccess): PartnerAbilities {
       "DEPARTMENT",
     ]),
     canAddActivity: holds(access.grants, "partner.activity.create"),
+    canAttach: holds(access.grants, "partner.attachment.create"),
     isDirectoryView: holds(access.grants, "partner.read", [
       "ORGANIZATION",
       "DEPARTMENT",

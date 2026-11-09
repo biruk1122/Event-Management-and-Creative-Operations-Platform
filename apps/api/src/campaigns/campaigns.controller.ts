@@ -38,6 +38,8 @@ import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import {
   CampaignActivityResponse,
   CampaignBudgetResponse,
+  CampaignBudgetSummaryResponse,
+  PaginatedCampaignBudgetSummariesResponse,
   CampaignMetricResponse,
   CampaignResponse,
   CampaignUpdateResponse,
@@ -58,6 +60,7 @@ import {
 import { CreateCampaignDto } from "./dto/create-campaign.dto.js";
 import { ListCampaignActivitiesQueryDto } from "./dto/list-campaign-activities-query.dto.js";
 import { ListCampaignsQueryDto } from "./dto/list-campaigns-query.dto.js";
+import { ListCampaignBudgetSummariesQueryDto } from "./dto/list-campaign-budget-summaries-query.dto.js";
 import { SetCampaignBudgetDto } from "./dto/set-campaign-budget.dto.js";
 import { TransitionCampaignDto } from "./dto/transition-campaign.dto.js";
 import { UpdateCampaignActivityDto } from "./dto/update-campaign-activity.dto.js";
@@ -119,6 +122,21 @@ export class CampaignsController {
     @Param("eventId") eventId: string,
   ): Promise<CampaignResponse[]> {
     return this.campaigns.listForEvent(actingUserId(request), eventId);
+  }
+
+  // Declared before ":id" so the static path is matched first.
+  @Get("budget-summaries")
+  @RequirePermissions("campaign.budget.read")
+  @ApiOperation({
+    summary:
+      "Budget summaries of the campaigns whose budget the caller can read (EVE-233)",
+  })
+  @ApiOkResponse({ type: PaginatedCampaignBudgetSummariesResponse })
+  async listBudgetSummaries(
+    @Req() request: RequestWithContext,
+    @Query() query: ListCampaignBudgetSummariesQueryDto,
+  ): Promise<PaginatedCampaignBudgetSummariesResponse> {
+    return this.campaigns.listBudgetSummaries(actingUserId(request), query);
   }
 
   @Get(":id")
@@ -296,6 +314,24 @@ export class CampaignsController {
     @Param("id") id: string,
   ): Promise<CampaignBudgetResponse> {
     return this.campaigns.getBudget(actingUserId(request), id);
+  }
+
+  @Get(":id/budget-summary")
+  @RequirePermissions("campaign.budget.read")
+  @ApiOperation({
+    summary:
+      "A campaign's budget against its expenses and partnerships (EVE-233)",
+  })
+  @ApiOkResponse({ type: CampaignBudgetSummaryResponse })
+  @ApiNotFoundResponse({
+    type: ProblemDetails,
+    description: "Campaign not found",
+  })
+  async budgetSummary(
+    @Req() request: RequestWithContext,
+    @Param("id") id: string,
+  ): Promise<CampaignBudgetSummaryResponse> {
+    return this.campaigns.budgetSummary(actingUserId(request), id);
   }
 
   @Put(":id/budget")

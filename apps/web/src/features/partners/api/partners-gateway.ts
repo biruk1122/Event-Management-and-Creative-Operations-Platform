@@ -36,6 +36,13 @@ function headers() {
   return token ? { "x-csrf-token": token } : {};
 }
 
+/** EVE-233: a set value, or `null` to clear it, for the newer nullable
+ * fields. Left out entirely when the form does not carry the field. */
+function textOrClear(key: string, value: string | undefined) {
+  if (value === undefined) return {};
+  return { [key]: value.trim() ? value.trim() : null };
+}
+
 function fieldsBody(values: Partial<PartnerFieldValues>) {
   return {
     ...(values.organizationName !== undefined
@@ -60,6 +67,20 @@ function fieldsBody(values: Partial<PartnerFieldValues>) {
       : {}),
     ...(values.notes !== undefined
       ? { notes: values.notes.trim() || undefined }
+      : {}),
+    ...textOrClear("partnershipName", values.partnershipName),
+    ...textOrClear("partnershipType", values.partnershipType),
+    ...textOrClear("campaignId", values.campaignId),
+    ...textOrClear("agreementDetails", values.agreementDetails),
+    ...textOrClear("agreementStartOn", values.agreementStartOn),
+    ...textOrClear("agreementEndOn", values.agreementEndOn),
+    ...textOrClear("agreedValueCurrency", values.agreedValueCurrency),
+    ...(values.agreedValueAmount !== undefined
+      ? {
+          agreedValueAmount: values.agreedValueAmount.trim()
+            ? Number(values.agreedValueAmount)
+            : null,
+        }
       : {}),
     ...(values.followUpAt !== undefined
       ? {
@@ -91,7 +112,28 @@ const FIELD_KEYS: readonly (keyof PartnerFieldValues)[] = [
   "proposedContribution",
   "notes",
   "followUpAt",
+  "partnershipName",
+  "partnershipType",
+  "campaignId",
+  "agreementDetails",
+  "agreementStartOn",
+  "agreementEndOn",
+  "agreedValueAmount",
+  "agreedValueCurrency",
 ];
+
+/** EVE-233: the API's agreement rules, shown on the field they concern. */
+function agreementFieldErrors(
+  code: string,
+): Partial<Record<keyof PartnerFieldValues, string>> | null {
+  if (code === "PARTNER_AGREEMENT_DATES_INVALID")
+    return { agreementEndOn: "The agreement cannot end before it starts." };
+  if (code === "PARTNER_AGREED_VALUE_INCOMPLETE")
+    return {
+      agreedValueCurrency: "Give the agreed value and its currency together.",
+    };
+  return null;
+}
 
 export interface ListPartnersParams {
   status?: PartnerStatus | null;
@@ -134,7 +176,12 @@ export const createPartner: CreatePartner = async (values) => {
     const { data, error, response } = await browserApi.POST(
       "/api/v1/partners",
       {
-        body: fieldsBody(values) as never,
+        // A new partner has nothing to clear, so empty fields are left out.
+        body: Object.fromEntries(
+          Object.entries(fieldsBody(values)).filter(
+            ([, value]) => value !== null,
+          ),
+        ) as never,
         headers: headers(),
       },
     );
@@ -146,6 +193,8 @@ export const createPartner: CreatePartner = async (values) => {
         error.code === "EVENT_NOT_FOUND"
       )
         return { status: "not_found" };
+      const agreement = agreementFieldErrors(error.code);
+      if (agreement) return { status: "field_errors", fieldErrors: agreement };
       if (error.code === "VALIDATION_ERROR") {
         const errors = fieldErrors(error, FIELD_KEYS);
         if (Object.keys(errors).length > 0)
@@ -179,6 +228,8 @@ export const updatePartner: UpdatePartner = async (id, values) => {
       if (error.code === "PARTNER_NOT_FOUND") return { status: "not_found" };
       if (error.code === "PARTNER_OWNER_OUTSIDE_DEPARTMENT")
         return { status: "owner_outside_department" };
+      const agreement = agreementFieldErrors(error.code);
+      if (agreement) return { status: "field_errors", fieldErrors: agreement };
       if (error.code === "VALIDATION_ERROR") {
         const errors = fieldErrors(error, FIELD_KEYS);
         if (Object.keys(errors).length > 0)
@@ -231,3 +282,65 @@ export const createPartnerActivity: CreatePartnerActivity = async (
     return { status: "unexpected" };
   }
 };
+
+/** EVE-233: a partnership's documents. */
+export async function listPartnerFiles(id: string, signal?: AbortSignal) {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/partners/{partnerId}/files",
+    {
+      params: {
+        path: { partnerId: id },
+        query: { page: 1, pageSize: 100 } as never,
+      },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw new PartnersRequestError(response.status);
+  return data;
+}
+
+export async function uploadPartnerFile(id: string, file: File) {
+  const intent = await browserApi.POST(
+    "/api/v1/partners/{partnerId}/files/upload-intents",
+    {
+      params: { path: { partnerId: id } },
+      body: {
+        filename: file.name,
+        mediaType: file.type as never,
+        sizeBytes: file.size,
+      },
+      headers: headers(),
+    },
+  );
+  if (!intent.data) throw new PartnersRequestError(intent.response.status);
+  const form = new FormData();
+  Object.entries(intent.data.upload.fields).forEach(([key, value]) =>
+    form.append(key, value),
+  );
+  form.append("file", file);
+  const uploaded = await fetch(intent.data.upload.url, {
+    method: "POST",
+    body: form,
+  });
+  if (!uploaded.ok) throw new PartnersRequestError(uploaded.status);
+  const finalized = await browserApi.POST(
+    "/api/v1/partners/{partnerId}/files/{fileId}/finalize",
+    {
+      params: { path: { partnerId: id, fileId: intent.data.id } },
+      headers: headers(),
+    },
+  );
+  if (!finalized.data)
+    throw new PartnersRequestError(finalized.response.status);
+  return finalized.data;
+}
+
+export async function downloadPartnerFile(id: string, fileId: string) {
+  const { data, response } = await browserApi.GET(
+    "/api/v1/partners/{partnerId}/files/{fileId}/download",
+    { params: { path: { partnerId: id, fileId } }, cache: "no-store" },
+  );
+  if (!data) throw new PartnersRequestError(response.status);
+  window.location.assign(data.url);
+}

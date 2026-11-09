@@ -298,6 +298,41 @@ describe("creative requests (EVE-232)", () => {
     });
   }
 
+  const pdf = Buffer.from("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n");
+
+  async function upload(
+    who: Principal,
+    id: string,
+    kind: "REFERENCE" | "DELIVERABLE",
+  ): Promise<{ status: number; fileId?: string }> {
+    const intent = await as(
+      who,
+      "post",
+      `/api/v1/creative-requests/${id}/files/upload-intents`,
+    ).send({
+      filename: "brief.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: pdf.byteLength,
+      kind,
+    });
+    if (intent.status !== 201) return { status: intent.status };
+    const created = body<{
+      id: string;
+      upload: { fields: { key?: string } };
+    }>(intent);
+    storage.objects.set(created.upload.fields.key!, {
+      bytes: pdf,
+      mediaType: "application/pdf",
+      sizeBytes: pdf.byteLength,
+    });
+    const finalized = await as(
+      who,
+      "post",
+      `/api/v1/creative-requests/${id}/files/${created.id}/finalize`,
+    ).send({ kind });
+    return { status: finalized.status, fileId: created.id };
+  }
+
   describe("sending a request", () => {
     it("lets the Promotional Manager send a request to Production", async () => {
       const created = await send();
@@ -436,6 +471,9 @@ describe("creative requests (EVE-232)", () => {
         200,
       );
       expect(
+        (await upload(productionManager, created.id, "DELIVERABLE")).status,
+      ).toBe(200);
+      expect(
         (await move(productionManager, created.id, "deliver")).status,
       ).toBe(200);
 
@@ -486,6 +524,33 @@ describe("creative requests (EVE-232)", () => {
       expect(body<ProblemBody>(after).code).toBe(
         "CREATIVE_REQUEST_INVALID_TRANSITION",
       );
+    });
+
+    it("refuses delivery without a deliverable file (EVE-233)", async () => {
+      const created = await send();
+      await move(productionManager, created.id, "accept");
+      await move(productionManager, created.id, "start");
+      // A reference from the requester does not count as a deliverable.
+      expect(
+        (await upload(promotionManager, created.id, "REFERENCE")).status,
+      ).toBe(200);
+      const refused = await move(productionManager, created.id, "deliver");
+      expect(refused.status).toBe(409);
+      expect(body<ProblemBody>(refused).code).toBe(
+        "CREATIVE_REQUEST_DELIVERABLE_REQUIRED",
+      );
+      expect(
+        (
+          await prisma.creativeRequest.findUniqueOrThrow({
+            where: { id: created.id },
+          })
+        ).status,
+      ).toBe("IN_PROGRESS");
+      expect(
+        (await upload(productionManager, created.id, "DELIVERABLE")).status,
+      ).toBe(200);
+      const delivered = await move(productionManager, created.id, "deliver");
+      expect(body<RequestBody>(delivered).status).toBe("DELIVERED");
     });
 
     it("declines with a reason, and the requester can cancel before acceptance", async () => {
@@ -629,41 +694,6 @@ describe("creative requests (EVE-232)", () => {
   });
 
   describe("files", () => {
-    const pdf = Buffer.from("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n");
-
-    async function upload(
-      who: Principal,
-      id: string,
-      kind: "REFERENCE" | "DELIVERABLE",
-    ): Promise<{ status: number; fileId?: string }> {
-      const intent = await as(
-        who,
-        "post",
-        `/api/v1/creative-requests/${id}/files/upload-intents`,
-      ).send({
-        filename: "brief.pdf",
-        mediaType: "application/pdf",
-        sizeBytes: pdf.byteLength,
-        kind,
-      });
-      if (intent.status !== 201) return { status: intent.status };
-      const created = body<{
-        id: string;
-        upload: { fields: { key?: string } };
-      }>(intent);
-      storage.objects.set(created.upload.fields.key!, {
-        bytes: pdf,
-        mediaType: "application/pdf",
-        sizeBytes: pdf.byteLength,
-      });
-      const finalized = await as(
-        who,
-        "post",
-        `/api/v1/creative-requests/${id}/files/${created.id}/finalize`,
-      ).send({ kind });
-      return { status: finalized.status, fileId: created.id };
-    }
-
     it("takes references from the requester and deliverables from Production", async () => {
       const created = await send();
       const reference = await upload(promotionManager, created.id, "REFERENCE");
@@ -717,6 +747,7 @@ describe("creative requests (EVE-232)", () => {
       const created = await send();
       await move(productionManager, created.id, "accept");
       await move(productionManager, created.id, "start");
+      await upload(productionManager, created.id, "DELIVERABLE");
       await move(productionManager, created.id, "deliver");
       await move(promotionManager, created.id, "review", {
         outcome: "APPROVED",

@@ -18,6 +18,16 @@ export class ListExpensesQueryDto {
   @IsUUID()
   productionId?: string;
 
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  campaignId?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  campaignActivityId?: string;
+
   @ApiPropertyOptional({ enum: ExpenseStatus })
   @IsOptional()
   @IsEnum(ExpenseStatus)

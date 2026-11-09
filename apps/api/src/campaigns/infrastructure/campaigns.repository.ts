@@ -809,6 +809,60 @@ export class CampaignsRepository {
     });
   }
 
+  /**
+   * Expense totals for some campaigns, grouped by campaign, status, currency
+   * and activity (EVE-233). One query for any number of campaigns.
+   */
+  async budgetExpenseSums(campaignIds: readonly string[]): Promise<
+    {
+      campaignId: string;
+      campaignActivityId: string | null;
+      status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
+      currency: string;
+      amount: Prisma.Decimal;
+      count: number;
+    }[]
+  > {
+    if (campaignIds.length === 0) return [];
+    const rows = await this.db.expense.groupBy({
+      by: ["campaignId", "campaignActivityId", "status", "currency"],
+      where: { campaignId: { in: [...campaignIds] } },
+      _sum: { actualAmount: true },
+      _count: { _all: true },
+    });
+    return rows.flatMap((row) =>
+      row.campaignId
+        ? [
+            {
+              campaignId: row.campaignId,
+              campaignActivityId: row.campaignActivityId,
+              status: row.status,
+              currency: row.currency,
+              amount: row._sum.actualAmount ?? new Prisma.Decimal(0),
+              count: row._count._all,
+            },
+          ]
+        : [],
+    );
+  }
+
+  async activityNames(
+    campaignIds: readonly string[],
+  ): Promise<Map<string, string>> {
+    if (campaignIds.length === 0) return new Map();
+    const rows = await this.db.campaignActivity.findMany({
+      where: { campaignId: { in: [...campaignIds] } },
+      select: { id: true, name: true },
+    });
+    return new Map(rows.map((row) => [row.id, row.name]));
+  }
+
+  /** Whether any expense still belongs to the campaign (EVE-233). */
+  async hasExpenses(campaignId: string): Promise<boolean> {
+    if (!isUuid(campaignId)) return false;
+    return (await this.db.expense.count({ where: { campaignId } })) > 0;
+  }
+
   async setBudget(
     id: string,
     amount: string | null,

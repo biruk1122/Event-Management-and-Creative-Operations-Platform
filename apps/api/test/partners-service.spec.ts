@@ -37,6 +37,14 @@ function makePartner(overrides: Partial<PartnerRecord> = {}): PartnerRecord {
     followUpAt: null,
     owner: null,
     createdBy: null,
+    updatedBy: null,
+    partnershipName: null,
+    partnershipType: null,
+    agreementDetails: null,
+    agreementStartOn: null,
+    agreementEndOn: null,
+    agreedValueAmount: null,
+    agreedValueCurrency: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-02T00:00:00.000Z"),
     ...overrides,
@@ -332,7 +340,9 @@ describe("PartnersService", () => {
         organizationName: "  New Name  ",
         notes: null,
       });
+      // Every edit also records who made it (EVE-233).
       expect(repository.update).toHaveBeenCalledWith("ptn-1", {
+        updatedById: ACTOR,
         organizationName: "New Name",
         notes: null,
       });

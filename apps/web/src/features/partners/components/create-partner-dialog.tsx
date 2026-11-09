@@ -35,6 +35,14 @@ const EMPTY: PartnerFieldValues = {
   proposedContribution: "",
   notes: "",
   followUpAt: "",
+  partnershipName: "",
+  partnershipType: "",
+  campaignId: "",
+  agreementDetails: "",
+  agreementStartOn: "",
+  agreementEndOn: "",
+  agreedValueAmount: "",
+  agreedValueCurrency: "",
 };
 
 interface CreatePartnerDialogProps {

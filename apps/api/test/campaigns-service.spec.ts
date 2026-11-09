@@ -83,6 +83,7 @@ describe("CampaignsService", () => {
     updateStatus: ReturnType<typeof vi.fn>;
     setBudget: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
+    hasExpenses: ReturnType<typeof vi.fn>;
     listActivities: ReturnType<typeof vi.fn>;
     findActivity: ReturnType<typeof vi.fn>;
     createActivity: ReturnType<typeof vi.fn>;
@@ -123,6 +124,7 @@ describe("CampaignsService", () => {
           makeCampaign({ budgetAmount: "10.00", budgetCurrency: "USD" }),
         ),
       delete: vi.fn().mockResolvedValue("deleted"),
+      hasExpenses: vi.fn().mockResolvedValue(false),
       listActivities: vi.fn().mockResolvedValue({ items: [], total: 0 }),
       findActivity: vi.fn().mockResolvedValue(makeActivity()),
       createActivity: vi.fn().mockResolvedValue(makeActivity()),
@@ -148,6 +150,7 @@ describe("CampaignsService", () => {
       permissions as never,
       events as never,
       talentAssignments as never,
+      { listForCampaigns: vi.fn().mockResolvedValue(new Map()) } as never,
     );
   });
 

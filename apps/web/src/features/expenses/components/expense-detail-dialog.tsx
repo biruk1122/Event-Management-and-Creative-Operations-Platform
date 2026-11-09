@@ -52,6 +52,9 @@ function actionError(key: string): string {
 
 function fieldsFromExpense(expense: Expense): ExpenseFieldValues {
   return {
+    title: expense.title ?? "",
+    expenseDate: expense.expenseDate ?? "",
+    campaignActivityId: expense.campaignActivityId,
     supplierId: expense.supplierId,
     category: expense.category,
     description: expense.description,
@@ -66,6 +69,8 @@ interface ExpenseDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   events: readonly AssignableEvent[];
   suppliers: readonly AssignableSupplier[];
+  /** EVE-233: a campaign expense's activities, for the activity picker. */
+  activities?: readonly { id: string; name: string }[];
   canUpdate: boolean;
   canSubmit: boolean;
   canApprove: boolean;
@@ -113,6 +118,7 @@ function ExpenseDetailBody({
   expenseId,
   events,
   suppliers,
+  activities,
   canUpdate,
   canSubmit,
   canApprove,
@@ -278,7 +284,9 @@ function ExpenseDetailBody({
       <DialogBackButton />
       <DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
-          <DialogTitle>{expenseCategoryLabel(expense.category)}</DialogTitle>
+          <DialogTitle>
+            {expense.title ?? expenseCategoryLabel(expense.category)}
+          </DialogTitle>
           <Badge variant={expenseStatusVariant(expense.status)}>
             {expenseStatusLabel(expense.status)}
           </Badge>
@@ -286,9 +294,11 @@ function ExpenseDetailBody({
         <DialogDescription>
           {event
             ? event.name
-            : expense.eventId === null
-              ? "Production expense"
-              : "Event"}{" "}
+            : expense.campaignId
+              ? "Campaign expense"
+              : expense.eventId === null
+                ? "Production expense"
+                : "Event"}{" "}
           · {amountSummary(expense.actualAmount, expense.currency)}
         </DialogDescription>
       </DialogHeader>
@@ -307,6 +317,7 @@ function ExpenseDetailBody({
           values={fields}
           errors={fieldErrors}
           suppliers={suppliers}
+          {...(activities ? { activities } : {})}
           disabled={detailsBusy || !editable}
           onChange={setField}
         />

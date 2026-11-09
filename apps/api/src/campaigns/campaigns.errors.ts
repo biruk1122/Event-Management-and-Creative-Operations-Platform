@@ -30,6 +30,16 @@ export const CAMPAIGN_ERROR = {
   campaignMetricDateInvalid: "CAMPAIGN_METRIC_DATE_INVALID",
 } as const;
 
+/** EVE-233: a campaign with expenses cannot be deleted. */
+export function campaignHasExpenses(): HttpException {
+  return new ConflictException({
+    code: "CAMPAIGN_HAS_EXPENSES",
+    error: "Conflict",
+    detail:
+      "This campaign has expenses, which are financial records. Cancel it instead of deleting it.",
+  });
+}
+
 export function campaignNotFound(): HttpException {
   return new NotFoundException({
     code: CAMPAIGN_ERROR.campaignNotFound,

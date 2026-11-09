@@ -11,6 +11,7 @@ import { DocumentsModule } from "../documents/documents.module.js";
 import { EventsModule } from "../events/events.module.js";
 import { ExpensesModule } from "../expenses/expenses.module.js";
 import { LettersModule } from "../letters/letters.module.js";
+import { PartnersModule } from "../partners/partners.module.js";
 import { ReportsModule } from "../reports/reports.module.js";
 import { SharedRecordsModule } from "../shared-records/shared-records.module.js";
 import { TalentModule } from "../talent/talent.module.js";
@@ -24,6 +25,7 @@ import { FileManagementController } from "./file-management.controller.js";
 import { FileManagementService } from "./file-management.service.js";
 import { LetterFileManagementController } from "./letter-file-management.controller.js";
 import { MessageFileManagementController } from "./message-file-management.controller.js";
+import { PartnerFileManagementController } from "./partner-file-management.controller.js";
 import { ReportFileManagementController } from "./report-file-management.controller.js";
 import { SharedDocumentFileManagementController } from "./shared-document-file-management.controller.js";
 import { SharedLetterFileManagementController } from "./shared-letter-file-management.controller.js";
@@ -49,6 +51,7 @@ import { S3ObjectStorage } from "./storage/s3-object-storage.js";
     EventsModule,
     ExpensesModule,
     LettersModule,
+    PartnersModule,
     PermissionsModule,
     ReportsModule,
     SharedRecordsModule,
@@ -58,6 +61,7 @@ import { S3ObjectStorage } from "./storage/s3-object-storage.js";
   controllers: [
     CampaignFileManagementController,
     CreativeRequestFileManagementController,
+    PartnerFileManagementController,
     TalentFileManagementController,
     DocumentFileManagementController,
     ExpenseFileManagementController,

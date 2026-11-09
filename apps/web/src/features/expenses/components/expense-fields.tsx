@@ -28,6 +28,11 @@ export interface SupplierOption {
 
 /** The expense attributes shared by the create and edit forms. */
 export interface ExpenseFieldValues {
+  /** EVE-233: a short title, the day it was spent, and (for a campaign
+   * expense) the campaign activity it was spent on. */
+  title: string;
+  expenseDate: string;
+  campaignActivityId: string | null;
   supplierId: string | null;
   category: ExpenseCategory;
   description: string;
@@ -40,6 +45,8 @@ interface ExpenseFieldsProps {
   values: ExpenseFieldValues;
   errors: Partial<Record<keyof ExpenseFieldValues, string>>;
   suppliers: readonly SupplierOption[];
+  /** A campaign expense's activities; the picker is shown only when given. */
+  activities?: readonly { id: string; name: string }[];
   disabled?: boolean;
   onChange: <K extends keyof ExpenseFieldValues>(
     key: K,
@@ -51,10 +58,14 @@ export function ExpenseFields({
   values,
   errors,
   suppliers,
+  activities,
   disabled,
   onChange,
 }: ExpenseFieldsProps) {
   const ids = {
+    title: useId(),
+    expenseDate: useId(),
+    activity: useId(),
     category: useId(),
     supplier: useId(),
     description: useId(),
@@ -65,6 +76,57 @@ export function ExpenseFields({
 
   return (
     <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
+        <div className="space-y-2">
+          <Label htmlFor={ids.title}>Title (optional)</Label>
+          <Input
+            id={ids.title}
+            value={values.title}
+            maxLength={200}
+            disabled={disabled}
+            onChange={(event) => onChange("title", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor={ids.expenseDate}>Date (optional)</Label>
+          <Input
+            id={ids.expenseDate}
+            type="date"
+            value={values.expenseDate}
+            disabled={disabled}
+            onChange={(event) => onChange("expenseDate", event.target.value)}
+          />
+        </div>
+      </div>
+
+      {activities ? (
+        <div className="space-y-2">
+          <Label htmlFor={ids.activity}>Campaign activity (optional)</Label>
+          <select
+            id={ids.activity}
+            value={values.campaignActivityId ?? ""}
+            disabled={disabled}
+            aria-invalid={errors.campaignActivityId ? true : undefined}
+            className="border-input focus-visible:ring-ring/50 flex h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs focus-visible:ring-3 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            onChange={(event) =>
+              onChange("campaignActivityId", event.target.value || null)
+            }
+          >
+            <option value="">The campaign as a whole</option>
+            {activities.map((activity) => (
+              <option key={activity.id} value={activity.id}>
+                {activity.name}
+              </option>
+            ))}
+          </select>
+          {errors.campaignActivityId ? (
+            <p className="text-destructive text-sm">
+              {errors.campaignActivityId}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor={ids.category}>Category</Label>

@@ -15,6 +15,7 @@ export const CREATIVE_REQUEST_ERROR = {
   concurrentChange: "CREATIVE_REQUEST_CONCURRENT_CHANGE",
   noteRequired: "CREATIVE_REQUEST_NOTE_REQUIRED",
   fileNotAllowed: "CREATIVE_REQUEST_FILE_NOT_ALLOWED",
+  deliverableRequired: "CREATIVE_REQUEST_DELIVERABLE_REQUIRED",
 } as const;
 
 export function creativeRequestNotFound(): HttpException {
@@ -84,5 +85,14 @@ export function creativeRequestFileNotAllowed(): HttpException {
     error: "Conflict",
     detail:
       "Files of this kind cannot be added to the creative request in its current status.",
+  });
+}
+
+/** EVE-233: work is handed back with at least one deliverable file. */
+export function creativeRequestDeliverableRequired(): HttpException {
+  return new ConflictException({
+    code: CREATIVE_REQUEST_ERROR.deliverableRequired,
+    error: "Conflict",
+    detail: "Attach at least one deliverable file before delivering.",
   });
 }
