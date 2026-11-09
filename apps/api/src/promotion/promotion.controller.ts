@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -36,13 +37,18 @@ import type { RequestWithContext } from "../common/http/request-with-context.js"
 import { RequirePermissions } from "../common/security/permissions.decorator.js";
 import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import {
-  PromotionActivityResponse,
+  PaginatedAssignableEmployeesResponse,
   PaginatedPromotionActivitiesResponse,
+  PaginatedPromotionActivityListResponse,
+  PromotionActivityResponse,
 } from "./promotion.contracts.js";
 import {
   AttachPromotionActivityDto,
   AssignPromotionTalentDto,
+  ListAssignableEmployeesQueryDto,
+  ListPromotionActivitiesQueryDto,
   UpdatePromotionChannelDto,
+  UpdatePromotionDetailsDto,
 } from "./promotion.dto.js";
 import { PromotionService } from "./promotion.service.js";
 
@@ -154,6 +160,75 @@ export class PromotionController {
     );
   }
 
+  @Patch(":activityId/details")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("campaign.activity.manage")
+  @ApiOperation({
+    summary:
+      "Set an activity's location and required resources (campaign department only)",
+  })
+  @ApiOkResponse({ type: PromotionActivityResponse })
+  @ApiNotFoundResponse({ type: ProblemDetails })
+  updateDetails(
+    @Req() request: RequestWithContext,
+    @Param("campaignId") campaignId: string,
+    @Param("activityId") activityId: string,
+    @Body() body: UpdatePromotionDetailsDto,
+  ) {
+    return this.promotion.updateDetails(
+      user(request),
+      campaignId,
+      activityId,
+      body,
+    );
+  }
+
+  @Put(":activityId/assignees/:userId")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("campaign.activity.manage")
+  @ApiOperation({
+    summary:
+      "Assign an active employee of the campaign's department to the activity",
+  })
+  @ApiOkResponse({ type: PromotionActivityResponse })
+  @ApiConflictResponse({ type: ProblemDetails })
+  assignEmployee(
+    @Req() request: RequestWithContext,
+    @Param("campaignId") campaignId: string,
+    @Param("activityId") activityId: string,
+    @Param("userId") employeeId: string,
+  ) {
+    return this.promotion.assignEmployee(
+      user(request),
+      campaignId,
+      activityId,
+      employeeId,
+    );
+  }
+
+  @Delete(":activityId/assignees/:userId")
+  @UseGuards(CsrfGuard)
+  @ApiSecurity("csrf-token")
+  @RequirePermissions("campaign.activity.manage")
+  @ApiOperation({ summary: "Remove an employee from the activity" })
+  @ApiOkResponse({ type: PromotionActivityResponse })
+  @ApiNotFoundResponse({ type: ProblemDetails })
+  unassignEmployee(
+    @Req() request: RequestWithContext,
+    @Param("campaignId") campaignId: string,
+    @Param("activityId") activityId: string,
+    @Param("userId") employeeId: string,
+  ) {
+    return this.promotion.unassignEmployee(
+      user(request),
+      campaignId,
+      activityId,
+      employeeId,
+    );
+  }
+
   @Post(":activityId/talents")
   @UseGuards(CsrfGuard)
   @ApiSecurity("csrf-token")
@@ -196,5 +271,61 @@ export class PromotionController {
       talentId,
       request.id,
     );
+  }
+}
+
+/** Active employees of the campaign's department who can be assigned (EVE-231). */
+@ApiTags("Campaign platform")
+@ApiCookieAuth("access_token")
+@ApiUnauthorizedResponse({ type: ProblemDetails })
+@ApiForbiddenResponse({ type: ProblemDetails })
+@ApiNotFoundResponse({ type: ProblemDetails })
+@UseGuards(AccessTokenGuard, PermissionsGuard)
+@Controller("promotion/campaigns/:campaignId/assignable-employees")
+export class PromotionAssignableEmployeesController {
+  constructor(private readonly promotion: PromotionService) {}
+
+  @Get()
+  @RequirePermissions("campaign.activity.manage")
+  @ApiOperation({
+    summary:
+      "List active employees of the campaign's department who can be assigned",
+  })
+  @ApiOkResponse({ type: PaginatedAssignableEmployeesResponse })
+  list(
+    @Req() request: RequestWithContext,
+    @Param("campaignId") campaignId: string,
+    @Query() query: ListAssignableEmployeesQueryDto,
+  ) {
+    return this.promotion.assignableEmployees(user(request), campaignId, query);
+  }
+}
+
+/**
+ * Every promotion activity the caller can read, across promotion campaigns
+ * (EVE-231). Filters: campaign, channel, status, name search, start window;
+ * sort by start or name. Visibility follows the campaigns list rules.
+ */
+@ApiTags("Campaign platform")
+@ApiCookieAuth("access_token")
+@ApiUnauthorizedResponse({ type: ProblemDetails })
+@ApiForbiddenResponse({ type: ProblemDetails })
+@UseGuards(AccessTokenGuard, PermissionsGuard)
+@Controller("promotion/activities")
+export class PromotionActivitiesController {
+  constructor(private readonly promotion: PromotionService) {}
+
+  @Get()
+  @RequirePermissions("campaign.read")
+  @ApiOperation({
+    summary:
+      "List promotion activities across the promotion campaigns you can read",
+  })
+  @ApiOkResponse({ type: PaginatedPromotionActivityListResponse })
+  list(
+    @Req() request: RequestWithContext,
+    @Query() query: ListPromotionActivitiesQueryDto,
+  ) {
+    return this.promotion.listAll(user(request), query);
   }
 }

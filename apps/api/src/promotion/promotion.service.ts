@@ -9,14 +9,22 @@ import type { ListCampaignActivitiesQueryDto } from "../campaigns/dto/list-campa
 import type {
   AttachPromotionActivityDto,
   AssignPromotionTalentDto,
+  ListAssignableEmployeesQueryDto,
+  ListPromotionActivitiesQueryDto,
   UpdatePromotionChannelDto,
+  UpdatePromotionDetailsDto,
 } from "./promotion.dto.js";
 import type {
   PaginatedPromotionActivitiesResponse,
+  PaginatedAssignableEmployeesResponse,
+  PaginatedPromotionActivityListResponse,
   PromotionActivityResponse,
 } from "./promotion.contracts.js";
 import {
   promotionActivityNotFound,
+  promotionAssigneeConflict,
+  promotionAssigneeInvalid,
+  promotionAssigneeNotFound,
   promotionAssignmentConflict,
   promotionAssignmentNotFound,
   promotionCampaignNotFound,
@@ -48,6 +56,9 @@ function response(record: PromotionRecord): PromotionActivityResponse {
       updatedAt: activity.updatedAt.toISOString(),
     },
     channel: record.channel,
+    location: record.location,
+    requiredResources: record.requiredResources,
+    assignees: record.assignees.map((assignee) => assignee.user),
     talents: record.talents.map((talent) => ({
       id: talent.id,
       talentId: talent.talentId,
@@ -206,6 +217,144 @@ export class PromotionService {
     if (result === "not_found") throw promotionActivityNotFound();
   }
 
+  /** Location and required resources (EVE-231). Campaign department only. */
+  async updateDetails(
+    userId: string,
+    campaignId: string,
+    activityId: string,
+    dto: UpdatePromotionDetailsDto,
+  ): Promise<PromotionActivityResponse> {
+    await this.activity(userId, campaignId, activityId);
+    await this.manage(userId, campaignId);
+    const record = await this.repository.updateDetails(campaignId, activityId, {
+      ...(dto.location !== undefined
+        ? { location: dto.location === null ? null : dto.location.trim() }
+        : {}),
+      ...(dto.requiredResources !== undefined
+        ? {
+            requiredResources:
+              dto.requiredResources === null
+                ? null
+                : dto.requiredResources.trim(),
+          }
+        : {}),
+    });
+    if (!record) throw promotionActivityNotFound();
+    return response(record);
+  }
+
+  /**
+   * Assigns an employee of the campaign's department to the activity. The
+   * service checks the rule first for a clear message; the database trigger
+   * repeats it under a row lock, so a concurrent change is refused too.
+   */
+  async assignEmployee(
+    userId: string,
+    campaignId: string,
+    activityId: string,
+    employeeId: string,
+  ): Promise<PromotionActivityResponse> {
+    await this.activity(userId, campaignId, activityId);
+    await this.manage(userId, campaignId);
+    const campaign = await this.campaigns.get(userId, campaignId);
+    const employee = await this.repository.findEmployee(employeeId);
+    if (
+      !campaign.departmentId ||
+      !employee ||
+      employee.status !== "ACTIVE" ||
+      employee.departmentId !== campaign.departmentId ||
+      employee.department?.deactivatedAt != null
+    ) {
+      throw promotionAssigneeInvalid();
+    }
+    try {
+      const record = await this.repository.assignEmployee(
+        campaignId,
+        activityId,
+        employeeId,
+        userId,
+      );
+      if (!record) throw promotionActivityNotFound();
+      return response(record);
+    } catch (error) {
+      if (prismaError(error, "P2002")) throw promotionAssigneeConflict();
+      if (isCheckViolation(error)) throw promotionAssigneeInvalid();
+      throw error;
+    }
+  }
+
+  async unassignEmployee(
+    userId: string,
+    campaignId: string,
+    activityId: string,
+    employeeId: string,
+  ): Promise<PromotionActivityResponse> {
+    await this.activity(userId, campaignId, activityId);
+    await this.manage(userId, campaignId);
+    await this.load(campaignId, activityId);
+    const removed = await this.repository.unassignEmployee(
+      campaignId,
+      activityId,
+      employeeId,
+    );
+    if (!removed) throw promotionAssigneeNotFound();
+    return response(await this.load(campaignId, activityId));
+  }
+
+  /**
+   * Active employees of the campaign's own department, for the assignment picker
+   * (EVE-231). Needs the same manage permission as assigning; the list is never
+   * wider than the department the campaign belongs to.
+   */
+  async assignableEmployees(
+    userId: string,
+    campaignId: string,
+    query: ListAssignableEmployeesQueryDto,
+  ): Promise<PaginatedAssignableEmployeesResponse> {
+    await this.manage(userId, campaignId);
+    const campaign = await this.campaigns.get(userId, campaignId);
+    if (!campaign.departmentId) {
+      return {
+        items: [],
+        page: query.page,
+        pageSize: query.pageSize,
+        total: 0,
+      };
+    }
+    const result = await this.repository.listActiveEmployees(
+      campaign.departmentId,
+      query,
+    );
+    return {
+      items: result.items,
+      page: query.page,
+      pageSize: query.pageSize,
+      total: result.total,
+    };
+  }
+
+  /**
+   * Every promotion activity the caller can read, across promotion campaigns
+   * (EVE-231). Visibility is the campaigns service's own read rule.
+   */
+  async listAll(
+    userId: string,
+    query: ListPromotionActivitiesQueryDto,
+  ): Promise<PaginatedPromotionActivityListResponse> {
+    const visibility = await this.campaigns.readableCampaignFilter(userId);
+    const result = await this.repository.listAll(visibility, query);
+    return {
+      items: result.items.map((item) => ({
+        ...response(item),
+        campaignId: item.campaignId,
+        campaignName: item.campaign.name,
+      })),
+      page: query.page,
+      pageSize: query.pageSize,
+      total: result.total,
+    };
+  }
+
   /** Assigns talent through the assignment service, so conflicts, history and audit apply. */
   async assignTalent(
     userId: string,
@@ -255,6 +404,18 @@ export class PromotionService {
     }
     return response(await this.load(campaignId, activityId));
   }
+}
+
+/**
+ * A database check or trigger refused the write (SQLSTATE 23514). The assignee
+ * trigger raises this when the employee is not active in the campaign's
+ * department, so a concurrent move or deactivation is refused too (EVE-231).
+ */
+function isCheckViolation(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  const adapter = error.meta?.driverAdapterError as
+    { cause?: { originalCode?: string } } | undefined;
+  return adapter?.cause?.originalCode === "23514";
 }
 
 /** Maps the assignment service's codes to this module's talent-link codes. */

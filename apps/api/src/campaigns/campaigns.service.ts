@@ -23,6 +23,9 @@ import {
   campaignInvalidTransition,
   campaignNotFound,
   campaignRelatedEventNotFound,
+  campaignMetricDateInvalid,
+  campaignRelatedLinkConflict,
+  campaignRelatedLinkNotFound,
   campaignRelatedSubjectConflict,
   campaignScheduleInvalid,
   campaignTeamNotAssigned,
@@ -31,6 +34,20 @@ import {
   campaignUserNotFound,
 } from "./campaigns.errors.js";
 import { canTransition, isApprovalMove } from "./campaigns.lifecycle.js";
+import type {
+  CampaignMetricResponse,
+  CampaignUpdateResponse,
+  PaginatedCampaignMetricsResponse,
+  PaginatedCampaignUpdatesResponse,
+} from "./campaigns.contracts.js";
+import type {
+  ListCampaignMetricsQueryDto,
+  ListCampaignUpdatesQueryDto,
+} from "./dto/campaign-detail.dto.js";
+import type {
+  CreateCampaignUpdateDto,
+  RecordCampaignMetricDto,
+} from "./dto/campaign-detail.dto.js";
 import type { CreateCampaignActivityDto } from "./dto/create-campaign-activity.dto.js";
 import type { CreateCampaignDto } from "./dto/create-campaign.dto.js";
 import type { ListCampaignActivitiesQueryDto } from "./dto/list-campaign-activities-query.dto.js";
@@ -235,6 +252,13 @@ export class CampaignsService {
    * event and holds `campaign.read` at any scope - not a full
    * department-scope retrofit of this module's own list/get/mutation
    * methods, which stay organization-only. */
+  /** The campaigns the caller may read, as a visibility filter (EVE-231). */
+  async readableCampaignFilter(
+    actingUserId: string,
+  ): Promise<CampaignVisibility> {
+    return this.visibilityFor(actingUserId, "campaign.read");
+  }
+
   async listForEvent(
     actingUserId: string,
     eventId: string,
@@ -289,6 +313,11 @@ export class CampaignsService {
     const endAt = dto.endAt ? new Date(dto.endAt) : undefined;
     assertScheduleOrdered(startAt ?? null, endAt ?? null);
     assertSingleSubject(dto.eventId ?? null, dto.productName ?? null);
+    assertSingleLink(
+      dto.projectId ?? null,
+      dto.productionId ?? null,
+      dto.talentId ?? null,
+    );
 
     const result = await this.repository.create({
       name: dto.name.trim(),
@@ -306,8 +335,17 @@ export class CampaignsService {
         ? { productName: dto.productName.trim() }
         : {}),
       ...(dto.managerId ? { managerId: dto.managerId } : {}),
+      ...(dto.objectives !== undefined
+        ? { objectives: dto.objectives.trim() }
+        : {}),
+      ...(dto.projectId ? { projectId: dto.projectId } : {}),
+      ...(dto.productionId ? { productionId: dto.productionId } : {}),
+      ...(dto.talentId ? { talentId: dto.talentId } : {}),
     });
 
+    if (result === "link_not_found") {
+      throw campaignRelatedLinkNotFound();
+    }
     if (result === "manager_not_found") {
       throw campaignUserNotFound();
     }
@@ -331,6 +369,11 @@ export class CampaignsService {
     assertSingleSubject(
       dto.eventId === undefined ? campaign.eventId : dto.eventId,
       dto.productName === undefined ? campaign.productName : dto.productName,
+    );
+    assertSingleLink(
+      dto.projectId === undefined ? campaign.projectId : dto.projectId,
+      dto.productionId === undefined ? campaign.productionId : dto.productionId,
+      dto.talentId === undefined ? campaign.talentId : dto.talentId,
     );
 
     let result: Awaited<ReturnType<CampaignsRepository["update"]>>;
@@ -362,6 +405,17 @@ export class CampaignsService {
                 dto.productName === null ? null : dto.productName.trim(),
             }
           : {}),
+        ...(dto.objectives !== undefined
+          ? {
+              objectives:
+                dto.objectives === null ? null : dto.objectives.trim(),
+            }
+          : {}),
+        ...(dto.projectId !== undefined ? { projectId: dto.projectId } : {}),
+        ...(dto.productionId !== undefined
+          ? { productionId: dto.productionId }
+          : {}),
+        ...(dto.talentId !== undefined ? { talentId: dto.talentId } : {}),
       });
     } catch (error) {
       // Type-specific extensions use a constant-type composite FK. PostgreSQL
@@ -384,6 +438,9 @@ export class CampaignsService {
     }
     if (result === "event_not_found") {
       throw campaignRelatedEventNotFound();
+    }
+    if (result === "link_not_found") {
+      throw campaignRelatedLinkNotFound();
     }
     return toCampaignResponse(result);
   }
@@ -547,6 +604,87 @@ export class CampaignsService {
     }
   }
 
+  /** The campaign's updates log, newest first. Reading needs campaign.read. */
+  async listUpdates(
+    actingUserId: string,
+    id: string,
+    query: ListCampaignUpdatesQueryDto,
+  ): Promise<PaginatedCampaignUpdatesResponse> {
+    await this.authorize(actingUserId, id, "campaign.read");
+    const { items, total } = await this.repository.listUpdates(
+      id,
+      query.page,
+      query.pageSize,
+    );
+    return {
+      items: items.map(toUpdateResponse),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+    };
+  }
+
+  /** Adds an entry to the updates log. Only the campaign's own department writes. */
+  async addUpdate(
+    actingUserId: string,
+    id: string,
+    dto: CreateCampaignUpdateDto,
+  ): Promise<CampaignUpdateResponse> {
+    await this.authorize(actingUserId, id, "campaign.update");
+    return toUpdateResponse(
+      await this.repository.createUpdate(id, actingUserId, dto.note.trim()),
+    );
+  }
+
+  /** Recorded metrics, latest recording day first. Reading needs campaign.read. */
+  async listMetrics(
+    actingUserId: string,
+    id: string,
+    query: ListCampaignMetricsQueryDto,
+  ): Promise<PaginatedCampaignMetricsResponse> {
+    await this.authorize(actingUserId, id, "campaign.read");
+    const { items, total } = await this.repository.listMetrics(
+      id,
+      query.key,
+      query.page,
+      query.pageSize,
+    );
+    return {
+      items: items.map(toMetricResponse),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+    };
+  }
+
+  /**
+   * Records a metric exactly as given. Nothing is computed from it. Only the
+   * campaign's own department (or Super Admin) records metrics.
+   */
+  async recordMetric(
+    actingUserId: string,
+    id: string,
+    dto: RecordCampaignMetricDto,
+  ): Promise<CampaignMetricResponse> {
+    await this.authorize(actingUserId, id, "campaign.update");
+    const recordedOn = new Date(`${dto.recordedOn}T00:00:00.000Z`);
+    if (
+      Number.isNaN(recordedOn.getTime()) ||
+      recordedOn.toISOString().slice(0, 10) !== dto.recordedOn
+    ) {
+      throw campaignMetricDateInvalid();
+    }
+    return toMetricResponse(
+      await this.repository.createMetric(id, {
+        key: dto.key,
+        value: dto.value.toFixed(2),
+        recordedOn,
+        sourceNote: dto.sourceNote?.trim() ?? null,
+        recordedById: actingUserId,
+      }),
+    );
+  }
+
   async listActivities(
     actingUserId: string,
     id: string,
@@ -706,6 +844,18 @@ function assertActivityScheduleOrdered(
   }
 }
 
+/** EVE-231: a campaign links to at most one project, production or artist. */
+function assertSingleLink(
+  projectId: string | null,
+  productionId: string | null,
+  talentId: string | null,
+): void {
+  const links = [projectId, productionId, talentId].filter(Boolean).length;
+  if (links > 1) {
+    throw campaignRelatedLinkConflict();
+  }
+}
+
 /** A campaign relates to one subject - an event or a product - or none. */
 function assertSingleSubject(
   eventId: string | null,
@@ -730,6 +880,10 @@ function toCampaignResponse(record: CampaignRecord): CampaignResponse {
     eventId: record.eventId,
     departmentId: record.departmentId,
     productName: record.productName,
+    objectives: record.objectives,
+    projectId: record.projectId,
+    productionId: record.productionId,
+    talentId: record.talentId,
     progress: record.progress,
     manager: record.manager,
     teams: record.teams,
@@ -737,6 +891,54 @@ function toCampaignResponse(record: CampaignRecord): CampaignResponse {
     createdBy: record.createdBy,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
+  };
+}
+
+function toUpdateResponse(record: {
+  id: string;
+  campaignId: string;
+  note: string;
+  createdAt: Date;
+  author: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+}): CampaignUpdateResponse {
+  return {
+    id: record.id,
+    campaignId: record.campaignId,
+    note: record.note,
+    author: record.author,
+    createdAt: record.createdAt.toISOString(),
+  };
+}
+
+function toMetricResponse(record: {
+  id: string;
+  campaignId: string;
+  key: CampaignMetricResponse["key"];
+  value: { toFixed: (digits: number) => string };
+  recordedOn: Date;
+  sourceNote: string | null;
+  createdAt: Date;
+  recordedBy: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+}): CampaignMetricResponse {
+  return {
+    id: record.id,
+    campaignId: record.campaignId,
+    key: record.key,
+    value: record.value.toFixed(2),
+    recordedOn: record.recordedOn.toISOString().slice(0, 10),
+    sourceNote: record.sourceNote,
+    recordedBy: record.recordedBy,
+    createdAt: record.createdAt.toISOString(),
   };
 }
 

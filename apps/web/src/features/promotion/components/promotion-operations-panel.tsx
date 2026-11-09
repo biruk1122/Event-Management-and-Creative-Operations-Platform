@@ -87,6 +87,15 @@ export function PromotionOperationsPanel({
     staleTime: 60_000,
   });
 
+  const employees = useQuery({
+    queryKey: [...campaign.all, "promotion-assignable-employees", campaignId],
+    queryFn: ({ signal }) =>
+      gateway.listAssignableEmployees(campaignId, signal),
+    enabled: canManage,
+    retry: false,
+    staleTime: 60_000,
+  });
+
   const change = useMutation({
     mutationFn: (work: () => Promise<unknown>) => work(),
     onSettled: async () => {
@@ -129,6 +138,36 @@ export function PromotionOperationsPanel({
         if (canReadTalent) void talents.refetch();
       }}
       canManage={canManage}
+      employees={employees.data ?? []}
+      employeesUnavailable={employees.isError}
+      canManageStaffing={canManage}
+      onSaveDetails={
+        canManage
+          ? async (id, values) => {
+              await change.mutateAsync(() =>
+                gateway.updatePromotionDetails(campaignId, id, values),
+              );
+            }
+          : undefined
+      }
+      onAssignEmployee={
+        canManage
+          ? async (id, employeeId) => {
+              await change.mutateAsync(() =>
+                gateway.assignPromotionEmployee(campaignId, id, employeeId),
+              );
+            }
+          : undefined
+      }
+      onUnassignEmployee={
+        canManage
+          ? async (id, employeeId) => {
+              await change.mutateAsync(() =>
+                gateway.removePromotionEmployee(campaignId, id, employeeId),
+              );
+            }
+          : undefined
+      }
       canAssignTalent={canAssignTalent}
       availableTalents={talents.data ?? []}
       talentsUnavailable={

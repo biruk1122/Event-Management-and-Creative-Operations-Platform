@@ -97,4 +97,51 @@ export class UpdateCampaignDto {
   @MaxLength(200)
   @Matches(NOT_BLANK, { message: "productName must not be blank" })
   productName?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    minLength: 1,
+    maxLength: 2000,
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  @Matches(NOT_BLANK, { message: "objectives must not be blank" })
+  objectives?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description: "A project this campaign promotes. Send null to clear.",
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  projectId?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description: "A production this campaign promotes. Send null to clear.",
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  productionId?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description: "An artist this campaign promotes. Send null to clear.",
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  talentId?: string | null;
 }

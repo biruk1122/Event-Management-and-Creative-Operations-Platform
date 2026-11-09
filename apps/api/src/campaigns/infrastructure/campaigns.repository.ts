@@ -7,6 +7,7 @@ import {
   Prisma,
   WorkspaceKind,
   type CampaignStatus,
+  type CampaignMetricKey,
   type CampaignType,
 } from "../../generated/prisma/client.js";
 import type { ArchiveHook } from "../../common/archive/archive-hook.js";
@@ -57,6 +58,10 @@ export interface CampaignRecord {
   eventId: string | null;
   departmentId: string | null;
   productName: string | null;
+  objectives: string | null;
+  projectId: string | null;
+  productionId: string | null;
+  talentId: string | null;
   budgetAmount: string | null;
   budgetCurrency: string | null;
   progress: CampaignProgressRecord;
@@ -111,6 +116,10 @@ export interface CreateCampaignInput {
   eventId?: string;
   departmentId?: string;
   productName?: string;
+  objectives?: string;
+  projectId?: string;
+  productionId?: string;
+  talentId?: string;
   managerId?: string;
   createdById: string;
 }
@@ -124,6 +133,10 @@ export interface UpdateCampaignFields {
   endAt?: Date | null;
   eventId?: string | null;
   productName?: string | null;
+  objectives?: string | null;
+  projectId?: string | null;
+  productionId?: string | null;
+  talentId?: string | null;
 }
 
 export interface ListCampaignActivitiesInput {
@@ -173,6 +186,29 @@ function isUuid(value: string): boolean {
   return UUID_PATTERN.test(value);
 }
 
+const CAMPAIGN_UPDATE_SELECT = {
+  id: true,
+  campaignId: true,
+  note: true,
+  createdAt: true,
+  author: {
+    select: { id: true, email: true, firstName: true, lastName: true },
+  },
+} as const;
+
+const CAMPAIGN_METRIC_SELECT = {
+  id: true,
+  campaignId: true,
+  key: true,
+  value: true,
+  recordedOn: true,
+  sourceNote: true,
+  createdAt: true,
+  recordedBy: {
+    select: { id: true, email: true, firstName: true, lastName: true },
+  },
+} as const;
+
 const PERSON_SELECT = {
   id: true,
   email: true,
@@ -193,6 +229,10 @@ const CAMPAIGN_SELECT = {
   eventId: true,
   departmentId: true,
   productName: true,
+  objectives: true,
+  projectId: true,
+  productionId: true,
+  talentId: true,
   budgetAmount: true,
   budgetCurrency: true,
   createdBy: { select: PERSON_SELECT },
@@ -290,6 +330,10 @@ function toRecord(
     eventId: raw.eventId,
     departmentId: raw.departmentId,
     productName: raw.productName,
+    objectives: raw.objectives,
+    projectId: raw.projectId,
+    productionId: raw.productionId,
+    talentId: raw.talentId,
     budgetAmount:
       raw.budgetAmount === null ? null : raw.budgetAmount.toFixed(2),
     // A `@db.Char(3)` reads back space-padded; the CHECK guarantees three
@@ -322,6 +366,8 @@ function updateData(fields: UpdateCampaignFields): Prisma.CampaignUpdateInput {
   if (fields.startAt !== undefined) data.startAt = fields.startAt;
   if (fields.endAt !== undefined) data.endAt = fields.endAt;
   if (fields.productName !== undefined) data.productName = fields.productName;
+  if (fields.objectives !== undefined) data.objectives = fields.objectives;
+  // Project, production and artist links are written by `update`, in steps.
   if (fields.eventId !== undefined) {
     data.event = fields.eventId
       ? { connect: { id: fields.eventId } }
@@ -482,9 +528,14 @@ export class CampaignsRepository {
    */
   async create(
     input: CreateCampaignInput,
-  ): Promise<CampaignRecord | "manager_not_found" | "event_not_found"> {
+  ): Promise<
+    CampaignRecord | "manager_not_found" | "event_not_found" | "link_not_found"
+  > {
     if (input.eventId && !(await this.eventExists(input.eventId))) {
       return "event_not_found";
+    }
+    if (await this.relatedLinkMissing(input)) {
+      return "link_not_found";
     }
     try {
       const created = await this.db.$transaction(async (tx) => {
@@ -514,6 +565,12 @@ export class CampaignsRepository {
             ...(input.productName !== undefined
               ? { productName: input.productName }
               : {}),
+            ...(input.objectives !== undefined
+              ? { objectives: input.objectives }
+              : {}),
+            ...(input.projectId ? { projectId: input.projectId } : {}),
+            ...(input.productionId ? { productionId: input.productionId } : {}),
+            ...(input.talentId ? { talentId: input.talentId } : {}),
           },
           select: CAMPAIGN_SELECT,
         });
@@ -528,10 +585,34 @@ export class CampaignsRepository {
     }
   }
 
+  /** True when a project, production or artist this input names does not exist. */
+  async relatedLinkMissing(input: {
+    projectId?: string | null | undefined;
+    productionId?: string | null | undefined;
+    talentId?: string | null | undefined;
+  }): Promise<boolean> {
+    const checks: Promise<number>[] = [];
+    if (input.projectId) {
+      checks.push(this.db.project.count({ where: { id: input.projectId } }));
+    }
+    if (input.productionId) {
+      checks.push(
+        this.db.production.count({ where: { id: input.productionId } }),
+      );
+    }
+    if (input.talentId) {
+      checks.push(this.db.talent.count({ where: { id: input.talentId } }));
+    }
+    const counts = await Promise.all(checks);
+    return counts.some((count) => count === 0);
+  }
+
   async update(
     id: string,
     fields: UpdateCampaignFields,
-  ): Promise<CampaignRecord | "not_found" | "event_not_found"> {
+  ): Promise<
+    CampaignRecord | "not_found" | "event_not_found" | "link_not_found"
+  > {
     if (!isUuid(id)) {
       return "not_found";
     }
@@ -551,11 +632,55 @@ export class CampaignsRepository {
     ) {
       return "event_not_found";
     }
+    if (
+      await this.relatedLinkMissing({
+        projectId: fields.projectId,
+        productionId: fields.productionId,
+        talentId: fields.talentId,
+      })
+    ) {
+      return "link_not_found";
+    }
     try {
-      const updated = await this.db.campaign.update({
-        where: { id, archivedAt: null },
-        data: updateData(fields),
-        select: CAMPAIGN_SELECT,
+      const updated = await this.db.$transaction(async (tx) => {
+        // The one-related-link CHECK is evaluated per statement, and Prisma may
+        // run a connect before a disconnect in one update. So a link change is
+        // written in two checked steps: clear all three, then set the final
+        // values. Both happen in this transaction.
+        if (
+          fields.projectId !== undefined ||
+          fields.productionId !== undefined ||
+          fields.talentId !== undefined
+        ) {
+          const existing = await tx.campaign.findFirstOrThrow({
+            where: { id },
+            select: { projectId: true, productionId: true, talentId: true },
+          });
+          const next = {
+            projectId:
+              fields.projectId !== undefined
+                ? fields.projectId
+                : existing.projectId,
+            productionId:
+              fields.productionId !== undefined
+                ? fields.productionId
+                : existing.productionId,
+            talentId:
+              fields.talentId !== undefined
+                ? fields.talentId
+                : existing.talentId,
+          };
+          await tx.campaign.updateMany({
+            where: { id },
+            data: { projectId: null, productionId: null, talentId: null },
+          });
+          await tx.campaign.updateMany({ where: { id }, data: next });
+        }
+        return tx.campaign.update({
+          where: { id, archivedAt: null },
+          data: updateData(fields),
+          select: CAMPAIGN_SELECT,
+        });
       });
       return await this.readRecord(updated);
     } catch (error) {
@@ -613,6 +738,75 @@ export class CampaignsRepository {
       return "not_found";
     }
     return count === 0 ? "status_changed" : record;
+  }
+
+  /** The updates log for one campaign, newest first. Append-only. */
+  async listUpdates(campaignId: string, page: number, pageSize: number) {
+    if (!isUuid(campaignId)) return { items: [], total: 0 };
+    const where: Prisma.CampaignUpdateWhereInput = { campaignId };
+    const [items, total] = await Promise.all([
+      this.db.campaignUpdate.findMany({
+        where,
+        select: CAMPAIGN_UPDATE_SELECT,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.campaignUpdate.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  async createUpdate(campaignId: string, authorId: string, note: string) {
+    return this.db.campaignUpdate.create({
+      data: { campaignId, authorId, note },
+      select: CAMPAIGN_UPDATE_SELECT,
+    });
+  }
+
+  /** Recorded metrics for one campaign, latest recording day first. Append-only. */
+  async listMetrics(
+    campaignId: string,
+    key: CampaignMetricKey | undefined,
+    page: number,
+    pageSize: number,
+  ) {
+    if (!isUuid(campaignId)) return { items: [], total: 0 };
+    const where: Prisma.CampaignMetricWhereInput = {
+      campaignId,
+      ...(key ? { key } : {}),
+    };
+    const [items, total] = await Promise.all([
+      this.db.campaignMetric.findMany({
+        where,
+        select: CAMPAIGN_METRIC_SELECT,
+        orderBy: [
+          { recordedOn: "desc" },
+          { createdAt: "desc" },
+          { id: "desc" },
+        ],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.campaignMetric.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  async createMetric(
+    campaignId: string,
+    input: {
+      key: CampaignMetricKey;
+      value: string;
+      recordedOn: Date;
+      sourceNote: string | null;
+      recordedById: string;
+    },
+  ) {
+    return this.db.campaignMetric.create({
+      data: { campaignId, ...input },
+      select: CAMPAIGN_METRIC_SELECT,
+    });
   }
 
   async setBudget(

@@ -57,6 +57,10 @@ const createValues: CreateCampaignValues = {
   eventId: null,
   productName: "",
   managerId: null,
+  objectives: "",
+  projectId: null,
+  productionId: null,
+  talentId: null,
 };
 
 const editValues: EditCampaignValues = {
@@ -68,6 +72,10 @@ const editValues: EditCampaignValues = {
   endAt: "",
   eventId: "evt-1",
   productName: "",
+  objectives: "",
+  projectId: null,
+  productionId: null,
+  talentId: null,
 };
 
 const activityValues: CampaignActivityValues = {
@@ -330,6 +338,10 @@ describe("campaigns gateway campaign writes", () => {
       endAt: null,
       eventId: "evt-1",
       productName: null,
+      objectives: null,
+      projectId: null,
+      productionId: null,
+      talentId: null,
     });
     expect(options.headers).toEqual({ "x-csrf-token": "tok" });
   });

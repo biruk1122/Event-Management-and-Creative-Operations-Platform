@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import type { CampaignActivity } from "@/features/campaigns/lib/campaigns-types";
 import { activityStatusLabel } from "@/features/campaigns/lib/campaigns-types";
 
+import { PromotionActivityStaffing } from "./promotion-activity-staffing";
 import {
   PROMOTION_CHANNEL_LABELS,
   PROMOTION_CHANNELS,
@@ -49,6 +50,21 @@ export interface PromotionOperationsBoardProps {
     | undefined;
   onUnassignTalent?:
     ((activityId: string, talentId: string) => Promise<void>) | undefined;
+  /** Active employees of the campaign's department (EVE-231). */
+  employees?: readonly { id: string; name: string }[];
+  employeesUnavailable?: boolean;
+  /** Whether the viewer may change location, resources and assignees here. */
+  canManageStaffing?: boolean;
+  onSaveDetails?:
+    | ((
+        activityId: string,
+        values: { location: string | null; requiredResources: string | null },
+      ) => Promise<void>)
+    | undefined;
+  onAssignEmployee?:
+    ((activityId: string, employeeId: string) => Promise<void>) | undefined;
+  onUnassignEmployee?:
+    ((activityId: string, employeeId: string) => Promise<void>) | undefined;
 }
 
 const CONTROL_CLASS =
@@ -69,6 +85,12 @@ export function PromotionOperationsBoard({
   onRemove,
   onAssignTalent,
   onUnassignTalent,
+  employees = [],
+  employeesUnavailable = false,
+  canManageStaffing = false,
+  onSaveDetails,
+  onAssignEmployee,
+  onUnassignEmployee,
 }: PromotionOperationsBoardProps) {
   const ids = {
     search: useId(),
@@ -105,6 +127,14 @@ export function PromotionOperationsBoard({
   });
   const selected = activities.find((activity) => activity.id === selectedId);
   const detail = selected ? details.get(selected.id) : undefined;
+  const staffing =
+    onSaveDetails && onAssignEmployee && onUnassignEmployee
+      ? {
+          save: onSaveDetails,
+          assign: onAssignEmployee,
+          unassign: onUnassignEmployee,
+        }
+      : null;
 
   useEffect(() => {
     if (confirming) confirmRef.current?.focus();
@@ -312,6 +342,38 @@ export function PromotionOperationsBoard({
                         </Button>
                       )}
                     </form>
+                    {staffing ? (
+                      <div className="border-border space-y-3 border-t pt-4">
+                        <h4 className="font-medium">
+                          Location, resources and team
+                        </h4>
+                        <PromotionActivityStaffing
+                          activity={detail}
+                          canManage={canManageStaffing}
+                          employees={employees}
+                          employeesUnavailable={employeesUnavailable}
+                          disabled={busy}
+                          onSaveDetails={(values) =>
+                            act(
+                              () => staffing.save(selected.id, values),
+                              "Activity details saved.",
+                            )
+                          }
+                          onAssign={(employeeId) =>
+                            act(
+                              () => staffing.assign(selected.id, employeeId),
+                              "Person assigned.",
+                            )
+                          }
+                          onUnassign={(employeeId) =>
+                            act(
+                              () => staffing.unassign(selected.id, employeeId),
+                              "Person removed.",
+                            )
+                          }
+                        />
+                      </div>
+                    ) : null}
                     <div className="space-y-3">
                       <h4 className="font-medium">Talent assignments</h4>
                       {detail.talents.length === 0 ? (

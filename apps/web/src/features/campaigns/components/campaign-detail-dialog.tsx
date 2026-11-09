@@ -1,7 +1,7 @@
 "use client";
 
 import { DialogBackButton } from "@/features/navigation/components/dialog-back-button";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { LoaderCircle, TriangleAlert, X } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -32,7 +32,19 @@ import {
   getCampaign as defaultGetCampaign,
   getCampaignBudget as defaultGetCampaignBudget,
 } from "../api/campaigns-gateway";
+import {
+  addCampaignUpdate as defaultAddUpdate,
+  listCampaignMetrics as defaultListMetricPage,
+  listCampaignUpdates as defaultListUpdatePage,
+  recordCampaignMetric as defaultRecordMetric,
+  type CampaignDetailWriteResult,
+  type CampaignMetric,
+  type CampaignUpdate,
+  type RecordMetricValues,
+} from "../api/campaign-detail-gateway";
 import { CampaignActivities } from "./campaign-activities";
+import { CampaignMetricsPanel } from "./campaign-metrics-panel";
+import { CampaignUpdatesPanel } from "./campaign-updates-panel";
 import { CampaignFields } from "./campaign-fields";
 import { CampaignStatusBadge } from "./status-badges";
 import {
@@ -127,7 +139,26 @@ interface CampaignDetailDialogProps {
   onDelete: DeleteCampaign;
   onChanged: (campaign: Campaign) => void;
   onDeleted: (id: string) => void;
+  /** Loaders and writers for the updates log and metrics (EVE-231). */
+  listUpdates?: (campaignId: string) => Promise<CampaignUpdate[] | null>;
+  addUpdate?: (
+    campaignId: string,
+    note: string,
+  ) => Promise<CampaignDetailWriteResult<CampaignUpdate>>;
+  listMetrics?: (campaignId: string) => Promise<CampaignMetric[] | null>;
+  recordMetric?: (
+    campaignId: string,
+    values: RecordMetricValues,
+  ) => Promise<CampaignDetailWriteResult<CampaignMetric>>;
+  /** Renders the campaign's files panel; supplied where the query provider lives. */
+  renderFiles?: (campaignId: string, canUpdate: boolean) => ReactNode;
 }
+
+/** The default loaders read the first page: the log is shown newest first. */
+const defaultListUpdates = async (campaignId: string) =>
+  (await defaultListUpdatePage(campaignId))?.items ?? null;
+const defaultListMetrics = async (campaignId: string) =>
+  (await defaultListMetricPage(campaignId))?.items ?? null;
 
 export function CampaignDetailDialog({
   campaignId,
@@ -173,6 +204,11 @@ function CampaignDetailBody({
   abilities: baseAbilities,
   getCampaign = defaultGetCampaign,
   getBudget = defaultGetCampaignBudget,
+  listUpdates = defaultListUpdates,
+  addUpdate = defaultAddUpdate,
+  listMetrics = defaultListMetrics,
+  recordMetric = defaultRecordMetric,
+  renderFiles,
   listActivities,
   onCreateActivity,
   onUpdateActivity,
@@ -634,6 +670,21 @@ function CampaignDetailBody({
             canManage={abilities.canManageActivities}
             onProgressChange={applyProgress}
           />
+
+          {/* Updates log, recorded metrics and files (EVE-231) */}
+          <CampaignUpdatesPanel
+            campaignId={campaign.id}
+            canWrite={abilities.canUpdate}
+            list={listUpdates}
+            add={addUpdate}
+          />
+          <CampaignMetricsPanel
+            campaignId={campaign.id}
+            canWrite={abilities.canUpdate}
+            list={listMetrics}
+            record={recordMetric}
+          />
+          {renderFiles ? renderFiles(campaign.id, abilities.canUpdate) : null}
 
           {/* Connected workspace: manager, teams, participants */}
           <section

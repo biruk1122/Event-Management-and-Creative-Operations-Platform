@@ -573,6 +573,91 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/campaigns/{campaignId}/files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List available files attached to a campaign */
+    get: operations["CampaignFileManagement_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/campaigns/{campaignId}/files/upload-intents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a 10-minute direct-upload grant for a campaign file */
+    post: operations["CampaignFileManagement_createUploadIntent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/campaigns/{campaignId}/files/{fileId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Detach a campaign file and begin its 30-day retention window */
+    delete: operations["CampaignFileManagement_remove_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/campaigns/{campaignId}/files/{fileId}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a five-minute private download grant for a campaign file */
+    get: operations["CampaignFileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/campaigns/{campaignId}/files/{fileId}/finalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify, scan, and attach a completed direct upload to a campaign */
+    post: operations["CampaignFileManagement_finalize_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/campaigns/{id}": {
     parameters: {
       query?: never;
@@ -663,6 +748,24 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/campaigns/{id}/metrics": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List recorded metrics, latest recording day first */
+    get: operations["Campaigns_listMetrics_v1"];
+    put?: never;
+    /** Record a metric exactly as given (append-only, nothing computed) */
+    post: operations["Campaigns_recordMetric_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/campaigns/{id}/teams/{teamId}": {
     parameters: {
       query?: never;
@@ -692,6 +795,24 @@ export interface paths {
     put?: never;
     /** Move a campaign to another lifecycle state */
     post: operations["Campaigns_transition_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/campaigns/{id}/updates": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a campaign's updates log, newest first */
+    get: operations["Campaigns_listUpdates_v1"];
+    put?: never;
+    /** Add an entry to the updates log (append-only) */
+    post: operations["Campaigns_addUpdate_v1"];
     delete?: never;
     options?: never;
     head?: never;
@@ -2868,6 +2989,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/promotion/activities": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List promotion activities across the promotion campaigns you can read */
+    get: operations["PromotionActivities_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/promotion/campaigns/{campaignId}/activities": {
     parameters: {
       query?: never;
@@ -2905,6 +3043,41 @@ export interface paths {
     patch: operations["Promotion_updateChannel_v1"];
     trace?: never;
   };
+  "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/assignees/{userId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Assign an active employee of the campaign's department to the activity */
+    put: operations["Promotion_assignEmployee_v1"];
+    post?: never;
+    /** Remove an employee from the activity */
+    delete: operations["Promotion_unassignEmployee_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/details": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Set an activity's location and required resources (campaign department only) */
+    patch: operations["Promotion_updateDetails_v1"];
+    trace?: never;
+  };
   "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/talents": {
     parameters: {
       query?: never;
@@ -2934,6 +3107,23 @@ export interface paths {
     post?: never;
     /** Unassign one talent from a promotion activity */
     delete: operations["Promotion_unassignTalent_v1"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/promotion/campaigns/{campaignId}/assignable-employees": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List active employees of the campaign's department who can be assigned */
+    get: operations["PromotionAssignableEmployees_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
     options?: never;
     head?: never;
     patch?: never;
@@ -4895,6 +5085,29 @@ export interface components {
        */
       currency: string | null;
     };
+    CampaignMetricResponse: {
+      /** Format: uuid */
+      campaignId: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      key: "REACH" | "ENGAGEMENT" | "TICKETS_SOLD" | "ATTENDANCE" | "OTHER";
+      /** @description Who recorded it; null once that user is gone. */
+      recordedBy: components["schemas"]["CampaignPersonSummary"] | null;
+      /**
+       * @description YYYY-MM-DD.
+       * @example 2026-11-01
+       */
+      recordedOn: string;
+      sourceNote: string | null;
+      /**
+       * @description The value as recorded, with two decimal places.
+       * @example 12500.00
+       */
+      value: string;
+    };
     CampaignPersonSummary: {
       /**
        * Format: email
@@ -4966,6 +5179,8 @@ export interface components {
       manager: components["schemas"]["CampaignPersonSummary"] | null;
       /** @example Autumn Launch Push */
       name: string;
+      /** @description What the campaign is meant to achieve. */
+      objectives: string | null;
       /** @description Employees assigned to this campaign individually, from the connected workspace. */
       participants: components["schemas"]["CampaignPersonSummary"][];
       /**
@@ -4973,7 +5188,17 @@ export interface components {
        * @example Nexo Energy Drink
        */
       productName: string | null;
+      /**
+       * Format: uuid
+       * @description A production this campaign promotes. See projectId.
+       */
+      productionId: string | null;
       progress: components["schemas"]["CampaignProgress"];
+      /**
+       * Format: uuid
+       * @description A project this campaign promotes. At most one of project, production or artist is linked.
+       */
+      projectId: string | null;
       /**
        * Format: date-time
        * @description UTC start. Null while the campaign is not yet scheduled.
@@ -4990,6 +5215,11 @@ export interface components {
         | "PAUSED"
         | "COMPLETED"
         | "CANCELLED";
+      /**
+       * Format: uuid
+       * @description An artist this campaign promotes. See projectId.
+       */
+      talentId: string | null;
       /** @description Teams assigned to this campaign, from the connected workspace. */
       teams: components["schemas"]["CampaignTeamSummary"][];
       /** Format: date-time */
@@ -5008,6 +5238,17 @@ export interface components {
       id: string;
       /** @example Marketing Team */
       name: string;
+    };
+    CampaignUpdateResponse: {
+      /** @description Who wrote the update; null once that user is gone. */
+      author: components["schemas"]["CampaignPersonSummary"] | null;
+      /** Format: uuid */
+      campaignId: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      id: string;
+      note: string;
     };
     ChangeTaskReviewerDto: {
       reason: string;
@@ -5138,16 +5379,36 @@ export interface components {
       managerId?: string;
       /** @example Autumn Launch Push */
       name: string;
+      /** @example Launch the new range across the region. */
+      objectives?: string;
       /**
        * @description The product this campaign promotes. Cannot be combined with `eventId`.
        * @example Nexo Energy Drink
        */
       productName?: string;
       /**
+       * Format: uuid
+       * @description A production this campaign promotes. At most one of projectId, productionId or talentId may be set.
+       */
+      productionId?: string;
+      /**
+       * Format: uuid
+       * @description A project this campaign promotes. At most one of projectId, productionId or talentId may be set.
+       */
+      projectId?: string;
+      /**
        * Format: date-time
        * @description UTC start. If both ends are given, the end may not precede it.
        */
       startAt?: string;
+      /**
+       * Format: uuid
+       * @description An artist this campaign promotes. At most one of projectId, productionId or talentId may be set.
+       */
+      talentId?: string;
+    };
+    CreateCampaignUpdateDto: {
+      note: string;
     };
     CreateChannelDto: {
       /** Format: uuid */
@@ -7326,6 +7587,15 @@ export interface components {
       /** @enum {string} */
       status: "PENDING" | "APPROVED" | "REJECTED";
     };
+    PaginatedAssignableEmployeesResponse: {
+      items: components["schemas"]["PromotionAssigneeResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 100 */
+      pageSize: number;
+      /** @example 42 */
+      total: number;
+    };
     PaginatedCampaignActivitiesResponse: {
       items: components["schemas"]["CampaignActivityResponse"][];
       /**
@@ -7339,6 +7609,24 @@ export interface components {
        * @description Total activities matching the filter.
        * @example 4
        */
+      total: number;
+    };
+    PaginatedCampaignMetricsResponse: {
+      items: components["schemas"]["CampaignMetricResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 2 */
+      total: number;
+    };
+    PaginatedCampaignUpdatesResponse: {
+      items: components["schemas"]["CampaignUpdateResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 3 */
       total: number;
     };
     PaginatedCampaignsResponse: {
@@ -7490,6 +7778,15 @@ export interface components {
     };
     PaginatedPromotionActivitiesResponse: {
       items: components["schemas"]["PromotionActivityResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 4 */
+      total: number;
+    };
+    PaginatedPromotionActivityListResponse: {
+      items: components["schemas"]["PromotionActivityListItemResponse"][];
       /** @example 1 */
       page: number;
       /** @example 25 */
@@ -7914,8 +8211,12 @@ export interface components {
       /** @example Production Team */
       name: string;
     };
-    PromotionActivityResponse: {
+    PromotionActivityListItemResponse: {
       activity: components["schemas"]["CampaignActivityResponse"];
+      assignees: components["schemas"]["PromotionAssigneeResponse"][];
+      /** Format: uuid */
+      campaignId: string;
+      campaignName: string;
       /** @enum {string} */
       channel:
         | "CONTENT_CREATION"
@@ -7925,6 +8226,24 @@ export interface components {
         | "TELEVISION"
         | "SCREENS_DIGITAL_MEDIA"
         | "ADVERTISING";
+      location: string | null;
+      requiredResources: string | null;
+      talents: components["schemas"]["PromotionTalentResponse"][];
+    };
+    PromotionActivityResponse: {
+      activity: components["schemas"]["CampaignActivityResponse"];
+      assignees: components["schemas"]["PromotionAssigneeResponse"][];
+      /** @enum {string} */
+      channel:
+        | "CONTENT_CREATION"
+        | "SOCIAL_MEDIA"
+        | "INFLUENCER_MARKETING"
+        | "RADIO_PROMOTION"
+        | "TELEVISION"
+        | "SCREENS_DIGITAL_MEDIA"
+        | "ADVERTISING";
+      location: string | null;
+      requiredResources: string | null;
       talents: components["schemas"]["PromotionTalentResponse"][];
     };
     PromotionAnalyticsResponse: {
@@ -7941,6 +8260,14 @@ export interface components {
        */
       freshness: "live-current-state";
       items: components["schemas"]["PromotionChannelProgress"][];
+    };
+    PromotionAssigneeResponse: {
+      /** Format: email */
+      email: string;
+      firstName: string | null;
+      /** Format: uuid */
+      id: string;
+      lastName: string | null;
     };
     PromotionChannelProgress: {
       /** @enum {string} */
@@ -7990,6 +8317,19 @@ export interface components {
        * @example 2026-09-01T09:00:00.000Z
        */
       timestamp: string;
+    };
+    RecordCampaignMetricDto: {
+      /** @enum {string} */
+      key: "REACH" | "ENGAGEMENT" | "TICKETS_SOLD" | "ATTENDANCE" | "OTHER";
+      /**
+       * @description The day the figure was recorded (YYYY-MM-DD).
+       * @example 2026-11-01
+       */
+      recordedOn: string;
+      /** @description Where the figure came from, for example a platform report. */
+      sourceNote?: string;
+      /** @description The value exactly as recorded, with at most two decimal places. It is stored and shown as given; nothing is computed from it. */
+      value: number;
     };
     RegisterKioskDto: {
       locationLabel: string;
@@ -9154,9 +9494,25 @@ export interface components {
       /** Format: uuid */
       eventId?: string | null;
       name?: string;
+      objectives?: string | null;
       productName?: string | null;
+      /**
+       * Format: uuid
+       * @description A production this campaign promotes. Send null to clear.
+       */
+      productionId?: string | null;
+      /**
+       * Format: uuid
+       * @description A project this campaign promotes. Send null to clear.
+       */
+      projectId?: string | null;
       /** Format: date-time */
       startAt?: string | null;
+      /**
+       * Format: uuid
+       * @description An artist this campaign promotes. Send null to clear.
+       */
+      talentId?: string | null;
     };
     UpdateChannelDto: {
       name?: string;
@@ -9400,6 +9756,10 @@ export interface components {
         | "TELEVISION"
         | "SCREENS_DIGITAL_MEDIA"
         | "ADVERTISING";
+    };
+    UpdatePromotionDetailsDto: {
+      location?: string | null;
+      requiredResources?: string | null;
     };
     UpdateReadCursorDto: {
       /**
@@ -11633,6 +11993,282 @@ export interface operations {
       };
     };
   };
+  CampaignFileManagement_list_v1: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path: {
+        campaignId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedManagedFilesResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CampaignFileManagement_createUploadIntent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUploadIntentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UploadIntentResponse"];
+        };
+      };
+      /** @description Invalid filename or upload declaration */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CampaignFileManagement_remove_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description File detached */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description No available file exists for this campaign */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CampaignFileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description No available file exists for this campaign */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CampaignFileManagement_finalize_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ManagedFileResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Campaign or upload intent not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Intent expired, upload missing, unsafe, or already finalized */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description File scanner unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Campaigns_get_v1: {
     parameters: {
       query?: never;
@@ -12191,6 +12827,118 @@ export interface operations {
       };
     };
   };
+  Campaigns_listMetrics_v1: {
+    parameters: {
+      query?: {
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+        key?: "REACH" | "ENGAGEMENT" | "TICKETS_SOLD" | "ATTENDANCE" | "OTHER";
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedCampaignMetricsResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Campaigns_recordMetric_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RecordCampaignMetricDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CampaignMetricResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Campaigns_assignTeam_v1: {
     parameters: {
       query?: never;
@@ -12350,6 +13098,109 @@ export interface operations {
       };
       /** @description That transition is not allowed from the current state */
       409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Campaigns_listUpdates_v1: {
+    parameters: {
+      query?: {
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedCampaignUpdatesResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Campaign not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Campaigns_addUpdate_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateCampaignUpdateDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CampaignUpdateResponse"];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Missing the required permission, or CSRF token invalid */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Campaign not found */
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -22042,6 +22893,61 @@ export interface operations {
       };
     };
   };
+  PromotionActivities_list_v1: {
+    parameters: {
+      query?: {
+        campaignId?: string;
+        channel?:
+          | "CONTENT_CREATION"
+          | "SOCIAL_MEDIA"
+          | "INFLUENCER_MARKETING"
+          | "RADIO_PROMOTION"
+          | "TELEVISION"
+          | "SCREENS_DIGITAL_MEDIA"
+          | "ADVERTISING";
+        status?: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+        /** @description Matches the activity name. */
+        search?: string;
+        /** @description Activities starting at or after this instant. */
+        from?: string;
+        /** @description Activities starting at or before this instant. */
+        to?: string;
+        sort?: "START_AT" | "NAME";
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedPromotionActivityListResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Promotion_list_v1: {
     parameters: {
       query?: {
@@ -22297,6 +23203,158 @@ export interface operations {
       };
     };
   };
+  Promotion_assignEmployee_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        activityId: string;
+        userId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Promotion_unassignEmployee_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        activityId: string;
+        userId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  Promotion_updateDetails_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        campaignId: string;
+        activityId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdatePromotionDetailsDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Promotion_assignTalent_v1: {
     parameters: {
       query?: never;
@@ -22374,6 +23432,56 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  PromotionAssignableEmployees_list_v1: {
+    parameters: {
+      query?: {
+        /** @description Matches name or email. */
+        search?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path: {
+        campaignId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedAssignableEmployeesResponse"];
         };
       };
       401: {

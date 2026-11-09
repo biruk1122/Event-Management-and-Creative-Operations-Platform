@@ -12,6 +12,9 @@ export const PROMOTION_ERROR = {
   assignmentNotFound: "PROMOTION_ASSIGNMENT_NOT_FOUND",
   talentNotFound: "TALENT_NOT_FOUND",
   duplicateTalent: "PROMOTION_DUPLICATE_TALENT",
+  assigneeInvalid: "PROMOTION_ASSIGNEE_INVALID",
+  assigneeConflict: "PROMOTION_ASSIGNEE_CONFLICT",
+  assigneeNotFound: "PROMOTION_ASSIGNEE_NOT_FOUND",
 } as const;
 
 export const promotionCampaignNotFound = () =>
@@ -43,6 +46,23 @@ export const promotionTalentNotFound = () =>
   new NotFoundException({
     code: PROMOTION_ERROR.talentNotFound,
     detail: "Talent not found.",
+  });
+/** EVE-231: only an active employee of the campaign's department can work an activity. */
+export const promotionAssigneeInvalid = () =>
+  new ConflictException({
+    code: PROMOTION_ERROR.assigneeInvalid,
+    detail:
+      "Only an active employee of the campaign's department can be assigned to this activity.",
+  });
+export const promotionAssigneeConflict = () =>
+  new ConflictException({
+    code: PROMOTION_ERROR.assigneeConflict,
+    detail: "That employee is already assigned to this activity.",
+  });
+export const promotionAssigneeNotFound = () =>
+  new NotFoundException({
+    code: PROMOTION_ERROR.assigneeNotFound,
+    detail: "That employee is not assigned to this activity.",
   });
 export const promotionDuplicateTalent = () =>
   new BadRequestException({
