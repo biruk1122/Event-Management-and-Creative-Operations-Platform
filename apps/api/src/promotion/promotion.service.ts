@@ -1,8 +1,11 @@
-import { HttpException, Injectable } from "@nestjs/common";
+import { ForbiddenException, HttpException, Injectable } from "@nestjs/common";
 
 import { Prisma } from "../generated/prisma/client.js";
 import { CampaignsService } from "../campaigns/campaigns.service.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
+import { PROMOTION_DEPARTMENT } from "../common/security/department-access.policy.js";
+import { PartnersService } from "../partners/partners.service.js";
+import type { CampaignBudgetSummaryResponse } from "../campaigns/campaigns.contracts.js";
 import { TalentAssignmentsService } from "../talent/talent-assignments.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import type { ListCampaignActivitiesQueryDto } from "../campaigns/dto/list-campaign-activities-query.dto.js";
@@ -11,6 +14,7 @@ import type {
   AssignPromotionTalentDto,
   ListAssignableEmployeesQueryDto,
   ListPromotionActivitiesQueryDto,
+  ListPromotionEventsQueryDto,
   UpdatePromotionChannelDto,
   UpdatePromotionDetailsDto,
 } from "./promotion.dto.js";
@@ -18,7 +22,11 @@ import type {
   PaginatedPromotionActivitiesResponse,
   PaginatedAssignableEmployeesResponse,
   PaginatedPromotionActivityListResponse,
+  PaginatedPromotionEventsResponse,
   PromotionActivityResponse,
+  PromotionBudgetTotal,
+  PromotionEventResponse,
+  PromotionOverviewResponse,
 } from "./promotion.contracts.js";
 import {
   promotionActivityNotFound,
@@ -68,6 +76,33 @@ function response(record: PromotionRecord): PromotionActivityResponse {
   };
 }
 
+function eventResponse(event: {
+  id: string;
+  name: string;
+  eventType: string;
+  status: string;
+  startAt: Date | null;
+  endAt: Date | null;
+  location: string | null;
+  organizerName: string | null;
+  department: { name: string } | null;
+  campaigns: { id: string; name: string; status: string }[];
+}): PromotionEventResponse {
+  return {
+    id: event.id,
+    name: event.name,
+    eventType: event.eventType,
+    status: event.status,
+    // The query only returns events with a start date.
+    startAt: event.startAt!.toISOString(),
+    endAt: event.endAt?.toISOString() ?? null,
+    location: event.location,
+    organizerName: event.organizerName,
+    departmentName: event.department?.name ?? null,
+    campaigns: event.campaigns,
+  };
+}
+
 /** Promotion owns its details and assignments; shared activity/ownership queries
  * go through CampaignsService's exported application interface. */
 @Injectable()
@@ -77,7 +112,170 @@ export class PromotionService {
     private readonly permissions: PermissionsService,
     private readonly repository: PromotionRepository,
     private readonly talentAssignments: TalentAssignmentsService,
+    private readonly partners: PartnersService,
   ) {}
+
+  // ---- EVE-234: event promotions and the overview --------------------------
+
+  /** The Promotion workspace's summaries are for Promotion staff, the manager
+   * who oversees Promotion (read-only), and organization-wide campaign
+   * readers. Anyone else is refused, so the organization-wide event schedule
+   * is not opened to every `campaign.read` holder. */
+  private async requirePromotionReader(userId: string): Promise<void> {
+    if (
+      await this.permissions.hasGrant(userId, "campaign.read", "ORGANIZATION")
+    )
+      return;
+    const context = await this.permissions.getAccessContext(userId);
+    if (
+      context.department?.active &&
+      context.department.name === PROMOTION_DEPARTMENT
+    )
+      return;
+    const overseen = await this.permissions.getOverseenDepartments(userId);
+    if (overseen.some((department) => department.name === PROMOTION_DEPARTMENT))
+      return;
+    throw permissionDenied();
+  }
+
+  /** Upcoming events to promote: a read-only summary with the linked promotion
+   * campaigns the caller can read. Event changes stay with the event's own
+   * department through the events API. */
+  async upcomingEvents(
+    userId: string,
+    query: ListPromotionEventsQueryDto,
+  ): Promise<PaginatedPromotionEventsResponse> {
+    await this.requirePromotionReader(userId);
+    const visibility = await this.campaigns.readableCampaignFilter(userId);
+    const result = await this.repository.upcomingEvents({
+      visibility,
+      from: query.from ? new Date(query.from) : new Date(),
+      ...(query.to ? { to: new Date(query.to) } : {}),
+      ...(query.search ? { search: query.search } : {}),
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+    return {
+      items: result.items.map(eventResponse),
+      page: query.page,
+      pageSize: query.pageSize,
+      total: result.total,
+    };
+  }
+
+  /** The Promotion overview: campaign counts, upcoming events, partnerships,
+   * budget and recorded indicators. Nothing is estimated; a section the
+   * caller cannot read (partners, budget) is `null`. */
+  async overview(userId: string): Promise<PromotionOverviewResponse> {
+    await this.requirePromotionReader(userId);
+    const visibility = await this.campaigns.readableCampaignFilter(userId);
+    const promotionDepartmentId =
+      await this.repository.findActiveDepartmentIdByName(PROMOTION_DEPARTMENT);
+    const [statusCounts, events, metrics, partnerships, budget] =
+      await Promise.all([
+        this.repository.campaignStatusCounts(visibility),
+        this.repository.upcomingEvents({
+          visibility,
+          from: new Date(),
+          page: 1,
+          pageSize: 5,
+        }),
+        this.repository.latestMetrics(visibility),
+        promotionDepartmentId
+          ? this.partners.statusCountsForDepartment(
+              userId,
+              promotionDepartmentId,
+            )
+          : Promise.resolve([]),
+        this.budgetTotals(userId),
+      ]);
+    const performance = new Map<
+      string,
+      { value: Prisma.Decimal; campaignCount: number }
+    >();
+    for (const metric of metrics) {
+      const total = performance.get(metric.key) ?? {
+        value: new Prisma.Decimal(0),
+        campaignCount: 0,
+      };
+      performance.set(metric.key, {
+        value: total.value.plus(metric.value),
+        campaignCount: total.campaignCount + 1,
+      });
+    }
+    return {
+      totalCampaigns: statusCounts.reduce((sum, row) => sum + row.count, 0),
+      campaignsByStatus: statusCounts,
+      upcomingEventCount: events.total,
+      nextEvents: events.items.map(eventResponse),
+      partnershipsByStatus: partnerships,
+      budget,
+      performance: [...performance.entries()].map(([key, total]) => ({
+        key,
+        value: total.value.toFixed(2),
+        campaignCount: total.campaignCount,
+      })),
+    };
+  }
+
+  /** Per-currency budget totals over every promotion campaign budget the
+   * caller can read, from the same summaries the Budget section shows. */
+  private async budgetTotals(
+    userId: string,
+  ): Promise<PromotionBudgetTotal[] | null> {
+    const summaries: CampaignBudgetSummaryResponse[] = [];
+    try {
+      for (let page = 1; ; page += 1) {
+        const result = await this.campaigns.listBudgetSummaries(userId, {
+          campaignType: "PROMOTION",
+          page,
+          pageSize: 100,
+        });
+        summaries.push(...result.items);
+        if (page * 100 >= result.total || result.items.length === 0) break;
+      }
+    } catch (error) {
+      if (error instanceof ForbiddenException) return null;
+      throw error;
+    }
+    const totals = new Map<
+      string,
+      {
+        allocated: Prisma.Decimal;
+        approved: Prisma.Decimal;
+        pending: Prisma.Decimal;
+        campaignCount: number;
+        overBudgetCount: number;
+      }
+    >();
+    for (const summary of summaries) {
+      if (!summary.currency) continue;
+      const total = totals.get(summary.currency) ?? {
+        allocated: new Prisma.Decimal(0),
+        approved: new Prisma.Decimal(0),
+        pending: new Prisma.Decimal(0),
+        campaignCount: 0,
+        overBudgetCount: 0,
+      };
+      totals.set(summary.currency, {
+        allocated: total.allocated.plus(summary.allocated ?? 0),
+        approved: total.approved.plus(summary.approved),
+        pending: total.pending.plus(summary.pending),
+        campaignCount: total.campaignCount + 1,
+        overBudgetCount: total.overBudgetCount + (summary.overBudget ? 1 : 0),
+      });
+    }
+    return [...totals.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([currency, total]) => ({
+        currency,
+        allocated: total.allocated.toFixed(2),
+        approved: total.approved.toFixed(2),
+        pending: total.pending.toFixed(2),
+        campaignCount: total.campaignCount,
+        overBudgetCount: total.overBudgetCount,
+      }));
+  }
 
   private async campaign(userId: string, campaignId: string) {
     const campaign = await this.campaigns.get(userId, campaignId);

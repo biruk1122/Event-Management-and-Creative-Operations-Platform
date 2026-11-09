@@ -464,16 +464,33 @@ export async function listAssignableTeams(
 /** Events the "related event" control can offer, from the first page of `GET /api/v1/events`. */
 export async function listAssignableEvents(
   signal?: AbortSignal,
+  options: { includeUpcomingPromotionEvents?: boolean } = {},
 ): Promise<AssignableEvent[]> {
-  const { data } = await browserApi.GET("/api/v1/events", {
-    params: { query: { pageSize: 100 } as never },
-    ...(signal ? { signal } : {}),
-    cache: "no-store",
-  });
-  return (data?.items ?? []).map((event) => ({
-    id: event.id,
-    name: event.name,
-  }));
+  const [own, upcoming] = await Promise.all([
+    browserApi.GET("/api/v1/events", {
+      params: { query: { pageSize: 100 } as never },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    }),
+    // EVE-234: a promotion campaign may promote any department's upcoming
+    // event, so its picker adds the read-only upcoming-event summary.
+    options.includeUpcomingPromotionEvents
+      ? browserApi.GET("/api/v1/promotion/events/upcoming", {
+          params: { query: { pageSize: 100 } as never },
+          ...(signal ? { signal } : {}),
+          cache: "no-store",
+        })
+      : Promise.resolve(null),
+  ]);
+  const events = new Map<string, AssignableEvent>();
+  for (const event of [
+    ...(own.data?.items ?? []),
+    ...(upcoming?.data?.items ?? []),
+  ]) {
+    if (!events.has(event.id))
+      events.set(event.id, { id: event.id, name: event.name });
+  }
+  return [...events.values()];
 }
 
 export const createCampaign: CreateCampaign = async (values) => {

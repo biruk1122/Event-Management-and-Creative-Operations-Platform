@@ -361,6 +361,21 @@ export class PartnersRepository {
     return items.map(toRecord);
   }
 
+  /** EVE-234: partner counts by status for one department, within the
+   * caller's visibility. */
+  async statusCounts(
+    visibility: PartnerVisibility,
+    departmentId: string,
+  ): Promise<{ status: PartnerStatus; count: number }[]> {
+    if (!isUuid(departmentId)) return [];
+    const rows = await this.db.partner.groupBy({
+      by: ["status"],
+      where: { AND: [{ departmentId }, visibleWhere(visibility)] },
+      _count: { _all: true },
+    });
+    return rows.map((row) => ({ status: row.status, count: row._count._all }));
+  }
+
   async list(
     input: ListPartnersInput,
   ): Promise<{ items: PartnerRecord[]; total: number }> {

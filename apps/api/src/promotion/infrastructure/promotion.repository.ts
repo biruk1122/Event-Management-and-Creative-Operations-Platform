@@ -67,6 +67,44 @@ function visibleCampaignWhere(
     : { id: { in: [] } };
 }
 
+const EVENT_SUMMARY_SELECT = {
+  id: true,
+  name: true,
+  eventType: true,
+  status: true,
+  startAt: true,
+  endAt: true,
+  location: true,
+  organizerName: true,
+  department: { select: { name: true } },
+} as const;
+
+function upcomingEventWhere(
+  from: Date,
+  to: Date | undefined,
+  search: string | undefined,
+): Prisma.EventWhereInput {
+  const term = search?.trim();
+  return {
+    archivedAt: null,
+    status: { notIn: ["CANCELLED", "COMPLETED"] },
+    startAt: { not: null, ...(to ? { lte: to } : {}) },
+    OR: [{ endAt: { gte: from } }, { endAt: null, startAt: { gte: from } }],
+    ...(term
+      ? {
+          AND: [
+            {
+              OR: [
+                { name: { contains: term, mode: "insensitive" } },
+                { location: { contains: term, mode: "insensitive" } },
+              ],
+            },
+          ],
+        }
+      : {}),
+  };
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (value: string) => UUID.test(value);
 
@@ -369,5 +407,93 @@ export class PromotionRepository {
       });
       return "archived";
     });
+  }
+
+  // ---- EVE-234: event promotions and the overview --------------------------
+
+  /** Upcoming events, organization-wide, as a read-only promotion summary:
+   * not cancelled or completed, starting before `to` and still running at
+   * or after `from`. Linked campaigns are the promotion campaigns the caller
+   * can read. Only summary columns are selected; full event details stay
+   * behind the events module and its `event.read` scope. */
+  async upcomingEvents(input: {
+    visibility: CampaignVisibility;
+    from: Date;
+    to?: Date;
+    search?: string;
+    page: number;
+    pageSize: number;
+  }) {
+    const where = upcomingEventWhere(input.from, input.to, input.search);
+    const [items, total] = await Promise.all([
+      this.db.event.findMany({
+        where,
+        select: {
+          ...EVENT_SUMMARY_SELECT,
+          campaigns: {
+            where: {
+              AND: [
+                { campaignType: "PROMOTION", archivedAt: null },
+                visibleCampaignWhere(input.visibility),
+              ],
+            },
+            select: { id: true, name: true, status: true },
+            orderBy: [{ name: "asc" }, { id: "asc" }],
+          },
+        },
+        orderBy: [{ startAt: "asc" }, { id: "asc" }],
+        skip: (input.page - 1) * input.pageSize,
+        take: input.pageSize,
+      }),
+      this.db.event.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  /** Readable, unarchived promotion campaigns counted by status. */
+  async campaignStatusCounts(visibility: CampaignVisibility) {
+    const rows = await this.db.campaign.groupBy({
+      by: ["status"],
+      where: {
+        AND: [
+          { campaignType: "PROMOTION", archivedAt: null },
+          visibleCampaignWhere(visibility),
+        ],
+      },
+      _count: { _all: true },
+    });
+    return rows.map((row) => ({ status: row.status, count: row._count._all }));
+  }
+
+  /** The latest recorded value of each indicator per readable promotion
+   * campaign (newest `recordedOn`, then newest entry). */
+  async latestMetrics(visibility: CampaignVisibility) {
+    const rows = await this.db.campaignMetric.findMany({
+      where: {
+        campaign: {
+          AND: [
+            { campaignType: "PROMOTION", archivedAt: null },
+            visibleCampaignWhere(visibility),
+          ],
+        },
+      },
+      select: { campaignId: true, key: true, value: true },
+      orderBy: [{ recordedOn: "desc" }, { createdAt: "desc" }, { id: "desc" }],
+    });
+    const latest = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      const id = `${row.campaignId}:${row.key}`;
+      if (!latest.has(id)) latest.set(id, row);
+    }
+    return [...latest.values()];
+  }
+
+  findActiveDepartmentIdByName(name: string): Promise<string | null> {
+    return this.db.department
+      .findFirst({
+        where: { name, deactivatedAt: null },
+        select: { id: true },
+      })
+      .then((department) => department?.id ?? null);
   }
 }

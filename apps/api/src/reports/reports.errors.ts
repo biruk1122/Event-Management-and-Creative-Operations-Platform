@@ -87,3 +87,12 @@ export const reportSourceInvalid = () =>
       "Consolidated reports can only include reviewed reports authored by Department Managers.",
     ),
   );
+
+/** EVE-234: a campaign completion report links exactly one campaign workspace. */
+export const reportCampaignRequired = () =>
+  new BadRequestException(
+    problem(
+      "REPORT_CAMPAIGN_REQUIRED",
+      "A campaign completion report must be linked to exactly one campaign.",
+    ),
+  );

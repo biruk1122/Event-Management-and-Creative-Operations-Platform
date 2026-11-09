@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ReportActionButton } from "./report-action-button";
+import { ReportCampaignField } from "./report-campaign-field";
 
 import {
   NARRATIVE_FIELDS,
@@ -55,6 +56,13 @@ export function ReportDraftForm({
   const [workspaceIds, setWorkspaceIds] = useState<string[]>(
     initial?.workspaceIds ?? [],
   );
+  // EVE-234: a completion report links exactly one campaign workspace.
+  const [campaignWorkspaceId, setCampaignWorkspaceId] = useState<string>(
+    initial?.type === "CAMPAIGN_COMPLETION"
+      ? (initial.workspaceIds[0] ?? "")
+      : "",
+  );
+  const completion = type === "CAMPAIGN_COMPLETION";
   const [sourceReportIds, setSourceReportIds] = useState<string[]>(
     initial?.sources.map((source) => source.id) ?? [],
   );
@@ -92,7 +100,11 @@ export function ReportDraftForm({
         ...(description ? { description } : {}),
         periodStart: String(form.get("periodStart") ?? ""),
         periodEnd: String(form.get("periodEnd") ?? ""),
-        workspaceIds,
+        workspaceIds: completion
+          ? campaignWorkspaceId
+            ? [campaignWorkspaceId]
+            : []
+          : workspaceIds,
         ...(consolidation ? { sourceReportIds } : {}),
         ...sections,
       },
@@ -207,6 +219,14 @@ export function ReportDraftForm({
             ))}
           </select>
         </div>
+        {completion ? (
+          <ReportCampaignField
+            id={`${prefix}-campaign`}
+            value={campaignWorkspaceId}
+            disabled={busy}
+            onChange={setCampaignWorkspaceId}
+          />
+        ) : null}
         <div className="space-y-2">
           <Label htmlFor={`${prefix}-start`}>Period start (UTC)</Label>
           <Input
@@ -231,8 +251,9 @@ export function ReportDraftForm({
         </div>
       </fieldset>
       <p className="text-muted-foreground text-sm">
-        Daily reports cover one day, weekly reports seven days, and monthly
-        reports a whole calendar month. All dates use UTC.
+        {completion
+          ? "A campaign completion report covers the campaign from its start to its end. All dates use UTC."
+          : "Daily reports cover one day, weekly reports seven days, and monthly reports a whole calendar month. All dates use UTC."}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold">Your work narrative</h3>
@@ -272,47 +293,49 @@ export function ReportDraftForm({
         These sections may be left blank in a draft; complete them before
         submission.
       </p>
-      <fieldset className="space-y-3 rounded-xl border p-4" disabled={busy}>
-        <legend className="px-2 text-sm font-semibold">
-          Related workspaces
-        </legend>
-        {warning ? (
-          <p role="status" className="text-muted-foreground text-sm">
-            {warning}
-          </p>
-        ) : null}
-        {workspaces.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No workspaces are available to link.
-          </p>
-        ) : (
-          workspaces.map((workspace) => (
-            <label
-              key={workspace.id}
-              className="bg-muted/40 flex min-h-11 items-center gap-3 rounded-lg p-3 text-sm"
-            >
-              <input
-                type="checkbox"
-                checked={workspaceIds.includes(workspace.id)}
-                disabled={
-                  busy ||
-                  (workspaceIds.length >= 20 &&
-                    !workspaceIds.includes(workspace.id))
-                }
-                onChange={(event) =>
-                  setWorkspaceIds((current) =>
-                    event.target.checked
-                      ? [...current, workspace.id]
-                      : current.filter((id) => id !== workspace.id),
-                  )
-                }
-                className="accent-primary size-4"
-              />
-              {workspace.name}
-            </label>
-          ))
-        )}
-      </fieldset>
+      {completion ? null : (
+        <fieldset className="space-y-3 rounded-xl border p-4" disabled={busy}>
+          <legend className="px-2 text-sm font-semibold">
+            Related workspaces
+          </legend>
+          {warning ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              {warning}
+            </p>
+          ) : null}
+          {workspaces.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No workspaces are available to link.
+            </p>
+          ) : (
+            workspaces.map((workspace) => (
+              <label
+                key={workspace.id}
+                className="bg-muted/40 flex min-h-11 items-center gap-3 rounded-lg p-3 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={workspaceIds.includes(workspace.id)}
+                  disabled={
+                    busy ||
+                    (workspaceIds.length >= 20 &&
+                      !workspaceIds.includes(workspace.id))
+                  }
+                  onChange={(event) =>
+                    setWorkspaceIds((current) =>
+                      event.target.checked
+                        ? [...current, workspace.id]
+                        : current.filter((id) => id !== workspace.id),
+                    )
+                  }
+                  className="accent-primary size-4"
+                />
+                {workspace.name}
+              </label>
+            ))
+          )}
+        </fieldset>
+      )}
       {canAttach ? (
         <fieldset className="space-y-3 rounded-xl border p-4" disabled={busy}>
           <legend className="px-2 text-sm font-semibold">Attachments</legend>

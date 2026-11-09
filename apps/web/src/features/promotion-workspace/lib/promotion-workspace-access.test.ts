@@ -123,11 +123,11 @@ describe("Promotion workspace sections", () => {
     ]);
   });
 
-  it("marks the sections later phases build", () => {
+  it("has every section built after Phase 5 (EVE-234)", () => {
     const later = promotionSections(promotionManager)
       .filter((section) => section.comingInPhase !== null)
       .map((section) => section.id);
-    expect(later).toEqual(["event-promotions"]);
+    expect(later).toEqual([]);
   });
 
   it("hides a section whose module the viewer cannot read", () => {

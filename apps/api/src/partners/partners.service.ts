@@ -487,6 +487,23 @@ export class PartnersService {
     return result;
   }
 
+  /** EVE-234: one department's partner counts by status, as the caller sees
+   * them. `null` when the caller cannot read partners, so an overview can
+   * leave the section out instead of failing. */
+  async statusCountsForDepartment(
+    actingUserId: string,
+    departmentId: string,
+  ): Promise<{ status: string; count: number }[] | null> {
+    let visibility: PartnerVisibility;
+    try {
+      visibility = await this.visibilityFor(actingUserId, "partner.read");
+    } catch (error) {
+      if (error instanceof ForbiddenException) return null;
+      throw error;
+    }
+    return this.repository.statusCounts(visibility, departmentId);
+  }
+
   async listActivities(
     actingUserId: string,
     id: string,

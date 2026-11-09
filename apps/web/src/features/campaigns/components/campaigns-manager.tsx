@@ -110,8 +110,11 @@ export function CampaignsManager({
   // The related-event picker is needed to create or edit a campaign, and to
   // name the event of an existing campaign in its detail view.
   const eventsQuery = useQuery({
-    queryKey: keys.events,
-    queryFn: ({ signal }) => listAssignableEvents(signal),
+    queryKey: [...keys.events, initialType === "PROMOTION"],
+    queryFn: ({ signal }) =>
+      listAssignableEvents(signal, {
+        includeUpcomingPromotionEvents: initialType === "PROMOTION",
+      }),
     retry: false,
     staleTime: 60_000,
   });

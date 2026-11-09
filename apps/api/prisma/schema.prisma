@@ -2581,6 +2581,10 @@ enum ReportType {
   /// event. Linked to that event's workspace via `ReportWorkspace`, the same
   /// checked join every report type already uses - no new relation.
   POST_EVENT
+  /// EVE-234: a campaign's completion report: outcomes, achievements and
+  /// lessons. Linked to the campaign's workspace via `ReportWorkspace`, the
+  /// same checked join POST_EVENT uses.
+  CAMPAIGN_COMPLETION
 
   @@map("report_type")
 }
