@@ -31,6 +31,7 @@ function makeNotification(
     partnerId: null,
     letterId: null,
     documentId: null,
+    creativeRequestId: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     readAt: null,
     sourceEvent: { actorUserId: null },

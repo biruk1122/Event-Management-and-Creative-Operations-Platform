@@ -42,6 +42,23 @@ export function isPromotionOverseer(access: CurrentAccess): boolean {
   );
 }
 
+/**
+ * The Promotion department's id, when the viewer's access already names it
+ * (EVE-232): a Promotion member's own department, or the department the
+ * Marketing Manager oversees. Super Admin has no department, so this is null
+ * and the caller looks it up by name.
+ */
+export function promotionDepartmentIdFromAccess(
+  access: CurrentAccess,
+): string | null {
+  if (isPromotionMember(access)) return access.department!.id;
+  return (
+    (access.overseenDepartments ?? []).find(
+      (department) => department.name === PROMOTION_DEPARTMENT,
+    )?.id ?? null
+  );
+}
+
 export interface PromotionWorkspaceContext {
   title: string;
   roleLabel: string;
@@ -122,7 +139,7 @@ const SECTION_DEFINITIONS: readonly PromotionSectionDefinition[] = [
   { id: "activities", label: "Promotional Activities", comingInPhase: null },
   { id: "tasks", label: "Team Tasks", comingInPhase: null },
   { id: "partnerships", label: "Partnerships", comingInPhase: null },
-  { id: "creative-requests", label: "Creative Requests", comingInPhase: 3 },
+  { id: "creative-requests", label: "Creative Requests", comingInPhase: null },
   { id: "event-promotions", label: "Event Promotions", comingInPhase: 5 },
   { id: "budget", label: "Budget", comingInPhase: 4 },
   { id: "reports", label: "Reports", comingInPhase: null },
@@ -153,7 +170,7 @@ export function promotionSections(
     activities: campaigns,
     tasks: canReadTasks(access),
     partnerships: canReadPartners(access),
-    "creative-requests": canReadTasks(access),
+    "creative-requests": holds(access, "creative_request.read"),
     "event-promotions": campaigns,
     budget:
       holds(access, "campaign.budget.read") || holds(access, "expense.read"),

@@ -145,6 +145,17 @@ export class ManagedFilesRepository {
           intentLetterId?: never;
           intentTalentId?: never;
         }
+      | {
+          intentCreativeRequestId: string;
+          intentWorkspaceId?: never;
+          intentTaskId?: never;
+          intentConversationId?: never;
+          intentExpenseId?: never;
+          intentReportId?: never;
+          intentLetterId?: never;
+          intentDocumentId?: never;
+          intentTalentId?: never;
+        }
     ),
   ): Promise<ManagedFileRecord> {
     return this.db.managedFile.create({
@@ -174,6 +185,9 @@ export class ManagedFilesRepository {
           : {}),
         ...(input.intentDocumentId
           ? { intentDocumentId: input.intentDocumentId }
+          : {}),
+        ...("intentCreativeRequestId" in input && input.intentCreativeRequestId
+          ? { intentCreativeRequestId: input.intentCreativeRequestId }
           : {}),
         originalFilename: input.originalFilename,
         storageKey: input.storageKey,
@@ -526,6 +540,68 @@ export class ManagedFilesRepository {
         id: input.fileId,
         intentExpiresAt: { lte: input.finalizedAt },
         intentReportId: input.reportId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        cleanupAfter: input.cleanupAfter,
+        state: ManagedFileState.UNAVAILABLE,
+        unavailableAt: input.finalizedAt,
+      },
+    });
+    return expired.count === 1 ? "expired" : "conflict";
+  }
+
+  async findPendingForCreativeRequest(
+    id: string,
+    creativeRequestId: string,
+  ): Promise<ManagedFileRecord | null> {
+    if (!isUuid(id) || !isUuid(creativeRequestId)) return null;
+    return this.db.managedFile.findFirst({
+      where: {
+        id,
+        intentCreativeRequestId: creativeRequestId,
+        state: ManagedFileState.PENDING,
+      },
+      select: FILE_SELECT,
+    });
+  }
+
+  /** EVE-232: same shape as `makeAvailableForReport`. */
+  async makeAvailableForCreativeRequest(
+    tx: Prisma.TransactionClient,
+    input: {
+      cleanupAfter: Date;
+      fileId: string;
+      finalizedAt: Date;
+      creativeRequestId: string;
+      verifiedMediaType: string;
+      verifiedSizeBytes: number;
+    },
+  ): Promise<"available" | "conflict" | "expired"> {
+    if (!isUuid(input.fileId) || !isUuid(input.creativeRequestId))
+      return "conflict";
+    const updated = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { gt: input.finalizedAt },
+        intentCreativeRequestId: input.creativeRequestId,
+        state: ManagedFileState.PENDING,
+      },
+      data: {
+        availableAt: input.finalizedAt,
+        state: ManagedFileState.AVAILABLE,
+        uploadedAt: input.finalizedAt,
+        verifiedMediaType: input.verifiedMediaType,
+        verifiedSizeBytes: input.verifiedSizeBytes,
+      },
+    });
+    if (updated.count === 1) return "available";
+
+    const expired = await tx.managedFile.updateMany({
+      where: {
+        id: input.fileId,
+        intentExpiresAt: { lte: input.finalizedAt },
+        intentCreativeRequestId: input.creativeRequestId,
         state: ManagedFileState.PENDING,
       },
       data: {

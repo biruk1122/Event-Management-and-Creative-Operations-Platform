@@ -35,7 +35,19 @@ export type SupportedOutboxEventName =
   | "attendance.exception.decided"
   | "leave.request.submitted"
   | "leave.request.decided"
-  | "sms.message.requested";
+  | "sms.message.requested"
+  | "creative_request.submitted"
+  | "creative_request.accepted"
+  | "creative_request.declined"
+  | "creative_request.delivered"
+  | "creative_request.reviewed";
+
+/** `creative_request.reviewed` v1 payload (EVE-232). The other
+ * `creative_request.*` events carry no payload; the consumer re-reads the
+ * request and resolves its recipients at delivery time. */
+export interface CreativeRequestReviewedEventPayload {
+  outcome: "APPROVED" | "CHANGES_REQUESTED";
+}
 
 /** `sms.message.requested` v1 payload. Carries only the SMS row id; the consumer re-reads the row and its recipient at send time. */
 export interface SmsMessageRequestedEventPayload {
@@ -166,7 +178,8 @@ export interface AppendOutboxEventInput {
     | "attendance_overtime_approval"
     | "attendance_exception"
     | "leave_request"
-    | "sms_message";
+    | "sms_message"
+    | "creative_request";
   resourceId: string;
   workspaceContext?: string;
   payload?: Prisma.InputJsonObject;

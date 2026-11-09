@@ -1480,6 +1480,97 @@
         "required": ["type", "memberIds"],
         "type": "object"
       },
+      "CreateCreativeRequestDto": {
+        "properties": {
+          "assetType": {
+            "enum": [
+              "POSTER",
+              "FLYER",
+              "BANNER",
+              "EVENT_GRAPHIC",
+              "VIDEO",
+              "ADVERTISING_CONTENT",
+              "ARTIST_MATERIAL",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "campaignId": {
+            "description": "A campaign of the requesting department.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "eventId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "requirements": {
+            "description": "What the creative work must contain, its sizes and formats.",
+            "maxLength": 5000,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": {
+            "example": "Festival poster",
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["title", "assetType", "requirements"],
+        "type": "object"
+      },
+      "CreateCreativeRequestFeedbackDto": {
+        "properties": {
+          "note": {
+            "maxLength": 5000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["note"],
+        "type": "object"
+      },
+      "CreateCreativeRequestUploadIntentDto": {
+        "properties": {
+          "filename": {
+            "example": "call-sheet.pdf",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["REFERENCE", "DELIVERABLE"],
+            "type": "string"
+          },
+          "mediaType": {
+            "enum": [
+              "application/pdf",
+              "image/jpeg",
+              "image/png",
+              "image/webp",
+              "text/plain",
+              "text/csv",
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            ],
+            "example": "application/pdf",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "example": 1048576,
+            "maximum": 104857600,
+            "minimum": 1,
+            "type": "number"
+          }
+        },
+        "required": ["filename", "mediaType", "sizeBytes", "kind"],
+        "type": "object"
+      },
       "CreateDepartmentDto": {
         "properties": {
           "description": {
@@ -2994,6 +3085,323 @@
         "required": ["kind"],
         "type": "object"
       },
+      "CreativeRequestAbilities": {
+        "properties": {
+          "canAddFeedback": {
+            "type": "boolean"
+          },
+          "canAttach": {
+            "items": {
+              "enum": ["REFERENCE", "DELIVERABLE"],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "moves": {
+            "description": "Statuses the caller may move this request to.",
+            "items": {
+              "enum": [
+                "SUBMITTED",
+                "ACCEPTED",
+                "DECLINED",
+                "IN_PROGRESS",
+                "DELIVERED",
+                "APPROVED",
+                "CHANGES_REQUESTED",
+                "CANCELLED"
+              ],
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "readOnly": {
+            "description": "True when the caller only oversees it.",
+            "type": "boolean"
+          }
+        },
+        "required": ["moves", "canAddFeedback", "canAttach", "readOnly"],
+        "type": "object"
+      },
+      "CreativeRequestDepartmentSummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "example": "Production",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
+        "type": "object"
+      },
+      "CreativeRequestFeedbackResponse": {
+        "properties": {
+          "author": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreativeRequestPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "creativeRequestId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "creativeRequestId", "author", "note", "createdAt"],
+        "type": "object"
+      },
+      "CreativeRequestFileResponse": {
+        "properties": {
+          "availableAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "filename": {
+            "example": "call-sheet.pdf",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["REFERENCE", "DELIVERABLE"],
+            "type": "string"
+          },
+          "mediaType": {
+            "example": "application/pdf",
+            "type": "string"
+          },
+          "sizeBytes": {
+            "example": 1048576,
+            "type": "number"
+          },
+          "state": {
+            "enum": ["pending", "available"],
+            "example": "available",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "filename",
+          "mediaType",
+          "sizeBytes",
+          "state",
+          "createdAt",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "CreativeRequestLinkSummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
+        "type": "object"
+      },
+      "CreativeRequestPersonSummary": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "type": "string"
+          },
+          "firstName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "lastName": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": ["id", "email", "firstName", "lastName"],
+        "type": "object"
+      },
+      "CreativeRequestResponse": {
+        "properties": {
+          "abilities": {
+            "$ref": "#/components/schemas/CreativeRequestAbilities"
+          },
+          "assetType": {
+            "enum": [
+              "POSTER",
+              "FLYER",
+              "BANNER",
+              "EVENT_GRAPHIC",
+              "VIDEO",
+              "ADVERTISING_CONTENT",
+              "ARTIST_MATERIAL",
+              "OTHER"
+            ],
+            "type": "string"
+          },
+          "campaign": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreativeRequestLinkSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "declineReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "deliveredAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "dueAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "event": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreativeRequestLinkSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "requestedBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreativeRequestPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "requestingDepartment": {
+            "$ref": "#/components/schemas/CreativeRequestDepartmentSummary"
+          },
+          "requirements": {
+            "type": "string"
+          },
+          "respondedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "SUBMITTED",
+              "ACCEPTED",
+              "DECLINED",
+              "IN_PROGRESS",
+              "DELIVERED",
+              "APPROVED",
+              "CHANGES_REQUESTED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "targetDepartment": {
+            "$ref": "#/components/schemas/CreativeRequestDepartmentSummary"
+          },
+          "task": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CreativeRequestTaskSummary"
+              }
+            ],
+            "description": "The CREATIVE task created when the request was accepted.",
+            "nullable": true,
+            "type": "object"
+          },
+          "title": {
+            "example": "Festival poster",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "assetType",
+          "requirements",
+          "dueAt",
+          "status",
+          "requestingDepartment",
+          "targetDepartment",
+          "campaign",
+          "event",
+          "task",
+          "requestedBy",
+          "declineReason",
+          "respondedAt",
+          "deliveredAt",
+          "reviewedAt",
+          "createdAt",
+          "updatedAt",
+          "abilities"
+        ],
+        "type": "object"
+      },
+      "CreativeRequestTaskSummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "title"],
+        "type": "object"
+      },
       "CurrentAccessResponse": {
         "properties": {
           "department": {
@@ -3474,6 +3882,17 @@
           }
         },
         "required": ["decision"],
+        "type": "object"
+      },
+      "DeclineCreativeRequestDto": {
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": ["reason"],
         "type": "object"
       },
       "DepartmentManagerSummary": {
@@ -5055,6 +5474,16 @@
         "required": ["id", "reviewerId", "outcome", "note", "reviewedAt"],
         "type": "object"
       },
+      "FinalizeCreativeRequestUploadDto": {
+        "properties": {
+          "kind": {
+            "enum": ["REFERENCE", "DELIVERABLE"],
+            "type": "string"
+          }
+        },
+        "required": ["kind"],
+        "type": "object"
+      },
       "KioskEmployeeOption": {
         "properties": {
           "id": {
@@ -6290,6 +6719,11 @@
               "TASK_REPORT_TO_ASSIGNED",
               "TASK_BLOCKED",
               "TASK_REVIEWER_CHANGED",
+              "CREATIVE_REQUEST_SUBMITTED",
+              "CREATIVE_REQUEST_ACCEPTED",
+              "CREATIVE_REQUEST_DECLINED",
+              "CREATIVE_REQUEST_DELIVERED",
+              "CREATIVE_REQUEST_REVIEWED",
               "TALENT_ASSIGNED",
               "TALENT_ASSIGNMENT_CANCELLED"
             ],
@@ -6319,6 +6753,11 @@
           },
           "createdAt": {
             "format": "date-time",
+            "type": "string"
+          },
+          "creativeRequestId": {
+            "format": "uuid",
+            "nullable": true,
             "type": "string"
           },
           "documentId": {
@@ -6415,6 +6854,11 @@
               "TASK_REPORT_TO_ASSIGNED",
               "TASK_BLOCKED",
               "TASK_REVIEWER_CHANGED",
+              "CREATIVE_REQUEST_SUBMITTED",
+              "CREATIVE_REQUEST_ACCEPTED",
+              "CREATIVE_REQUEST_DECLINED",
+              "CREATIVE_REQUEST_DELIVERED",
+              "CREATIVE_REQUEST_REVIEWED",
               "TALENT_ASSIGNED",
               "TALENT_ASSIGNMENT_CANCELLED"
             ],
@@ -6436,6 +6880,7 @@
           "partnerId",
           "letterId",
           "documentId",
+          "creativeRequestId",
           "createdAt",
           "readAt"
         ],
@@ -6672,6 +7117,78 @@
           },
           "total": {
             "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
+      "PaginatedCreativeRequestFeedbackResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CreativeRequestFeedbackResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 50,
+            "type": "number"
+          },
+          "total": {
+            "example": 2,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
+      "PaginatedCreativeRequestFilesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CreativeRequestFileResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 2,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
+      "PaginatedCreativeRequestsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CreativeRequestResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 3,
             "type": "number"
           }
         },
@@ -9019,6 +9536,21 @@
           }
         },
         "required": ["response"],
+        "type": "object"
+      },
+      "ReviewCreativeRequestDto": {
+        "properties": {
+          "note": {
+            "description": "Required when asking for changes. Added to the feedback log.",
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "outcome": {
+            "enum": ["APPROVED", "CHANGES_REQUESTED"],
+            "type": "string"
+          }
+        },
+        "required": ["outcome"],
         "type": "object"
       },
       "ReviewExpenseDto": {
@@ -19415,6 +19947,1317 @@
         ],
         "summary": "Mark the conversation read up to a given message",
         "tags": ["Discuss"]
+      }
+    },
+    "/api/v1/creative-requests": {
+      "get": {
+        "operationId": "CreativeRequests_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "SUBMITTED",
+                "ACCEPTED",
+                "DECLINED",
+                "IN_PROGRESS",
+                "DELIVERED",
+                "APPROVED",
+                "CHANGES_REQUESTED",
+                "CANCELLED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "SENT: requests your department sent. RECEIVED: requests sent to your department.",
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "enum": ["SENT", "RECEIVED"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaignId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Matches the title.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedCreativeRequestsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List creative requests visible to the caller",
+        "tags": ["Creative requests"]
+      },
+      "post": {
+        "operationId": "CreativeRequests_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCreativeRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "The campaign or event does not exist"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Promotion or Production is not an active department"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Send a creative request to Production",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{creativeRequestId}/files": {
+      "get": {
+        "operationId": "CreativeRequestFileManagement_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "creativeRequestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedCreativeRequestFilesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List a creative request's files",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{creativeRequestId}/files/upload-intents": {
+      "post": {
+        "operationId": "CreativeRequestFileManagement_createUploadIntent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "creativeRequestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCreativeRequestUploadIntentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadIntentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "This kind of file cannot be added in the current status"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a direct-upload grant for a creative request file",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{creativeRequestId}/files/{fileId}/download": {
+      "get": {
+        "operationId": "CreativeRequestFileManagement_download_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "creativeRequestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadGrantResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Issue a private download grant for a creative request file",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{creativeRequestId}/files/{fileId}/finalize": {
+      "post": {
+        "operationId": "CreativeRequestFileManagement_finalize_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "creativeRequestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinalizeCreativeRequestUploadDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestFileResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Intent expired, upload missing, unsafe, or not allowed now"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "File scanner unavailable"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Verify, scan, and attach a completed creative request upload",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{id}": {
+      "get": {
+        "operationId": "CreativeRequests_get_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Get one creative request",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{id}/accept": {
+      "post": {
+        "operationId": "CreativeRequests_accept_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Accept a request and create its CREATIVE task",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{id}/cancel": {
+      "post": {
+        "operationId": "CreativeRequests_cancel_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Cancel a request before it is accepted",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{id}/decline": {
+      "post": {
+        "operationId": "CreativeRequests_decline_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeclineCreativeRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Decline a request, with a reason",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{id}/deliver": {
+      "post": {
+        "operationId": "CreativeRequests_deliver_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Hand the deliverables back for review",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{id}/feedback": {
+      "get": {
+        "operationId": "CreativeRequests_listFeedback_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedCreativeRequestFeedbackResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List a request's feedback, oldest first",
+        "tags": ["Creative requests"]
+      },
+      "post": {
+        "operationId": "CreativeRequests_addFeedback_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCreativeRequestFeedbackDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestFeedbackResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Add feedback; either side of the request may write it",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{id}/review": {
+      "post": {
+        "operationId": "CreativeRequests_review_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewCreativeRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Approve the delivered work, or ask for changes",
+        "tags": ["Creative requests"]
+      }
+    },
+    "/api/v1/creative-requests/{id}/start": {
+      "post": {
+        "operationId": "CreativeRequests_start_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreativeRequestResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Start work on an accepted request, or resume after changes",
+        "tags": ["Creative requests"]
       }
     },
     "/api/v1/dashboards/employee": {

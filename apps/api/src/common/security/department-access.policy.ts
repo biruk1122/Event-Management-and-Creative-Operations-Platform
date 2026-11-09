@@ -72,6 +72,9 @@ export function isHrExecutiveOfficerManager(
 /** The department whose manager is the "Production Manager" for talent assignment. */
 export const PRODUCTION_DEPARTMENT = "Production";
 
+/** The department that sends creative requests to Production (EVE-232). */
+export const PROMOTION_DEPARTMENT = "Promotion";
+
 /**
  * Whether the caller is the manager of the Production department. There is no
  * separate Production Manager role: this is an existing Department Manager
@@ -103,6 +106,7 @@ export const OVERSIGHT_READ_PERMISSION_KEYS = [
   "expense.read",
   "report.read",
   "report.review",
+  "creative_request.read",
 ] as const;
 
 const OVERSIGHT_READ_KEY_SET: ReadonlySet<string> = new Set(

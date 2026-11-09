@@ -17,17 +17,26 @@ import {
   Wallet,
 } from "lucide-react";
 
+import { useQuery } from "@tanstack/react-query";
+
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useCurrentAccess } from "@/features/auth/api/access-queries";
+import {
+  useCurrentAccess,
+  type CurrentAccess,
+} from "@/features/auth/api/access-queries";
 import { CampaignsScreen } from "@/features/campaigns/components/campaigns-screen";
+import { CreativeRequestsScreen } from "@/features/creative-requests/components/creative-requests-screen";
 import { PartnersScreen } from "@/features/partners/components/partners-screen";
 import { ReportsScreen } from "@/features/reports/components/reports-screen";
+import { listAssignableDepartments } from "@/features/tasks/api/tasks-gateway";
 import { TasksScreen } from "@/features/tasks/components/tasks-screen";
 
 import { PromotionActivitiesView } from "./promotion-activities-view";
 import {
+  PROMOTION_DEPARTMENT,
   canEnterPromotionWorkspace,
+  promotionDepartmentIdFromAccess,
   promotionSections,
   promotionWorkspaceContext,
   resolvePromotionSection,
@@ -201,7 +210,9 @@ export function PromotionWorkspaceScreen() {
             readOnly={context.readOnly}
           />
         ) : current === "tasks" ? (
-          <TasksScreen readOnly={context.readOnly} />
+          <PromotionTeamTasks access={data} readOnly={context.readOnly} />
+        ) : current === "creative-requests" ? (
+          <CreativeRequestsScreen readOnly={context.readOnly} />
         ) : current === "partnerships" ? (
           <PartnersScreen readOnly={context.readOnly} />
         ) : current === "reports" ? (
@@ -209,6 +220,45 @@ export function PromotionWorkspaceScreen() {
         ) : null}
       </section>
     </div>
+  );
+}
+
+/**
+ * The Promotion department's tasks (EVE-232): the existing tasks screen,
+ * fixed to Promotion. A Promotion member or the overseeing manager already
+ * knows the department's id; Super Admin looks it up by name.
+ */
+function PromotionTeamTasks({
+  access,
+  readOnly,
+}: {
+  access: CurrentAccess;
+  readOnly: boolean;
+}) {
+  const known = promotionDepartmentIdFromAccess(access);
+  const departments = useQuery({
+    queryKey: ["promotion-workspace", access.userId, "departments"],
+    queryFn: ({ signal }) => listAssignableDepartments(signal),
+    enabled: known === null,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const departmentId =
+    known ??
+    departments.data?.find(
+      (department) => department.name === PROMOTION_DEPARTMENT,
+    )?.id ??
+    null;
+  if (departmentId) {
+    return <TasksScreen readOnly={readOnly} departmentId={departmentId} />;
+  }
+  if (departments.isPending) {
+    return <p role="status">Loading the Promotion team…</p>;
+  }
+  return (
+    <p role="alert">
+      The Promotion department could not be found, so its tasks cannot be shown.
+    </p>
   );
 }
 

@@ -269,7 +269,15 @@ describe("seeding the permission catalog and role matrix", () => {
       where: { name: "Department Member" },
       include: { rolePermissions: true },
     });
-    expect(teamMember.rolePermissions).toHaveLength(13);
+    // 13 + `creative_request.read` at SELF scope (EVE-232).
+    expect(teamMember.rolePermissions).toHaveLength(14);
+    expect(
+      teamMember.rolePermissions.some(
+        (grant) =>
+          grant.permissionKey === "creative_request.read" &&
+          grant.scope === "SELF",
+      ),
+    ).toBe(true);
     expect(
       teamMember.rolePermissions.some(
         (grant) =>

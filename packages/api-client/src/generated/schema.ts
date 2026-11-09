@@ -1029,6 +1029,229 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/creative-requests": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List creative requests visible to the caller */
+    get: operations["CreativeRequests_list_v1"];
+    put?: never;
+    /** Send a creative request to Production */
+    post: operations["CreativeRequests_create_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{creativeRequestId}/files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a creative request's files */
+    get: operations["CreativeRequestFileManagement_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{creativeRequestId}/files/upload-intents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create a direct-upload grant for a creative request file */
+    post: operations["CreativeRequestFileManagement_createUploadIntent_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{creativeRequestId}/files/{fileId}/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Issue a private download grant for a creative request file */
+    get: operations["CreativeRequestFileManagement_download_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{creativeRequestId}/files/{fileId}/finalize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Verify, scan, and attach a completed creative request upload */
+    post: operations["CreativeRequestFileManagement_finalize_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get one creative request */
+    get: operations["CreativeRequests_get_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{id}/accept": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Accept a request and create its CREATIVE task */
+    post: operations["CreativeRequests_accept_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{id}/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cancel a request before it is accepted */
+    post: operations["CreativeRequests_cancel_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{id}/decline": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Decline a request, with a reason */
+    post: operations["CreativeRequests_decline_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{id}/deliver": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Hand the deliverables back for review */
+    post: operations["CreativeRequests_deliver_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{id}/feedback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a request's feedback, oldest first */
+    get: operations["CreativeRequests_listFeedback_v1"];
+    put?: never;
+    /** Add feedback; either side of the request may write it */
+    post: operations["CreativeRequests_addFeedback_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{id}/review": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Approve the delivered work, or ask for changes */
+    post: operations["CreativeRequests_review_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/creative-requests/{id}/start": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Start work on an accepted request, or resume after changes */
+    post: operations["CreativeRequests_start_v1"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/dashboards/employee": {
     parameters: {
       query?: never;
@@ -5431,6 +5654,56 @@ export interface components {
       /** @enum {string} */
       type: "DIRECT" | "GROUP";
     };
+    CreateCreativeRequestDto: {
+      /** @enum {string} */
+      assetType:
+        | "POSTER"
+        | "FLYER"
+        | "BANNER"
+        | "EVENT_GRAPHIC"
+        | "VIDEO"
+        | "ADVERTISING_CONTENT"
+        | "ARTIST_MATERIAL"
+        | "OTHER";
+      /**
+       * Format: uuid
+       * @description A campaign of the requesting department.
+       */
+      campaignId?: string;
+      /** Format: date-time */
+      dueAt?: string;
+      /** Format: uuid */
+      eventId?: string;
+      /** @description What the creative work must contain, its sizes and formats. */
+      requirements: string;
+      /** @example Festival poster */
+      title: string;
+    };
+    CreateCreativeRequestFeedbackDto: {
+      note: string;
+    };
+    CreateCreativeRequestUploadIntentDto: {
+      /** @example call-sheet.pdf */
+      filename: string;
+      /** @enum {string} */
+      kind: "REFERENCE" | "DELIVERABLE";
+      /**
+       * @example application/pdf
+       * @enum {string}
+       */
+      mediaType:
+        | "application/pdf"
+        | "image/jpeg"
+        | "image/png"
+        | "image/webp"
+        | "text/plain"
+        | "text/csv"
+        | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        | "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+      /** @example 1048576 */
+      sizeBytes: number;
+    };
     CreateDepartmentDto: {
       /** @example Owns planning and delivery for all events. */
       description?: string;
@@ -6204,6 +6477,126 @@ export interface components {
        */
       managerId?: string;
     };
+    CreativeRequestAbilities: {
+      canAddFeedback: boolean;
+      canAttach: ("REFERENCE" | "DELIVERABLE")[];
+      /** @description Statuses the caller may move this request to. */
+      moves: (
+        | "SUBMITTED"
+        | "ACCEPTED"
+        | "DECLINED"
+        | "IN_PROGRESS"
+        | "DELIVERED"
+        | "APPROVED"
+        | "CHANGES_REQUESTED"
+        | "CANCELLED"
+      )[];
+      /** @description True when the caller only oversees it. */
+      readOnly: boolean;
+    };
+    CreativeRequestDepartmentSummary: {
+      /** Format: uuid */
+      id: string;
+      /** @example Production */
+      name: string;
+    };
+    CreativeRequestFeedbackResponse: {
+      author: components["schemas"]["CreativeRequestPersonSummary"] | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: uuid */
+      creativeRequestId: string;
+      /** Format: uuid */
+      id: string;
+      note: string;
+    };
+    CreativeRequestFileResponse: {
+      /** Format: date-time */
+      availableAt?: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** @example call-sheet.pdf */
+      filename: string;
+      /** Format: uuid */
+      id: string;
+      /** @enum {string} */
+      kind: "REFERENCE" | "DELIVERABLE";
+      /** @example application/pdf */
+      mediaType: string;
+      /** @example 1048576 */
+      sizeBytes: number;
+      /**
+       * @example available
+       * @enum {string}
+       */
+      state: "pending" | "available";
+    };
+    CreativeRequestLinkSummary: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+    };
+    CreativeRequestPersonSummary: {
+      /** Format: email */
+      email: string;
+      firstName: string | null;
+      /** Format: uuid */
+      id: string;
+      lastName: string | null;
+    };
+    CreativeRequestResponse: {
+      abilities: components["schemas"]["CreativeRequestAbilities"];
+      /** @enum {string} */
+      assetType:
+        | "POSTER"
+        | "FLYER"
+        | "BANNER"
+        | "EVENT_GRAPHIC"
+        | "VIDEO"
+        | "ADVERTISING_CONTENT"
+        | "ARTIST_MATERIAL"
+        | "OTHER";
+      campaign: components["schemas"]["CreativeRequestLinkSummary"] | null;
+      /** Format: date-time */
+      createdAt: string;
+      declineReason: string | null;
+      /** Format: date-time */
+      deliveredAt: string | null;
+      /** Format: date-time */
+      dueAt: string | null;
+      event: components["schemas"]["CreativeRequestLinkSummary"] | null;
+      /** Format: uuid */
+      id: string;
+      requestedBy: components["schemas"]["CreativeRequestPersonSummary"] | null;
+      requestingDepartment: components["schemas"]["CreativeRequestDepartmentSummary"];
+      requirements: string;
+      /** Format: date-time */
+      respondedAt: string | null;
+      /** Format: date-time */
+      reviewedAt: string | null;
+      /** @enum {string} */
+      status:
+        | "SUBMITTED"
+        | "ACCEPTED"
+        | "DECLINED"
+        | "IN_PROGRESS"
+        | "DELIVERED"
+        | "APPROVED"
+        | "CHANGES_REQUESTED"
+        | "CANCELLED";
+      targetDepartment: components["schemas"]["CreativeRequestDepartmentSummary"];
+      /** @description The CREATIVE task created when the request was accepted. */
+      task: components["schemas"]["CreativeRequestTaskSummary"] | null;
+      /** @example Festival poster */
+      title: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    CreativeRequestTaskSummary: {
+      /** Format: uuid */
+      id: string;
+      title: string;
+    };
     CurrentAccessResponse: {
       department?: components["schemas"]["AccessDepartmentResponse"] | null;
       grants: components["schemas"]["EffectivePermissionResponse"][];
@@ -6379,6 +6772,9 @@ export interface components {
       /** @enum {string} */
       decision: "APPROVED" | "REJECTED";
       decisionReason?: string;
+    };
+    DeclineCreativeRequestDto: {
+      reason: string;
     };
     DepartmentManagerSummary: {
       /**
@@ -7017,6 +7413,10 @@ export interface components {
       /** Format: uuid */
       reviewerId: string;
     };
+    FinalizeCreativeRequestUploadDto: {
+      /** @enum {string} */
+      kind: "REFERENCE" | "DELIVERABLE";
+    };
     KioskEmployeeOption: {
       /** Format: uuid */
       id: string;
@@ -7488,6 +7888,11 @@ export interface components {
         | "TASK_REPORT_TO_ASSIGNED"
         | "TASK_BLOCKED"
         | "TASK_REVIEWER_CHANGED"
+        | "CREATIVE_REQUEST_SUBMITTED"
+        | "CREATIVE_REQUEST_ACCEPTED"
+        | "CREATIVE_REQUEST_DECLINED"
+        | "CREATIVE_REQUEST_DELIVERED"
+        | "CREATIVE_REQUEST_REVIEWED"
         | "TALENT_ASSIGNED"
         | "TALENT_ASSIGNMENT_CANCELLED";
     };
@@ -7499,6 +7904,8 @@ export interface components {
       body: string;
       /** Format: date-time */
       createdAt: string;
+      /** Format: uuid */
+      creativeRequestId: string | null;
       /** Format: uuid */
       documentId: string | null;
       /** Format: uuid */
@@ -7556,6 +7963,11 @@ export interface components {
         | "TASK_REPORT_TO_ASSIGNED"
         | "TASK_BLOCKED"
         | "TASK_REVIEWER_CHANGED"
+        | "CREATIVE_REQUEST_SUBMITTED"
+        | "CREATIVE_REQUEST_ACCEPTED"
+        | "CREATIVE_REQUEST_DECLINED"
+        | "CREATIVE_REQUEST_DELIVERED"
+        | "CREATIVE_REQUEST_REVIEWED"
         | "TALENT_ASSIGNED"
         | "TALENT_ASSIGNMENT_CANCELLED";
     };
@@ -7648,6 +8060,33 @@ export interface components {
       items: components["schemas"]["ConversationResponse"][];
       page: number;
       pageSize: number;
+      total: number;
+    };
+    PaginatedCreativeRequestFeedbackResponse: {
+      items: components["schemas"]["CreativeRequestFeedbackResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 50 */
+      pageSize: number;
+      /** @example 2 */
+      total: number;
+    };
+    PaginatedCreativeRequestFilesResponse: {
+      items: components["schemas"]["CreativeRequestFileResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 2 */
+      total: number;
+    };
+    PaginatedCreativeRequestsResponse: {
+      items: components["schemas"]["CreativeRequestResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 3 */
       total: number;
     };
     PaginatedDepartmentsResponse: {
@@ -8534,6 +8973,12 @@ export interface components {
     RespondToMeetingDto: {
       /** @enum {string} */
       response: "ACCEPTED" | "DECLINED";
+    };
+    ReviewCreativeRequestDto: {
+      /** @description Required when asking for changes. Added to the feedback log. */
+      note?: string;
+      /** @enum {string} */
+      outcome: "APPROVED" | "CHANGES_REQUESTED";
     };
     ReviewExpenseDto: {
       /** @description Required context for a rejection; optional on an approval. */
@@ -14299,6 +14744,843 @@ export interface operations {
         };
       };
       /** @description The caller is not a member of this conversation */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_list_v1: {
+    parameters: {
+      query?: {
+        status?:
+          | "SUBMITTED"
+          | "ACCEPTED"
+          | "DECLINED"
+          | "IN_PROGRESS"
+          | "DELIVERED"
+          | "APPROVED"
+          | "CHANGES_REQUESTED"
+          | "CANCELLED";
+        /** @description SENT: requests your department sent. RECEIVED: requests sent to your department. */
+        direction?: "SENT" | "RECEIVED";
+        campaignId?: string;
+        /** @description Matches the title. */
+        search?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedCreativeRequestsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_create_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateCreativeRequestDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description The campaign or event does not exist */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Promotion or Production is not an active department */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequestFileManagement_list_v1: {
+    parameters: {
+      query?: {
+        page?: number;
+        pageSize?: number;
+      };
+      header?: never;
+      path: {
+        creativeRequestId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedCreativeRequestFilesResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequestFileManagement_createUploadIntent_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        creativeRequestId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateCreativeRequestUploadIntentDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["UploadIntentResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description This kind of file cannot be added in the current status */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequestFileManagement_download_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        creativeRequestId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["DownloadGrantResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequestFileManagement_finalize_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        creativeRequestId: string;
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FinalizeCreativeRequestUploadDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestFileResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description Intent expired, upload missing, unsafe, or not allowed now */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      /** @description File scanner unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_get_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_accept_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_cancel_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_decline_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["DeclineCreativeRequestDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_deliver_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_listFeedback_v1: {
+    parameters: {
+      query?: {
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedCreativeRequestFeedbackResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_addFeedback_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateCreativeRequestFeedbackDto"];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestFeedbackResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_review_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ReviewCreativeRequestDto"];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestResponse"];
+        };
+      };
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  CreativeRequests_start_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CreativeRequestResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
       409: {
         headers: {
           [name: string]: unknown;

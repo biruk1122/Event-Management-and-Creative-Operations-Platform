@@ -40,11 +40,14 @@ const PAGE_SIZE = 25;
 export function TasksManager({
   access,
   readOnly = false,
+  departmentId: lockedDepartmentId,
 }: {
   access: CurrentAccess;
   /** Embedded where the viewer only oversees the records (EVE-229): no
    * create, edit or submit controls, whatever the viewer's own grants. */
   readOnly?: boolean;
+  /** One department's view (EVE-232); overrides the department filter. */
+  departmentId?: string;
 }) {
   const [filters, setFilters] = useState<TaskListFilters>({
     search: "",
@@ -69,7 +72,9 @@ export function TasksManager({
     ...(filters.reportingToMe ? { reportToId: access.userId } : {}),
     ...(filters.overdueOnly ? { overdue: true } : {}),
     ...(filters.reviewerNeeded ? { reviewerUnresolved: true } : {}),
-    ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+    ...((lockedDepartmentId ?? filters.departmentId)
+      ? { departmentId: lockedDepartmentId ?? filters.departmentId! }
+      : {}),
     page,
     pageSize: PAGE_SIZE,
   };
@@ -137,7 +142,7 @@ export function TasksManager({
         onFiltersChange={changeFilters}
         onPageChange={setPage}
         canFilterByReview={hasGrant(access, "task.review")}
-        departments={departments.data ?? []}
+        departments={lockedDepartmentId ? [] : (departments.data ?? [])}
         canCreate={canCreate}
         onOpenCreate={() => setCreateOpen(true)}
         collaboration={{

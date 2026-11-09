@@ -76,7 +76,9 @@ export type SupportedAuditAction =
   | "leave.request.withdrawn"
   | "leave.request.approved"
   | "leave.request.rejected"
-  | "leave.request.returned_for_changes";
+  | "leave.request.returned_for_changes"
+  | "creative_request.created"
+  | "creative_request.status_changed";
 
 export interface AppendAuditRecordInput {
   actorKind: AuditActorKind;
@@ -108,7 +110,8 @@ export interface AppendAuditRecordInput {
     | "leave_request"
     | "sms_message"
     | "sms_settings"
-    | "meeting";
+    | "meeting"
+    | "creative_request";
   resourceId: string | null;
   workspaceContext?: string;
   outcome: AuditOutcome;

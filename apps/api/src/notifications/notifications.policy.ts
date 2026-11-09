@@ -234,3 +234,41 @@ export function previewText(content: string, maxLength = 140): string {
     ? `${trimmed.slice(0, maxLength - 1)}…`
     : trimmed;
 }
+
+/** EVE-232: creative request notifications. The body is the request title. */
+export function creativeRequestSubmittedContent(
+  title: string,
+  fromDepartment: string,
+): NotificationContent {
+  return { title: `New creative request from ${fromDepartment}`, body: title };
+}
+
+export function creativeRequestAcceptedContent(
+  title: string,
+): NotificationContent {
+  return { title: "Creative request accepted", body: title };
+}
+
+export function creativeRequestDeclinedContent(
+  title: string,
+): NotificationContent {
+  return { title: "Creative request declined", body: title };
+}
+
+export function creativeRequestDeliveredContent(
+  title: string,
+): NotificationContent {
+  return { title: "Creative work delivered for review", body: title };
+}
+
+export function creativeRequestApprovedContent(
+  title: string,
+): NotificationContent {
+  return { title: "Creative work approved", body: title };
+}
+
+export function creativeRequestChangesRequestedContent(
+  title: string,
+): NotificationContent {
+  return { title: "Changes requested on creative work", body: title };
+}

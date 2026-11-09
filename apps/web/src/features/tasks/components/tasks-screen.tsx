@@ -19,10 +19,14 @@ function canReadTasks(
 
 export function TasksScreen({
   readOnly = false,
+  departmentId,
 }: {
   /** Embedded where the viewer only oversees the records (EVE-229): no
    * create, edit or submit controls, whatever the viewer's own grants. */
   readOnly?: boolean;
+  /** Embedded as one department's view (EVE-232): the list always shows
+   * that department's tasks and the department filter is hidden. */
+  departmentId?: string;
 } = {}) {
   const access = useCurrentAccess();
 
@@ -64,5 +68,11 @@ export function TasksScreen({
     return <p role="alert">You do not have access to tasks.</p>;
   }
 
-  return <TasksManager access={access.data} readOnly={readOnly} />;
+  return (
+    <TasksManager
+      access={access.data}
+      readOnly={readOnly}
+      {...(departmentId ? { departmentId } : {})}
+    />
+  );
 }

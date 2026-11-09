@@ -41,4 +41,9 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   TASK_REVIEWER_CHANGED: "Task reviewer changed",
   TALENT_ASSIGNED: "Talent assigned",
   TALENT_ASSIGNMENT_CANCELLED: "Talent assignment cancelled",
+  CREATIVE_REQUEST_SUBMITTED: "Creative request received",
+  CREATIVE_REQUEST_ACCEPTED: "Creative request accepted",
+  CREATIVE_REQUEST_DECLINED: "Creative request declined",
+  CREATIVE_REQUEST_DELIVERED: "Creative work delivered",
+  CREATIVE_REQUEST_REVIEWED: "Creative work reviewed",
 };

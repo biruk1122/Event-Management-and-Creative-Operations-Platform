@@ -11,6 +11,7 @@ import {
   ListChecks,
   Mail,
   MessageCircle,
+  Palette,
   Plane,
   Receipt,
   Ticket,
@@ -201,6 +202,17 @@ export function notificationAppearance(type: NotificationType) {
         tone: "danger",
         action: "View task",
         description: "When a task you receive reports for is blocked",
+      };
+    case "CREATIVE_REQUEST_SUBMITTED":
+    case "CREATIVE_REQUEST_ACCEPTED":
+    case "CREATIVE_REQUEST_DECLINED":
+    case "CREATIVE_REQUEST_DELIVERED":
+    case "CREATIVE_REQUEST_REVIEWED":
+      return {
+        icon: Palette,
+        tone: "peach",
+        action: "View creative request",
+        description: "Updates about creative requests between departments",
       };
     default:
       return {

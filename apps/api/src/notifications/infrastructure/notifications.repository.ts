@@ -36,6 +36,7 @@ export interface NotificationRecord {
   partnerId: string | null;
   letterId: string | null;
   documentId: string | null;
+  creativeRequestId: string | null;
   createdAt: Date;
   readAt: Date | null;
   /** The user who caused the notification; null for system-generated events. */
@@ -56,6 +57,7 @@ const NOTIFICATION_SELECT = {
   partnerId: true,
   letterId: true,
   documentId: true,
+  creativeRequestId: true,
   createdAt: true,
   readAt: true,
   sourceEvent: { select: { actorUserId: true } },
@@ -78,6 +80,7 @@ export interface CreateNotificationInput {
   letterId?: string;
   documentId?: string;
   talentId?: string;
+  creativeRequestId?: string;
 }
 
 interface FeedCursor {
@@ -157,6 +160,9 @@ export class NotificationsRepository {
           ...(input.letterId ? { letterId: input.letterId } : {}),
           ...(input.documentId ? { documentId: input.documentId } : {}),
           ...(input.talentId ? { talentId: input.talentId } : {}),
+          ...(input.creativeRequestId
+            ? { creativeRequestId: input.creativeRequestId }
+            : {}),
         },
         select: NOTIFICATION_SELECT,
       });
@@ -453,6 +459,39 @@ export class NotificationsRepository {
       select: { userId: true },
     });
     return rows.map((row) => row.userId);
+  }
+
+  /** EVE-232: what a creative request notification needs, resolved at
+   * delivery time: the title, who sent it, and the target department's
+   * active manager (the responder). */
+  async getCreativeRequest(id: string): Promise<{
+    title: string;
+    requestedById: string | null;
+    requestingDepartmentName: string;
+    targetManagerId: string | null;
+  } | null> {
+    const request = await this.db.creativeRequest.findUnique({
+      where: { id },
+      select: {
+        title: true,
+        requestedById: true,
+        requestingDepartment: { select: { name: true } },
+        targetDepartment: {
+          select: { manager: { select: { id: true, status: true } } },
+        },
+      },
+    });
+    if (!request) return null;
+    const manager = request.targetDepartment.manager;
+    return {
+      title: request.title,
+      requestedById: request.requestedById,
+      requestingDepartmentName: request.requestingDepartment.name,
+      targetManagerId:
+        manager && manager.status === UserAccountStatus.ACTIVE
+          ? manager.id
+          : null,
+    };
   }
 
   async getReport(reportId: string): Promise<{
