@@ -88,10 +88,10 @@ export function PromotionOperationsPanel({
   });
 
   const employees = useQuery({
-    queryKey: [...campaign.all, "promotion-employees", campaignDepartmentId],
+    queryKey: [...campaign.all, "promotion-assignable-employees", campaignId],
     queryFn: ({ signal }) =>
-      gateway.listDepartmentEmployees(campaignDepartmentId ?? "", signal),
-    enabled: canManage && campaignDepartmentId !== null,
+      gateway.listAssignableEmployees(campaignId, signal),
+    enabled: canManage,
     retry: false,
     staleTime: 60_000,
   });

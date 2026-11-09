@@ -37,6 +37,7 @@ import type { RequestWithContext } from "../common/http/request-with-context.js"
 import { RequirePermissions } from "../common/security/permissions.decorator.js";
 import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import {
+  PaginatedAssignableEmployeesResponse,
   PaginatedPromotionActivitiesResponse,
   PaginatedPromotionActivityListResponse,
   PromotionActivityResponse,
@@ -44,6 +45,7 @@ import {
 import {
   AttachPromotionActivityDto,
   AssignPromotionTalentDto,
+  ListAssignableEmployeesQueryDto,
   ListPromotionActivitiesQueryDto,
   UpdatePromotionChannelDto,
   UpdatePromotionDetailsDto,
@@ -269,6 +271,33 @@ export class PromotionController {
       talentId,
       request.id,
     );
+  }
+}
+
+/** Active employees of the campaign's department who can be assigned (EVE-231). */
+@ApiTags("Campaign platform")
+@ApiCookieAuth("access_token")
+@ApiUnauthorizedResponse({ type: ProblemDetails })
+@ApiForbiddenResponse({ type: ProblemDetails })
+@ApiNotFoundResponse({ type: ProblemDetails })
+@UseGuards(AccessTokenGuard, PermissionsGuard)
+@Controller("promotion/campaigns/:campaignId/assignable-employees")
+export class PromotionAssignableEmployeesController {
+  constructor(private readonly promotion: PromotionService) {}
+
+  @Get()
+  @RequirePermissions("campaign.activity.manage")
+  @ApiOperation({
+    summary:
+      "List active employees of the campaign's department who can be assigned",
+  })
+  @ApiOkResponse({ type: PaginatedAssignableEmployeesResponse })
+  list(
+    @Req() request: RequestWithContext,
+    @Param("campaignId") campaignId: string,
+    @Query() query: ListAssignableEmployeesQueryDto,
+  ) {
+    return this.promotion.assignableEmployees(user(request), campaignId, query);
   }
 }
 

@@ -79,6 +79,33 @@ export class UpdatePromotionDetailsDto {
   requiredResources?: string | null;
 }
 
+/** Active employees of the campaign's department who may be assigned (EVE-231). */
+export class ListAssignableEmployeesQueryDto {
+  @ApiPropertyOptional({
+    maxLength: 200,
+    description: "Matches name or email.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
+
+  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize = 100;
+}
+
 export class ListPromotionActivitiesQueryDto {
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()

@@ -336,6 +336,67 @@ describe("promotion activity staffing and listing (EVE-231)", () => {
     });
   });
 
+  describe("assignable employees", () => {
+    it("lists every active employee of the campaign's department, with paging and search", async () => {
+      const activityId = await activity("Picker source");
+      const campaignId = await campaignOf(activityId);
+      const path = `/api/v1/promotion/campaigns/${campaignId}/assignable-employees`;
+
+      // Enough department members to need more than one page at pageSize 1.
+      const extra = [];
+      for (let index = 0; index < 2; index += 1) {
+        extra.push(await principal("Department Member", promotionId));
+      }
+
+      const first = await as(
+        promotionManager,
+        "get",
+        `${path}?pageSize=1&page=1`,
+      );
+      expect(first.status).toBe(200);
+      const firstBody = body<{ items: { id: string }[]; total: number }>(first);
+      expect(firstBody.items).toHaveLength(1);
+      // Team members, the manager, the extra members; never the inactive one or Marketing.
+      expect(firstBody.total).toBeGreaterThanOrEqual(4);
+
+      const everyone: string[] = [];
+      const pages = Math.ceil(firstBody.total / 1);
+      for (let page = 1; page <= pages; page += 1) {
+        const response = await as(
+          promotionManager,
+          "get",
+          `${path}?pageSize=1&page=${page}`,
+        );
+        everyone.push(
+          ...body<{ items: { id: string }[] }>(response).items.map(
+            (item) => item.id,
+          ),
+        );
+      }
+      expect(everyone).toEqual(
+        expect.arrayContaining([
+          promotionMember.id,
+          ...extra.map((person) => person.id),
+        ]),
+      );
+      expect(everyone).not.toContain(inactivePromotionMember.id);
+      expect(everyone).not.toContain(marketingMember.id);
+
+      const searched = body<{ items: { id: string }[]; total: number }>(
+        await as(promotionManager, "get", `${path}?search=staff-&pageSize=100`),
+      );
+      expect(searched.total).toBeGreaterThanOrEqual(1);
+    });
+
+    it("is refused to the overseer and to team members, who cannot assign", async () => {
+      const activityId = await activity("Picker refusal");
+      const campaignId = await campaignOf(activityId);
+      const path = `/api/v1/promotion/campaigns/${campaignId}/assignable-employees`;
+      expect((await as(marketingManager, "get", path)).status).toBe(403);
+      expect((await as(promotionMember, "get", path)).status).toBe(403);
+    });
+  });
+
   describe("cross-campaign activity list", () => {
     it("lists the department's activities with campaign names, and filters by channel and name", async () => {
       const first = await activity("Alpha launch", "2026-12-01T10:00:00.000Z");

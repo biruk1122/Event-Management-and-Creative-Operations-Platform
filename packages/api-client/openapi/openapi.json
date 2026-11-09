@@ -6530,6 +6530,30 @@
         ],
         "type": "object"
       },
+      "PaginatedAssignableEmployeesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionAssigneeResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 100,
+            "type": "number"
+          },
+          "total": {
+            "example": 42,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
       "PaginatedCampaignActivitiesResponse": {
         "properties": {
           "items": {
@@ -33544,6 +33568,109 @@
         ],
         "summary": "Unassign one talent from a promotion activity",
         "tags": ["Promotion operations"]
+      }
+    },
+    "/api/v1/promotion/campaigns/{campaignId}/assignable-employees": {
+      "get": {
+        "operationId": "PromotionAssignableEmployees_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "campaignId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Matches name or email.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedAssignableEmployeesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List active employees of the campaign's department who can be assigned",
+        "tags": ["Campaign platform"]
       }
     },
     "/api/v1/reports": {

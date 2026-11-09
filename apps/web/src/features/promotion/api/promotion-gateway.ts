@@ -8,7 +8,7 @@ import type {
   CampaignActivityStatus,
 } from "@/features/campaigns/lib/campaigns-types";
 import { listCampaignActivities } from "@/features/campaigns/api/campaigns-gateway";
-import { listUsers } from "@/features/users/api/users-gateway";
+import { collectAllPages } from "@/lib/collect-all-pages";
 
 import type { PromotionActivity, PromotionChannel } from "../promotion-types";
 
@@ -268,24 +268,35 @@ export async function listAllPromotionActivities(
 }
 
 /**
- * Active employees of one department, for choosing who works an activity
- * (EVE-231). The users directory is filtered on the page the server returns;
- * the server still enforces the department rule on every assignment.
+ * Every active employee of the campaign's own department who can be assigned
+ * (EVE-231). The server applies the department rule; this walks every page so
+ * no one is hidden past the first page.
  */
-export async function listDepartmentEmployees(
-  departmentId: string,
+export async function listAssignableEmployees(
+  campaignId: string,
   signal?: AbortSignal,
 ): Promise<{ id: string; name: string }[]> {
-  const page = await listUsers(
-    { page: 1, pageSize: 100, status: "ACTIVE" },
-    signal,
-  );
-  return page.items
-    .filter((person) => person.department?.id === departmentId)
-    .map((person) => ({
-      id: person.id,
-      name:
-        [person.firstName, person.lastName].filter(Boolean).join(" ") ||
-        person.email,
-    }));
+  return collectAllPages(async (page) => {
+    const { data, error, response } = await browserApi.GET(
+      "/api/v1/promotion/campaigns/{campaignId}/assignable-employees",
+      {
+        params: {
+          path: { campaignId },
+          query: { page, pageSize: PAGE_SIZE } as never,
+        },
+        ...(signal ? { signal } : {}),
+        cache: "no-store",
+      },
+    );
+    if (!data) throw failure(error, response.status);
+    return {
+      items: data.items.map((person) => ({
+        id: person.id,
+        name:
+          [person.firstName, person.lastName].filter(Boolean).join(" ") ||
+          person.email,
+      })),
+      total: data.total,
+    };
+  });
 }

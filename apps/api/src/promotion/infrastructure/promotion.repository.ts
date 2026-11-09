@@ -153,6 +153,42 @@ export class PromotionRepository {
     });
   }
 
+  /**
+   * Active employees of one department (EVE-231). Only accounts the assignment
+   * trigger would accept: active, in the department, and the department active.
+   */
+  async listActiveEmployees(
+    departmentId: string,
+    query: { search?: string | undefined; page: number; pageSize: number },
+  ) {
+    const search = query.search?.trim();
+    const where: Prisma.UserWhereInput = {
+      departmentId,
+      status: "ACTIVE",
+      department: { is: { deactivatedAt: null } },
+      ...(search
+        ? {
+            OR: [
+              { email: { contains: search, mode: "insensitive" } },
+              { firstName: { contains: search, mode: "insensitive" } },
+              { lastName: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+    const [items, total] = await Promise.all([
+      this.db.user.findMany({
+        where,
+        select: { id: true, email: true, firstName: true, lastName: true },
+        orderBy: [{ firstName: "asc" }, { email: "asc" }, { id: "asc" }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      this.db.user.count({ where }),
+    ]);
+    return { items, total };
+  }
+
   /** Assigns an employee to an activity. The database trigger re-checks the department. */
   async assignEmployee(
     campaignId: string,

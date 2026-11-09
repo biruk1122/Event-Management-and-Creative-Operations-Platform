@@ -8,13 +8,18 @@ import { PermissionsModule } from "../common/security/permissions.module.js";
 import { PromotionRepository } from "./infrastructure/promotion.repository.js";
 import {
   PromotionActivitiesController,
+  PromotionAssignableEmployeesController,
   PromotionController,
 } from "./promotion.controller.js";
 import { PromotionService } from "./promotion.service.js";
 
 @Module({
   imports: [AuthModule, CampaignsModule, PermissionsModule, TalentModule],
-  controllers: [PromotionController, PromotionActivitiesController],
+  controllers: [
+    PromotionController,
+    PromotionActivitiesController,
+    PromotionAssignableEmployeesController,
+  ],
   providers: [PromotionService, PromotionRepository, PromotionAnalyticsQuery],
   exports: [PromotionAnalyticsQuery],
 })

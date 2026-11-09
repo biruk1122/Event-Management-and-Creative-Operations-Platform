@@ -52,6 +52,20 @@ export class PromotionActivityResponse {
   assignees!: PromotionAssigneeResponse[];
 }
 
+export class PaginatedAssignableEmployeesResponse {
+  @ApiProperty({ type: [PromotionAssigneeResponse] })
+  items!: PromotionAssigneeResponse[];
+
+  @ApiProperty({ example: 1 })
+  page!: number;
+
+  @ApiProperty({ example: 100 })
+  pageSize!: number;
+
+  @ApiProperty({ example: 42 })
+  total!: number;
+}
+
 /** One activity in the cross-campaign list, with the campaign it belongs to. */
 export class PromotionActivityListItemResponse extends PromotionActivityResponse {
   @ApiProperty({ format: "uuid" })

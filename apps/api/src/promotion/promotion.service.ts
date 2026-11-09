@@ -9,12 +9,14 @@ import type { ListCampaignActivitiesQueryDto } from "../campaigns/dto/list-campa
 import type {
   AttachPromotionActivityDto,
   AssignPromotionTalentDto,
+  ListAssignableEmployeesQueryDto,
   ListPromotionActivitiesQueryDto,
   UpdatePromotionChannelDto,
   UpdatePromotionDetailsDto,
 } from "./promotion.dto.js";
 import type {
   PaginatedPromotionActivitiesResponse,
+  PaginatedAssignableEmployeesResponse,
   PaginatedPromotionActivityListResponse,
   PromotionActivityResponse,
 } from "./promotion.contracts.js";
@@ -297,6 +299,38 @@ export class PromotionService {
     );
     if (!removed) throw promotionAssigneeNotFound();
     return response(await this.load(campaignId, activityId));
+  }
+
+  /**
+   * Active employees of the campaign's own department, for the assignment picker
+   * (EVE-231). Needs the same manage permission as assigning; the list is never
+   * wider than the department the campaign belongs to.
+   */
+  async assignableEmployees(
+    userId: string,
+    campaignId: string,
+    query: ListAssignableEmployeesQueryDto,
+  ): Promise<PaginatedAssignableEmployeesResponse> {
+    await this.manage(userId, campaignId);
+    const campaign = await this.campaigns.get(userId, campaignId);
+    if (!campaign.departmentId) {
+      return {
+        items: [],
+        page: query.page,
+        pageSize: query.pageSize,
+        total: 0,
+      };
+    }
+    const result = await this.repository.listActiveEmployees(
+      campaign.departmentId,
+      query,
+    );
+    return {
+      items: result.items,
+      page: query.page,
+      pageSize: query.pageSize,
+      total: result.total,
+    };
   }
 
   /**

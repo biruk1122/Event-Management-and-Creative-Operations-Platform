@@ -3112,6 +3112,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/promotion/campaigns/{campaignId}/assignable-employees": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List active employees of the campaign's department who can be assigned */
+    get: operations["PromotionAssignableEmployees_list_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/reports": {
     parameters: {
       query?: never;
@@ -7569,6 +7586,15 @@ export interface components {
       sessionDate: string;
       /** @enum {string} */
       status: "PENDING" | "APPROVED" | "REJECTED";
+    };
+    PaginatedAssignableEmployeesResponse: {
+      items: components["schemas"]["PromotionAssigneeResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 100 */
+      pageSize: number;
+      /** @example 42 */
+      total: number;
     };
     PaginatedCampaignActivitiesResponse: {
       items: components["schemas"]["CampaignActivityResponse"][];
@@ -23406,6 +23432,56 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["PromotionActivityResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  PromotionAssignableEmployees_list_v1: {
+    parameters: {
+      query?: {
+        /** @description Matches name or email. */
+        search?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path: {
+        campaignId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedAssignableEmployeesResponse"];
         };
       };
       401: {

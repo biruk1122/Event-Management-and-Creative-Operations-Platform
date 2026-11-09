@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { browserApi } from "@/lib/api/browser";
+import { collectAllPages } from "@/lib/collect-all-pages";
 import { listProductions } from "@/features/productions/api/productions-gateway";
 import { listProjects } from "@/features/projects/api/projects-gateway";
 
@@ -31,6 +32,9 @@ const KINDS: readonly RelatedLinkKind[] = [
 ];
 
 type LinkOption = { id: string; name: string };
+
+/** The largest page the API serves for projects, productions and talents. */
+const LINK_PAGE_SIZE = 100;
 
 /**
  * Loads the choices for one kind of link. Only the chosen kind is fetched, and
@@ -76,27 +80,53 @@ function useLinkOptions(kind: RelatedLinkKind): {
   };
 }
 
+/**
+ * Every project, production or artist the viewer can read, page by page (EVE-231).
+ * The API caps each page, so the picker walks them all rather than showing only
+ * the first page.
+ */
 async function loadLinkOptions(
   kind: Exclude<RelatedLinkKind, "NONE">,
   signal: AbortSignal,
 ): Promise<LinkOption[]> {
   if (kind === "PROJECT") {
-    const page = await listProjects({ page: 1, pageSize: 50 }, signal);
-    return page.items.map(({ id, name }) => ({ id, name }));
+    return collectAllPages(async (page) => {
+      const result = await listProjects(
+        { page, pageSize: LINK_PAGE_SIZE },
+        signal,
+      );
+      return {
+        items: result.items.map(({ id, name }) => ({ id, name })),
+        total: result.total,
+      };
+    });
   }
   if (kind === "PRODUCTION") {
-    const page = await listProductions({ page: 1, pageSize: 50 }, signal);
-    return page.items.map(({ id, name }) => ({ id, name }));
+    return collectAllPages(async (page) => {
+      const result = await listProductions(
+        { page, pageSize: LINK_PAGE_SIZE },
+        signal,
+      );
+      return {
+        items: result.items.map(({ id, name }) => ({ id, name })),
+        total: result.total,
+      };
+    });
   }
-  const { data } = await browserApi.GET("/api/v1/talents", {
-    params: { query: { page: 1, pageSize: 50 } as never },
-    signal,
-    cache: "no-store",
+  return collectAllPages(async (page) => {
+    const { data } = await browserApi.GET("/api/v1/talents", {
+      params: { query: { page, pageSize: LINK_PAGE_SIZE } as never },
+      signal,
+      cache: "no-store",
+    });
+    return {
+      items: (data?.items ?? []).map(({ id, fullName }) => ({
+        id,
+        name: fullName,
+      })),
+      total: data?.total ?? 0,
+    };
   });
-  return (data?.items ?? []).map(({ id, fullName }) => ({
-    id,
-    name: fullName,
-  }));
 }
 
 /**
