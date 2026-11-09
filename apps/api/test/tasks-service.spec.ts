@@ -53,6 +53,8 @@ describe("TasksService", () => {
   let repository: Record<string, ReturnType<typeof vi.fn>>;
   let permissions: {
     getAccessContext: ReturnType<typeof vi.fn>;
+    overseenDepartmentIdsFor?: ReturnType<typeof vi.fn>;
+
     hasGrant: ReturnType<
       typeof vi.fn<
         (
@@ -150,6 +152,8 @@ describe("TasksService", () => {
         .fn()
         .mockResolvedValue({ role: null, department: null }),
       hasGrant: vi.fn().mockResolvedValue(false),
+      // No department oversight unless a test sets it (EVE-229).
+      overseenDepartmentIdsFor: vi.fn().mockResolvedValue([]),
     };
     service = new TasksService(repository as never, permissions as never);
   });

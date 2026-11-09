@@ -171,7 +171,7 @@ describe("Production Manager and Admin talent access", () => {
     ).toBe(false);
   });
 
-  it("gives Admin the six talent keys and nothing from event, production or campaign modules", () => {
+  it("gives Admin the six talent keys, no project keys, and only the campaign approval keys", () => {
     const talent = [
       "talent.create",
       "talent.read",
@@ -186,8 +186,14 @@ describe("Production Manager and Admin talent access", () => {
     const others = ADMIN_ORGANIZATION_PERMISSION_KEYS.filter(
       (key) => !key.startsWith("talent."),
     );
-    // Event keys are granted on purpose (organization-wide event management);
-    // projects and campaigns stay out of Admin's organization grants.
-    expect(others.some((key) => /^(project|campaign)\./.test(key))).toBe(false);
+    // Event keys are granted on purpose (organization-wide event management).
+    // Projects stay out of Admin's organization grants. From campaigns, Admin
+    // holds only the two keys it needs to approve promotion campaigns
+    // (EVE-229); `CampaignsService` refuses Admin every other move.
+    expect(others.some((key) => key.startsWith("project."))).toBe(false);
+    expect(others.filter((key) => key.startsWith("campaign."))).toEqual([
+      "campaign.read",
+      "campaign.transition_status",
+    ]);
   });
 });

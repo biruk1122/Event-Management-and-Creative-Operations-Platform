@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { isOverseenRecord } from "@/features/auth/lib/department-oversight";
 import {
   accessKey,
   type CurrentAccess,
@@ -21,10 +22,21 @@ import { PartnersTable } from "./partners-table";
 
 const PAGE_SIZE = 10;
 
-export function PartnersManager({ access }: { access: CurrentAccess }) {
+export function PartnersManager({
+  access,
+  readOnly = false,
+}: {
+  access: CurrentAccess;
+  /** Embedded where the viewer only oversees the records (EVE-229): no
+   * create, edit or submit controls, whatever the viewer's own grants. */
+  readOnly?: boolean;
+}) {
   const keys = partnerKeys(access);
   const client = useQueryClient();
-  const abilities = partnerAbilities(access);
+  const granted = partnerAbilities(access);
+  const abilities = readOnly
+    ? { ...granted, canCreate: false, canUpdate: false, canAddActivity: false }
+    : granted;
 
   const [statusFilter, setStatusFilter] = useState<PartnerStatus | null>(null);
   const [search, setSearch] = useState("");
@@ -49,6 +61,12 @@ export function PartnersManager({ access }: { access: CurrentAccess }) {
   });
 
   const mutations = usePartnersMutations(access);
+  // A record of a department the viewer only oversees (EVE-229) opens
+  // read-only: the API refuses every change to it.
+  const selectedReadOnly = isOverseenRecord(
+    access,
+    listQuery.data?.items.find((item) => item.id === selectedId)?.departmentId,
+  );
 
   useEffect(() => {
     const error = listQuery.error;
@@ -147,8 +165,8 @@ export function PartnersManager({ access }: { access: CurrentAccess }) {
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
         }}
-        canUpdate={abilities.canUpdate}
-        canAddActivity={abilities.canAddActivity}
+        canUpdate={abilities.canUpdate && !selectedReadOnly}
+        canAddActivity={abilities.canAddActivity && !selectedReadOnly}
         onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
         onAddActivity={(id, note) =>
           mutations.addActivity.mutateAsync({ id, note })

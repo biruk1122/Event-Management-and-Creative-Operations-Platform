@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
-import { campaignAbilities, canReadCampaigns } from "./campaign-access";
+import {
+  campaignAbilities,
+  campaignAbilitiesFor,
+  campaignMovesFor,
+  canReadCampaigns,
+} from "./campaign-access";
 
 function access(...grants: [string, string?][]): CurrentAccess {
   return {
@@ -98,5 +103,79 @@ describe("campaign access", () => {
 
       expect(Object.values(abilities).every((granted) => !granted)).toBe(true);
     });
+  });
+});
+
+describe("per-campaign access (EVE-229)", () => {
+  const ALL = [
+    "campaign.create",
+    "campaign.update",
+    "campaign.transition_status",
+    "campaign.assign",
+    "campaign.budget.read",
+    "campaign.budget.update",
+    "campaign.activity.manage",
+  ];
+  const marketingManager: CurrentAccess = {
+    userId: "mm",
+    role: "DEPARTMENT_MANAGER",
+    department: { id: "dept-mkt", name: "Marketing", active: true },
+    grants: ALL.map((permissionKey) => ({
+      permissionKey,
+      scope: "DEPARTMENT",
+    })),
+    overseenDepartments: [{ id: "dept-promo", name: "Promotion" }],
+  };
+
+  it("makes an overseen department's campaign read-only, budget readable", () => {
+    expect(
+      campaignAbilitiesFor(marketingManager, { departmentId: "dept-promo" }),
+    ).toEqual({
+      canCreate: false,
+      canUpdate: false,
+      canTransition: false,
+      canAssign: false,
+      canReadBudget: true,
+      canUpdateBudget: false,
+      canManageActivities: false,
+      canDelete: false,
+    });
+  });
+
+  it("leaves the viewer's own campaigns as granted", () => {
+    expect(
+      campaignAbilitiesFor(marketingManager, { departmentId: "dept-mkt" }),
+    ).toEqual(campaignAbilities(marketingManager));
+  });
+
+  it("offers approval to Super Admin and Admin only, and Admin nothing else", () => {
+    const planned = {
+      campaignType: "PROMOTION" as const,
+      status: "PLANNED" as const,
+    };
+    const approved = {
+      campaignType: "PROMOTION" as const,
+      status: "APPROVED" as const,
+    };
+    const role = (
+      value: NonNullable<CurrentAccess["role"]>,
+    ): CurrentAccess => ({
+      userId: "u",
+      grants: [],
+      role: value,
+    });
+    expect(campaignMovesFor(role("SUPER_ADMIN"), planned)).toEqual([
+      "APPROVED",
+      "CANCELLED",
+    ]);
+    expect(campaignMovesFor(role("DEPARTMENT_MANAGER"), planned)).toEqual([
+      "CANCELLED",
+    ]);
+    expect(campaignMovesFor(role("ADMIN"), planned)).toEqual(["APPROVED"]);
+    expect(campaignMovesFor(role("ADMIN"), approved)).toEqual([]);
+    expect(campaignMovesFor(role("DEPARTMENT_MANAGER"), approved)).toEqual([
+      "ACTIVE",
+      "CANCELLED",
+    ]);
   });
 });

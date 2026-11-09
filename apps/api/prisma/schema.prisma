@@ -392,6 +392,12 @@ model Department {
   /// department-level reports (not tied to a task). NULL until designated;
   /// the server never picks an Admin on its own.
   reportingAdminId String?   @map("reporting_admin_id") @db.Uuid
+  /// The department that oversees this one (EVE-229, ADR 0008), e.g.
+  /// Promotion -> Marketing. Its manager reads this department's records
+  /// without changing them and receives this department's manager reports.
+  /// One level only (trigger `departments_oversight_one_level`); NULL keeps
+  /// the department independent, the default for every other department.
+  oversightDepartmentId String? @map("oversight_department_id") @db.Uuid
   /// Set when the department is deactivated and cleared on reactivation;
   /// NULL means active.
   deactivatedAt    DateTime? @map("deactivated_at") @db.Timestamptz(6)
@@ -400,6 +406,8 @@ model Department {
 
   manager        User?          @relation("DepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
   reportingAdmin User?          @relation("DepartmentReportingAdmin", fields: [reportingAdminId], references: [id], onDelete: SetNull)
+  oversightDepartment Department?  @relation("DepartmentOversight", fields: [oversightDepartmentId], references: [id], onDelete: SetNull)
+  overseenDepartments Department[] @relation("DepartmentOversight")
   employees      User[]         @relation("DepartmentEmployees")
   teams          Team[]
   tasks          Task[]
@@ -415,6 +423,7 @@ model Department {
   // Look up the departments a user manages, and list active departments.
   @@index([managerId])
   @@index([reportingAdminId])
+  @@index([oversightDepartmentId])
   @@index([deactivatedAt])
   @@map("departments")
 }
@@ -1547,9 +1556,13 @@ enum CampaignType {
 /// Completed | Cancelled`. Entry criteria, transition authority, and reopening
 /// are open in OD-03 and enforced by CAM-02 in the domain layer - a CHECK
 /// cannot express a state machine.
+/// APPROVED and PAUSED are promotion-only (EVE-229); the
+/// `campaigns_promotion_only_statuses` CHECK keeps them off marketing rows.
 enum CampaignStatus {
   PLANNED
+  APPROVED
   ACTIVE
+  PAUSED
   COMPLETED
   CANCELLED
 

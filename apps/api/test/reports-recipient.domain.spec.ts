@@ -13,6 +13,7 @@ const context = (
   authorRole: "DEPARTMENT_MEMBER",
   departmentManagerId: "dm-1",
   reportingAdminId: "admin-1",
+  overseeingManagerId: null,
   activeSuperAdminIds: ["sa-1"],
   ...overrides,
 });
@@ -29,6 +30,39 @@ describe("resolveReportRecipient", () => {
     expect(
       resolveReportRecipient(context({ authorRole: "DEPARTMENT_MANAGER" })),
     ).toEqual({ ok: true, reportToId: "admin-1" });
+  });
+
+  it("sends an overseen department manager's report to the overseeing manager (EVE-229)", () => {
+    expect(
+      resolveReportRecipient(
+        context({
+          authorRole: "DEPARTMENT_MANAGER",
+          overseeingManagerId: "marketing-manager",
+        }),
+      ),
+    ).toEqual({ ok: true, reportToId: "marketing-manager" });
+  });
+
+  it("falls back to the reporting Admin when the overseeing department has no active manager", () => {
+    expect(
+      resolveReportRecipient(
+        context({
+          authorRole: "DEPARTMENT_MANAGER",
+          overseeingManagerId: null,
+        }),
+      ),
+    ).toEqual({ ok: true, reportToId: "admin-1" });
+  });
+
+  it("keeps a member's report with their own department manager under oversight", () => {
+    expect(
+      resolveReportRecipient(
+        context({
+          authorRole: "DEPARTMENT_MEMBER",
+          overseeingManagerId: "marketing-manager",
+        }),
+      ),
+    ).toEqual({ ok: true, reportToId: "dm-1" });
   });
 
   it("refuses to guess when no reporting Admin is designated", () => {

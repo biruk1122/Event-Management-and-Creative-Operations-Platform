@@ -16,6 +16,7 @@ import type {
 import {
   campaignActivityNotFound,
   campaignActivityScheduleInvalid,
+  campaignApprovalRequired,
   campaignBudgetIncomplete,
   campaignDepartmentNotFound,
   campaignHasManagedFiles,
@@ -29,7 +30,7 @@ import {
   campaignTypeConflict,
   campaignUserNotFound,
 } from "./campaigns.errors.js";
-import { canTransition } from "./campaigns.lifecycle.js";
+import { canTransition, isApprovalMove } from "./campaigns.lifecycle.js";
 import type { CreateCampaignActivityDto } from "./dto/create-campaign-activity.dto.js";
 import type { CreateCampaignDto } from "./dto/create-campaign.dto.js";
 import type { ListCampaignActivitiesQueryDto } from "./dto/list-campaign-activities-query.dto.js";
@@ -99,7 +100,19 @@ export class CampaignsService {
     const departmentId = department
       ? await this.repository.findUserDepartmentId(actingUserId)
       : null;
-    return { organization, ...(departmentId ? { departmentId } : {}) };
+    // Read keys only: department oversight (EVE-229) widens a department
+    // manager's read to the departments they oversee, never their writes.
+    const overseenDepartmentIds = organization
+      ? []
+      : await this.permissions.overseenDepartmentIdsFor(
+          actingUserId,
+          permissionKey,
+        );
+    return {
+      organization,
+      ...(departmentId ? { departmentId } : {}),
+      ...(overseenDepartmentIds.length > 0 ? { overseenDepartmentIds } : {}),
+    };
   }
 
   private async isAuthorizedFor(
@@ -122,7 +135,27 @@ export class CampaignsService {
         await this.repository.findUserDepartmentId(actingUserId);
       if (departmentId && departmentId === campaign.departmentId) return true;
     }
+    // Read-only oversight: `overseenDepartmentIdsFor` returns nothing for a
+    // write key, so this can only ever let a read through.
+    if (campaign.departmentId) {
+      const overseen = await this.permissions.overseenDepartmentIdsFor(
+        actingUserId,
+        permissionKey,
+      );
+      if (overseen.includes(campaign.departmentId)) return true;
+    }
     return false;
+  }
+
+  /** Exported for modules that extend a campaign (promotion details): enforces
+   * `permissionKey` against the campaign's own department, the same check
+   * every campaign route uses. */
+  async assertCampaignPermission(
+    actingUserId: string,
+    campaignId: string,
+    permissionKey: string,
+  ): Promise<void> {
+    await this.authorize(actingUserId, campaignId, permissionKey);
   }
 
   /** Loads a campaign and enforces `permissionKey` against it in one call -
@@ -359,6 +392,7 @@ export class CampaignsService {
     actingUserId: string,
     id: string,
     target: CampaignStatus,
+    requestId?: string,
   ): Promise<CampaignResponse> {
     const campaign = await this.authorize(
       actingUserId,
@@ -366,14 +400,30 @@ export class CampaignsService {
       "campaign.transition_status",
     );
 
-    if (!canTransition(campaign.status, target)) {
+    if (!canTransition(campaign.campaignType, campaign.status, target)) {
       throw campaignInvalidTransition(campaign.status, target);
     }
+
+    // EVE-229: approving a promotion campaign is reserved for Super Admin and
+    // Admin, so a Promotion manager cannot approve their own campaign. Admin
+    // holds `campaign.transition_status` only to approve; every other move
+    // stays with Super Admin and the campaign's own department.
+    const { role } = await this.permissions.getAccessContext(actingUserId);
+    const approval = isApprovalMove(
+      campaign.campaignType,
+      campaign.status,
+      target,
+    );
+    if (approval && role !== "SUPER_ADMIN" && role !== "ADMIN") {
+      throw campaignApprovalRequired();
+    }
+    if (role === "ADMIN" && !approval) throw permissionDenied();
 
     const result = await this.repository.updateStatus(
       id,
       campaign.status,
       target,
+      requestId ? { actorUserId: actingUserId, requestId } : undefined,
     );
     if (result === "not_found") {
       throw campaignNotFound();

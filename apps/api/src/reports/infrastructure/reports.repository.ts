@@ -12,6 +12,7 @@ import {
 import { AuditWriterService } from "../../audit/audit-writer.service.js";
 import { OutboxWriterService } from "../../outbox/outbox-writer.service.js";
 import { DatabaseService } from "../../database/database.service.js";
+import { platformRole } from "../../common/security/department-access.policy.js";
 import {
   reportConcurrentChange,
   reportDuplicate,
@@ -64,6 +65,8 @@ export type ReportRecord = Prisma.ReportGetPayload<{ include: typeof include }>;
 export interface ReportVisibility {
   organization: boolean;
   departmentId?: string;
+  /** Departments the caller oversees read-only (EVE-229). */
+  overseenDepartmentIds?: string[];
   selfUserId?: string;
 }
 
@@ -100,6 +103,8 @@ function visibilityWhere(
   const or: Prisma.ReportWhereInput[] = [];
   if (visibility.departmentId)
     or.push({ departmentId: visibility.departmentId });
+  if (visibility.overseenDepartmentIds?.length)
+    or.push({ departmentId: { in: visibility.overseenDepartmentIds } });
   if (visibility.selfUserId) or.push({ authorId: visibility.selfUserId });
   return { OR: or };
 }
@@ -440,13 +445,36 @@ export class ReportsRepository {
   async getDepartmentRouting(departmentId: string | null): Promise<{
     managerId: string | null;
     reportingAdminId: string | null;
+    overseeingManagerId: string | null;
   }> {
     if (!departmentId || !UUID.test(departmentId))
-      return { managerId: null, reportingAdminId: null };
+      return {
+        managerId: null,
+        reportingAdminId: null,
+        overseeingManagerId: null,
+      };
     const department = await this.db.department.findUnique({
       where: { id: departmentId },
       select: {
         manager: { select: { id: true, status: true } },
+        // EVE-229: the overseeing department's active manager, who must
+        // still be a Department Manager working in that active department.
+        oversightDepartment: {
+          select: {
+            id: true,
+            deactivatedAt: true,
+            manager: {
+              select: {
+                id: true,
+                status: true,
+                departmentId: true,
+                roleAssignment: {
+                  select: { role: { select: { name: true, isSystem: true } } },
+                },
+              },
+            },
+          },
+        },
         reportingAdmin: {
           select: {
             id: true,
@@ -463,10 +491,20 @@ export class ReportsRepository {
       admin?.status === "ACTIVE" &&
       admin.roleAssignment?.role.isSystem === true &&
       admin.roleAssignment.role.name === "Admin";
+    const overseeing = department?.oversightDepartment;
+    const overseer = overseeing?.manager;
+    const overseerOk =
+      !!overseeing &&
+      overseeing.deactivatedAt === null &&
+      overseer?.status === "ACTIVE" &&
+      overseer.departmentId === overseeing.id &&
+      overseer.roleAssignment?.role.isSystem === true &&
+      platformRole(overseer.roleAssignment.role.name) === "DEPARTMENT_MANAGER";
     return {
       managerId:
         department?.manager?.status === "ACTIVE" ? department.manager.id : null,
       reportingAdminId: adminOk && admin ? admin.id : null,
+      overseeingManagerId: overseerOk && overseer ? overseer.id : null,
     };
   }
 

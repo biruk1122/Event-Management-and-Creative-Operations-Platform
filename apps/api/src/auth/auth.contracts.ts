@@ -16,6 +16,15 @@ export class AccessDepartmentResponse {
   active!: boolean;
 }
 
+/** A department the caller oversees read-only (EVE-229, ADR 0008). */
+export class OverseenDepartmentResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty()
+  name!: string;
+}
+
 export class EffectivePermissionResponse {
   @ApiProperty()
   permissionKey!: string;
@@ -37,6 +46,15 @@ export class CurrentAccessResponse {
 
   @ApiPropertyOptional({ type: AccessDepartmentResponse, nullable: true })
   department!: AccessDepartmentResponse | null;
+
+  // Optional in the contract so existing clients and fixtures stay valid; the
+  // API always sends it (an empty list for everyone but an overseeing manager).
+  @ApiPropertyOptional({
+    type: [OverseenDepartmentResponse],
+    description:
+      "Departments this account oversees read-only. Empty unless the account manages a department that oversees others.",
+  })
+  overseenDepartments?: OverseenDepartmentResponse[];
 }
 
 /** Public view of the authenticated account. Never carries credential data. */

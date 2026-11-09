@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -358,9 +364,16 @@ describe("CampaignDetailDialog", () => {
   });
 
   describe("lifecycle", () => {
+    // The marketing lifecycle is unchanged by EVE-229; the fixture campaign
+    // is a promotion campaign, so these cases name the type explicitly.
+    const marketing = (status: Campaign["status"] = "PLANNED") =>
+      vi.fn(() =>
+        Promise.resolve(makeCampaign({ campaignType: "MARKETING", status })),
+      );
+
     it("moves the campaign through an allowed transition", async () => {
       const user = userEvent.setup();
-      const props = renderDialog();
+      const props = renderDialog({ getCampaign: marketing() });
       await waitForLoaded();
 
       await user.click(screen.getByRole("combobox", { name: "Move to" }));
@@ -379,11 +392,7 @@ describe("CampaignDetailDialog", () => {
 
     it("offers only the moves the lifecycle allows from each status", async () => {
       const user = userEvent.setup();
-      renderDialog({
-        getCampaign: vi.fn(() =>
-          Promise.resolve(makeCampaign({ status: "ACTIVE" })),
-        ),
-      });
+      renderDialog({ getCampaign: marketing("ACTIVE") });
       await waitForLoaded();
 
       await user.click(screen.getByRole("combobox", { name: "Move to" }));
@@ -393,6 +402,44 @@ describe("CampaignDetailDialog", () => {
           (option) => option.textContent,
         ),
       ).toEqual(["Choose a status…", "Completed", "Cancelled"]);
+    });
+
+    it("offers a promotion campaign its pause, and approval only to Super Admin (EVE-229)", async () => {
+      const user = userEvent.setup();
+      const viewer = (role: "SUPER_ADMIN" | "DEPARTMENT_MANAGER") => ({
+        userId: "viewer",
+        role,
+        grants: [],
+        department: null,
+      });
+      renderDialog({
+        promotionAccess: viewer("DEPARTMENT_MANAGER"),
+        getCampaign: vi.fn(() =>
+          Promise.resolve(makeCampaign({ status: "PLANNED" })),
+        ),
+      });
+      await waitForLoaded();
+      await user.click(screen.getByRole("combobox", { name: "Move to" }));
+      expect(
+        (await screen.findAllByRole("option")).map(
+          (option) => option.textContent,
+        ),
+      ).toEqual(["Choose a status…", "Cancelled"]);
+      cleanup();
+
+      renderDialog({
+        promotionAccess: viewer("SUPER_ADMIN"),
+        getCampaign: vi.fn(() =>
+          Promise.resolve(makeCampaign({ status: "ACTIVE" })),
+        ),
+      });
+      await waitForLoaded();
+      await user.click(screen.getByRole("combobox", { name: "Move to" }));
+      expect(
+        (await screen.findAllByRole("option")).map(
+          (option) => option.textContent,
+        ),
+      ).toEqual(["Choose a status…", "Paused", "Completed", "Cancelled"]);
     });
 
     it.each(["COMPLETED", "CANCELLED"] as const)(
@@ -413,6 +460,7 @@ describe("CampaignDetailDialog", () => {
     it("surfaces an action error from a rejected transition", async () => {
       const user = userEvent.setup();
       renderDialog({
+        getCampaign: marketing(),
         onTransition: vi.fn(() =>
           Promise.resolve({ status: "invalid_transition" as const }),
         ),

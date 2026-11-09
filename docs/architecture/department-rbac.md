@@ -20,6 +20,21 @@ assigns the role; Admin cannot manage users or roles, change their own role, or 
 Super-Admin-only settings. Department Manager and Department Member rules are unchanged.
 Deployments must re-run `db:seed` to create the Admin role row and its grants.
 
+## Department oversight (EVE-229, November 2026)
+
+A department may be overseen by one other department ([ADR 0008](../decisions/0008-department-oversight.md)).
+Promotion is overseen by Marketing:
+
+- The Marketing Manager can read Promotion's campaigns, budgets, tasks, partners, expenses and
+  reports, but cannot change any of them. The read keys are fixed in
+  `OVERSIGHT_READ_PERMISSION_KEYS`; no write key is ever widened.
+- The Promotional Manager (Promotion's Department Manager) sends reports to the Marketing Manager.
+  If Marketing has no active manager, they go to Promotion's reporting Admin.
+- Promotion staff gain no access to Marketing.
+- Admin also holds `campaign.read` and `campaign.transition_status` at organization scope. With
+  them, Admin can only approve promotion campaigns (PLANNED → APPROVED).
+- Deployments must re-run `db:seed` for Admin to receive those two grants.
+
 ## Policy
 
 - Super Admin retains platform-wide authority and is protected from demotion and

@@ -83,9 +83,23 @@ export class PromotionService {
     await this.campaigns.getActivity(userId, campaignId, activityId);
   }
 
+  /** Talent assignment stays organization-only: no department role holds
+   * `talent.assign`, so this is unchanged by EVE-229. */
   private async grant(userId: string, key: string) {
     if (!(await this.permissions.hasGrant(userId, key, "ORGANIZATION")))
       throw permissionDenied();
+  }
+
+  /** Managing a promotion activity is checked against the campaign's own
+   * department (EVE-229), the same rule every campaign route applies: Super
+   * Admin anywhere, a Department Manager only on their own department's
+   * campaigns. Department oversight never reaches this write key. */
+  private async manage(userId: string, campaignId: string) {
+    await this.campaigns.assertCampaignPermission(
+      userId,
+      campaignId,
+      "campaign.activity.manage",
+    );
   }
 
   private async load(campaignId: string, activityId: string) {
@@ -130,7 +144,7 @@ export class PromotionService {
     dto: AttachPromotionActivityDto,
   ): Promise<PromotionActivityResponse> {
     await this.activity(userId, campaignId, activityId);
-    await this.grant(userId, "campaign.activity.manage");
+    await this.manage(userId, campaignId);
     const talents = (dto.talents ?? []).map((talent) => ({
       talentId: talent.talentId,
       role: talent.role.trim(),
@@ -166,7 +180,7 @@ export class PromotionService {
     dto: UpdatePromotionChannelDto,
   ): Promise<PromotionActivityResponse> {
     await this.activity(userId, campaignId, activityId);
-    await this.grant(userId, "campaign.activity.manage");
+    await this.manage(userId, campaignId);
     const record = await this.repository.updateChannel(
       campaignId,
       activityId,
@@ -183,7 +197,7 @@ export class PromotionService {
     requestId: string,
   ) {
     await this.activity(userId, campaignId, activityId);
-    await this.grant(userId, "campaign.activity.manage");
+    await this.manage(userId, campaignId);
     const result = await this.repository.remove(
       campaignId,
       activityId,
@@ -201,7 +215,7 @@ export class PromotionService {
     requestId: string,
   ): Promise<PromotionActivityResponse> {
     await this.activity(userId, campaignId, activityId);
-    await this.grant(userId, "campaign.activity.manage");
+    await this.manage(userId, campaignId);
     await this.load(campaignId, activityId);
     try {
       await this.talentAssignments.create(
@@ -224,7 +238,7 @@ export class PromotionService {
     requestId: string,
   ): Promise<PromotionActivityResponse> {
     await this.activity(userId, campaignId, activityId);
-    await this.grant(userId, "campaign.activity.manage");
+    await this.manage(userId, campaignId);
     await this.load(campaignId, activityId);
     if (!isUuid(talentId)) throw promotionAssignmentNotFound();
     try {

@@ -7,6 +7,7 @@ import { canReadProjects } from "@/features/projects/lib/project-access";
 import { productionAbilities } from "@/features/productions/lib/production-access";
 import { canReadCampaigns } from "@/features/campaigns/lib/campaign-access";
 import { canEnterMarketingWorkspace } from "@/features/marketing-workspace/lib/marketing-workspace-access";
+import { canEnterPromotionWorkspace } from "@/features/promotion-workspace/lib/promotion-workspace-access";
 import { canAccessEmployeeManagement } from "@/features/employees/lib/employee-access";
 import { canAccessAdministrationDocuments } from "@/features/letters/lib/letter-access";
 import { canReadPartners } from "@/features/partners/lib/partner-access";
@@ -36,6 +37,7 @@ export type Destination = {
     | "campaigns"
     | "partners"
     | "marketingWorkspace"
+    | "promotionWorkspace"
     | "talent"
     | "reports"
     | "analytics"
@@ -151,6 +153,13 @@ export function destinations(access: CurrentAccess): Destination[] {
     "Marketing",
     "Work",
     "marketingWorkspace",
+  );
+  add(
+    canEnterPromotionWorkspace(access),
+    "/promotion" as Route,
+    "Promotion",
+    "Work",
+    "promotionWorkspace",
   );
   add(
     canReadCampaigns(access) && !isHrDepartment,

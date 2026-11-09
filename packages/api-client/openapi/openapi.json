@@ -898,7 +898,14 @@
           },
           "status": {
             "description": "Current lifecycle state.",
-            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "APPROVED",
+              "ACTIVE",
+              "PAUSED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           },
           "teams": {
@@ -2848,6 +2855,13 @@
           "grants": {
             "items": {
               "$ref": "#/components/schemas/EffectivePermissionResponse"
+            },
+            "type": "array"
+          },
+          "overseenDepartments": {
+            "description": "Departments this account oversees read-only. Empty unless the account manages a department that oversees others.",
+            "items": {
+              "$ref": "#/components/schemas/OverseenDepartmentResponse"
             },
             "type": "array"
           },
@@ -6276,6 +6290,19 @@
       },
       "Object": {
         "properties": {},
+        "type": "object"
+      },
+      "OverseenDepartmentResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "name"],
         "type": "object"
       },
       "OvertimeApprovalResponse": {
@@ -10972,7 +10999,14 @@
         "properties": {
           "status": {
             "description": "The lifecycle state to move to. Must be reachable from the current state under the approved graph.",
-            "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+            "enum": [
+              "PLANNED",
+              "APPROVED",
+              "ACTIVE",
+              "PAUSED",
+              "COMPLETED",
+              "CANCELLED"
+            ],
             "type": "string"
           }
         },
@@ -15240,7 +15274,14 @@
             "name": "status",
             "required": false,
             "schema": {
-              "enum": ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"],
+              "enum": [
+                "PLANNED",
+                "APPROVED",
+                "ACTIVE",
+                "PAUSED",
+                "COMPLETED",
+                "CANCELLED"
+              ],
               "type": "string"
             }
           },

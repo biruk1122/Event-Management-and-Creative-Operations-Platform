@@ -69,6 +69,8 @@ export class AuthController {
       userId,
       grants: await this.permissions.getEffectiveGrants(userId),
       ...(await this.permissions.getAccessContext(userId)),
+      overseenDepartments:
+        await this.permissions.getOverseenDepartments(userId),
     };
   }
 

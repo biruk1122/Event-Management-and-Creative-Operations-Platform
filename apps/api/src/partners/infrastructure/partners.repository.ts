@@ -61,6 +61,8 @@ export interface PartnerActivityRecord {
 export interface PartnerVisibility {
   organization: boolean;
   departmentId?: string;
+  /** Departments the caller oversees read-only (EVE-229). */
+  overseenDepartmentIds?: string[];
   selfUserId?: string;
 }
 
@@ -171,6 +173,8 @@ function visibleWhere(visibility: PartnerVisibility): Prisma.PartnerWhereInput {
   const or: Prisma.PartnerWhereInput[] = [];
   if (visibility.departmentId)
     or.push({ departmentId: visibility.departmentId });
+  if (visibility.overseenDepartmentIds?.length)
+    or.push({ departmentId: { in: visibility.overseenDepartmentIds } });
   if (visibility.selfUserId) or.push({ ownerId: visibility.selfUserId });
   return or.length > 0 ? { OR: or } : { id: { in: [] } };
 }

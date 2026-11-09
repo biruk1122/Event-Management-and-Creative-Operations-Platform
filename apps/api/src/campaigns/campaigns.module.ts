@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AuditModule } from "../audit/audit.module.js";
 import { CampaignsDashboardQuery } from "./campaigns-dashboard.query.js";
 import { CampaignsAnalyticsQuery } from "./campaigns-analytics.query.js";
 
@@ -13,6 +14,7 @@ import { CampaignsRepository } from "./infrastructure/campaigns.repository.js";
 
 @Module({
   imports: [
+    AuditModule,
     AuthModule,
     EventsModule,
     PermissionsModule,

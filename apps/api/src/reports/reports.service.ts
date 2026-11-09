@@ -154,6 +154,7 @@ export class ReportsService {
       authorRole,
       departmentManagerId: routing.managerId,
       reportingAdminId: routing.reportingAdminId,
+      overseeingManagerId: routing.overseeingManagerId,
       activeSuperAdminIds:
         authorRole === "ADMIN" ? await this.repo.listActiveSuperAdminIds() : [],
     };
@@ -226,9 +227,16 @@ export class ReportsService {
     const departmentId = department
       ? await this.repo.findUserDepartmentId(userId)
       : null;
+    // Read-only oversight (EVE-229): reading, and loading a report to review
+    // it. `canReviewReport` still limits the review decision to the
+    // recipient, so an overseeing manager reviews only reports sent to them.
+    const overseenDepartmentIds = organization
+      ? []
+      : await this.permissions.overseenDepartmentIdsFor(userId, key);
     return {
       organization,
       ...(departmentId ? { departmentId } : {}),
+      ...(overseenDepartmentIds.length > 0 ? { overseenDepartmentIds } : {}),
       ...(self ? { selfUserId: userId } : {}),
     };
   }
@@ -241,6 +249,10 @@ export class ReportsService {
       visibility.organization ||
       (!!visibility.departmentId &&
         report.departmentId === visibility.departmentId) ||
+      (!!report.departmentId &&
+        (visibility.overseenDepartmentIds ?? []).includes(
+          report.departmentId,
+        )) ||
       (!!visibility.selfUserId && report.authorId === visibility.selfUserId)
     );
   }

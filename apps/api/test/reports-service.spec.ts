@@ -48,6 +48,7 @@ describe("ReportsService.get - EOM-01 post-event facts", () => {
   let permissions: {
     getAccessContext?: ReturnType<typeof vi.fn>;
     getEffectiveGrants: ReturnType<typeof vi.fn>;
+    overseenDepartmentIdsFor?: ReturnType<typeof vi.fn>;
   };
   let eventFacts: { forWorkspace: ReturnType<typeof vi.fn> };
   let expenseFacts: { forWorkspace: ReturnType<typeof vi.fn> };
@@ -64,6 +65,8 @@ describe("ReportsService.get - EOM-01 post-event facts", () => {
         .mockResolvedValue([
           { permissionKey: "report.read", scope: "ORGANIZATION" },
         ]),
+      // No department oversight unless a test sets it (EVE-229).
+      overseenDepartmentIdsFor: vi.fn().mockResolvedValue([]),
     };
     const taskFacts = {
       forAuthor: vi.fn().mockResolvedValue({
@@ -171,6 +174,7 @@ describe("ReportsService - optional Under Review step (EOM-01)", () => {
   let permissions: {
     getAccessContext?: ReturnType<typeof vi.fn>;
     getEffectiveGrants: ReturnType<typeof vi.fn>;
+    overseenDepartmentIdsFor?: ReturnType<typeof vi.fn>;
   };
   let service: ReportsService;
 
@@ -191,6 +195,7 @@ describe("ReportsService - optional Under Review step (EOM-01)", () => {
       getAccessContext: vi
         .fn()
         .mockResolvedValue({ role: "SUPER_ADMIN", department: null }),
+      overseenDepartmentIdsFor: vi.fn().mockResolvedValue([]),
       getEffectiveGrants: vi
         .fn()
         .mockResolvedValue([
@@ -284,6 +289,7 @@ describe("ReportsService - description field and attachments", () => {
   let permissions: {
     getAccessContext?: ReturnType<typeof vi.fn>;
     getEffectiveGrants: ReturnType<typeof vi.fn>;
+    overseenDepartmentIdsFor?: ReturnType<typeof vi.fn>;
   };
   let service: ReportsService;
 
@@ -306,7 +312,10 @@ describe("ReportsService - description field and attachments", () => {
         .fn()
         .mockResolvedValue({ fileIds: ["file-1"], total: 1 }),
     };
-    permissions = { getEffectiveGrants: vi.fn().mockResolvedValue([]) };
+    permissions = {
+      getEffectiveGrants: vi.fn().mockResolvedValue([]),
+      overseenDepartmentIdsFor: vi.fn().mockResolvedValue([]),
+    };
     service = new ReportsService(
       repo as never,
       permissions as never,

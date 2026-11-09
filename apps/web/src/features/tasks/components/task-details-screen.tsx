@@ -50,6 +50,7 @@ import {
   creatorGatedFor,
   hasGrant,
   isAssignee,
+  isReadOnlyTask,
 } from "../lib/task-access";
 import { attachmentProblem } from "../lib/task-attachments";
 import { ASSIGNEE_TRANSITION_TARGETS } from "../lib/task-transitions";
@@ -152,6 +153,7 @@ function LoadedTaskDetails({
   const { task, comments, activity, files } = details.data;
   const viewerId = access.userId;
   const assignedToViewer = isAssignee(task, viewerId);
+  const readOnly = isReadOnlyTask(access, task);
   const canEdit = creatorGatedFor(access, "task.update")(task);
   // Status moves follow the server's lifecycle table: only the moves valid
   // from the current status, and only for people allowed to move the task.
@@ -164,6 +166,7 @@ function LoadedTaskDetails({
   const designatedReviewer = task.reportTo?.id ?? task.createdBy?.id ?? null;
   const canReview =
     task.status === "UNDER_REVIEW" &&
+    !readOnly &&
     hasGrant(access, "task.review") &&
     !assignedToViewer &&
     designatedReviewer === viewerId;
@@ -304,7 +307,8 @@ function LoadedTaskDetails({
                   "task.update_progress",
                 )(task),
                 currentUserId: viewerId,
-                canManageUnattributedItems: hasGrant(access, "task.update"),
+                canManageUnattributedItems:
+                  !readOnly && hasGrant(access, "task.update"),
                 addItem: (description) =>
                   mutations.addChecklistItem.mutateAsync({
                     id: task.id,
@@ -362,7 +366,7 @@ function LoadedTaskDetails({
           <Panel>
             <CommentsPanel
               comments={comments}
-              canComment={hasGrant(access, "task.comment.create")}
+              canComment={!readOnly && hasGrant(access, "task.comment.create")}
               busy={mutations.comment.isPending}
               onAdd={(content) =>
                 run(() =>
@@ -419,7 +423,9 @@ function LoadedTaskDetails({
             <FilesPanel
               files={files}
               taskId={task.id}
-              canUpload={hasGrant(access, "task.attachment.create")}
+              canUpload={
+                !readOnly && hasGrant(access, "task.attachment.create")
+              }
               uploading={mutations.upload.isPending}
               onUpload={(file) =>
                 run(() => mutations.upload.mutateAsync({ id: task.id, file }))

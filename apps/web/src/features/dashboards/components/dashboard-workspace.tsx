@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import { useEffect, useId, useState } from "react";
 import Link from "next/link";
 import {
@@ -168,7 +169,7 @@ export function DashboardWorkspace({
     {
       name: "Promotion",
       description: "Promotion campaigns and activities",
-      href: "/campaigns?type=PROMOTION",
+      href: "/promotion" as Route,
     },
     {
       name: "Manager / Event & Office Manager",

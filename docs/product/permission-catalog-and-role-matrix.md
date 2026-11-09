@@ -378,7 +378,11 @@ reports directly to Super Admin and is **not** Super Admin.
 | `analytics.management.read`                                    | organization |
 | `analytics.department_performance.read`                        | organization |
 | `dashboard.management.read`, `department.read`, `team.read`    | organization |
+| `campaign.read`, `campaign.transition_status` (EVE-229)        | organization |
 | `meeting.read`                                                 | self         |
+
+With the two campaign keys, Admin can only approve a promotion campaign (PLANNED → APPROVED).
+`CampaignsService` refuses every other move by Admin, and Admin holds no other `campaign.*` key.
 
 Admin holds no `user.*`, `role.*`, `settings.*`, `audit.*`, `employee.*`, HR-only `letter.*` /
 `document.*`, `expense.approve`, or any `*.delete` key, and cannot assign or change roles, promote
@@ -389,7 +393,15 @@ role. A task's default recipient is the person who assigns it (Super Admin may e
 different recipient); a task's reviewer is its recipient or Super Admin. Records created before this
 change have no recipient and keep their previous review behavior. Department-level reports go to the
 department's Super-Admin-designated reporting Admin (`department.assign_reporting_admin`), never to
-an arbitrary Admin.
+an arbitrary Admin. The exception is a department with an overseeing department (EVE-229,
+[ADR 0008](../decisions/0008-department-oversight.md)): its manager's reports go to the overseeing
+department's active manager first, today Promotion to the Marketing Manager.
+
+**Department oversight.** The overseeing department's manager can read the overseen department's
+records for `campaign.read`, `campaign.budget.read`, `task.read`, `partner.read`,
+`expense.read`, `report.read` and `report.review` (`OVERSIGHT_READ_PERMISSION_KEYS`). A review
+still requires being the report's recipient. No write key is widened, team members gain nothing,
+and the overseen department gains no access in return.
 
 ### Team Member
 

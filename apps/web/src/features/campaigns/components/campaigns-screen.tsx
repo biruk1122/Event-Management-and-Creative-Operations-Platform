@@ -18,8 +18,12 @@ const serverReady = () => false;
 
 export function CampaignsScreen({
   initialType = null,
+  readOnly = false,
 }: {
   initialType?: CampaignType | null;
+  /** Embedded where the viewer only oversees the records (EVE-229): no
+   * create, edit or submit controls, whatever the viewer's own grants. */
+  readOnly?: boolean;
 }) {
   // The shell may fill the permissions cache before this boundary hydrates.
   // Match the server snapshot before showing the verified client workspace.
@@ -84,6 +88,7 @@ export function CampaignsScreen({
       key={`${access.data.userId}:${initialType ?? "ALL"}`}
       access={access.data}
       initialType={initialType}
+      readOnly={readOnly}
     />
   );
 }

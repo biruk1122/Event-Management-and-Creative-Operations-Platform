@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
+  ForbiddenException,
   type HttpException,
 } from "@nestjs/common";
 
@@ -11,6 +12,7 @@ export const CAMPAIGN_ERROR = {
   campaignTeamNotFound: "CAMPAIGN_TEAM_NOT_FOUND",
   campaignTeamNotAssigned: "CAMPAIGN_TEAM_NOT_ASSIGNED",
   campaignInvalidTransition: "CAMPAIGN_INVALID_TRANSITION",
+  campaignApprovalRequired: "CAMPAIGN_APPROVAL_REQUIRED",
   campaignTypeConflict: "CAMPAIGN_TYPE_CONFLICT",
   campaignScheduleInvalid: "CAMPAIGN_SCHEDULE_INVALID",
   campaignBudgetIncomplete: "CAMPAIGN_BUDGET_INCOMPLETE",
@@ -89,6 +91,15 @@ export function campaignInvalidTransition(
     code: CAMPAIGN_ERROR.campaignInvalidTransition,
     error: "Conflict",
     detail: `A campaign in ${from} cannot move to ${to}.`,
+  });
+}
+
+/** EVE-229: only Super Admin or Admin approves a promotion campaign. */
+export function campaignApprovalRequired(): HttpException {
+  return new ForbiddenException({
+    code: CAMPAIGN_ERROR.campaignApprovalRequired,
+    error: "Forbidden",
+    detail: "Only Super Admin or Admin can approve a promotion campaign.",
   });
 }
 

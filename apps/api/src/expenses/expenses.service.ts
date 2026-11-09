@@ -84,9 +84,15 @@ export class ExpensesService {
     const departmentId = department
       ? await this.repo.findUserDepartmentId(userId)
       : null;
+    // Read-only oversight (EVE-229): `expense.read` only, so submitting,
+    // editing and approving keep their own-department and approval rules.
+    const overseenDepartmentIds = organization
+      ? []
+      : await this.permissions.overseenDepartmentIdsFor(userId, key);
     return {
       organization,
       ...(departmentId ? { departmentId } : {}),
+      ...(overseenDepartmentIds.length > 0 ? { overseenDepartmentIds } : {}),
       ...(self ? { selfUserId: userId } : {}),
     };
   }
@@ -99,6 +105,7 @@ export class ExpensesService {
       visibility.organization ||
       (!!visibility.departmentId &&
         expense.departmentId === visibility.departmentId) ||
+      (visibility.overseenDepartmentIds ?? []).includes(expense.departmentId) ||
       (!!visibility.selfUserId && expense.createdById === visibility.selfUserId)
     );
   }

@@ -88,6 +88,48 @@ export function isProductionManager(context: DepartmentAccessContext): boolean {
   );
 }
 
+/**
+ * The only keys department oversight (EVE-229, ADR 0008) ever widens. Every
+ * one is a read, plus `report.review`, which only lets the overseeing manager
+ * load a report: `canReviewReport` still limits the decision to the report's
+ * recipient. A key outside this list never reaches an overseen department, so
+ * oversight can never create, change, assign, transition or delete anything.
+ */
+export const OVERSIGHT_READ_PERMISSION_KEYS = [
+  "campaign.read",
+  "campaign.budget.read",
+  "task.read",
+  "partner.read",
+  "expense.read",
+  "report.read",
+  "report.review",
+] as const;
+
+const OVERSIGHT_READ_KEY_SET: ReadonlySet<string> = new Set(
+  OVERSIGHT_READ_PERMISSION_KEYS,
+);
+
+export function isOversightReadKey(permissionKey: string): boolean {
+  return OVERSIGHT_READ_KEY_SET.has(permissionKey);
+}
+
+/**
+ * Whether the caller is in a position to oversee other departments: an active
+ * Department Manager who is the recorded manager of their own active
+ * department. Team members, Admins and Super Admin never use oversight (Super
+ * Admin and Admin already read through their organization grants).
+ */
+export function canOverseeDepartments(
+  context: DepartmentAccessContext,
+  managedDepartmentIds: readonly string[],
+): boolean {
+  return (
+    context.role === "DEPARTMENT_MANAGER" &&
+    context.department?.active === true &&
+    managedDepartmentIds.includes(context.department.id)
+  );
+}
+
 interface Grant {
   permissionKey: string;
   scope: PermissionScope;
@@ -143,6 +185,12 @@ export const ADMIN_ORGANIZATION_PERMISSION_KEYS = [
   "event.transition_status",
   "event.budget.read",
   "event.budget.update",
+  // Promotion campaign approval (EVE-229): Admin reads campaigns to approve
+  // them, and `CampaignsService.transition` lets an Admin make only the
+  // PLANNED -> APPROVED promotion move. Admin cannot create, edit, assign,
+  // budget, activate, pause, complete, cancel or delete a campaign.
+  "campaign.read",
+  "campaign.transition_status",
 ] as const;
 
 const ADMIN_ORGANIZATION_KEY_SET: ReadonlySet<string> = new Set(

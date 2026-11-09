@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { isOverseenRecord } from "@/features/auth/lib/department-oversight";
 import {
   accessKey,
   type CurrentAccess,
@@ -56,6 +57,13 @@ export function ExpensesManager({ access }: { access: CurrentAccess }) {
     placeholderData: (previous) => previous,
     refetchOnWindowFocus: true,
   });
+
+  // A record of a department the viewer only oversees (EVE-229) opens
+  // read-only: the API refuses every change to it.
+  const selectedReadOnly = isOverseenRecord(
+    access,
+    listQuery.data?.items.find((item) => item.id === selectedId)?.departmentId,
+  );
 
   // The event picker is needed to create an expense, and to filter the list;
   // always fetched, like Campaigns' related-event picker.
@@ -191,10 +199,10 @@ export function ExpensesManager({ access }: { access: CurrentAccess }) {
         }}
         events={events}
         suppliers={suppliers}
-        canUpdate={abilities.canUpdate}
-        canSubmit={abilities.canSubmit}
-        canApprove={abilities.canApprove}
-        canAttach={abilities.canAttach}
+        canUpdate={abilities.canUpdate && !selectedReadOnly}
+        canSubmit={abilities.canSubmit && !selectedReadOnly}
+        canApprove={abilities.canApprove && !selectedReadOnly}
+        canAttach={abilities.canAttach && !selectedReadOnly}
         onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
         onSubmit={mutations.submit.mutateAsync}
         onReview={(id, outcome, note) =>

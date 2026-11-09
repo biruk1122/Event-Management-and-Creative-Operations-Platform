@@ -1,6 +1,8 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { recordArchives } from "./support/archive-hook.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { AuditWriterService } from "../src/audit/audit-writer.service.js";
+import { AuditRepository } from "../src/audit/infrastructure/audit.repository.js";
 
 import {
   PrismaClient,
@@ -53,7 +55,10 @@ describe("campaign platform persistence", () => {
         { schema: db.schema },
       ),
     });
-    repository = new CampaignsRepository(prisma as never);
+    repository = new CampaignsRepository(
+      prisma as never,
+      new AuditWriterService(prisma as never, new AuditRepository()),
+    );
 
     actorId = (
       await prisma.user.create({

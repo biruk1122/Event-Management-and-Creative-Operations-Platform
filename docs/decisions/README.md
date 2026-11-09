@@ -24,3 +24,4 @@ consequential, durable decision, its context, and its consequences.
 | [0005](0005-google-meet-integration-evaluation.md)             | Google Meet integration evaluation             | Superseded | EVE-197 |
 | [0006](0006-free-manual-google-meet-links.md)                  | Free manual Google Meet links                  | Superseded | EVE-197 |
 | [0007](0007-zero-billing-google-meet-automation.md)            | Zero-billing Google Meet automation            | Accepted   | EVE-197 |
+| [0008](0008-department-oversight.md)                           | Department oversight                           | Accepted   | EVE-229 |

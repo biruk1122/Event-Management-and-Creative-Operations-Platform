@@ -21,7 +21,10 @@ import {
   listCampaigns,
 } from "../api/campaigns-gateway";
 import { campaignKeys, useCampaignsMutations } from "../api/campaigns-queries";
-import { campaignAbilities } from "../lib/campaign-access";
+import {
+  campaignAbilities,
+  readOnlyCampaignAbilities,
+} from "../lib/campaign-access";
 import type { CampaignStatus, CampaignType } from "../lib/campaigns-types";
 import { CampaignDetailDialog } from "./campaign-detail-dialog";
 import { CampaignFilters } from "./campaign-filters";
@@ -43,13 +46,19 @@ function useDebounced<T>(value: T, delay: number): T {
 export function CampaignsManager({
   access,
   initialType = null,
+  readOnly = false,
 }: {
   access: CurrentAccess;
   initialType?: CampaignType | null;
+  /** Embedded where the viewer only oversees the records (EVE-229): no
+   * create, edit or submit controls, whatever the viewer's own grants. */
+  readOnly?: boolean;
 }) {
   const keys = campaignKeys(access);
   const client = useQueryClient();
-  const abilities = campaignAbilities(access);
+  const abilities = readOnly
+    ? readOnlyCampaignAbilities(campaignAbilities(access))
+    : campaignAbilities(access);
 
   const [statusFilter, setStatusFilter] = useState<CampaignStatus | null>(null);
   const [typeFilter, setTypeFilter] = useState<CampaignType | null>(

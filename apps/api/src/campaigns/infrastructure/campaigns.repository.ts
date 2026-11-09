@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 
 import {
+  AuditActorKind,
+  AuditOutcome,
   CampaignActivityStatus,
   Prisma,
   WorkspaceKind,
@@ -8,7 +10,14 @@ import {
   type CampaignType,
 } from "../../generated/prisma/client.js";
 import type { ArchiveHook } from "../../common/archive/archive-hook.js";
+import { AuditWriterService } from "../../audit/audit-writer.service.js";
 import { DatabaseService } from "../../database/database.service.js";
+
+/** Who made a change, for the audit record written in the same transaction. */
+export interface CampaignAuditContext {
+  actorUserId: string;
+  requestId: string;
+}
 
 export interface CampaignPersonRecord {
   id: string;
@@ -74,6 +83,8 @@ export interface CampaignActivityRecord {
 export interface CampaignVisibility {
   organization: boolean;
   departmentId?: string;
+  /** Departments the caller oversees read-only (EVE-229); reads only. */
+  overseenDepartmentIds?: string[];
 }
 
 export interface ListCampaignsInput {
@@ -216,8 +227,12 @@ function visibleWhere(
   visibility: CampaignVisibility | undefined,
 ): Prisma.CampaignWhereInput {
   if (!visibility || visibility.organization) return {};
-  return visibility.departmentId
-    ? { departmentId: visibility.departmentId }
+  const departmentIds = [
+    ...(visibility.departmentId ? [visibility.departmentId] : []),
+    ...(visibility.overseenDepartmentIds ?? []),
+  ];
+  return departmentIds.length > 0
+    ? { departmentId: { in: departmentIds } }
     : { id: { in: [] } };
 }
 
@@ -329,7 +344,10 @@ function activityUpdateData(
 
 @Injectable()
 export class CampaignsRepository {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly audit: AuditWriterService,
+  ) {}
 
   /**
    * Activity counts per campaign in one grouped query, so a page of campaigns
@@ -560,13 +578,35 @@ export class CampaignsRepository {
     id: string,
     expectedStatus: CampaignStatus,
     status: CampaignStatus,
+    audit?: CampaignAuditContext,
   ): Promise<CampaignRecord | "not_found" | "status_changed"> {
     if (!isUuid(id)) {
       return "not_found";
     }
-    const { count } = await this.db.campaign.updateMany({
-      where: { id, status: expectedStatus, archivedAt: null },
-      data: { status },
+    const count = await this.db.$transaction(async (tx) => {
+      const moved = await tx.campaign.updateMany({
+        where: { id, status: expectedStatus, archivedAt: null },
+        data: { status },
+      });
+      if (moved.count > 0 && audit) {
+        const { workspaceId, campaignType } =
+          await tx.campaign.findUniqueOrThrow({
+            where: { id },
+            select: { workspaceId: true, campaignType: true },
+          });
+        await this.audit.append(tx, {
+          actorKind: AuditActorKind.USER,
+          actorUserId: audit.actorUserId,
+          requestId: audit.requestId,
+          action: "campaign.status_changed",
+          resourceType: "campaign",
+          resourceId: id,
+          workspaceContext: workspaceId,
+          outcome: AuditOutcome.SUCCEEDED,
+          metadata: { from: expectedStatus, to: status, campaignType },
+        });
+      }
+      return moved.count;
     });
     const record = await this.findById(id);
     if (!record) {

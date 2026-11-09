@@ -52,7 +52,7 @@ describe("dashboard presentation", () => {
     ).toHaveAttribute("href", "/campaigns?type=MARKETING");
     expect(
       screen.getByRole("link", { name: "Open Promotion" }),
-    ).toHaveAttribute("href", "/campaigns?type=PROMOTION");
+    ).toHaveAttribute("href", "/promotion");
     expect(screen.getByRole("link", { name: "Open Production" })).toBeVisible();
     expect(
       screen.getByRole("link", {

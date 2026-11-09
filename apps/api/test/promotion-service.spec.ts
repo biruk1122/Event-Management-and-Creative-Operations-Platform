@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { permissionDenied } from "../src/common/security/security.errors.js";
 import { PromotionService } from "../src/promotion/promotion.service.js";
 import { isUuid } from "../src/promotion/infrastructure/promotion.repository.js";
 import { Prisma } from "../src/generated/prisma/client.js";
@@ -47,7 +48,11 @@ describe("PromotionService", () => {
     expect(isUuid("01a0d45e-d753-7a12-a952-979287d9b100")).toBe(true);
     expect(isUuid("01a0d45e-d753-7a12-979287d9b100")).toBe(false);
   });
-  const campaigns = { get: vi.fn(), getActivity: vi.fn() };
+  const campaigns = {
+    get: vi.fn(),
+    getActivity: vi.fn(),
+    assertCampaignPermission: vi.fn(),
+  };
   const permissions = { hasGrant: vi.fn() };
   const talentAssignments = {
     archiveHook: vi.fn(() => () => Promise.resolve()),
@@ -69,6 +74,7 @@ describe("PromotionService", () => {
     vi.resetAllMocks();
     campaigns.get.mockResolvedValue({ campaignType: "PROMOTION" });
     campaigns.getActivity.mockResolvedValue(record.activity);
+    campaigns.assertCampaignPermission.mockResolvedValue(undefined);
     permissions.hasGrant.mockResolvedValue(true);
     repository.find.mockResolvedValue(record);
     repository.attach.mockResolvedValue(record);
@@ -90,13 +96,26 @@ describe("PromotionService", () => {
     expect(repository.list).not.toHaveBeenCalled();
   });
 
-  it("requires the organization-scoped manage grant for attachment", async () => {
-    permissions.hasGrant.mockResolvedValue(false);
+  it("checks the manage permission against the campaign's own department", async () => {
+    campaigns.assertCampaignPermission.mockRejectedValue(permissionDenied());
     await expectCode(
       service.attach(ACTOR, CAMPAIGN, ACTIVITY, { channel: "RADIO_PROMOTION" }),
       "PERMISSION_DENIED",
     );
+    expect(campaigns.assertCampaignPermission).toHaveBeenCalledWith(
+      ACTOR,
+      CAMPAIGN,
+      "campaign.activity.manage",
+    );
     expect(repository.attach).not.toHaveBeenCalled();
+  });
+
+  it("no longer requires an organization-scoped grant to manage a detail (EVE-229)", async () => {
+    permissions.hasGrant.mockResolvedValue(false);
+    await service.attach(ACTOR, CAMPAIGN, ACTIVITY, {
+      channel: "RADIO_PROMOTION",
+    });
+    expect(repository.attach).toHaveBeenCalled();
   });
 
   it("rejects duplicate initial talents before a write", async () => {

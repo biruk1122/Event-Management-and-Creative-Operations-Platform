@@ -81,6 +81,8 @@ export interface TaskRecord {
 export interface TaskVisibility {
   organization: boolean;
   departmentId?: string;
+  /** Departments the caller oversees read-only (EVE-229). */
+  overseenDepartmentIds?: string[];
   selfUserId?: string;
   /** When true, SELF-scope visibility requires the actor to be an
    * assignee specifically - not merely the task's creator. Used for the
@@ -361,6 +363,11 @@ function visibleWhere(visibility: TaskVisibility): Prisma.TaskWhereInput {
   const alternatives: Prisma.TaskWhereInput[] = [];
   if (visibility.departmentId) {
     alternatives.push({ departmentId: visibility.departmentId });
+  }
+  if (visibility.overseenDepartmentIds?.length) {
+    alternatives.push({
+      departmentId: { in: visibility.overseenDepartmentIds },
+    });
   }
   if (visibility.selfUserId) {
     alternatives.push({

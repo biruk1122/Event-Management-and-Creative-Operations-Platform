@@ -1,4 +1,5 @@
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
+import { isOverseenRecord } from "@/features/auth/lib/department-oversight";
 
 import type { Task, TaskStatus } from "./tasks-types";
 
@@ -78,6 +79,15 @@ export function hasOrganizationGrant(
   );
 }
 
+/**
+ * A task of a department the viewer only oversees (EVE-229): visible, never
+ * changeable. Every per-task predicate below refuses it, and the task screens
+ * hide their blanket controls (comment, upload, assign) for it.
+ */
+export function isReadOnlyTask(access: CurrentAccess, task: Task): boolean {
+  return isOverseenRecord(access, task.departmentId);
+}
+
 export function isAssignee(task: Task, userId: string): boolean {
   return task.assignees.some((assignee) => assignee.id === userId);
 }
@@ -99,7 +109,8 @@ export function creatorGatedFor(access: CurrentAccess, permissionKey: string) {
   const organizationScoped = hasOrganizationGrant(access, permissionKey);
   const grantedAtAll = hasGrant(access, permissionKey);
   return (task: Task) =>
-    organizationScoped || (grantedAtAll && isCreator(task, access.userId));
+    !isReadOnlyTask(access, task) &&
+    (organizationScoped || (grantedAtAll && isCreator(task, access.userId)));
 }
 
 /**
@@ -118,6 +129,7 @@ export function creatorGatedFor(access: CurrentAccess, permissionKey: string) {
  */
 export function canReviewFor(access: CurrentAccess) {
   return (task: Task) => {
+    if (isReadOnlyTask(access, task)) return false;
     if (!hasGrant(access, "task.review")) return false;
     if (isAssignee(task, access.userId)) return false;
     const designated = task.reportTo?.id ?? task.createdBy?.id ?? null;
@@ -143,7 +155,9 @@ export function canActOnAssignedTask(
 ) {
   const broad = hasBroadGrant(access, permissionKey);
   const self = hasSelfGrant(access, permissionKey);
-  return (task: Task) => broad || (self && isAssignee(task, access.userId));
+  return (task: Task) =>
+    !isReadOnlyTask(access, task) &&
+    (broad || (self && isAssignee(task, access.userId)));
 }
 
 export interface TaskListFilters {

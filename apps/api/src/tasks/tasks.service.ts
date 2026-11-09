@@ -239,9 +239,18 @@ export class TasksService implements AuditWorkspaceContextResolver {
     const departmentId = department
       ? await this.repository.findUserDepartmentId(actingUserId)
       : null;
+    // Read-only oversight (EVE-229): `task.read` only, so every task write
+    // keeps its own-department check.
+    const overseenDepartmentIds = organization
+      ? []
+      : await this.permissions.overseenDepartmentIdsFor(
+          actingUserId,
+          permissionKey,
+        );
     return {
       organization,
       ...(departmentId ? { departmentId } : {}),
+      ...(overseenDepartmentIds.length > 0 ? { overseenDepartmentIds } : {}),
       ...(self
         ? {
             selfUserId: actingUserId,
@@ -263,6 +272,16 @@ export class TasksService implements AuditWorkspaceContextResolver {
         await this.repository.findUserDepartmentId(actingUserId);
       if (departmentId && departmentId === task.departmentId) return true;
     }
+    if (
+      task.departmentId &&
+      (
+        await this.permissions.overseenDepartmentIdsFor(
+          actingUserId,
+          permissionKey,
+        )
+      ).includes(task.departmentId)
+    )
+      return true;
     if (await this.hasGrant(actingUserId, permissionKey, "SELF")) {
       return (
         task.createdBy?.id === actingUserId ||

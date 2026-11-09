@@ -6,7 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 import { makeActivity } from "@/features/campaigns/test-data";
 import type { PromotionActivity } from "../promotion-types";
-import { PromotionOperationsPanel } from "./promotion-operations-panel";
+import {
+  PromotionOperationsPanel,
+  promotionAbilities,
+} from "./promotion-operations-panel";
 
 vi.mock("@/features/auth/api/access-queries", () => ({
   accessKey: ["auth", "access"],
@@ -146,5 +149,33 @@ describe("PromotionOperationsPanel", () => {
     );
     await user.click(screen.getByRole("button", { name: "Add channel" }));
     await waitFor(() => expect(attach).toHaveBeenCalledTimes(2));
+  });
+});
+
+describe("promotionAbilities (EVE-229)", () => {
+  const manager = (departmentId: string): CurrentAccess => ({
+    userId: "pm",
+    role: "DEPARTMENT_MANAGER",
+    department: { id: departmentId, name: "Promotion", active: true },
+    grants: [
+      { permissionKey: "campaign.read", scope: "DEPARTMENT" },
+      { permissionKey: "campaign.activity.manage", scope: "DEPARTMENT" },
+      { permissionKey: "talent.read", scope: "DEPARTMENT" },
+    ],
+  });
+
+  it("lets a department manager manage their own department's promotion details", () => {
+    expect(promotionAbilities(manager("dept-promo"), "dept-promo")).toEqual({
+      canRead: true,
+      canManage: true,
+      canReadTalent: false,
+      canAssignTalent: false,
+    });
+  });
+
+  it("keeps another department's details read-only", () => {
+    expect(
+      promotionAbilities(manager("dept-mkt"), "dept-promo").canManage,
+    ).toBe(false);
   });
 });
