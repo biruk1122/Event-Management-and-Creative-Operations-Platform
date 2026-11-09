@@ -163,13 +163,13 @@ describe("PromotionWorkspaceScreen", () => {
     state.search = "tab=activities";
     const { unmount } = render(<PromotionWorkspaceScreen />);
     expect(
-      screen.getByRole("region", { name: "Promotion workspace", exact: true }),
+      screen.getByRole("region", { name: "Promotion workspace" }),
     ).toBeInTheDocument();
     unmount();
     state.search = "tab=budget";
     render(<PromotionWorkspaceScreen />);
     expect(
-      screen.getByRole("region", { name: "Promotion workspace", exact: true }),
+      screen.getByRole("region", { name: "Promotion workspace" }),
     ).toBeInTheDocument();
   });
 
