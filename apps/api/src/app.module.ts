@@ -33,6 +33,7 @@ import { MeetingsModule } from "./meetings/meetings.module.js";
 import { MarketingModule } from "./marketing/marketing.module.js";
 import { NotificationsModule } from "./notifications/notifications.module.js";
 import { PartnersModule } from "./partners/partners.module.js";
+import { CreativeRequestsModule } from "./creative-requests/creative-requests.module.js";
 import { ProjectsModule } from "./projects/projects.module.js";
 import { PromotionModule } from "./promotion/promotion.module.js";
 import { ProductionLocationsModule } from "./production-locations/production-locations.module.js";
@@ -117,6 +118,7 @@ import { WorkspacesModule } from "./workspaces/workspaces.module.js";
     CampaignsModule,
     MarketingModule,
     PartnersModule,
+    CreativeRequestsModule,
     PromotionModule,
     DiscussModule,
     FileManagementModule,

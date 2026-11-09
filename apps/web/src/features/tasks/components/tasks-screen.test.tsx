@@ -18,6 +18,7 @@ beforeEach(() => {
     userId: "account-1",
     grants: [{ permissionKey: "task.read", scope: "WORKSPACE" }],
   } as CurrentAccess;
+  get.mockClear();
   get.mockImplementation(async () => ({
     data: currentAccess,
     response: { status: currentAccess ? 200 : 401 },
@@ -52,6 +53,24 @@ describe("TasksScreen", () => {
     expect(
       await screen.findByText("You do not have access to tasks."),
     ).toBeVisible();
+  });
+
+  it("lists only the given department's tasks when one is fixed (EVE-232)", async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <TasksScreen departmentId="dept-promo" />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("heading", { name: "Tasks" });
+    const listCall = get.mock.calls.find(([path]) => path === "/api/v1/tasks");
+    expect(listCall?.[1]).toMatchObject({
+      params: {
+        query: expect.objectContaining({ departmentId: "dept-promo" }),
+      },
+    });
   });
 
   it("offers the safe session-expired recovery path", async () => {

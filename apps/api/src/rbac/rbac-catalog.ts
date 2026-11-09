@@ -410,6 +410,28 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
       "Log a discussion note or communication-history entry on a partner relationship.",
   },
 
+  // Creative requests (EVE-232): Promotion asks Production for creative work.
+  {
+    key: "creative_request.create",
+    description:
+      "Send a creative request from your department, cancel it before acceptance, and add references.",
+  },
+  {
+    key: "creative_request.read",
+    description:
+      "View creative requests your department sent or received, with their feedback and files.",
+  },
+  {
+    key: "creative_request.respond",
+    description:
+      "Accept, decline, start and deliver creative requests sent to your department.",
+  },
+  {
+    key: "creative_request.review",
+    description:
+      "Approve delivered creative work, or ask for changes, on requests your department sent.",
+  },
+
   // Employee management (EMP-01). Held by Super Admin and, through the
   // Department Manager role, resolved to organization-wide visibility only
   // when the acting manager's own department is HR & Executive Officer - a
@@ -691,6 +713,13 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "partner.read", scope: "DEPARTMENT" },
   { permissionKey: "partner.update", scope: "DEPARTMENT" },
   { permissionKey: "partner.activity.create", scope: "DEPARTMENT" },
+  // Creative requests (EVE-232). Every Department Manager holds these; the
+  // service limits each one to the right side of a request: the requesting
+  // department creates and reviews, the target department responds.
+  { permissionKey: "creative_request.create", scope: "DEPARTMENT" },
+  { permissionKey: "creative_request.read", scope: "DEPARTMENT" },
+  { permissionKey: "creative_request.respond", scope: "DEPARTMENT" },
+  { permissionKey: "creative_request.review", scope: "DEPARTMENT" },
   // Employee management (EMP-01). Granted generically here so a RolePermission
   // row exists for every Department Manager; `EmployeesService` is the real
   // boundary and only honors this grant when the acting manager's own
@@ -785,6 +814,9 @@ const TEAM_MEMBER_GRANTS: readonly GrantDefinition[] = [
   // or browse the department's full commercial/sponsor directory.
   { permissionKey: "partner.read", scope: "SELF" },
   { permissionKey: "partner.activity.create", scope: "SELF" },
+  // A team member sees a creative request they sent, or one whose task they
+  // are assigned to (EVE-232).
+  { permissionKey: "creative_request.read", scope: "SELF" },
 ];
 
 /**

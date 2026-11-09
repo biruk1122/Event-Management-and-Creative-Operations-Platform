@@ -46,6 +46,9 @@ export class NotificationResponse {
   @ApiProperty({ type: String, format: "uuid", nullable: true })
   documentId!: string | null;
 
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  creativeRequestId!: string | null;
+
   @ApiProperty({ format: "date-time" })
   createdAt!: string;
 

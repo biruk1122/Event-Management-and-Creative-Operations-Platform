@@ -38,6 +38,7 @@ export type Destination = {
     | "partners"
     | "marketingWorkspace"
     | "promotionWorkspace"
+    | "creativeRequests"
     | "talent"
     | "reports"
     | "analytics"
@@ -160,6 +161,18 @@ export function destinations(access: CurrentAccess): Destination[] {
     "Promotion",
     "Work",
     "promotionWorkspace",
+  );
+  // EVE-232: Production answers creative requests here; Promotion and its
+  // overseer work with them inside the Promotion workspace instead.
+  add(
+    holds("creative_request.read") &&
+      (access.role === "SUPER_ADMIN" ||
+        (access.department?.active === true &&
+          access.department.name === "Production")),
+    "/creative-requests" as Route,
+    "Creative requests",
+    "Work",
+    "creativeRequests",
   );
   add(
     canReadCampaigns(access) && !isHrDepartment,

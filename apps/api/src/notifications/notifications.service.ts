@@ -45,6 +45,12 @@ import type {
 import {
   isMutableNotificationType,
   MUTABLE_NOTIFICATION_TYPES,
+  creativeRequestAcceptedContent,
+  creativeRequestApprovedContent,
+  creativeRequestChangesRequestedContent,
+  creativeRequestDeclinedContent,
+  creativeRequestDeliveredContent,
+  creativeRequestSubmittedContent,
   attendanceExceptionApprovedContent,
   attendanceExceptionRejectedContent,
   attendanceOvertimeApprovedContent,
@@ -319,11 +325,84 @@ export class NotificationsService {
       case "leave.request.decided":
         await this.processLeaveRequestDecided(event);
         return;
+      case "creative_request.submitted":
+      case "creative_request.accepted":
+      case "creative_request.declined":
+      case "creative_request.delivered":
+      case "creative_request.reviewed":
+        await this.processCreativeRequestEvent(event);
+        return;
       default:
         // An event name this consumer version does not understand: succeed
         // without creating a notification rather than retrying forever.
         return;
     }
+  }
+
+  /**
+   * EVE-232: creative request notifications. A new request and a review
+   * outcome go to the target department's active manager (the responder);
+   * acceptance, decline and delivery go back to the person who sent it.
+   * Recipients are resolved now, never trusted from the event, and the actor
+   * is never notified of their own action.
+   */
+  private async processCreativeRequestEvent(
+    event: OutboxEventEnvelope,
+  ): Promise<void> {
+    if (!event.resourceId) return;
+    const request = await this.repository.getCreativeRequest(event.resourceId);
+    if (!request) return;
+    const outcome = (event.payload as { outcome?: string } | null)?.outcome;
+    let type: NotificationType;
+    let content: { title: string; body: string };
+    let recipientId: string | null;
+    switch (event.name) {
+      case "creative_request.submitted":
+        type = NotificationType.CREATIVE_REQUEST_SUBMITTED;
+        content = creativeRequestSubmittedContent(
+          request.title,
+          request.requestingDepartmentName,
+        );
+        recipientId = request.targetManagerId;
+        break;
+      case "creative_request.accepted":
+        type = NotificationType.CREATIVE_REQUEST_ACCEPTED;
+        content = creativeRequestAcceptedContent(request.title);
+        recipientId = request.requestedById;
+        break;
+      case "creative_request.declined":
+        type = NotificationType.CREATIVE_REQUEST_DECLINED;
+        content = creativeRequestDeclinedContent(request.title);
+        recipientId = request.requestedById;
+        break;
+      case "creative_request.delivered":
+        type = NotificationType.CREATIVE_REQUEST_DELIVERED;
+        content = creativeRequestDeliveredContent(request.title);
+        recipientId = request.requestedById;
+        break;
+      case "creative_request.reviewed":
+        if (outcome !== "APPROVED" && outcome !== "CHANGES_REQUESTED") return;
+        type = NotificationType.CREATIVE_REQUEST_REVIEWED;
+        content =
+          outcome === "APPROVED"
+            ? creativeRequestApprovedContent(request.title)
+            : creativeRequestChangesRequestedContent(request.title);
+        recipientId = request.targetManagerId;
+        break;
+      default:
+        return;
+    }
+    if (!recipientId || recipientId === event.actorUserId) return;
+    if (!(await this.repository.isUserActive(recipientId))) return;
+    await this.createAndPublish({
+      recipientUserId: recipientId,
+      type,
+      sourceEventId: event.id,
+      occurrenceKey: event.id,
+      title: content.title,
+      body: content.body,
+      creativeRequestId: event.resourceId,
+    });
   }
 
   private async processTaskAssigned(event: OutboxEventEnvelope): Promise<void> {
@@ -1241,6 +1320,7 @@ function toNotificationResponse(
     partnerId: record.partnerId,
     letterId: record.letterId,
     documentId: record.documentId,
+    creativeRequestId: record.creativeRequestId,
     createdAt: record.createdAt.toISOString(),
     readAt: record.readAt?.toISOString() ?? null,
   };

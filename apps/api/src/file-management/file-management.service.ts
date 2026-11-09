@@ -12,6 +12,12 @@ import {
 import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { DatabaseService } from "../database/database.service.js";
 import { CampaignsService } from "../campaigns/campaigns.service.js";
+import type {
+  CreativeRequestFileResponse,
+  PaginatedCreativeRequestFilesResponse,
+} from "../creative-requests/creative-requests.contracts.js";
+import { CreativeRequestsService } from "../creative-requests/creative-requests.service.js";
+import type { CreativeRequestFileKind } from "../generated/prisma/client.js";
 import { DiscussService } from "../discuss/discuss.service.js";
 import type { EventRecord } from "../events/infrastructure/events.repository.js";
 import { EventsRepository } from "../events/infrastructure/events.repository.js";
@@ -102,6 +108,7 @@ export class FileManagementService {
   constructor(
     private readonly audit: AuditWriterService,
     private readonly campaigns: CampaignsService,
+    private readonly creativeRequests: CreativeRequestsService,
     private readonly db: DatabaseService,
     private readonly discuss: DiscussService,
     private readonly documents: DocumentsService,
@@ -1199,6 +1206,193 @@ export class FileManagementService {
       actorKind: AuditActorKind.USER,
       actorUserId: actingUserId,
       metadata: { parentId: reportId, parentType: "report" },
+      outcome: AuditOutcome.SUCCEEDED,
+      requestId,
+      resourceId: file.id,
+      resourceType: "managed_file",
+    });
+    return {
+      expiresAt: grant.expiresAt.toISOString(),
+      filename: file.originalFilename,
+      mediaType: file.verifiedMediaType,
+      url: grant.url,
+    };
+  }
+
+  /** EVE-232: a reference (requester) or deliverable (responder) upload. */
+  async createCreativeRequestUploadIntent(
+    actingUserId: string,
+    creativeRequestId: string,
+    dto: CreateUploadIntentDto & { kind: CreativeRequestFileKind },
+  ): Promise<UploadIntentResponse> {
+    await this.creativeRequests.authorizeAttachment(
+      actingUserId,
+      creativeRequestId,
+      dto.kind,
+    );
+    const filename = validateFilename(dto.filename);
+    const intentExpiresAt = new Date(Date.now() + INTENT_TTL_MS);
+    const file = await this.files.createPending({
+      initiatedById: actingUserId,
+      intentExpiresAt,
+      intentCreativeRequestId: creativeRequestId,
+      mediaType: dto.mediaType,
+      originalFilename: filename,
+      sizeBytes: dto.sizeBytes,
+      storageKey: `files/${randomUUID()}`,
+    });
+    try {
+      const upload = await this.storage.createUploadGrant({
+        key: file.storageKey,
+        mediaType: file.declaredMediaType,
+        sizeBytes: file.declaredSizeBytes,
+      });
+      return {
+        ...toResponse(file),
+        intentExpiresAt: file.intentExpiresAt.toISOString(),
+        upload,
+      };
+    } catch (error) {
+      await this.files.deletePending(file.id);
+      throw error;
+    }
+  }
+
+  async finalizeCreativeRequestUpload(
+    actingUserId: string,
+    creativeRequestId: string,
+    fileId: string,
+    kind: CreativeRequestFileKind,
+  ): Promise<CreativeRequestFileResponse> {
+    await this.creativeRequests.authorizeAttachment(
+      actingUserId,
+      creativeRequestId,
+      kind,
+    );
+    const file = await this.files.findPendingForCreativeRequest(
+      fileId,
+      creativeRequestId,
+    );
+    if (!file) throw fileNotFound();
+    const now = new Date();
+    if (file.intentExpiresAt <= now) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileIntentExpired();
+    }
+    const object = await this.storage.readObject(file.storageKey);
+    if (!object) throw fileUploadNotFound();
+    const verified = await this.verification.verify(
+      file.declaredMediaType,
+      object.bytes,
+    );
+    if (!verified || object.sizeBytes !== file.declaredSizeBytes) {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      throw fileVerificationFailed();
+    }
+    const scan = await this.scanner.scan({
+      bytes: object.bytes,
+      mediaType: verified.mediaType,
+    });
+    if (scan !== "clean") {
+      await this.files.makeUnavailable(
+        file.id,
+        new Date(now.getTime() + REJECTED_OBJECT_RETENTION_MS),
+      );
+      if (scan === "unavailable") throw fileScannerUnavailable();
+      throw fileVerificationFailed();
+    }
+    const finalized = await this.db.$transaction(async (tx) => {
+      await this.creativeRequests.lockAttachmentFinalization(tx, {
+        userId: actingUserId,
+        id: creativeRequestId,
+        kind,
+      });
+      const finalizedAt = new Date();
+      const available = await this.files.makeAvailableForCreativeRequest(tx, {
+        cleanupAfter: new Date(
+          finalizedAt.getTime() + REJECTED_OBJECT_RETENTION_MS,
+        ),
+        fileId: file.id,
+        finalizedAt,
+        creativeRequestId,
+        verifiedMediaType: verified.mediaType,
+        verifiedSizeBytes: verified.sizeBytes,
+      });
+      if (available !== "available") return available;
+      await this.creativeRequests.recordAttachment(tx, {
+        userId: actingUserId,
+        id: creativeRequestId,
+        fileId: file.id,
+        kind,
+      });
+      return "available" as const;
+    });
+    if (finalized === "expired") throw fileIntentExpired();
+    if (finalized === "conflict") throw fileStateConflict();
+    const available = await this.files.findAvailableById(file.id);
+    if (!available) throw fileStateConflict();
+    return { ...toResponse(available), kind };
+  }
+
+  async listCreativeRequestFiles(
+    actingUserId: string,
+    creativeRequestId: string,
+    query: ListManagedFilesQueryDto,
+  ): Promise<PaginatedCreativeRequestFilesResponse> {
+    const { items: attachments, total } =
+      await this.creativeRequests.listAttachments(
+        actingUserId,
+        creativeRequestId,
+        query.page,
+        query.pageSize,
+      );
+    const byId = new Map(
+      (
+        await this.files.findAvailableByIds(
+          attachments.map((attachment) => attachment.managedFileId),
+        )
+      ).map((file) => [file.id, file]),
+    );
+    const items = attachments.flatMap((attachment) => {
+      const file = byId.get(attachment.managedFileId);
+      return file ? [{ ...toResponse(file), kind: attachment.kind }] : [];
+    });
+    return { items, page: query.page, pageSize: query.pageSize, total };
+  }
+
+  async downloadCreativeRequestFile(
+    actingUserId: string,
+    creativeRequestId: string,
+    fileId: string,
+    requestId: string,
+  ): Promise<DownloadGrantResponse> {
+    if (
+      !(await this.creativeRequests.hasReadableAttachment(
+        actingUserId,
+        creativeRequestId,
+        fileId,
+      ))
+    )
+      throw fileNotFound();
+    const file = await this.files.findAvailableById(fileId);
+    if (!file || file.state !== "AVAILABLE" || !file.verifiedMediaType)
+      throw fileNotFound();
+    const grant = await this.storage.createDownloadGrant({
+      filename: file.originalFilename,
+      key: file.storageKey,
+      mediaType: file.verifiedMediaType,
+    });
+    await this.audit.record({
+      action: "managed_file.downloaded",
+      actorKind: AuditActorKind.USER,
+      actorUserId: actingUserId,
+      metadata: { parentId: creativeRequestId, parentType: "creative_request" },
       outcome: AuditOutcome.SUCCEEDED,
       requestId,
       resourceId: file.id,

@@ -54,6 +54,7 @@ function notification(
     partnerId: null,
     letterId: null,
     documentId: null,
+    creativeRequestId: null,
     ...overrides,
   };
 }

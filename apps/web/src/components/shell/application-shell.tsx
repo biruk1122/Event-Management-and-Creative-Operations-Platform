@@ -39,6 +39,7 @@ import {
   Fingerprint,
   Plane,
   Sparkles,
+  Palette,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,6 +92,7 @@ const icons = {
   partners: Handshake,
   marketingWorkspace: Briefcase,
   promotionWorkspace: Sparkles,
+  creativeRequests: Palette,
   talent: Star,
   reports: FileText,
   analytics: ChartNoAxesCombined,

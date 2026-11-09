@@ -26,6 +26,7 @@ const ITEMS: readonly NotificationItem[] = [
     partnerId: null,
     letterId: null,
     documentId: null,
+    creativeRequestId: null,
   },
   {
     id: "notification-2",
@@ -44,6 +45,7 @@ const ITEMS: readonly NotificationItem[] = [
     partnerId: null,
     letterId: null,
     documentId: null,
+    creativeRequestId: null,
   },
   {
     id: "notification-3",
@@ -62,6 +64,7 @@ const ITEMS: readonly NotificationItem[] = [
     partnerId: null,
     letterId: null,
     documentId: null,
+    creativeRequestId: null,
   },
   {
     id: "notification-4",
@@ -80,6 +83,7 @@ const ITEMS: readonly NotificationItem[] = [
     partnerId: null,
     letterId: null,
     documentId: null,
+    creativeRequestId: null,
   },
 ];
 

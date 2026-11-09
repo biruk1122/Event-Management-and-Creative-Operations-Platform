@@ -1,4 +1,6 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -30,14 +32,32 @@ vi.mock("@/features/campaigns/components/campaigns-screen", () => ({
   ),
 }));
 vi.mock("@/features/tasks/components/tasks-screen", () => ({
-  TasksScreen: (props: { readOnly?: boolean }) => (
-    <p>tasks:{props.readOnly ? "read-only" : "editable"}</p>
+  TasksScreen: (props: { readOnly?: boolean; departmentId?: string }) => (
+    <p>
+      tasks:{props.readOnly ? "read-only" : "editable"}:
+      {props.departmentId ?? "all"}
+    </p>
   ),
 }));
 vi.mock("@/features/partners/components/partners-screen", () => ({
   PartnersScreen: (props: { readOnly?: boolean }) => (
     <p>partners:{props.readOnly ? "read-only" : "editable"}</p>
   ),
+}));
+vi.mock(
+  "@/features/creative-requests/components/creative-requests-screen",
+  () => ({
+    CreativeRequestsScreen: (props: { readOnly?: boolean }) => (
+      <p>creative-requests:{props.readOnly ? "read-only" : "editable"}</p>
+    ),
+  }),
+);
+vi.mock("@/features/tasks/api/tasks-gateway", () => ({
+  listAssignableDepartments: () =>
+    Promise.resolve([
+      { id: "dept-mkt", name: "Marketing" },
+      { id: "dept-promo", name: "Promotion" },
+    ]),
 }));
 vi.mock("./promotion-activities-view", () => ({
   PromotionActivitiesView: (props: { mode: string }) => (
@@ -56,7 +76,15 @@ const READS: CurrentAccess["grants"] = [
   "task.read",
   "partner.read",
   "report.read",
+  "creative_request.read",
 ].map((permissionKey) => ({ permissionKey, scope: "DEPARTMENT" }));
+
+function wrapper({ children }: { children: ReactNode }) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
 
 function signedIn(data: Partial<CurrentAccess>) {
   state.access = {
@@ -92,7 +120,7 @@ describe("PromotionWorkspaceScreen", () => {
 
   it("shows the ten sections and the overview for the Promotional Manager", () => {
     signedIn(promotionManager);
-    render(<PromotionWorkspaceScreen />);
+    render(<PromotionWorkspaceScreen />, { wrapper });
     expect(screen.getByText("Promotional Manager")).toBeInTheDocument();
     const nav = screen.getByRole("navigation", {
       name: "Promotion workspace sections",
@@ -108,17 +136,17 @@ describe("PromotionWorkspaceScreen", () => {
   it("shows the promotional activities list and calendar, built in this phase", () => {
     signedIn(promotionManager);
     state.search = "tab=activities";
-    const { unmount } = render(<PromotionWorkspaceScreen />);
+    const { unmount } = render(<PromotionWorkspaceScreen />, { wrapper });
     expect(screen.getByText("activities:list")).toBeInTheDocument();
     unmount();
     state.search = "tab=calendar";
-    render(<PromotionWorkspaceScreen />);
+    render(<PromotionWorkspaceScreen />, { wrapper });
     expect(screen.getByText("activities:calendar")).toBeInTheDocument();
   });
 
   it("keeps the section in the URL", async () => {
     signedIn(promotionManager);
-    render(<PromotionWorkspaceScreen />);
+    render(<PromotionWorkspaceScreen />, { wrapper });
     await userEvent.click(screen.getByRole("button", { name: "Team Tasks" }));
     expect(state.replace).toHaveBeenCalledWith("/promotion?tab=tasks", {
       scroll: false,
@@ -128,20 +156,40 @@ describe("PromotionWorkspaceScreen", () => {
   it("embeds the existing module screens, editable for the department", () => {
     signedIn(promotionManager);
     state.search = "tab=campaigns";
-    const { unmount } = render(<PromotionWorkspaceScreen />);
+    const { unmount } = render(<PromotionWorkspaceScreen />, { wrapper });
     expect(
       screen.getByText("campaigns:PROMOTION:editable"),
     ).toBeInTheDocument();
     unmount();
     state.search = "tab=tasks";
-    render(<PromotionWorkspaceScreen />);
-    expect(screen.getByText("tasks:editable")).toBeInTheDocument();
+    render(<PromotionWorkspaceScreen />, { wrapper });
+    expect(screen.getByText("tasks:editable:dept-promo")).toBeInTheDocument();
+  });
+
+  it("fixes Team Tasks to Promotion, looking the department up for Super Admin", async () => {
+    signedIn({ role: "SUPER_ADMIN", department: null });
+    state.search = "tab=tasks";
+    render(<PromotionWorkspaceScreen />, { wrapper });
+    expect(
+      await screen.findByText("tasks:editable:dept-promo"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows creative requests, read-only for the overseeing manager", () => {
+    signedIn(promotionManager);
+    state.search = "tab=creative-requests";
+    const { unmount } = render(<PromotionWorkspaceScreen />, { wrapper });
+    expect(screen.getByText("creative-requests:editable")).toBeInTheDocument();
+    unmount();
+    signedIn(marketingManager);
+    render(<PromotionWorkspaceScreen />, { wrapper });
+    expect(screen.getByText("creative-requests:read-only")).toBeInTheDocument();
   });
 
   it("shows a clear coming-later state, never data, for sections not built yet", () => {
     signedIn(promotionManager);
     state.search = "tab=budget";
-    render(<PromotionWorkspaceScreen />);
+    render(<PromotionWorkspaceScreen />, { wrapper });
     expect(
       screen.getByText("Budget is coming in a later phase"),
     ).toBeInTheDocument();
@@ -150,7 +198,7 @@ describe("PromotionWorkspaceScreen", () => {
   it("opens read-only for the Marketing Manager", () => {
     signedIn(marketingManager);
     state.search = "tab=partnerships";
-    render(<PromotionWorkspaceScreen />);
+    render(<PromotionWorkspaceScreen />, { wrapper });
     expect(screen.getByText("View-only oversight")).toBeInTheDocument();
     expect(
       screen.getByText("Marketing Manager · read-only"),
@@ -161,13 +209,13 @@ describe("PromotionWorkspaceScreen", () => {
   it("names the outer workspace landmark the same on every section", () => {
     signedIn(promotionManager);
     state.search = "tab=activities";
-    const { unmount } = render(<PromotionWorkspaceScreen />);
+    const { unmount } = render(<PromotionWorkspaceScreen />, { wrapper });
     expect(
       screen.getByRole("region", { name: "Promotion workspace" }),
     ).toBeInTheDocument();
     unmount();
     state.search = "tab=budget";
-    render(<PromotionWorkspaceScreen />);
+    render(<PromotionWorkspaceScreen />, { wrapper });
     expect(
       screen.getByRole("region", { name: "Promotion workspace" }),
     ).toBeInTheDocument();
@@ -178,7 +226,7 @@ describe("PromotionWorkspaceScreen", () => {
       role: "DEPARTMENT_MEMBER",
       department: { id: "dept-mkt", name: "Marketing", active: true },
     });
-    render(<PromotionWorkspaceScreen />);
+    render(<PromotionWorkspaceScreen />, { wrapper });
     expect(screen.getByRole("alert")).toHaveTextContent(
       "You do not have access to this area.",
     );

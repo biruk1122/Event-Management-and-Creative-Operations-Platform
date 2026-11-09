@@ -45,6 +45,8 @@ const TEST_USERS = [
     email: "production-manager@e2e.test",
     role: "Department Manager",
     department: "Production",
+    // EVE-232: the recorded manager receives new creative requests.
+    manages: "Production",
   },
   // EVE-231: the Promotion department and its overseeing Marketing Manager.
   {

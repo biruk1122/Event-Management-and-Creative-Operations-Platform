@@ -34,6 +34,10 @@ export function notificationHref(item: NotificationItem): Route | null {
   // for a non-management recipient.
   if (item.letterId) return "/shared-with-me?tab=letters" as Route;
   if (item.documentId) return "/shared-with-me?tab=documents" as Route;
+  // EVE-232: both sides open the request itself on the creative requests page.
+  if (item.creativeRequestId) {
+    return `/creative-requests?request=${encodeURIComponent(item.creativeRequestId)}` as Route;
+  }
   if (item.type === "TODO_REMINDER") return "/todos";
   if (
     item.type === "ATTENDANCE_SHIFT_ASSIGNED" ||

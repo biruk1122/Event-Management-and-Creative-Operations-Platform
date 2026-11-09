@@ -30,6 +30,7 @@ const MANAGER_READS: CurrentAccess["grants"] = [
   "task.read",
   "partner.read",
   "report.read",
+  "creative_request.read",
 ].map((permissionKey) => ({ permissionKey, scope: "DEPARTMENT" }));
 
 const promotionManager = access({
@@ -126,7 +127,7 @@ describe("Promotion workspace sections", () => {
     const later = promotionSections(promotionManager)
       .filter((section) => section.comingInPhase !== null)
       .map((section) => section.id);
-    expect(later).toEqual(["creative-requests", "event-promotions", "budget"]);
+    expect(later).toEqual(["event-promotions", "budget"]);
   });
 
   it("hides a section whose module the viewer cannot read", () => {
@@ -140,6 +141,8 @@ describe("Promotion workspace sections", () => {
     expect(ids).not.toContain("campaigns");
     expect(ids).not.toContain("partnerships");
     expect(ids).not.toContain("budget");
+    // Creative Requests follows its own read key, not task.read (EVE-232).
+    expect(ids).not.toContain("creative-requests");
   });
 
   it("falls back to Overview for an unknown or forbidden tab", () => {

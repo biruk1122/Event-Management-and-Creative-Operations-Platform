@@ -8,9 +8,9 @@ import {
   TaskActivityType,
   TaskPriority,
   TaskStatus,
+  TaskType,
   UserAccountStatus,
   type TaskReviewOutcome,
-  type TaskType,
 } from "../../generated/prisma/client.js";
 import { DatabaseService } from "../../database/database.service.js";
 import { AuditWriterService } from "../../audit/audit-writer.service.js";
@@ -418,6 +418,15 @@ export class TasksRepository {
     private readonly outbox: OutboxWriterService,
     private readonly taskSms: TasksSmsService,
   ) {}
+
+  /** Ids of the CREATIVE tasks a user is assigned to (EVE-232). */
+  async listAssignedCreativeTaskIds(userId: string): Promise<string[]> {
+    const rows = await this.db.taskAssignment.findMany({
+      where: { userId, task: { type: TaskType.CREATIVE } },
+      select: { taskId: true },
+    });
+    return rows.map((row) => row.taskId);
+  }
 
   async findUserDepartmentId(userId: string): Promise<string | null> {
     if (!isUuid(userId)) return null;
@@ -904,83 +913,90 @@ export class TasksRepository {
   }
 
   async create(input: CreateTaskInput): Promise<TaskRecord> {
-    return this.db.$transaction(async (tx) => {
-      const task = await tx.task.create({
-        data: {
-          title: input.title,
-          createdById: input.createdById,
-          ...(input.relatedEventId
-            ? { relatedEventId: input.relatedEventId }
-            : {}),
-          ...(input.relatedCampaignId
-            ? { relatedCampaignId: input.relatedCampaignId }
-            : {}),
-          ...(input.reportToId
-            ? {
-                reportToId: input.reportToId,
-                reportToPinned: input.reportToPinned ?? false,
-              }
-            : {}),
-          ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-          ...(input.departmentId ? { departmentId: input.departmentId } : {}),
-          ...(input.parentTaskId ? { parentTaskId: input.parentTaskId } : {}),
-          ...(input.description !== undefined
-            ? { description: input.description }
-            : {}),
-          ...(input.priority ? { priority: input.priority } : {}),
-          ...(input.type ? { type: input.type } : {}),
-          ...(input.startAt ? { startAt: input.startAt } : {}),
-          ...(input.dueAt ? { dueAt: input.dueAt } : {}),
-        },
-        select: TASK_SELECT,
-      });
+    return this.db.$transaction((tx) => this.createIn(tx, input));
+  }
+
+  /** Creates a task inside the caller's transaction (EVE-232: a creative
+   * request is accepted and its task created in one unit of work). */
+  async createIn(
+    tx: Prisma.TransactionClient,
+    input: CreateTaskInput,
+  ): Promise<TaskRecord> {
+    const task = await tx.task.create({
+      data: {
+        title: input.title,
+        createdById: input.createdById,
+        ...(input.relatedEventId
+          ? { relatedEventId: input.relatedEventId }
+          : {}),
+        ...(input.relatedCampaignId
+          ? { relatedCampaignId: input.relatedCampaignId }
+          : {}),
+        ...(input.reportToId
+          ? {
+              reportToId: input.reportToId,
+              reportToPinned: input.reportToPinned ?? false,
+            }
+          : {}),
+        ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+        ...(input.departmentId ? { departmentId: input.departmentId } : {}),
+        ...(input.parentTaskId ? { parentTaskId: input.parentTaskId } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        ...(input.priority ? { priority: input.priority } : {}),
+        ...(input.type ? { type: input.type } : {}),
+        ...(input.startAt ? { startAt: input.startAt } : {}),
+        ...(input.dueAt ? { dueAt: input.dueAt } : {}),
+      },
+      select: TASK_SELECT,
+    });
+    await tx.taskActivity.create({
+      data: {
+        taskId: task.id,
+        actorId: input.createdById,
+        type: TaskActivityType.CREATED,
+        details: json({
+          workspaceId: task.workspaceId,
+          departmentId: task.departmentId,
+          reportToId: input.reportToId ?? null,
+          parentTaskId: input.parentTaskId ?? null,
+        }),
+      },
+    });
+    if (input.reportToId) {
       await tx.taskActivity.create({
         data: {
           taskId: task.id,
           actorId: input.createdById,
-          type: TaskActivityType.CREATED,
+          type: TaskActivityType.REPORT_TO_CHANGED,
           details: json({
-            workspaceId: task.workspaceId,
-            departmentId: task.departmentId,
-            reportToId: input.reportToId ?? null,
-            parentTaskId: input.parentTaskId ?? null,
+            from: null,
+            to: input.reportToId,
+            reason: input.reportToPinned ? "explicit" : "created",
           }),
         },
       });
-      if (input.reportToId) {
-        await tx.taskActivity.create({
-          data: {
-            taskId: task.id,
-            actorId: input.createdById,
-            type: TaskActivityType.REPORT_TO_CHANGED,
-            details: json({
-              from: null,
-              to: input.reportToId,
-              reason: input.reportToPinned ? "explicit" : "created",
-            }),
-          },
-        });
-      }
-      if (input.parentTaskId) {
-        await tx.taskActivity.create({
-          data: {
-            taskId: input.parentTaskId,
-            actorId: input.createdById,
-            type: TaskActivityType.SUBTASK_ADDED,
-            details: json({ subtaskId: task.id, title: task.title }),
-          },
-        });
-        // The parent just gained a new child, which can change its own
-        // aggregated progress (decision #5) even though the parent itself
-        // was not directly edited.
-        await this.recomputeProgressCascade(
-          tx,
-          input.parentTaskId,
-          input.createdById,
-        );
-      }
-      return toTaskRecord(task);
-    });
+    }
+    if (input.parentTaskId) {
+      await tx.taskActivity.create({
+        data: {
+          taskId: input.parentTaskId,
+          actorId: input.createdById,
+          type: TaskActivityType.SUBTASK_ADDED,
+          details: json({ subtaskId: task.id, title: task.title }),
+        },
+      });
+      // The parent just gained a new child, which can change its own
+      // aggregated progress (decision #5) even though the parent itself
+      // was not directly edited.
+      await this.recomputeProgressCascade(
+        tx,
+        input.parentTaskId,
+        input.createdById,
+      );
+    }
+    return toTaskRecord(task);
   }
 
   async update(

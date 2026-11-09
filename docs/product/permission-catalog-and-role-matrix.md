@@ -196,6 +196,19 @@ to that department's own grant, never to another department's (EOM-01).
 | `campaign.budget.update`     | Set or change a campaign budget. Sensitive; see PC-04.           |
 | `campaign.activity.manage`   | Create and manage campaign, promotion, and marketing activities. |
 
+### Creative requests (EVE-232)
+
+| Key                        | Operation                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------- |
+| `creative_request.create`  | Send a creative request from Promotion to Production, cancel it, add references. |
+| `creative_request.read`    | View requests your department sent or received, with feedback and files.         |
+| `creative_request.respond` | Accept, decline, start and deliver requests sent to your department.             |
+| `creative_request.review`  | Approve delivered work, or ask for changes, on requests your department sent.    |
+
+Every Department Manager holds these keys; `CreativeRequestsService` limits each to its side of a
+request. Only Promotion sends requests (Super Admin may send one on its behalf), only the target
+department responds, and accepting creates one CREATIVE task in the target department.
+
 ### Talent
 
 | Key                        | Operation                                                              |
@@ -334,6 +347,8 @@ whether Department Managers may also review reports is part of EVE-30 open decis
 | `report.create`, `report.submit`                                                                  | department |
 | `report.read`, `report.attachment.create`                                                         | department |
 | `analytics.department_performance.read`                                                           | department |
+| `creative_request.create`, `creative_request.read`, `creative_request.respond`                    | department |
+| `creative_request.review`                                                                         | department |
 
 `department` scope is the acting user's assigned department. Multi-department and cross-department
 behavior is open in [PC-01](#open-authorization-decisions). PC-04's open question of whether a
@@ -399,7 +414,8 @@ department's active manager first, today Promotion to the Marketing Manager.
 
 **Department oversight.** The overseeing department's manager can read the overseen department's
 records for `campaign.read`, `campaign.budget.read`, `task.read`, `partner.read`,
-`expense.read`, `report.read` and `report.review` (`OVERSIGHT_READ_PERMISSION_KEYS`). A review
+`expense.read`, `report.read`, `report.review` and `creative_request.read`
+(`OVERSIGHT_READ_PERMISSION_KEYS`). A review
 still requires being the report's recipient. No write key is widened, team members gain nothing,
 and the overseen department gains no access in return.
 
@@ -414,8 +430,10 @@ and the overseen department gains no access in return.
 | `report.create`, `report.submit`                | self  |
 | `report.read`, `report.attachment.create`       | self  |
 | `meeting.read`                                  | self  |
+| `creative_request.read`                         | self  |
 
-`self` scope means records the user is assigned to, authored, or was invited to. A Team Member holds
+`self` scope means records the user is assigned to, authored, or was invited to. For a creative
+request, that is a request the user sent or whose task they are assigned to. A Team Member holds
 no grant for any key in [Sensitive management data](#sensitive-management-data). This is the SRS
 requirement that employees shall not access sensitive management information unless authorized.
 Whether an assigned Team Member also receives `event.read`, `project.read`, or `campaign.read` for

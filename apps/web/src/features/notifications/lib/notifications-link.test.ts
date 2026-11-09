@@ -18,6 +18,7 @@ const item: NotificationItem = {
   partnerId: null,
   letterId: null,
   documentId: null,
+  creativeRequestId: null,
 };
 describe("notification destinations", () => {
   it.each([
@@ -29,6 +30,10 @@ describe("notification destinations", () => {
     [{ reportId: "report-1" }, "/reports"],
     [{ letterId: "letter-1" }, "/shared-with-me?tab=letters"],
     [{ documentId: "document-1" }, "/shared-with-me?tab=documents"],
+    [
+      { type: "CREATIVE_REQUEST_SUBMITTED", creativeRequestId: "request-1" },
+      "/creative-requests?request=request-1",
+    ],
     [{ type: "TODO_REMINDER" }, "/todos"],
   ] as const)("resolves %j to a shipped route", (overrides, path) => {
     expect(notificationHref({ ...item, ...overrides })).toBe(path);

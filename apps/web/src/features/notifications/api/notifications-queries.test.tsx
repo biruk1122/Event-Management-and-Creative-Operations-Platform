@@ -38,6 +38,7 @@ const item: NotificationItem = {
   partnerId: null,
   letterId: null,
   documentId: null,
+  creativeRequestId: null,
 };
 function setup() {
   const client = new QueryClient();

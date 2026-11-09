@@ -4,6 +4,7 @@ import type { AuditWorkspaceContextResolver } from "../audit/audit-workspace-con
 import {
   TaskReviewOutcome,
   TaskStatus,
+  TaskType,
   type PermissionScope,
   type Prisma,
 } from "../generated/prisma/client.js";
@@ -633,6 +634,82 @@ export class TasksService implements AuditWorkspaceContextResolver {
       return this.get(actingUserId, task.id);
     }
     return toTaskResponse(task);
+  }
+
+  /**
+   * Checks, before anything is written, that `actingUserId` may create a
+   * CREATIVE task in `departmentId` with these details (EVE-232). Returns a
+   * writer that creates the task inside the caller's transaction, so a
+   * creative request is accepted and its task created as one unit of work.
+   * Same rules as `create`: the department's own Department Manager, or
+   * Super Admin, may create it. The task starts unassigned; the department
+   * assigns its own staff through the existing task flow.
+   */
+  async prepareCreativeTask(
+    actingUserId: string,
+    input: {
+      departmentId: string;
+      title: string;
+      description: string;
+      dueAt: Date | null;
+      relatedCampaignId: string | null;
+      relatedEventId: string | null;
+    },
+  ): Promise<(tx: Prisma.TransactionClient) => Promise<string>> {
+    if (!(await this.hasGrant(actingUserId, "task.create", "ORGANIZATION"))) {
+      if (!(await this.hasGrant(actingUserId, "task.create", "DEPARTMENT")))
+        throw permissionDenied();
+      const ownDepartmentId =
+        await this.repository.findUserDepartmentId(actingUserId);
+      if (!ownDepartmentId || ownDepartmentId !== input.departmentId)
+        throw permissionDenied();
+    }
+    if (!(await this.repository.departmentExists(input.departmentId)))
+      throw taskDepartmentNotFound();
+    if (
+      !(await this.repository.relatedLinksExist({
+        eventId: input.relatedEventId ?? undefined,
+        campaignId: input.relatedCampaignId ?? undefined,
+      }))
+    ) {
+      throw taskRelatedNotFound();
+    }
+    const reportTo = resolveInitialReportTo({
+      actorId: actingUserId,
+      actorRole: await this.actorRole(actingUserId),
+      explicitReportToId: undefined,
+      candidate: null,
+      taskDepartmentId: input.departmentId,
+    });
+    if (!reportTo.ok) throw permissionDenied();
+    const data = {
+      title: input.title,
+      description: input.description,
+      createdById: actingUserId,
+      departmentId: input.departmentId,
+      type: TaskType.CREATIVE,
+      reportToId: reportTo.reportToId,
+      reportToPinned: reportTo.pinned,
+      ...(input.dueAt ? { dueAt: input.dueAt } : {}),
+      ...(input.relatedCampaignId
+        ? { relatedCampaignId: input.relatedCampaignId }
+        : {}),
+      ...(input.relatedEventId ? { relatedEventId: input.relatedEventId } : {}),
+    };
+    return async (tx) => (await this.repository.createIn(tx, data)).id;
+  }
+
+  /** The CREATIVE tasks a user works on (EVE-232: SELF-scope reads of the
+   * creative requests those tasks came from). */
+  listAssignedCreativeTaskIds(userId: string): Promise<string[]> {
+    return this.repository.listAssignedCreativeTaskIds(userId);
+  }
+
+  /** The users currently assigned to a task (EVE-232: a creative request's
+   * task assignees may read the request). Empty when the task is gone. */
+  async assigneeIdsOf(taskId: string): Promise<string[]> {
+    const task = await this.repository.findById(taskId);
+    return task ? task.assignees.map((assignee) => assignee.id) : [];
   }
 
   async update(
