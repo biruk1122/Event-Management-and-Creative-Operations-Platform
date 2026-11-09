@@ -40,6 +40,9 @@ const FORM_ERRORS: Record<string, string> = {
   production_has_no_department:
     "That production has no department and cannot carry expenses yet.",
   owner_required: "Pick an event or a production for this expense.",
+  campaign_not_found: "That campaign no longer exists.",
+  campaign_has_no_department:
+    "That campaign has no department and cannot carry expenses yet.",
   supplier_not_found:
     "That supplier no longer exists. Pick another or clear it.",
   permission_denied: "You do not have permission to create an expense.",
@@ -47,6 +50,9 @@ const FORM_ERRORS: Record<string, string> = {
 };
 
 const EMPTY_FIELDS: ExpenseFieldValues = {
+  title: "",
+  expenseDate: "",
+  campaignActivityId: null,
   supplierId: null,
   category: "MISCELLANEOUS",
   description: "",
@@ -66,6 +72,12 @@ interface CreateExpenseDialogProps {
    * linked event required) and the event picker is hidden - lets a
    * production with no linked event still record its own spend. */
   productionId?: string;
+  /** EVE-233: recorded against a campaign, optionally one of its activities.
+   * The event picker is hidden. */
+  campaignId?: string;
+  activities?: readonly { id: string; name: string }[];
+  /** The currency the form starts with, e.g. the campaign budget's. */
+  defaultCurrency?: string;
 }
 
 export function CreateExpenseDialog({
@@ -76,10 +88,17 @@ export function CreateExpenseDialog({
   onCreate,
   onCreated,
   productionId,
+  campaignId,
+  activities,
+  defaultCurrency,
 }: CreateExpenseDialogProps) {
   const eventId = useId();
+  const empty = defaultCurrency
+    ? { ...EMPTY_FIELDS, currency: defaultCurrency }
+    : EMPTY_FIELDS;
+  const ownerFixed = Boolean(productionId || campaignId);
 
-  const [values, setValues] = useState<ExpenseFieldValues>(EMPTY_FIELDS);
+  const [values, setValues] = useState<ExpenseFieldValues>(empty);
   const [eventValue, setEventValue] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof CreateExpenseValues, string>>
@@ -88,7 +107,7 @@ export function CreateExpenseDialog({
   const [submitting, setSubmitting] = useState(false);
 
   function reset() {
-    setValues(EMPTY_FIELDS);
+    setValues(empty);
     setEventValue(null);
     setFieldErrors({});
     setFormError(null);
@@ -104,7 +123,7 @@ export function CreateExpenseDialog({
     setFormError(null);
 
     const localErrors: Partial<Record<keyof CreateExpenseValues, string>> = {};
-    if (!productionId && eventValue === null) {
+    if (!ownerFixed && eventValue === null) {
       localErrors.eventId = "Pick an event.";
     }
     if (values.description.trim() === "") {
@@ -125,8 +144,9 @@ export function CreateExpenseDialog({
     setFieldErrors({});
     const outcome = await onCreate({
       ...values,
-      eventId: productionId ? null : eventValue,
+      eventId: ownerFixed ? null : eventValue,
       productionId: productionId ?? null,
+      campaignId: campaignId ?? null,
     });
     setSubmitting(false);
 
@@ -155,9 +175,11 @@ export function CreateExpenseDialog({
         <DialogHeader>
           <DialogTitle>New expense</DialogTitle>
           <DialogDescription>
-            {productionId
-              ? "Record what this production cost. It starts as a draft - submit it for approval when it is ready."
-              : "Pick the event this expense belongs to, then record what it cost. It starts as a draft - submit it for approval when it is ready."}
+            {campaignId
+              ? "Record what this campaign spent. It starts as a draft - submit it for approval when it is ready."
+              : productionId
+                ? "Record what this production cost. It starts as a draft - submit it for approval when it is ready."
+                : "Pick the event this expense belongs to, then record what it cost. It starts as a draft - submit it for approval when it is ready."}
           </DialogDescription>
         </DialogHeader>
 
@@ -173,7 +195,7 @@ export function CreateExpenseDialog({
             </Alert>
           ) : null}
 
-          {productionId ? null : (
+          {ownerFixed ? null : (
             <div className="space-y-2">
               <Label htmlFor={eventId}>Event</Label>
               <Select
@@ -210,6 +232,7 @@ export function CreateExpenseDialog({
             values={values}
             errors={fieldErrors}
             suppliers={suppliers}
+            {...(activities ? { activities } : {})}
             disabled={submitting}
             onChange={(key, value) =>
               setValues((current) => ({ ...current, [key]: value }))

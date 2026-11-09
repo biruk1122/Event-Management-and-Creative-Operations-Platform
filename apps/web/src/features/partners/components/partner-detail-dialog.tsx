@@ -29,6 +29,7 @@ import {
   getPartner as defaultGetPartner,
   listPartnerActivities,
 } from "../api/partners-gateway";
+import { PartnerDocuments } from "./partner-documents";
 import { PartnerFields } from "./partner-fields";
 import type {
   CreatePartnerActivity,
@@ -67,6 +68,14 @@ function fieldsFromPartner(partner: Partner): PartnerFieldValues {
     proposedContribution: partner.proposedContribution ?? "",
     notes: partner.notes ?? "",
     followUpAt: partner.followUpAt ? partner.followUpAt.slice(0, 10) : "",
+    partnershipName: partner.partnershipName ?? "",
+    partnershipType: partner.partnershipType ?? "",
+    campaignId: partner.campaignId ?? "",
+    agreementDetails: partner.agreementDetails ?? "",
+    agreementStartOn: partner.agreementStartOn ?? "",
+    agreementEndOn: partner.agreementEndOn ?? "",
+    agreedValueAmount: partner.agreedValueAmount ?? "",
+    agreedValueCurrency: partner.agreedValueCurrency ?? "",
   };
 }
 
@@ -75,6 +84,8 @@ interface PartnerDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   canUpdate: boolean;
   canAddActivity: boolean;
+  /** EVE-233: may attach partnership documents. */
+  canAttach?: boolean;
   getPartner?: GetPartner;
   onUpdate: UpdatePartner;
   onAddActivity: CreatePartnerActivity;
@@ -117,6 +128,7 @@ function PartnerDetailBody({
   partnerId,
   canUpdate,
   canAddActivity,
+  canAttach = false,
   getPartner = defaultGetPartner,
   onUpdate,
   onAddActivity,
@@ -344,6 +356,14 @@ function PartnerDetailBody({
           </p>
         )}
       </form>
+
+      {partner.updatedBy ? (
+        <p className="text-muted-foreground text-xs">
+          Last updated by {personName(partner.updatedBy)}
+        </p>
+      ) : null}
+
+      <PartnerDocuments partnerId={partner.id} canAttach={canAttach} />
 
       {canUpdate ? (
         <section className="border-border space-y-4 border-t pt-4">

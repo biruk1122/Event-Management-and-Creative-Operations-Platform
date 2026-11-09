@@ -127,7 +127,7 @@ describe("Promotion workspace sections", () => {
     const later = promotionSections(promotionManager)
       .filter((section) => section.comingInPhase !== null)
       .map((section) => section.id);
-    expect(later).toEqual(["event-promotions", "budget"]);
+    expect(later).toEqual(["event-promotions"]);
   });
 
   it("hides a section whose module the viewer cannot read", () => {

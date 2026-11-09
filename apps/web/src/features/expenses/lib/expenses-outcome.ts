@@ -10,6 +10,11 @@ import type {
 export interface CreateExpenseValues {
   eventId: string | null;
   productionId: string | null;
+  /** EVE-233. */
+  campaignId?: string | null;
+  campaignActivityId?: string | null;
+  title?: string;
+  expenseDate?: string;
   supplierId: string | null;
   category: ExpenseCategory;
   description: string;
@@ -20,6 +25,10 @@ export interface CreateExpenseValues {
 
 /** The fields the edit form collects (the event is fixed at creation). */
 export interface EditExpenseValues {
+  /** EVE-233. */
+  title?: string;
+  expenseDate?: string;
+  campaignActivityId?: string | null;
   supplierId: string | null;
   category: ExpenseCategory;
   description: string;
@@ -39,6 +48,8 @@ export type CreateExpenseOutcome =
   | { status: "production_has_no_department" }
   | { status: "owner_required" }
   | { status: "supplier_not_found" }
+  | { status: "campaign_not_found" }
+  | { status: "campaign_has_no_department" }
   | {
       status: "field_errors";
       fieldErrors: FieldErrors<keyof CreateExpenseValues>;

@@ -59,6 +59,11 @@ vi.mock("@/features/tasks/api/tasks-gateway", () => ({
       { id: "dept-promo", name: "Promotion" },
     ]),
 }));
+vi.mock("@/features/promotion-budget/components/promotion-budget-view", () => ({
+  PromotionBudgetView: (props: { readOnly?: boolean }) => (
+    <p>budget:{props.readOnly ? "read-only" : "editable"}</p>
+  ),
+}));
 vi.mock("./promotion-activities-view", () => ({
   PromotionActivitiesView: (props: { mode: string }) => (
     <p>activities:{props.mode}</p>
@@ -188,11 +193,22 @@ describe("PromotionWorkspaceScreen", () => {
 
   it("shows a clear coming-later state, never data, for sections not built yet", () => {
     signedIn(promotionManager);
-    state.search = "tab=budget";
+    state.search = "tab=event-promotions";
     render(<PromotionWorkspaceScreen />, { wrapper });
     expect(
-      screen.getByText("Budget is coming in a later phase"),
+      screen.getByText("Event Promotions is coming in a later phase"),
     ).toBeInTheDocument();
+  });
+
+  it("shows the budget section, read-only for the overseeing manager (EVE-233)", () => {
+    signedIn(promotionManager);
+    state.search = "tab=budget";
+    const { unmount } = render(<PromotionWorkspaceScreen />, { wrapper });
+    expect(screen.getByText("budget:editable")).toBeInTheDocument();
+    unmount();
+    signedIn(marketingManager);
+    render(<PromotionWorkspaceScreen />, { wrapper });
+    expect(screen.getByText("budget:read-only")).toBeInTheDocument();
   });
 
   it("opens read-only for the Marketing Manager", () => {

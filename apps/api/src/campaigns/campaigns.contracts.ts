@@ -418,3 +418,123 @@ export class PaginatedCampaignMetricsResponse {
   @ApiProperty({ example: 2 })
   total!: number;
 }
+
+export class CampaignBudgetActivityLine {
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  campaignActivityId!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: "Null for spending not tied to an activity.",
+  })
+  activityName!: string | null;
+
+  @ApiProperty({ example: "1200.00" })
+  spent!: string;
+}
+
+export class CampaignBudgetPartnership {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({ type: String, nullable: true })
+  partnershipName!: string | null;
+
+  @ApiProperty()
+  organizationName!: string;
+
+  @ApiProperty({ example: "COMMITTED" })
+  status!: string;
+
+  @ApiProperty({ type: String, nullable: true, example: "50000.00" })
+  agreedValueAmount!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: "ETB" })
+  agreedValueCurrency!: string | null;
+}
+
+/**
+ * A campaign's budget against what it has spent (EVE-233). Spent is what was
+ * submitted or approved, in the budget's currency. Partnership values are
+ * commitments, shown separately and never added to spending.
+ */
+export class CampaignBudgetSummaryResponse {
+  @ApiProperty({ format: "uuid" })
+  campaignId!: string;
+
+  @ApiProperty()
+  campaignName!: string;
+
+  @ApiProperty({ example: "PROMOTION" })
+  campaignType!: string;
+
+  @ApiProperty({ example: "ACTIVE" })
+  status!: string;
+
+  @ApiProperty({ type: String, nullable: true, example: "ETB" })
+  currency!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: "25000.00" })
+  allocated!: string | null;
+
+  @ApiProperty({ example: "9800.00", description: "Approved expenses." })
+  approved!: string;
+
+  @ApiProperty({
+    example: "1350.00",
+    description: "Expenses submitted and awaiting approval.",
+  })
+  pending!: string;
+
+  @ApiProperty({ example: "11150.00", description: "Approved plus pending." })
+  spent!: string;
+
+  @ApiProperty({ type: String, nullable: true, example: "13850.00" })
+  remaining!: string | null;
+
+  @ApiProperty({ type: Number, nullable: true, example: 44.6 })
+  utilizationPercent!: number | null;
+
+  @ApiProperty()
+  overBudget!: boolean;
+
+  @ApiProperty({
+    description:
+      "Submitted or approved expenses in another currency, left out of the totals.",
+  })
+  otherCurrencyExpenseCount!: number;
+
+  @ApiProperty({ type: [CampaignBudgetActivityLine] })
+  byActivity!: CampaignBudgetActivityLine[];
+
+  @ApiProperty({
+    example: "50000.00",
+    description:
+      "Agreed value of committed and completed partnerships, in the budget's currency. Not spending.",
+  })
+  committedPartnershipValue!: string;
+
+  @ApiProperty()
+  otherCurrencyPartnershipCount!: number;
+
+  @ApiProperty({
+    type: [CampaignBudgetPartnership],
+    description: "The campaign's partnerships the caller can read.",
+  })
+  partnerships!: CampaignBudgetPartnership[];
+}
+
+export class PaginatedCampaignBudgetSummariesResponse {
+  @ApiProperty({ type: [CampaignBudgetSummaryResponse] })
+  items!: CampaignBudgetSummaryResponse[];
+
+  @ApiProperty({ example: 1 })
+  page!: number;
+
+  @ApiProperty({ example: 25 })
+  pageSize!: number;
+
+  @ApiProperty({ example: 3 })
+  total!: number;
+}

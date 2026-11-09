@@ -35,7 +35,13 @@ export function PartnersManager({
   const client = useQueryClient();
   const granted = partnerAbilities(access);
   const abilities = readOnly
-    ? { ...granted, canCreate: false, canUpdate: false, canAddActivity: false }
+    ? {
+        ...granted,
+        canCreate: false,
+        canUpdate: false,
+        canAddActivity: false,
+        canAttach: false,
+      }
     : granted;
 
   const [statusFilter, setStatusFilter] = useState<PartnerStatus | null>(null);
@@ -167,6 +173,7 @@ export function PartnersManager({
         }}
         canUpdate={abilities.canUpdate && !selectedReadOnly}
         canAddActivity={abilities.canAddActivity && !selectedReadOnly}
+        canAttach={abilities.canAttach && !selectedReadOnly}
         onUpdate={(id, values) => mutations.update.mutateAsync({ id, values })}
         onAddActivity={(id, note) =>
           mutations.addActivity.mutateAsync({ id, note })

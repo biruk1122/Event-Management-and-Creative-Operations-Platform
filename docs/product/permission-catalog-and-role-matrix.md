@@ -196,6 +196,16 @@ to that department's own grant, never to another department's (EOM-01).
 | `campaign.budget.update`     | Set or change a campaign budget. Sensitive; see PC-04.           |
 | `campaign.activity.manage`   | Create and manage campaign, promotion, and marketing activities. |
 
+### Partnership documents (EVE-233)
+
+| Key                         | Operation                                                          |
+| --------------------------- | ------------------------------------------------------------------ |
+| `partner.attachment.create` | Attach a document (agreement, brief, invoice) to a partner record. |
+
+Partnership documents are read with `partner.read`. Campaign expenses use the existing
+`expense.*` keys and the campaign budget summary uses `campaign.budget.read`; no other key is
+added.
+
 ### Creative requests (EVE-232)
 
 | Key                        | Operation                                                                        |
@@ -349,6 +359,7 @@ whether Department Managers may also review reports is part of EVE-30 open decis
 | `analytics.department_performance.read`                                                           | department |
 | `creative_request.create`, `creative_request.read`, `creative_request.respond`                    | department |
 | `creative_request.review`                                                                         | department |
+| `partner.attachment.create`                                                                       | department |
 
 `department` scope is the acting user's assigned department. Multi-department and cross-department
 behavior is open in [PC-01](#open-authorization-decisions). PC-04's open question of whether a
@@ -431,6 +442,7 @@ and the overseen department gains no access in return.
 | `report.read`, `report.attachment.create`       | self  |
 | `meeting.read`                                  | self  |
 | `creative_request.read`                         | self  |
+| `partner.attachment.create`                     | self  |
 
 `self` scope means records the user is assigned to, authored, or was invited to. For a creative
 request, that is a request the user sent or whose task they are assigned to. A Team Member holds

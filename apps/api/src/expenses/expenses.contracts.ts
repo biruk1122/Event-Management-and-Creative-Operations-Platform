@@ -51,6 +51,31 @@ export class ExpenseResponse {
   })
   productionId!: string | null;
 
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  campaignId!: string | null;
+
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description: "One of the campaign's activities (EVE-233).",
+  })
+  campaignActivityId!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: "Flyer printing" })
+  title!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: "2026-11-09",
+    description: "The day the money was spent (YYYY-MM-DD).",
+  })
+  expenseDate!: string | null;
+
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  updatedById!: string | null;
+
   @ApiProperty({ format: "uuid" })
   departmentId!: string;
 

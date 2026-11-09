@@ -18,6 +18,7 @@ import {
   campaignActivityScheduleInvalid,
   campaignApprovalRequired,
   campaignBudgetIncomplete,
+  campaignHasExpenses,
   campaignDepartmentNotFound,
   campaignHasManagedFiles,
   campaignInvalidTransition,
@@ -53,6 +54,14 @@ import type { CreateCampaignDto } from "./dto/create-campaign.dto.js";
 import type { ListCampaignActivitiesQueryDto } from "./dto/list-campaign-activities-query.dto.js";
 import type { ListCampaignsQueryDto } from "./dto/list-campaigns-query.dto.js";
 import type { SetCampaignBudgetDto } from "./dto/set-campaign-budget.dto.js";
+import type { ListCampaignBudgetSummariesQueryDto } from "./dto/list-campaign-budget-summaries-query.dto.js";
+import { PartnersService } from "../partners/partners.service.js";
+import type { PartnerResponse } from "../partners/partners.contracts.js";
+import { computeBudgetFigures } from "./campaign-budget.domain.js";
+import type {
+  CampaignBudgetSummaryResponse,
+  PaginatedCampaignBudgetSummariesResponse,
+} from "./campaigns.contracts.js";
 import type { UpdateCampaignActivityDto } from "./dto/update-campaign-activity.dto.js";
 import { TalentAssignmentsService } from "../talent/talent-assignments.service.js";
 import type { UpdateCampaignDto } from "./dto/update-campaign.dto.js";
@@ -89,6 +98,7 @@ export class CampaignsService {
     private readonly permissions: PermissionsService,
     private readonly events: EventsService,
     private readonly talentAssignments: TalentAssignmentsService,
+    private readonly partners: PartnersService,
   ) {}
 
   /** Loads a campaign or throws 404; used before a permission check on `:id` routes. */
@@ -566,6 +576,105 @@ export class CampaignsService {
     return { amount: campaign.budgetAmount, currency: campaign.budgetCurrency };
   }
 
+  /** EVE-233: one campaign's budget against its expenses. */
+  async budgetSummary(
+    actingUserId: string,
+    id: string,
+  ): Promise<CampaignBudgetSummaryResponse> {
+    const campaign = await this.authorize(
+      actingUserId,
+      id,
+      "campaign.budget.read",
+    );
+    const [summary] = await this.summarize(actingUserId, [campaign]);
+    return summary!;
+  }
+
+  /** EVE-233: budget summaries of every campaign whose budget the caller can
+   * read, the same visibility as the budget itself (oversight included). */
+  async listBudgetSummaries(
+    actingUserId: string,
+    query: ListCampaignBudgetSummariesQueryDto,
+  ): Promise<PaginatedCampaignBudgetSummariesResponse> {
+    const visibility = await this.visibilityFor(
+      actingUserId,
+      "campaign.budget.read",
+    );
+    const { items, total } = await this.repository.list({
+      visibility,
+      ...(query.campaignType ? { campaignType: query.campaignType } : {}),
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+    return {
+      items: await this.summarize(actingUserId, items),
+      page: query.page,
+      pageSize: query.pageSize,
+      total,
+    };
+  }
+
+  private async summarize(
+    actingUserId: string,
+    campaigns: readonly CampaignRecord[],
+  ): Promise<CampaignBudgetSummaryResponse[]> {
+    const ids = campaigns.map((campaign) => campaign.id);
+    const [sums, names, partnersByCampaign] = await Promise.all([
+      this.repository.budgetExpenseSums(ids),
+      this.repository.activityNames(ids),
+      this.readablePartners(actingUserId, ids),
+    ]);
+    return campaigns.map((campaign) => {
+      const partnerships = partnersByCampaign.get(campaign.id) ?? [];
+      const figures = computeBudgetFigures({
+        budgetAmount:
+          campaign.budgetAmount === null
+            ? null
+            : new Prisma.Decimal(campaign.budgetAmount),
+        budgetCurrency: campaign.budgetCurrency,
+        expenses: sums.filter((row) => row.campaignId === campaign.id),
+        partnerships: partnerships.map((partner) => ({
+          status: partner.status,
+          amount:
+            partner.agreedValueAmount === null
+              ? null
+              : new Prisma.Decimal(partner.agreedValueAmount),
+          currency: partner.agreedValueCurrency,
+        })),
+      });
+      return {
+        campaignId: campaign.id,
+        campaignName: campaign.name,
+        campaignType: campaign.campaignType,
+        status: campaign.status,
+        ...figures,
+        byActivity: figures.byActivity.map((line) => ({
+          ...line,
+          activityName: line.campaignActivityId
+            ? (names.get(line.campaignActivityId) ?? null)
+            : null,
+        })),
+        partnerships: partnerships.map((partner) => ({
+          id: partner.id,
+          partnershipName: partner.partnershipName,
+          organizationName: partner.organizationName,
+          status: partner.status,
+          agreedValueAmount: partner.agreedValueAmount,
+          agreedValueCurrency: partner.agreedValueCurrency,
+        })),
+      };
+    });
+  }
+
+  /** The campaigns' partners, as far as the caller may read partners, in
+   * one query. A caller without `partner.read` gets the budget without them. */
+  private readablePartners(
+    actingUserId: string,
+    campaignIds: readonly string[],
+  ): Promise<Map<string, PartnerResponse[]>> {
+    return this.partners.listForCampaigns(actingUserId, campaignIds);
+  }
+
   async setBudget(
     actingUserId: string,
     id: string,
@@ -591,6 +700,8 @@ export class CampaignsService {
     requestId: string,
   ): Promise<void> {
     await this.authorize(actingUserId, id, "campaign.delete");
+    // EVE-233: expenses are financial records; they keep their campaign.
+    if (await this.repository.hasExpenses(id)) throw campaignHasExpenses();
 
     const result = await this.repository.delete(
       id,

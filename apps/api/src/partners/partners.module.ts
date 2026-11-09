@@ -12,6 +12,7 @@ import { PartnersSchedulerRepository } from "./infrastructure/partners-scheduler
 @Module({
   imports: [AuthModule, OutboxModule, PermissionsModule],
   controllers: [PartnersController],
+  exports: [PartnersService],
   providers: [
     PartnersService,
     PartnersRepository,

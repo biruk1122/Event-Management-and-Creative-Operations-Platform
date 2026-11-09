@@ -141,7 +141,7 @@ const SECTION_DEFINITIONS: readonly PromotionSectionDefinition[] = [
   { id: "partnerships", label: "Partnerships", comingInPhase: null },
   { id: "creative-requests", label: "Creative Requests", comingInPhase: null },
   { id: "event-promotions", label: "Event Promotions", comingInPhase: 5 },
-  { id: "budget", label: "Budget", comingInPhase: 4 },
+  { id: "budget", label: "Budget", comingInPhase: null },
   { id: "reports", label: "Reports", comingInPhase: null },
   { id: "calendar", label: "Calendar", comingInPhase: null },
 ];

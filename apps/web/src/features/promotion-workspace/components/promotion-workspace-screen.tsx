@@ -28,6 +28,7 @@ import {
 import { CampaignsScreen } from "@/features/campaigns/components/campaigns-screen";
 import { CreativeRequestsScreen } from "@/features/creative-requests/components/creative-requests-screen";
 import { PartnersScreen } from "@/features/partners/components/partners-screen";
+import { PromotionBudgetView } from "@/features/promotion-budget/components/promotion-budget-view";
 import { ReportsScreen } from "@/features/reports/components/reports-screen";
 import { listAssignableDepartments } from "@/features/tasks/api/tasks-gateway";
 import { TasksScreen } from "@/features/tasks/components/tasks-screen";
@@ -213,6 +214,8 @@ export function PromotionWorkspaceScreen() {
           <PromotionTeamTasks access={data} readOnly={context.readOnly} />
         ) : current === "creative-requests" ? (
           <CreativeRequestsScreen readOnly={context.readOnly} />
+        ) : current === "budget" ? (
+          <PromotionBudgetView readOnly={context.readOnly} />
         ) : current === "partnerships" ? (
           <PartnersScreen readOnly={context.readOnly} />
         ) : current === "reports" ? (

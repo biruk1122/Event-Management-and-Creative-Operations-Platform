@@ -740,6 +740,64 @@
         ],
         "type": "object"
       },
+      "CampaignBudgetActivityLine": {
+        "properties": {
+          "activityName": {
+            "description": "Null for spending not tied to an activity.",
+            "nullable": true,
+            "type": "string"
+          },
+          "campaignActivityId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "spent": {
+            "example": "1200.00",
+            "type": "string"
+          }
+        },
+        "required": ["campaignActivityId", "activityName", "spent"],
+        "type": "object"
+      },
+      "CampaignBudgetPartnership": {
+        "properties": {
+          "agreedValueAmount": {
+            "example": "50000.00",
+            "nullable": true,
+            "type": "string"
+          },
+          "agreedValueCurrency": {
+            "example": "ETB",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "organizationName": {
+            "type": "string"
+          },
+          "partnershipName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "example": "COMMITTED",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "partnershipName",
+          "organizationName",
+          "status",
+          "agreedValueAmount",
+          "agreedValueCurrency"
+        ],
+        "type": "object"
+      },
       "CampaignBudgetResponse": {
         "properties": {
           "amount": {
@@ -756,6 +814,108 @@
           }
         },
         "required": ["amount", "currency"],
+        "type": "object"
+      },
+      "CampaignBudgetSummaryResponse": {
+        "properties": {
+          "allocated": {
+            "example": "25000.00",
+            "nullable": true,
+            "type": "string"
+          },
+          "approved": {
+            "description": "Approved expenses.",
+            "example": "9800.00",
+            "type": "string"
+          },
+          "byActivity": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignBudgetActivityLine"
+            },
+            "type": "array"
+          },
+          "campaignId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "campaignName": {
+            "type": "string"
+          },
+          "campaignType": {
+            "example": "PROMOTION",
+            "type": "string"
+          },
+          "committedPartnershipValue": {
+            "description": "Agreed value of committed and completed partnerships, in the budget's currency. Not spending.",
+            "example": "50000.00",
+            "type": "string"
+          },
+          "currency": {
+            "example": "ETB",
+            "nullable": true,
+            "type": "string"
+          },
+          "otherCurrencyExpenseCount": {
+            "description": "Submitted or approved expenses in another currency, left out of the totals.",
+            "type": "number"
+          },
+          "otherCurrencyPartnershipCount": {
+            "type": "number"
+          },
+          "overBudget": {
+            "type": "boolean"
+          },
+          "partnerships": {
+            "description": "The campaign's partnerships the caller can read.",
+            "items": {
+              "$ref": "#/components/schemas/CampaignBudgetPartnership"
+            },
+            "type": "array"
+          },
+          "pending": {
+            "description": "Expenses submitted and awaiting approval.",
+            "example": "1350.00",
+            "type": "string"
+          },
+          "remaining": {
+            "example": "13850.00",
+            "nullable": true,
+            "type": "string"
+          },
+          "spent": {
+            "description": "Approved plus pending.",
+            "example": "11150.00",
+            "type": "string"
+          },
+          "status": {
+            "example": "ACTIVE",
+            "type": "string"
+          },
+          "utilizationPercent": {
+            "example": 44.6,
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "campaignId",
+          "campaignName",
+          "campaignType",
+          "status",
+          "currency",
+          "allocated",
+          "approved",
+          "pending",
+          "spent",
+          "remaining",
+          "utilizationPercent",
+          "overBudget",
+          "otherCurrencyExpenseCount",
+          "byActivity",
+          "committedPartnershipValue",
+          "otherCurrencyPartnershipCount",
+          "partnerships"
+        ],
         "type": "object"
       },
       "CampaignMetricResponse": {
@@ -1982,6 +2142,16 @@
             "minimum": 0,
             "type": "number"
           },
+          "campaignActivityId": {
+            "description": "One of the campaign's activities. Requires campaignId.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "campaignId": {
+            "description": "The campaign this expense belongs to (EVE-233). An expense needs an event, a production or a campaign.",
+            "format": "uuid",
+            "type": "string"
+          },
           "category": {
             "enum": [
               "VENUE",
@@ -2011,6 +2181,11 @@
             "format": "uuid",
             "type": "string"
           },
+          "expenseDate": {
+            "description": "The day the money was spent (YYYY-MM-DD).",
+            "example": "2026-11-09",
+            "type": "string"
+          },
           "plannedAmount": {
             "description": "This line item's planned amount, at most two fraction digits.",
             "example": 1200,
@@ -2024,6 +2199,11 @@
           },
           "supplierId": {
             "format": "uuid",
+            "type": "string"
+          },
+          "title": {
+            "example": "Flyer printing",
+            "maxLength": 200,
             "type": "string"
           }
         },
@@ -2305,6 +2485,31 @@
       },
       "CreatePartnerDto": {
         "properties": {
+          "agreedValueAmount": {
+            "description": "The value agreed with the partner, at most two fraction digits. A commitment, never an expense.",
+            "example": 50000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "agreedValueCurrency": {
+            "description": "ISO-4217 code.",
+            "example": "ETB",
+            "type": "string"
+          },
+          "agreementDetails": {
+            "maxLength": 5000,
+            "type": "string"
+          },
+          "agreementEndOn": {
+            "description": "YYYY-MM-DD",
+            "example": "2027-01-31",
+            "type": "string"
+          },
+          "agreementStartOn": {
+            "description": "YYYY-MM-DD",
+            "example": "2026-11-01",
+            "type": "string"
+          },
           "campaignId": {
             "description": "The campaign this opportunity relates to, where applicable.",
             "format": "uuid",
@@ -2356,6 +2561,23 @@
           "ownerId": {
             "description": "The user responsible for this relationship. Must belong to the same department as the partner, when the partner has one.",
             "format": "uuid",
+            "type": "string"
+          },
+          "partnershipName": {
+            "example": "Summer festival media partnership",
+            "maxLength": 200,
+            "type": "string"
+          },
+          "partnershipType": {
+            "enum": [
+              "BRAND",
+              "SPONSOR",
+              "INFLUENCER",
+              "MEDIA",
+              "ADVERTISING_AGENCY",
+              "PROMOTIONAL_PARTNER",
+              "OTHER"
+            ],
             "type": "string"
           },
           "proposedContribution": {
@@ -5335,6 +5557,17 @@
             "example": "1350.00",
             "type": "string"
           },
+          "campaignActivityId": {
+            "description": "One of the campaign's activities (EVE-233).",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "campaignId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "category": {
             "enum": [
               "VENUE",
@@ -5372,6 +5605,12 @@
           "eventId": {
             "description": "Null when this expense is recorded directly against a production (productionId set instead).",
             "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "expenseDate": {
+            "description": "The day the money was spent (YYYY-MM-DD).",
+            "example": "2026-11-09",
             "nullable": true,
             "type": "string"
           },
@@ -5421,8 +5660,18 @@
             "nullable": true,
             "type": "string"
           },
+          "title": {
+            "example": "Flyer printing",
+            "nullable": true,
+            "type": "string"
+          },
           "updatedAt": {
             "format": "date-time",
+            "type": "string"
+          },
+          "updatedById": {
+            "format": "uuid",
+            "nullable": true,
             "type": "string"
           }
         },
@@ -5430,6 +5679,11 @@
           "id",
           "eventId",
           "productionId",
+          "campaignId",
+          "campaignActivityId",
+          "title",
+          "expenseDate",
+          "updatedById",
           "departmentId",
           "supplierId",
           "category",
@@ -7025,6 +7279,30 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedCampaignBudgetSummariesResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CampaignBudgetSummaryResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 3,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
       "PaginatedCampaignMetricsResponse": {
         "properties": {
           "items": {
@@ -7921,6 +8199,31 @@
       },
       "PartnerResponse": {
         "properties": {
+          "agreedValueAmount": {
+            "description": "The agreed value. A commitment, never counted as spending.",
+            "example": "50000.00",
+            "nullable": true,
+            "type": "string"
+          },
+          "agreedValueCurrency": {
+            "example": "ETB",
+            "nullable": true,
+            "type": "string"
+          },
+          "agreementDetails": {
+            "nullable": true,
+            "type": "string"
+          },
+          "agreementEndOn": {
+            "example": "2027-01-31",
+            "nullable": true,
+            "type": "string"
+          },
+          "agreementStartOn": {
+            "example": "2026-11-01",
+            "nullable": true,
+            "type": "string"
+          },
           "campaignId": {
             "description": "The campaign this opportunity relates to, where applicable.",
             "format": "uuid",
@@ -7997,6 +8300,23 @@
             "nullable": true,
             "type": "object"
           },
+          "partnershipName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "partnershipType": {
+            "enum": [
+              "BRAND",
+              "SPONSOR",
+              "INFLUENCER",
+              "MEDIA",
+              "ADVERTISING_AGENCY",
+              "PROMOTIONAL_PARTNER",
+              "OTHER"
+            ],
+            "nullable": true,
+            "type": "string"
+          },
           "proposedContribution": {
             "example": "Co-branded media placement, estimated 5,000 ETB in kind",
             "nullable": true,
@@ -8015,6 +8335,15 @@
           "updatedAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "updatedBy": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PartnerPersonSummary"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
           }
         },
         "required": [
@@ -8033,6 +8362,14 @@
           "followUpAt",
           "owner",
           "createdBy",
+          "updatedBy",
+          "partnershipName",
+          "partnershipType",
+          "agreementDetails",
+          "agreementStartOn",
+          "agreementEndOn",
+          "agreedValueAmount",
+          "agreedValueCurrency",
           "createdAt",
           "updatedAt"
         ],
@@ -12465,6 +12802,12 @@
             "minimum": 0,
             "type": "number"
           },
+          "campaignActivityId": {
+            "description": "One of the expense's campaign activities (EVE-233).",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
           "category": {
             "enum": [
               "VENUE",
@@ -12487,6 +12830,11 @@
             "minLength": 1,
             "type": "string"
           },
+          "expenseDate": {
+            "example": "2026-11-09",
+            "nullable": true,
+            "type": "string"
+          },
           "plannedAmount": {
             "minimum": 0,
             "nullable": true,
@@ -12494,6 +12842,11 @@
           },
           "supplierId": {
             "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
             "nullable": true,
             "type": "string"
           }
@@ -12636,6 +12989,31 @@
       },
       "UpdatePartnerDto": {
         "properties": {
+          "agreedValueAmount": {
+            "minimum": 0,
+            "nullable": true,
+            "type": "number"
+          },
+          "agreedValueCurrency": {
+            "example": "ETB",
+            "nullable": true,
+            "type": "string"
+          },
+          "agreementDetails": {
+            "maxLength": 5000,
+            "nullable": true,
+            "type": "string"
+          },
+          "agreementEndOn": {
+            "example": "2027-01-31",
+            "nullable": true,
+            "type": "string"
+          },
+          "agreementStartOn": {
+            "example": "2026-11-01",
+            "nullable": true,
+            "type": "string"
+          },
           "campaignId": {
             "format": "uuid",
             "nullable": true,
@@ -12684,6 +13062,24 @@
           "ownerId": {
             "description": "The user responsible for this relationship. Must belong to the same department as the partner, when the partner has one.",
             "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "partnershipName": {
+            "maxLength": 200,
+            "nullable": true,
+            "type": "string"
+          },
+          "partnershipType": {
+            "enum": [
+              "BRAND",
+              "SPONSOR",
+              "INFLUENCER",
+              "MEDIA",
+              "ADVERTISING_AGENCY",
+              "PROMOTIONAL_PARTNER",
+              "OTHER"
+            ],
             "nullable": true,
             "type": "string"
           },
@@ -16458,6 +16854,90 @@
         "tags": ["Campaign platform"]
       }
     },
+    "/api/v1/campaigns/budget-summaries": {
+      "get": {
+        "operationId": "Campaigns_listBudgetSummaries_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "campaignType",
+            "required": false,
+            "schema": {
+              "enum": ["MARKETING", "PROMOTION"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedCampaignBudgetSummariesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Budget summaries of the campaigns whose budget the caller can read (EVE-233)",
+        "tags": ["Campaign platform"]
+      }
+    },
     "/api/v1/campaigns/for-event/{eventId}": {
       "get": {
         "operationId": "Campaigns_listForEvent_v1",
@@ -17643,6 +18123,70 @@
           }
         ],
         "summary": "Set or clear the campaign budget (sensitive)",
+        "tags": ["Campaign platform"]
+      }
+    },
+    "/api/v1/campaigns/{id}/budget-summary": {
+      "get": {
+        "operationId": "Campaigns_budgetSummary_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignBudgetSummaryResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing the required permission, or CSRF token invalid"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Campaign not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "A campaign's budget against its expenses and partnerships (EVE-233)",
         "tags": ["Campaign platform"]
       }
     },
@@ -26686,6 +27230,24 @@
           },
           {
             "in": "query",
+            "name": "campaignId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "campaignActivityId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "status",
             "required": false,
             "schema": {
@@ -31367,6 +31929,23 @@
             }
           },
           {
+            "in": "query",
+            "name": "partnershipType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "BRAND",
+                "SPONSOR",
+                "INFLUENCER",
+                "MEDIA",
+                "ADVERTISING_AGENCY",
+                "PROMOTIONAL_PARTNER",
+                "OTHER"
+              ],
+              "type": "string"
+            }
+          },
+          {
             "description": "Case-insensitive match against the organization name.",
             "in": "query",
             "name": "search",
@@ -31837,6 +32416,355 @@
           }
         ],
         "summary": "Add a note to a partner's activity log",
+        "tags": ["Partner directory"]
+      }
+    },
+    "/api/v1/partners/{partnerId}/files": {
+      "get": {
+        "operationId": "PartnerFileManagement_list_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partnerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedManagedFilesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid pagination query"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside partner scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Partner not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List available files attached to a partner",
+        "tags": ["Partner directory"]
+      }
+    },
+    "/api/v1/partners/{partnerId}/files/upload-intents": {
+      "post": {
+        "operationId": "PartnerFileManagement_createUploadIntent_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partnerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUploadIntentDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadIntentResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid upload declaration"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside partner scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Partner not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Create a direct-upload grant for a partnership document",
+        "tags": ["Partner directory"]
+      }
+    },
+    "/api/v1/partners/{partnerId}/files/{fileId}/download": {
+      "get": {
+        "operationId": "PartnerFileManagement_download_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partnerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadGrantResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside partner scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Partner document not found"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Issue a private download grant for a partnership document",
+        "tags": ["Partner directory"]
+      }
+    },
+    "/api/v1/partners/{partnerId}/files/{fileId}/finalize": {
+      "post": {
+        "operationId": "PartnerFileManagement_finalize_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "partnerId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fileId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagedFileResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside partner scope, or invalid CSRF token"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Partner or intent not found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Intent expired, upload missing, unsafe, or already finalized"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "File scanner unavailable"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          },
+          {
+            "csrf-token": []
+          }
+        ],
+        "summary": "Verify, scan, and attach a completed partnership document upload",
         "tags": ["Partner directory"]
       }
     },

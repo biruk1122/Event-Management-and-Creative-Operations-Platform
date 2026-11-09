@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import {
   IsEnum,
+  IsISO8601,
   IsNumber,
   IsOptional,
   IsString,
@@ -28,6 +29,33 @@ export class UpdateExpenseDto {
   @ValidateIf((_, value) => value !== null)
   @IsUUID()
   supplierId?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description: "One of the expense's campaign activities (EVE-233).",
+  })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  campaignActivityId?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, maxLength: 200 })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  @Matches(NOT_BLANK, { message: "title must not be blank" })
+  title?: string | null;
+
+  @ApiPropertyOptional({ type: String, nullable: true, example: "2026-11-09" })
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: "expenseDate must be YYYY-MM-DD" })
+  @IsISO8601({ strict: true })
+  expenseDate?: string | null;
 
   @ApiPropertyOptional({ enum: ExpenseCategory })
   @IsOptional()

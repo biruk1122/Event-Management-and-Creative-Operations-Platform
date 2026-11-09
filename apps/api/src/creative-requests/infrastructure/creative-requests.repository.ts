@@ -308,6 +308,15 @@ export class CreativeRequestsRepository {
     return { items, total };
   }
 
+  async countAttachments(
+    creativeRequestId: string,
+    kind: CreativeRequestFileKind,
+  ): Promise<number> {
+    return this.db.creativeRequestAttachment.count({
+      where: { creativeRequestId, kind },
+    });
+  }
+
   async hasAttachment(
     creativeRequestId: string,
     managedFileId: string,

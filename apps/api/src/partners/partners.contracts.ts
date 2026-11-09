@@ -1,6 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 
-import { PartnerStatus } from "../generated/prisma/client.js";
+import { PartnershipType, PartnerStatus } from "../generated/prisma/client.js";
 
 /** A user attached to a partner as its owner or creator. */
 export class PartnerPersonSummary {
@@ -101,6 +101,35 @@ export class PartnerResponse {
 
   @ApiProperty({ type: PartnerPersonSummary, nullable: true })
   createdBy!: PartnerPersonSummary | null;
+
+  @ApiProperty({ type: PartnerPersonSummary, nullable: true })
+  updatedBy!: PartnerPersonSummary | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  partnershipName!: string | null;
+
+  @ApiProperty({ enum: PartnershipType, nullable: true })
+  partnershipType!: PartnershipType | null;
+
+  @ApiProperty({ type: String, nullable: true })
+  agreementDetails!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: "2026-11-01" })
+  agreementStartOn!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: "2027-01-31" })
+  agreementEndOn!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: "50000.00",
+    description: "The agreed value. A commitment, never counted as spending.",
+  })
+  agreedValueAmount!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: "ETB" })
+  agreedValueCurrency!: string | null;
 
   @ApiProperty({ format: "date-time" })
   createdAt!: string;

@@ -46,6 +46,12 @@ function createBody(values: CreateExpenseValues) {
   return {
     ...(values.eventId ? { eventId: values.eventId } : {}),
     ...(values.productionId ? { productionId: values.productionId } : {}),
+    ...(values.campaignId ? { campaignId: values.campaignId } : {}),
+    ...(values.campaignActivityId
+      ? { campaignActivityId: values.campaignActivityId }
+      : {}),
+    ...(values.title?.trim() ? { title: values.title.trim() } : {}),
+    ...(values.expenseDate ? { expenseDate: values.expenseDate } : {}),
     ...(values.supplierId ? { supplierId: values.supplierId } : {}),
     category: values.category,
     description: values.description.trim(),
@@ -59,6 +65,15 @@ function createBody(values: CreateExpenseValues) {
 
 function updateBody(values: EditExpenseValues) {
   return {
+    ...(values.title !== undefined
+      ? { title: values.title.trim() ? values.title.trim() : null }
+      : {}),
+    ...(values.expenseDate !== undefined
+      ? { expenseDate: values.expenseDate || null }
+      : {}),
+    ...(values.campaignActivityId !== undefined
+      ? { campaignActivityId: values.campaignActivityId }
+      : {}),
     supplierId: values.supplierId,
     category: values.category,
     description: values.description.trim(),
@@ -84,6 +99,17 @@ function createFailure(error: unknown, status: number): CreateExpenseOutcome {
       return { status: "owner_required" };
     if (error.code === "EXPENSE_SUPPLIER_NOT_FOUND")
       return { status: "supplier_not_found" };
+    if (error.code === "EXPENSE_CAMPAIGN_NOT_FOUND")
+      return { status: "campaign_not_found" };
+    if (error.code === "EXPENSE_CAMPAIGN_HAS_NO_DEPARTMENT")
+      return { status: "campaign_has_no_department" };
+    if (error.code === "EXPENSE_ACTIVITY_OUTSIDE_CAMPAIGN")
+      return {
+        status: "field_errors",
+        fieldErrors: {
+          campaignActivityId: "That activity is not part of this campaign.",
+        },
+      };
     if (error.code === "VALIDATION_ERROR") {
       const fields = fieldErrorsOf(error);
       const fieldErrors: Partial<Record<keyof CreateExpenseValues, string>> =
@@ -116,6 +142,13 @@ function updateFailure(error: unknown, status: number): UpdateExpenseOutcome {
       return { status: "invalid_transition" };
     if (error.code === "EXPENSE_SUPPLIER_NOT_FOUND")
       return { status: "supplier_not_found" };
+    if (error.code === "EXPENSE_ACTIVITY_OUTSIDE_CAMPAIGN")
+      return {
+        status: "field_errors",
+        fieldErrors: {
+          campaignActivityId: "That activity is not part of this campaign.",
+        },
+      };
     if (error.code === "VALIDATION_ERROR") {
       const fields = fieldErrorsOf(error);
       const fieldErrors: Partial<Record<keyof EditExpenseValues, string>> = {};
@@ -142,6 +175,8 @@ export interface ListExpensesParams {
   status?: ExpenseStatus | null;
   category?: ExpenseCategory | null;
   eventId?: string | null;
+  /** EVE-233. */
+  campaignId?: string | null;
   page?: number;
   pageSize?: number;
 }
@@ -157,6 +192,7 @@ export async function listExpenses(
   if (params.status) query.status = params.status;
   if (params.category) query.category = params.category;
   if (params.eventId) query.eventId = params.eventId;
+  if (params.campaignId) query.campaignId = params.campaignId;
 
   const { data, response } = await browserApi.GET("/api/v1/expenses", {
     params: { query: query as never },

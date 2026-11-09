@@ -54,3 +54,21 @@ export function partnerOwnerOutsideDepartment(): HttpException {
     detail: "That user does not belong to this partner's department.",
   });
 }
+
+/** EVE-233: an agreement cannot end before it starts. */
+export function partnerAgreementDatesInvalid(): HttpException {
+  return new BadRequestException({
+    code: "PARTNER_AGREEMENT_DATES_INVALID",
+    error: "Bad Request",
+    detail: "The agreement cannot end before it starts.",
+  });
+}
+
+/** EVE-233: an agreed value always comes with its currency. */
+export function partnerAgreedValueIncomplete(): HttpException {
+  return new BadRequestException({
+    code: "PARTNER_AGREED_VALUE_INCOMPLETE",
+    error: "Bad Request",
+    detail: "Give the agreed value and its currency together.",
+  });
+}

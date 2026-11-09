@@ -409,6 +409,11 @@ export const PERMISSIONS: readonly PermissionDefinition[] = [
     description:
       "Log a discussion note or communication-history entry on a partner relationship.",
   },
+  {
+    key: "partner.attachment.create",
+    description:
+      "Attach a document (agreement, brief, invoice) to a partner relationship.",
+  },
 
   // Creative requests (EVE-232): Promotion asks Production for creative work.
   {
@@ -713,6 +718,7 @@ const DEPARTMENT_MANAGER_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "partner.read", scope: "DEPARTMENT" },
   { permissionKey: "partner.update", scope: "DEPARTMENT" },
   { permissionKey: "partner.activity.create", scope: "DEPARTMENT" },
+  { permissionKey: "partner.attachment.create", scope: "DEPARTMENT" },
   // Creative requests (EVE-232). Every Department Manager holds these; the
   // service limits each one to the right side of a request: the requesting
   // department creates and reviews, the target department responds.
@@ -814,6 +820,8 @@ const TEAM_MEMBER_GRANTS: readonly GrantDefinition[] = [
   // or browse the department's full commercial/sponsor directory.
   { permissionKey: "partner.read", scope: "SELF" },
   { permissionKey: "partner.activity.create", scope: "SELF" },
+  // EVE-233: the owner of a partnership may also attach its documents.
+  { permissionKey: "partner.attachment.create", scope: "SELF" },
   // A team member sees a creative request they sent, or one whose task they
   // are assigned to (EVE-232).
   { permissionKey: "creative_request.read", scope: "SELF" },

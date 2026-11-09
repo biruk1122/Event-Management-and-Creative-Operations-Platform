@@ -27,7 +27,7 @@ export const expenseOwnerRequired = () =>
   new BadRequestException(
     problem(
       "EXPENSE_OWNER_REQUIRED",
-      "An expense must belong to an event, a production, or both.",
+      "An expense must belong to an event, a production or a campaign.",
     ),
   );
 export const expenseProductionNotFound = () =>
@@ -67,5 +67,24 @@ export const expenseAmountInvalid = () =>
     problem(
       "EXPENSE_AMOUNT_INVALID",
       "The actual amount and currency are required and must be well-formed.",
+    ),
+  );
+export const expenseCampaignNotFound = () =>
+  new NotFoundException(
+    problem("EXPENSE_CAMPAIGN_NOT_FOUND", "No campaign exists with that id."),
+  );
+export const expenseCampaignHasNoDepartment = () =>
+  new BadRequestException(
+    problem(
+      "EXPENSE_CAMPAIGN_HAS_NO_DEPARTMENT",
+      "Assign this campaign to a department before recording expenses against it.",
+    ),
+  );
+/** EVE-233: an expense's activity must be an active activity of its campaign. */
+export const expenseActivityOutsideCampaign = () =>
+  new BadRequestException(
+    problem(
+      "EXPENSE_ACTIVITY_OUTSIDE_CAMPAIGN",
+      "That activity does not belong to this expense's campaign.",
     ),
   );

@@ -12,6 +12,9 @@ import type {
   PaginatedExpensesResponse,
 } from "./expenses.contracts.js";
 import {
+  expenseActivityOutsideCampaign,
+  expenseCampaignHasNoDepartment,
+  expenseCampaignNotFound,
   expenseEventHasNoDepartment,
   expenseEventNotFound,
   expenseInvalidTransition,
@@ -34,6 +37,13 @@ function toResponse(expense: ExpenseRecord): ExpenseResponse {
     id: expense.id,
     eventId: expense.eventId,
     productionId: expense.productionId,
+    campaignId: expense.campaignId,
+    campaignActivityId: expense.campaignActivityId,
+    title: expense.title,
+    expenseDate: expense.expenseDate
+      ? expense.expenseDate.toISOString().slice(0, 10)
+      : null,
+    updatedById: expense.updatedById,
     departmentId: expense.departmentId,
     supplierId: expense.supplierId,
     category: expense.category,
@@ -134,6 +144,10 @@ export class ExpensesService {
       visibility,
       ...(query.eventId ? { eventId: query.eventId } : {}),
       ...(query.productionId ? { productionId: query.productionId } : {}),
+      ...(query.campaignId ? { campaignId: query.campaignId } : {}),
+      ...(query.campaignActivityId
+        ? { campaignActivityId: query.campaignActivityId }
+        : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.departmentId ? { departmentId: query.departmentId } : {}),
@@ -157,7 +171,10 @@ export class ExpensesService {
     userId: string,
     dto: CreateExpenseDto,
   ): Promise<ExpenseResponse> {
-    if (!dto.eventId && !dto.productionId) throw expenseOwnerRequired();
+    if (!dto.eventId && !dto.productionId && !dto.campaignId)
+      throw expenseOwnerRequired();
+    if (dto.campaignActivityId && !dto.campaignId)
+      throw expenseActivityOutsideCampaign();
     const event = dto.eventId
       ? await this.repo.findEventContext(dto.eventId)
       : null;
@@ -172,8 +189,28 @@ export class ExpensesService {
     // When both are given, the event's department is the one of record
     // (matches `findEventContext`'s pre-existing precedence); otherwise
     // whichever side was provided decides it.
-    const departmentId = event?.departmentId ?? production?.departmentId;
-    if (!departmentId) throw expenseEventHasNoDepartment();
+    const campaign = dto.campaignId
+      ? await this.repo.findCampaignContext(dto.campaignId)
+      : null;
+    if (dto.campaignId && !campaign) throw expenseCampaignNotFound();
+    if (
+      dto.campaignId &&
+      dto.campaignActivityId &&
+      !(await this.repo.activityBelongsToCampaign(
+        dto.campaignActivityId,
+        dto.campaignId,
+      ))
+    )
+      throw expenseActivityOutsideCampaign();
+    // EVE-233: with neither an event nor a production, the campaign's
+    // department is the one of record.
+    const departmentId =
+      event?.departmentId ?? production?.departmentId ?? campaign?.departmentId;
+    if (!departmentId) {
+      if (event) throw expenseEventHasNoDepartment();
+      if (production) throw expenseProductionHasNoDepartment();
+      throw expenseCampaignHasNoDepartment();
+    }
     const visibility = await this.visibility(userId, "expense.create");
     if (
       !visibility.organization &&
@@ -186,6 +223,12 @@ export class ExpensesService {
       await this.repo.create(departmentId, {
         ...(dto.eventId ? { eventId: dto.eventId } : {}),
         ...(dto.productionId ? { productionId: dto.productionId } : {}),
+        ...(dto.campaignId ? { campaignId: dto.campaignId } : {}),
+        ...(dto.campaignActivityId
+          ? { campaignActivityId: dto.campaignActivityId }
+          : {}),
+        ...(dto.title ? { title: dto.title.trim() } : {}),
+        ...(dto.expenseDate ? { expenseDate: new Date(dto.expenseDate) } : {}),
         ...(dto.supplierId ? { supplierId: dto.supplierId } : {}),
         category: dto.category,
         description: dto.description.trim(),
@@ -208,8 +251,30 @@ export class ExpensesService {
     if (!canEdit(expense.status)) throw expenseInvalidTransition();
     if (dto.supplierId && !(await this.repo.supplierExists(dto.supplierId)))
       throw expenseSupplierNotFound();
+    if (
+      dto.campaignActivityId &&
+      (!expense.campaignId ||
+        !(await this.repo.activityBelongsToCampaign(
+          dto.campaignActivityId,
+          expense.campaignId,
+        )))
+    )
+      throw expenseActivityOutsideCampaign();
     const fields: UpdateExpenseFields = {
+      updatedById: userId,
       ...(dto.supplierId !== undefined ? { supplierId: dto.supplierId } : {}),
+      ...(dto.campaignActivityId !== undefined
+        ? { campaignActivityId: dto.campaignActivityId }
+        : {}),
+      ...(dto.title !== undefined
+        ? { title: dto.title === null ? null : dto.title.trim() }
+        : {}),
+      ...(dto.expenseDate !== undefined
+        ? {
+            expenseDate:
+              dto.expenseDate === null ? null : new Date(dto.expenseDate),
+          }
+        : {}),
       ...(dto.category !== undefined ? { category: dto.category } : {}),
       ...(dto.description !== undefined
         ? { description: dto.description.trim() }

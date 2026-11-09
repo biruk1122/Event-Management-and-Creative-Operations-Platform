@@ -212,6 +212,9 @@ model User {
   creativeRequests           CreativeRequest[]           @relation("CreativeRequestRequestedBy")
   creativeRequestFeedback    CreativeRequestFeedback[]   @relation("CreativeRequestFeedbackAuthor")
   creativeRequestAttachments CreativeRequestAttachment[] @relation("CreativeRequestAttachedBy")
+  partnersUpdated            Partner[]                   @relation("PartnerUpdatedBy")
+  partnerAttachments         PartnerAttachment[]         @relation("PartnerAttachmentActor")
+  expensesUpdated            Expense[]                   @relation("ExpenseUpdatedBy")
   smsMessages                SmsMessage[]                @relation("SmsMessageRecipient")
   smsRuntimeSettingsUpdates  SmsRuntimeSettings[]        @relation("SmsRuntimeSettingsUpdater")
   smsCategorySettingUpdates  SmsCategorySetting[]        @relation("SmsCategorySettingUpdater")
@@ -650,6 +653,8 @@ model ManagedFile {
   intentLeaveRequestId String?          @map("intent_leave_request_id") @db.Uuid
   /// EVE-232: creative request authorized for a reference or deliverable upload.
   intentCreativeRequestId String?          @map("intent_creative_request_id") @db.Uuid
+  /// EVE-233: partner authorized for a partnership document upload.
+  intentPartnerId      String?          @map("intent_partner_id") @db.Uuid
   createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -665,6 +670,8 @@ model ManagedFile {
   intentLeaveRequest   LeaveRequest?             @relation("ManagedFileIntentLeaveRequest", fields: [intentLeaveRequestId], references: [id], onDelete: Restrict)
   intentCreativeRequest      CreativeRequest?            @relation("ManagedFileIntentCreativeRequest", fields: [intentCreativeRequestId], references: [id], onDelete: Restrict)
   creativeRequestAttachments CreativeRequestAttachment[]
+  intentPartner        Partner?                  @relation("ManagedFileIntentPartner", fields: [intentPartnerId], references: [id], onDelete: Restrict)
+  partnerAttachments   PartnerAttachment[]
   workspaceAttachments WorkspaceFileAttachment[]
   taskAttachments      TaskAttachment[]
   messageAttachments   MessageAttachment[]
@@ -690,6 +697,7 @@ model ManagedFile {
   @@index([intentDocumentId])
   @@index([intentLeaveRequestId])
   @@index([intentCreativeRequestId])
+  @@index([intentPartnerId])
   @@map("managed_files")
 }
 
@@ -1736,6 +1744,7 @@ model CampaignActivity {
 
   campaign  Campaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   promotion PromotionActivity?
+  expenses  Expense[]          @relation("ExpenseCampaignActivity")
 
   // The promotion extension must belong to this activity's campaign.
   @@unique([id, campaignId])
@@ -2834,6 +2843,12 @@ model Expense {
   currency      String          @db.Char(3)
   status        ExpenseStatus   @default(DRAFT)
   createdById   String?         @map("created_by_id") @db.Uuid
+  /// EVE-233: a short title, the day the money was spent, the campaign
+  /// activity it was spent on (same campaign only), and who last edited it.
+  title              String?   @map("title")
+  expenseDate        DateTime? @map("expense_date") @db.Date
+  campaignActivityId String?   @map("campaign_activity_id") @db.Uuid
+  updatedById        String?   @map("updated_by_id") @db.Uuid
   submittedAt   DateTime?       @map("submitted_at") @db.Timestamptz(6)
   reviewedAt    DateTime?       @map("reviewed_at") @db.Timestamptz(6)
   reviewerId    String?         @map("reviewer_id") @db.Uuid
@@ -2846,6 +2861,8 @@ model Expense {
   department    Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   supplier      Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   createdBy     User?               @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?               @relation("ExpenseUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  campaignActivity CampaignActivity? @relation("ExpenseCampaignActivity", fields: [campaignActivityId, campaignId], references: [id, campaignId], onDelete: Restrict)
   reviewer      User?               @relation("ExpenseCurrentReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
   reviews       ExpenseReview[]
   attachments   ExpenseAttachment[]
@@ -2857,6 +2874,7 @@ model Expense {
   @@index([eventId, status])
   @@index([productionId, status])
   @@index([campaignId, status])
+  @@index([campaignActivityId])
   @@index([departmentId, status])
   @@index([supplierId])
   @@index([createdById])
@@ -2902,6 +2920,19 @@ model ExpenseAttachment {
 }
 
 /// Lifecycle stage of a sponsorship/partnership opportunity.
+/// EVE-233: what kind of partnership a partner record describes.
+enum PartnershipType {
+  BRAND
+  SPONSOR
+  INFLUENCER
+  MEDIA
+  ADVERTISING_AGENCY
+  PROMOTIONAL_PARTNER
+  OTHER
+
+  @@map("partnership_type")
+}
+
 enum PartnerStatus {
   PROSPECTIVE
   IN_DISCUSSION
@@ -2937,9 +2968,22 @@ model Partner {
   /// The user responsible for this relationship (the "opportunity owner").
   ownerId              String?       @map("owner_id") @db.Uuid
   createdById          String?       @map("created_by_id") @db.Uuid
+  /// EVE-233: the partnership itself, beside the partner organization.
+  partnershipName      String?          @map("partnership_name")
+  partnershipType      PartnershipType? @map("partnership_type")
+  agreementDetails     String?          @map("agreement_details")
+  agreementStartOn     DateTime?        @map("agreement_start_on") @db.Date
+  agreementEndOn       DateTime?        @map("agreement_end_on") @db.Date
+  /// The value agreed with the partner. A commitment, never an expense.
+  agreedValueAmount    Decimal?         @map("agreed_value_amount") @db.Decimal(14, 2)
+  agreedValueCurrency  String?          @map("agreed_value_currency") @db.Char(3)
+  updatedById          String?          @map("updated_by_id") @db.Uuid
   createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  updatedBy     User?             @relation("PartnerUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  attachments   PartnerAttachment[]
+  fileIntents   ManagedFile[]     @relation("ManagedFileIntentPartner")
   department    Department?       @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   campaign      Campaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   event         Event?            @relation(fields: [eventId], references: [id], onDelete: SetNull)
@@ -4016,7 +4060,10 @@ model PromotionActivityAssignee {
   assignedById       String?  @map("assigned_by_id") @db.Uuid
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  promotionActivity PromotionActivity @relation(fields: [campaignActivityId], references: [campaignActivityId], onDelete: Cascade)
+  /// The constraint keeps the name its migration (20261108130100) gave it.
+  /// Without `map`, Prisma expects its default name and `migrate dev` would
+  /// generate a rename (EVE-233).
+  promotionActivity PromotionActivity @relation(fields: [campaignActivityId], references: [campaignActivityId], onDelete: Cascade, map: "promotion_activity_assignees_activity_fkey")
   user              User              @relation("PromotionActivityAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
   assignedBy        User?             @relation("PromotionActivityAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
 
@@ -4144,4 +4191,22 @@ model CreativeRequestAttachment {
   @@index([managedFileId])
   @@index([attachedById])
   @@map("creative_request_attachments")
+}
+
+/// EVE-233: a document attached to a partnership (agreement, brief, invoice).
+model PartnerAttachment {
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  partnerId     String   @map("partner_id") @db.Uuid
+  managedFileId String   @map("managed_file_id") @db.Uuid
+  attachedById  String?  @map("attached_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  partner     Partner     @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  managedFile ManagedFile @relation(fields: [managedFileId], references: [id], onDelete: Restrict)
+  attachedBy  User?       @relation("PartnerAttachmentActor", fields: [attachedById], references: [id], onDelete: SetNull)
+
+  @@unique([partnerId, managedFileId])
+  @@index([managedFileId])
+  @@index([attachedById])
+  @@map("partner_attachments")
 }

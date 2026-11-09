@@ -10,6 +10,15 @@ export interface PartnerFieldValues {
   proposedContribution: string;
   notes: string;
   followUpAt: string;
+  // EVE-233: the partnership itself.
+  partnershipName: string;
+  partnershipType: string;
+  campaignId: string;
+  agreementDetails: string;
+  agreementStartOn: string;
+  agreementEndOn: string;
+  agreedValueAmount: string;
+  agreedValueCurrency: string;
 }
 
 type FieldErrors<K extends string> = Partial<Record<K, string>>;

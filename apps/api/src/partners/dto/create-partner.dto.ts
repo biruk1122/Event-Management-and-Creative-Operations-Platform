@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
+  IsEnum,
+  IsNumber,
+  Max,
+  Min,
   IsEmail,
   IsISO8601,
   IsOptional,
@@ -11,6 +15,8 @@ import {
 } from "class-validator";
 
 /** Rejects a value that is empty once trimmed. */
+import { PartnershipType } from "../../generated/prisma/client.js";
+
 const NOT_BLANK = /\S/;
 
 export class CreatePartnerDto {
@@ -117,4 +123,64 @@ export class CreatePartnerDto {
   @IsOptional()
   @IsUUID()
   ownerId?: string;
+
+  @ApiPropertyOptional({
+    example: "Summer festival media partnership",
+    maxLength: 200,
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  @Matches(NOT_BLANK, { message: "partnershipName must not be blank" })
+  partnershipName?: string;
+
+  @ApiPropertyOptional({ enum: PartnershipType })
+  @IsOptional()
+  @IsEnum(PartnershipType)
+  partnershipType?: PartnershipType;
+
+  @ApiPropertyOptional({ maxLength: 5000 })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(5000)
+  @Matches(NOT_BLANK, { message: "agreementDetails must not be blank" })
+  agreementDetails?: string;
+
+  @ApiPropertyOptional({ example: "2026-11-01", description: "YYYY-MM-DD" })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "agreementStartOn must be YYYY-MM-DD",
+  })
+  @IsISO8601({ strict: true })
+  agreementStartOn?: string;
+
+  @ApiPropertyOptional({ example: "2027-01-31", description: "YYYY-MM-DD" })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "agreementEndOn must be YYYY-MM-DD",
+  })
+  @IsISO8601({ strict: true })
+  agreementEndOn?: string;
+
+  @ApiPropertyOptional({
+    type: Number,
+    example: 50000,
+    minimum: 0,
+    description:
+      "The value agreed with the partner, at most two fraction digits. A commitment, never an expense.",
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(999_999_999_999.99)
+  agreedValueAmount?: number;
+
+  @ApiPropertyOptional({ example: "ETB", description: "ISO-4217 code." })
+  @IsOptional()
+  @Matches(/^[A-Z]{3}$/, {
+    message: "agreedValueCurrency must be a three-letter ISO-4217 code",
+  })
+  agreedValueCurrency?: string;
 }

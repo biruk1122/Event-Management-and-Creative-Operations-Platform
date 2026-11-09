@@ -1,3 +1,4 @@
+import { PartnersModule } from "../partners/partners.module.js";
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module.js";
 import { CampaignsDashboardQuery } from "./campaigns-dashboard.query.js";
@@ -18,6 +19,7 @@ import { CampaignsRepository } from "./infrastructure/campaigns.repository.js";
     AuthModule,
     EventsModule,
     PermissionsModule,
+    PartnersModule,
     TalentModule,
     WorkspacesModule,
   ],

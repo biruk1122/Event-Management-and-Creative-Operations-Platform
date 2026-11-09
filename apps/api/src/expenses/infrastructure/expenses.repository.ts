@@ -48,6 +48,8 @@ export interface ListExpensesInput {
   visibility: ExpenseVisibility;
   eventId?: string;
   productionId?: string;
+  campaignId?: string;
+  campaignActivityId?: string;
   status?: ExpenseStatus;
   category?: ExpenseCategory;
   departmentId?: string;
@@ -59,6 +61,10 @@ export interface ListExpensesInput {
 export interface CreateExpenseInput {
   eventId?: string;
   productionId?: string;
+  campaignId?: string;
+  campaignActivityId?: string;
+  title?: string;
+  expenseDate?: Date;
   supplierId?: string;
   category: ExpenseCategory;
   description: string;
@@ -70,6 +76,10 @@ export interface CreateExpenseInput {
 
 export interface UpdateExpenseFields {
   supplierId?: string | null;
+  campaignActivityId?: string | null;
+  title?: string | null;
+  expenseDate?: Date | null;
+  updatedById?: string;
   category?: ExpenseCategory;
   description?: string;
   plannedAmount?: string | null;
@@ -97,6 +107,11 @@ function updateData(
 ): Prisma.ExpenseUncheckedUpdateManyInput {
   const data: Prisma.ExpenseUncheckedUpdateManyInput = {};
   if (fields.supplierId !== undefined) data.supplierId = fields.supplierId;
+  if (fields.campaignActivityId !== undefined)
+    data.campaignActivityId = fields.campaignActivityId;
+  if (fields.title !== undefined) data.title = fields.title;
+  if (fields.expenseDate !== undefined) data.expenseDate = fields.expenseDate;
+  if (fields.updatedById !== undefined) data.updatedById = fields.updatedById;
   if (fields.category !== undefined) data.category = fields.category;
   if (fields.description !== undefined) data.description = fields.description;
   if (fields.plannedAmount !== undefined)
@@ -147,6 +162,30 @@ export class ExpensesRepository {
       where: { id: productionId, archivedAt: null },
       select: { departmentId: true },
     });
+  }
+
+  /** EVE-233: a campaign-owned expense takes the campaign's department. */
+  async findCampaignContext(
+    campaignId: string,
+  ): Promise<{ departmentId: string | null } | null> {
+    if (!isUuid(campaignId)) return null;
+    return this.db.campaign.findUnique({
+      where: { id: campaignId },
+      select: { departmentId: true },
+    });
+  }
+
+  /** Whether the activity is an active activity of the campaign. */
+  async activityBelongsToCampaign(
+    activityId: string,
+    campaignId: string,
+  ): Promise<boolean> {
+    if (!isUuid(activityId) || !isUuid(campaignId)) return false;
+    return (
+      (await this.db.campaignActivity.count({
+        where: { id: activityId, campaignId, archivedAt: null },
+      })) === 1
+    );
   }
 
   async supplierExists(id: string): Promise<boolean> {
@@ -243,6 +282,10 @@ export class ExpensesRepository {
       ...visibleWhere(input.visibility),
       ...(input.eventId ? { eventId: input.eventId } : {}),
       ...(input.productionId ? { productionId: input.productionId } : {}),
+      ...(input.campaignId ? { campaignId: input.campaignId } : {}),
+      ...(input.campaignActivityId
+        ? { campaignActivityId: input.campaignActivityId }
+        : {}),
       ...(input.status ? { status: input.status } : {}),
       ...(input.category ? { category: input.category } : {}),
       ...(input.departmentId ? { departmentId: input.departmentId } : {}),
@@ -269,6 +312,12 @@ export class ExpensesRepository {
       data: {
         ...(data.eventId ? { eventId: data.eventId } : {}),
         ...(data.productionId ? { productionId: data.productionId } : {}),
+        ...(data.campaignId ? { campaignId: data.campaignId } : {}),
+        ...(data.campaignActivityId
+          ? { campaignActivityId: data.campaignActivityId }
+          : {}),
+        ...(data.title ? { title: data.title } : {}),
+        ...(data.expenseDate ? { expenseDate: data.expenseDate } : {}),
         departmentId,
         ...(data.supplierId ? { supplierId: data.supplierId } : {}),
         category: data.category,
@@ -279,6 +328,7 @@ export class ExpensesRepository {
         actualAmount: data.actualAmount,
         currency: data.currency,
         createdById: data.createdById,
+        updatedById: data.createdById,
       },
       include,
     });

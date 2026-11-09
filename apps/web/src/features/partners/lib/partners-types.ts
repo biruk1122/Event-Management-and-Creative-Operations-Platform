@@ -42,3 +42,26 @@ export function personName(person: PartnerPerson | null): string {
   const name = [person.firstName, person.lastName].filter(Boolean).join(" ");
   return name || person.email;
 }
+
+export type PartnershipType = NonNullable<Partner["partnershipType"]>;
+
+/** EVE-233: the partnership types, as people say them. */
+export const PARTNERSHIP_TYPE_LABELS: Record<PartnershipType, string> = {
+  BRAND: "Brand",
+  SPONSOR: "Sponsor",
+  INFLUENCER: "Influencer",
+  MEDIA: "Media",
+  ADVERTISING_AGENCY: "Advertising agency",
+  PROMOTIONAL_PARTNER: "Promotional partner",
+  OTHER: "Other",
+};
+
+/** "50,000.00 ETB", or null when no value was agreed. */
+export function agreedValueLabel(partner: Partner): string | null {
+  if (!partner.agreedValueAmount || !partner.agreedValueCurrency) return null;
+  const amount = Number(partner.agreedValueAmount).toLocaleString("en", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${amount} ${partner.agreedValueCurrency}`;
+}
