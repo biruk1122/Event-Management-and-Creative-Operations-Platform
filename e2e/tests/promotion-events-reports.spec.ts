@@ -129,10 +129,14 @@ test("the overview and the calendar bring the work together", async ({
     workspace.getByRole("heading", { name: "Campaigns by status" }),
   ).toBeVisible();
   await expect(
-    workspace.getByText("Upcoming events", { exact: true }),
+    workspace.getByRole("heading", { name: "Next events" }),
   ).toBeVisible();
-  await expect(workspace.getByText("Budget and expenses")).toBeVisible();
-  await expect(workspace.getByText("Performance indicators")).toBeVisible();
+  await expect(
+    workspace.getByRole("heading", { name: "Budget and expenses" }),
+  ).toBeVisible();
+  await expect(
+    workspace.getByRole("heading", { name: "Performance indicators" }),
+  ).toBeVisible();
   await expectNoWcag22AaViolations(page, "promotion overview");
 
   await page
