@@ -15,6 +15,9 @@ const social = makeActivity({
 const detail: PromotionActivity = {
   activity: radio,
   channel: "RADIO_PROMOTION",
+  location: null,
+  requiredResources: null,
+  assignees: [],
   talents: [
     {
       id: "assignment-1",

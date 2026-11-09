@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 import {
+  downloadCampaignFile,
+  listCampaignFiles,
+  removeCampaignFile,
+  uploadCampaignFile,
+} from "./campaign-files-gateway";
+import {
   downloadEventFile,
   downloadExpenseFile,
   listEventFiles,
@@ -96,6 +102,59 @@ export function useExpenseFileMutations(
     }),
     download: useMutation({
       mutationFn: (fileId: string) => downloadExpenseFile(expenseId, fileId),
+    }),
+  };
+}
+
+/** Campaign files (EVE-231): the same list and mutations, keyed by campaign. */
+export const campaignFileKey = (
+  access: CurrentAccess,
+  campaignId: string,
+  page: number,
+) =>
+  [
+    "campaign-files",
+    access.userId,
+    access.grants
+      .map((g) => `${g.permissionKey}:${g.scope}`)
+      .sort()
+      .join(","),
+    campaignId,
+    page,
+  ] as const;
+
+export function useCampaignFiles(
+  access: CurrentAccess,
+  campaignId: string,
+  page: number,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: campaignFileKey(access, campaignId, page),
+    queryFn: ({ signal }) => listCampaignFiles(campaignId, page, signal),
+    enabled,
+    retry: false,
+  });
+}
+
+export function useCampaignFileMutations(
+  access: CurrentAccess,
+  campaignId: string,
+) {
+  const client = useQueryClient();
+  const invalidate = () =>
+    client.invalidateQueries({ queryKey: ["campaign-files", access.userId] });
+  return {
+    upload: useMutation({
+      mutationFn: (file: File) => uploadCampaignFile(campaignId, file),
+      onSuccess: invalidate,
+    }),
+    remove: useMutation({
+      mutationFn: (fileId: string) => removeCampaignFile(campaignId, fileId),
+      onSuccess: invalidate,
+    }),
+    download: useMutation({
+      mutationFn: (fileId: string) => downloadCampaignFile(campaignId, fileId),
     }),
   };
 }

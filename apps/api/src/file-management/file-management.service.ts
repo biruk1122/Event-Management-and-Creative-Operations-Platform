@@ -11,6 +11,7 @@ import {
 } from "../talent/talent.errors.js";
 import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { DatabaseService } from "../database/database.service.js";
+import { CampaignsService } from "../campaigns/campaigns.service.js";
 import { DiscussService } from "../discuss/discuss.service.js";
 import type { EventRecord } from "../events/infrastructure/events.repository.js";
 import { EventsRepository } from "../events/infrastructure/events.repository.js";
@@ -100,6 +101,7 @@ function validateFilename(value: string): string {
 export class FileManagementService {
   constructor(
     private readonly audit: AuditWriterService,
+    private readonly campaigns: CampaignsService,
     private readonly db: DatabaseService,
     private readonly discuss: DiscussService,
     private readonly documents: DocumentsService,
@@ -146,12 +148,21 @@ export class FileManagementService {
   ): Promise<UploadIntentResponse> {
     const event = await this.eventOrThrow(eventId);
     await this.requireGrant(actingUserId, "event.update");
+    return this.intentFor(actingUserId, event.workspaceId, dto);
+  }
+
+  /** Authorizes an intent against a workspace; the caller has already checked the parent. */
+  private async intentFor(
+    actingUserId: string,
+    workspaceId: string,
+    dto: CreateUploadIntentDto,
+  ): Promise<UploadIntentResponse> {
     const filename = validateFilename(dto.filename);
     const intentExpiresAt = new Date(Date.now() + INTENT_TTL_MS);
     const file = await this.files.createPending({
       initiatedById: actingUserId,
       intentExpiresAt,
-      intentWorkspaceId: event.workspaceId,
+      intentWorkspaceId: workspaceId,
       mediaType: dto.mediaType,
       originalFilename: filename,
       sizeBytes: dto.sizeBytes,
@@ -184,7 +195,16 @@ export class FileManagementService {
   ): Promise<ManagedFileResponse> {
     const event = await this.eventOrThrow(eventId);
     await this.requireGrant(actingUserId, "event.update");
-    const file = await this.files.findPending(fileId, event.workspaceId);
+    return this.finalizeFor(actingUserId, event.workspaceId, fileId);
+  }
+
+  /** Verifies, scans and attaches an upload; the caller has already checked the parent. */
+  private async finalizeFor(
+    actingUserId: string,
+    workspaceId: string,
+    fileId: string,
+  ): Promise<ManagedFileResponse> {
+    const file = await this.files.findPending(fileId, workspaceId);
     if (!file) throw fileNotFound();
 
     const now = new Date();
@@ -235,10 +255,10 @@ export class FileManagementService {
       uploadedAt: now,
       verifiedMediaType: verified.mediaType,
       verifiedSizeBytes: verified.sizeBytes,
-      workspaceId: event.workspaceId,
+      workspaceId,
     });
     if (!finalized) throw fileStateConflict();
-    const available = await this.files.findAttached(event.workspaceId, file.id);
+    const available = await this.files.findAttached(workspaceId, file.id);
     if (!available) throw fileStateConflict();
     return toResponse(available);
   }
@@ -250,8 +270,15 @@ export class FileManagementService {
   ): Promise<PaginatedManagedFilesResponse> {
     const event = await this.eventOrThrow(eventId);
     await this.requireGrant(actingUserId, "event.read");
+    return this.listAttached(event.workspaceId, query);
+  }
+
+  private async listAttached(
+    workspaceId: string,
+    query: ListManagedFilesQueryDto,
+  ): Promise<PaginatedManagedFilesResponse> {
     const { items, total } = await this.files.listAttached(
-      event.workspaceId,
+      workspaceId,
       query.page,
       query.pageSize,
     );
@@ -270,7 +297,14 @@ export class FileManagementService {
   ): Promise<DownloadGrantResponse> {
     const event = await this.eventOrThrow(eventId);
     await this.requireGrant(actingUserId, "event.read");
-    const file = await this.files.findAttached(event.workspaceId, fileId);
+    return this.downloadAttached(event.workspaceId, fileId);
+  }
+
+  private async downloadAttached(
+    workspaceId: string,
+    fileId: string,
+  ): Promise<DownloadGrantResponse> {
+    const file = await this.files.findAttached(workspaceId, fileId);
     if (!file || file.state !== "AVAILABLE" || !file.verifiedMediaType)
       throw fileNotFound();
     const grant = await this.storage.createDownloadGrant({
@@ -299,6 +333,104 @@ export class FileManagementService {
       new Date(Date.now() + DETACHED_FILE_RETENTION_MS),
     );
     if (!detached) throw fileNotFound();
+  }
+
+  /** Detaches a file from a workspace and starts its retention window. */
+  private async detachAttached(
+    workspaceId: string,
+    fileId: string,
+  ): Promise<void> {
+    const detached = await this.files.detach(
+      workspaceId,
+      fileId,
+      new Date(Date.now() + DETACHED_FILE_RETENTION_MS),
+    );
+    if (!detached) throw fileNotFound();
+  }
+
+  // ---- Campaign files (EVE-231) -------------------------------------------
+  // Campaign files attach to the campaign's connected workspace, through the
+  // same managed-file pipeline as events. Reading needs campaign.read (so the
+  // read-only overseeing manager can open them); changing needs campaign.update,
+  // which the campaigns service checks against the campaign's own department.
+
+  private async campaignWorkspaceForRead(
+    actingUserId: string,
+    campaignId: string,
+  ): Promise<string> {
+    return (await this.campaigns.get(actingUserId, campaignId)).workspaceId;
+  }
+
+  private async campaignWorkspaceForWrite(
+    actingUserId: string,
+    campaignId: string,
+  ): Promise<string> {
+    await this.campaigns.assertCampaignPermission(
+      actingUserId,
+      campaignId,
+      "campaign.update",
+    );
+    return (await this.campaigns.get(actingUserId, campaignId)).workspaceId;
+  }
+
+  async createCampaignUploadIntent(
+    actingUserId: string,
+    campaignId: string,
+    dto: CreateUploadIntentDto,
+  ): Promise<UploadIntentResponse> {
+    const workspaceId = await this.campaignWorkspaceForWrite(
+      actingUserId,
+      campaignId,
+    );
+    return this.intentFor(actingUserId, workspaceId, dto);
+  }
+
+  async finalizeCampaignUpload(
+    actingUserId: string,
+    campaignId: string,
+    fileId: string,
+  ): Promise<ManagedFileResponse> {
+    const workspaceId = await this.campaignWorkspaceForWrite(
+      actingUserId,
+      campaignId,
+    );
+    return this.finalizeFor(actingUserId, workspaceId, fileId);
+  }
+
+  async listCampaignFiles(
+    actingUserId: string,
+    campaignId: string,
+    query: ListManagedFilesQueryDto,
+  ): Promise<PaginatedManagedFilesResponse> {
+    const workspaceId = await this.campaignWorkspaceForRead(
+      actingUserId,
+      campaignId,
+    );
+    return this.listAttached(workspaceId, query);
+  }
+
+  async downloadCampaignFile(
+    actingUserId: string,
+    campaignId: string,
+    fileId: string,
+  ): Promise<DownloadGrantResponse> {
+    const workspaceId = await this.campaignWorkspaceForRead(
+      actingUserId,
+      campaignId,
+    );
+    return this.downloadAttached(workspaceId, fileId);
+  }
+
+  async removeCampaignFile(
+    actingUserId: string,
+    campaignId: string,
+    fileId: string,
+  ): Promise<void> {
+    const workspaceId = await this.campaignWorkspaceForWrite(
+      actingUserId,
+      campaignId,
+    );
+    await this.detachAttached(workspaceId, fileId);
   }
 
   async createTaskUploadIntent(

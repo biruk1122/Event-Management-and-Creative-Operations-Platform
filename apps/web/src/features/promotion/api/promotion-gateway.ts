@@ -3,8 +3,12 @@ import type { operations } from "@event-platform/api-client";
 import { browserApi } from "@/lib/api/browser";
 import { readCsrfToken } from "@/lib/api/csrf";
 import { isProblemDetails } from "@/lib/api/problem-details";
-import type { CampaignActivity } from "@/features/campaigns/lib/campaigns-types";
+import type {
+  CampaignActivity,
+  CampaignActivityStatus,
+} from "@/features/campaigns/lib/campaigns-types";
 import { listCampaignActivities } from "@/features/campaigns/api/campaigns-gateway";
+import { collectAllPages } from "@/lib/collect-all-pages";
 
 import type { PromotionActivity, PromotionChannel } from "../promotion-types";
 
@@ -172,4 +176,127 @@ export async function unassignPromotionTalent(
   });
   if (!data) throw failure(error, response.status);
   return data;
+}
+
+/** Location and required resources of an activity (EVE-231). Campaign department only. */
+export async function updatePromotionDetails(
+  campaignId: string,
+  activityId: string,
+  values: { location: string | null; requiredResources: string | null },
+): Promise<PromotionActivity> {
+  const { data, error, response } = await browserApi.PATCH(
+    "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/details",
+    {
+      params: { path: { campaignId, activityId } },
+      body: values,
+      headers: headers(),
+    },
+  );
+  if (!data) throw failure(error, response.status);
+  return data;
+}
+
+/** Assigns an active employee of the campaign's department (EVE-231). */
+export async function assignPromotionEmployee(
+  campaignId: string,
+  activityId: string,
+  employeeId: string,
+): Promise<PromotionActivity> {
+  const { data, error, response } = await browserApi.PUT(
+    "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/assignees/{userId}",
+    {
+      params: { path: { campaignId, activityId, userId: employeeId } },
+      headers: headers(),
+    },
+  );
+  if (!data) throw failure(error, response.status);
+  return data;
+}
+
+export async function removePromotionEmployee(
+  campaignId: string,
+  activityId: string,
+  employeeId: string,
+): Promise<PromotionActivity> {
+  const { data, error, response } = await browserApi.DELETE(
+    "/api/v1/promotion/campaigns/{campaignId}/activities/{activityId}/assignees/{userId}",
+    {
+      params: { path: { campaignId, activityId, userId: employeeId } },
+      headers: headers(),
+    },
+  );
+  if (!data) throw failure(error, response.status);
+  return data;
+}
+
+/**
+ * Every promotion activity the viewer can read, across campaigns (EVE-231),
+ * with the campaign name. Filtered by the server; only the first page is loaded.
+ */
+export async function listAllPromotionActivities(
+  query: {
+    campaignId?: string;
+    channel?: PromotionChannel;
+    status?: CampaignActivityStatus;
+    search?: string;
+    sort?: "START_AT" | "NAME";
+    page?: number;
+    pageSize?: number;
+  },
+  signal?: AbortSignal,
+) {
+  const { data, error, response } = await browserApi.GET(
+    "/api/v1/promotion/activities",
+    {
+      params: {
+        query: {
+          ...(query.campaignId ? { campaignId: query.campaignId } : {}),
+          ...(query.channel ? { channel: query.channel } : {}),
+          ...(query.status ? { status: query.status } : {}),
+          ...(query.search?.trim() ? { search: query.search.trim() } : {}),
+          sort: query.sort ?? "START_AT",
+          page: query.page ?? 1,
+          pageSize: query.pageSize ?? PAGE_SIZE,
+        } as never,
+      },
+      ...(signal ? { signal } : {}),
+      cache: "no-store",
+    },
+  );
+  if (!data) throw failure(error, response.status);
+  return data;
+}
+
+/**
+ * Every active employee of the campaign's own department who can be assigned
+ * (EVE-231). The server applies the department rule; this walks every page so
+ * no one is hidden past the first page.
+ */
+export async function listAssignableEmployees(
+  campaignId: string,
+  signal?: AbortSignal,
+): Promise<{ id: string; name: string }[]> {
+  return collectAllPages(async (page) => {
+    const { data, error, response } = await browserApi.GET(
+      "/api/v1/promotion/campaigns/{campaignId}/assignable-employees",
+      {
+        params: {
+          path: { campaignId },
+          query: { page, pageSize: PAGE_SIZE } as never,
+        },
+        ...(signal ? { signal } : {}),
+        cache: "no-store",
+      },
+    );
+    if (!data) throw failure(error, response.status);
+    return {
+      items: data.items.map((person) => ({
+        id: person.id,
+        name:
+          [person.firstName, person.lastName].filter(Boolean).join(" ") ||
+          person.email,
+      })),
+      total: data.total,
+    };
+  });
 }

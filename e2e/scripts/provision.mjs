@@ -46,6 +46,24 @@ const TEST_USERS = [
     role: "Department Manager",
     department: "Production",
   },
+  // EVE-231: the Promotion department and its overseeing Marketing Manager.
+  {
+    email: "promotion-manager@e2e.test",
+    role: "Department Manager",
+    department: "Promotion",
+    manages: "Promotion",
+  },
+  {
+    email: "promotion-member@e2e.test",
+    role: "Department Member",
+    department: "Promotion",
+  },
+  {
+    email: "marketing-manager@e2e.test",
+    role: "Department Manager",
+    department: "Marketing",
+    manages: "Marketing",
+  },
 ];
 
 /**
@@ -137,7 +155,7 @@ async function main() {
 
   await withClient(scopedUrl, async (client) => {
     await client.query(`SET search_path TO "${schema}"`);
-    for (const { email, role, department } of TEST_USERS) {
+    for (const { email, role, department, manages } of TEST_USERS) {
       const passwordHash = await hash(TEST_USER_PASSWORD);
       const { rows } = await client.query(
         `INSERT INTO users (email, status, department_id)
@@ -174,6 +192,14 @@ async function main() {
       if (!roleRows[0]?.role_id) {
         throw new Error(
           `Failed to assign end-to-end user ${email} to role "${role}".`,
+        );
+      }
+      // EVE-231: make this account the department's active manager, so the
+      // department oversight rules apply to it (ADR 0008).
+      if (manages) {
+        await client.query(
+          "UPDATE departments SET manager_id = $1 WHERE name = $2",
+          [id, manages],
         );
       }
     }

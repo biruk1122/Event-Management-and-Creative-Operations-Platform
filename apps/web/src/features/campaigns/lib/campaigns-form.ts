@@ -8,11 +8,20 @@ import type { Campaign, CampaignType } from "./campaigns-types";
  */
 export type SubjectKind = "NONE" | "EVENT" | "PRODUCT";
 
+/**
+ * The one project, production or artist a campaign promotes (EVE-231). The API
+ * allows at most one, so the form models the choice as a single kind and id.
+ */
+export type RelatedLinkKind = "NONE" | "PROJECT" | "PRODUCTION" | "ARTIST";
+
 /** The campaign attributes shared by the create and edit forms. */
 export interface CampaignFieldValues {
   name: string;
   campaignType: CampaignType;
   description: string;
+  objectives: string;
+  linkKind: RelatedLinkKind;
+  linkId: string | null;
   audience: string;
   startAt: string;
   endAt: string;
@@ -29,6 +38,9 @@ export const EMPTY_FIELDS: CampaignFieldValues = {
   name: "",
   campaignType: "MARKETING",
   description: "",
+  objectives: "",
+  linkKind: "NONE",
+  linkId: null,
   audience: "",
   startAt: "",
   endAt: "",
@@ -53,6 +65,16 @@ export function fieldsFromCampaign(campaign: Campaign): CampaignFieldValues {
     name: campaign.name,
     campaignType: campaign.campaignType,
     description: campaign.description ?? "",
+    objectives: campaign.objectives ?? "",
+    linkKind: campaign.projectId
+      ? "PROJECT"
+      : campaign.productionId
+        ? "PRODUCTION"
+        : campaign.talentId
+          ? "ARTIST"
+          : "NONE",
+    linkId:
+      campaign.projectId ?? campaign.productionId ?? campaign.talentId ?? null,
     audience: campaign.audience ?? "",
     startAt: toLocalInput(campaign.startAt),
     endAt: toLocalInput(campaign.endAt),
@@ -83,6 +105,9 @@ export function validateFields(
   if (values.subjectKind === "PRODUCT" && values.productName.trim() === "") {
     errors.productName = "Enter a product name.";
   }
+  if (values.linkKind !== "NONE" && values.linkId === null) {
+    errors.linkId = "Pick the project, production or artist.";
+  }
   return errors;
 }
 
@@ -95,6 +120,10 @@ export function toFormValues(values: CampaignFieldValues): CampaignFormValues {
     name: values.name,
     campaignType: values.campaignType,
     description: values.description,
+    objectives: values.objectives,
+    projectId: values.linkKind === "PROJECT" ? values.linkId : null,
+    productionId: values.linkKind === "PRODUCTION" ? values.linkId : null,
+    talentId: values.linkKind === "ARTIST" ? values.linkId : null,
     audience: values.audience,
     startAt: values.startAt,
     endAt: values.endAt,

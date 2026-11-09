@@ -16,6 +16,10 @@ export interface CampaignFormValues {
   name: string;
   campaignType: CampaignType;
   description: string;
+  objectives: string;
+  projectId: string | null;
+  productionId: string | null;
+  talentId: string | null;
   audience: string;
   startAt: string;
   endAt: string;

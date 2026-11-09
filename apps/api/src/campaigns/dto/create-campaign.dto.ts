@@ -115,4 +115,43 @@ export class CreateCampaignDto {
   @IsOptional()
   @IsUUID()
   departmentId?: string;
+
+  @ApiPropertyOptional({
+    example: "Launch the new range across the region.",
+    minLength: 1,
+    maxLength: 2000,
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(2000)
+  @Matches(NOT_BLANK, { message: "objectives must not be blank" })
+  objectives?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "A project this campaign promotes. At most one of projectId, productionId or talentId may be set.",
+  })
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "A production this campaign promotes. At most one of projectId, productionId or talentId may be set.",
+  })
+  @IsOptional()
+  @IsUUID()
+  productionId?: string;
+
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "An artist this campaign promotes. At most one of projectId, productionId or talentId may be set.",
+  })
+  @IsOptional()
+  @IsUUID()
+  talentId?: string;
 }

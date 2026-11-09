@@ -21,6 +21,7 @@ import {
   listCampaigns,
 } from "../api/campaigns-gateway";
 import { campaignKeys, useCampaignsMutations } from "../api/campaigns-queries";
+import { CampaignFilesPanel } from "@/features/files/components/campaign-files-panel";
 import {
   campaignAbilities,
   readOnlyCampaignAbilities,
@@ -228,6 +229,13 @@ export function CampaignsManager({
         campaignId={selectedId}
         promotionAccess={access}
         marketingAccess={access}
+        renderFiles={(campaignId, canUpdate) => (
+          <CampaignFilesPanel
+            campaignId={campaignId}
+            canRead
+            canUpdate={canUpdate}
+          />
+        )}
         onOpenChange={(open) => {
           if (!open) setSelectedId(null);
         }}

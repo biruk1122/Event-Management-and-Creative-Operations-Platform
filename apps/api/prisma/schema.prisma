@@ -205,6 +205,10 @@ model User {
   reviewedLeaveRequests        LeaveRequest[]               @relation("LeaveRequestReviewedBy")
 
   // Administrators list and filter users by status and sort them by name.
+  campaignUpdates          CampaignUpdate[]           @relation("CampaignUpdateAuthor")
+  campaignMetrics          CampaignMetric[]           @relation("CampaignMetricRecorder")
+  promotionAssignments     PromotionActivityAssignee[] @relation("PromotionActivityAssigneeUser")
+  promotionAssignmentsMade PromotionActivityAssignee[] @relation("PromotionActivityAssignedBy")
   @@index([status])
   @@index([lastName, firstName])
   // Scoped visibility and the department roster both filter users by department.
@@ -1246,6 +1250,7 @@ model Talent {
 
   // Talent directories filter by type/state and manager; name and email
   // support deterministic administration lookups.
+  campaigns   Campaign[] @relation("CampaignTalent")
   @@index([availability, fullName])
   @@index([type, availability])
   @@index([managerId])
@@ -1387,6 +1392,7 @@ model Production {
   locations  ProductionLocation[]
   expenses   Expense[]
 
+  campaigns   Campaign[] @relation("CampaignProduction")
   @@index([status])
   @@index([productionType, status])
   @@index([deadlineAt])
@@ -1532,6 +1538,7 @@ model Project {
 
   // Administration and the connected-workspace overview filter projects by
   // lifecycle state, related event, schedule, and author.
+  campaigns   Campaign[] @relation("CampaignProject")
   @@index([status])
   @@index([eventId])
   @@index([startAt])
@@ -1664,6 +1671,21 @@ model Campaign {
   relatedTasks        Task[]              @relation("TaskRelatedCampaign")
 
   // Supports a composite FK that fixes promotion detail ownership to PROMOTION.
+  /// What the campaign is meant to achieve (EVE-231). Free text.
+  objectives     String?
+  /// At most one of project, production or talent may be linked (database CHECK
+  /// `campaigns_one_related_link`). Deleting the linked record clears the link.
+  projectId      String?         @map("project_id") @db.Uuid
+  productionId   String?         @map("production_id") @db.Uuid
+  talentId       String?         @map("talent_id") @db.Uuid
+  project        Project?        @relation("CampaignProject", fields: [projectId], references: [id], onDelete: SetNull)
+  production     Production?     @relation("CampaignProduction", fields: [productionId], references: [id], onDelete: SetNull)
+  talent         Talent?         @relation("CampaignTalent", fields: [talentId], references: [id], onDelete: SetNull)
+  updates        CampaignUpdate[]
+  metrics        CampaignMetric[]
+  @@index([projectId])
+  @@index([productionId])
+  @@index([talentId])
   @@unique([id, campaignType])
   // Administration and the connected-workspace overview filter campaigns by
   // owning module, lifecycle state, related event, schedule, and author.
@@ -1756,6 +1778,10 @@ model PromotionActivity {
   campaign           Campaign                  @relation(fields: [campaignId, campaignType], references: [id, campaignType], onDelete: Cascade)
   talents            PromotionActivityTalent[]
 
+  /// Where the activity happens and what it needs (EVE-231). Blank text is refused.
+  location          String?
+  requiredResources String?                    @map("required_resources")
+  assignees         PromotionActivityAssignee[]
   @@unique([campaignActivityId, campaignId])
   @@index([campaignId, channel])
   @@map("promotion_activities")
@@ -3898,4 +3924,70 @@ model SmsCategorySetting {
 
   @@id([category])
   @@map("sms_category_settings")
+}
+
+/// Append-only notes and updates on a campaign (EVE-231). A trigger refuses any
+/// UPDATE; rows leave only with their campaign.
+model CampaignUpdate {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  campaignId String   @map("campaign_id") @db.Uuid
+  authorId   String?  @map("author_id") @db.Uuid
+  note       String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  author   User?    @relation("CampaignUpdateAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, createdAt])
+  @@map("campaign_updates")
+}
+
+/// Metric keys a promotion campaign may record. The set is closed by decision
+/// (EVE-231); add a value only with a migration and a product decision.
+enum CampaignMetricKey {
+  REACH
+  ENGAGEMENT
+  TICKETS_SOLD
+  ATTENDANCE
+  OTHER
+
+  @@map("campaign_metric_key")
+}
+
+/// A manually recorded indicator for a campaign (EVE-231). It is stored and shown
+/// exactly as recorded; nothing here is computed or estimated. A trigger refuses
+/// any UPDATE, so a correction is a new row.
+model CampaignMetric {
+  id           String            @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  campaignId   String            @map("campaign_id") @db.Uuid
+  key          CampaignMetricKey
+  value        Decimal           @db.Decimal(14, 2)
+  recordedOn   DateTime          @map("recorded_on") @db.Date
+  sourceNote   String?           @map("source_note")
+  recordedById String?           @map("recorded_by_id") @db.Uuid
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  recordedBy User?    @relation("CampaignMetricRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, key, recordedOn])
+  @@map("campaign_metrics")
+}
+
+/// An employee of the promotion campaign's department assigned to a promotion
+/// activity (EVE-231). A trigger enforces the department and active-status rule,
+/// not only the service.
+model PromotionActivityAssignee {
+  campaignActivityId String   @map("campaign_activity_id") @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  assignedById       String?  @map("assigned_by_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  promotionActivity PromotionActivity @relation(fields: [campaignActivityId], references: [campaignActivityId], onDelete: Cascade)
+  user              User              @relation("PromotionActivityAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+  assignedBy        User?             @relation("PromotionActivityAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([campaignActivityId, userId])
+  @@index([userId])
+  @@map("promotion_activity_assignees")
 }

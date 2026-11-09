@@ -54,6 +54,10 @@ describe("CreateCampaignDialog", () => {
         eventId: null,
         productName: "",
         managerId: null,
+        objectives: "",
+        projectId: null,
+        productionId: null,
+        talentId: null,
       }),
     );
     expect(onCreated).toHaveBeenCalledWith(makeCampaign());

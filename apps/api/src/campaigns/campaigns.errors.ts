@@ -25,6 +25,9 @@ export const CAMPAIGN_ERROR = {
   /** The same code the user, department, team, and workspace surfaces use. */
   userNotFound: "USER_NOT_FOUND",
   campaignDepartmentNotFound: "CAMPAIGN_DEPARTMENT_NOT_FOUND",
+  campaignRelatedLinkConflict: "CAMPAIGN_RELATED_LINK_CONFLICT",
+  campaignRelatedLinkNotFound: "CAMPAIGN_RELATED_LINK_NOT_FOUND",
+  campaignMetricDateInvalid: "CAMPAIGN_METRIC_DATE_INVALID",
 } as const;
 
 export function campaignNotFound(): HttpException {
@@ -91,6 +94,33 @@ export function campaignInvalidTransition(
     code: CAMPAIGN_ERROR.campaignInvalidTransition,
     error: "Conflict",
     detail: `A campaign in ${from} cannot move to ${to}.`,
+  });
+}
+
+/** EVE-231: a campaign links to at most one project, production or artist. */
+export function campaignRelatedLinkConflict(): HttpException {
+  return new ConflictException({
+    code: CAMPAIGN_ERROR.campaignRelatedLinkConflict,
+    error: "Conflict",
+    detail: "A campaign can link to one project, production or artist only.",
+  });
+}
+
+/** A recorded metric needs a real calendar day. */
+export function campaignMetricDateInvalid(): HttpException {
+  return new BadRequestException({
+    code: CAMPAIGN_ERROR.campaignMetricDateInvalid,
+    error: "Bad Request",
+    detail: "recordedOn must be a real calendar day (YYYY-MM-DD).",
+  });
+}
+
+/** The linked project, production or artist does not exist. */
+export function campaignRelatedLinkNotFound(): HttpException {
+  return new NotFoundException({
+    code: CAMPAIGN_ERROR.campaignRelatedLinkNotFound,
+    error: "Not Found",
+    detail: "The linked project, production or artist was not found.",
   });
 }
 

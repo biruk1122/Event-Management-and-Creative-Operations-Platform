@@ -99,6 +99,34 @@ export const TEST_USERS: readonly TestUser[] = [
     firstName: "Taylor",
     lastName: "Cast",
   },
+  // EVE-231: the Promotion department and its overseeing Marketing Manager.
+  {
+    key: "promotionManager",
+    email: "promotion-manager@e2e.test",
+    password: TEST_USER_PASSWORD,
+    role: "Department Manager",
+    department: "Promotion",
+    firstName: "Pia",
+    lastName: "Promo",
+  },
+  {
+    key: "promotionMember",
+    email: "promotion-member@e2e.test",
+    password: TEST_USER_PASSWORD,
+    role: "Department Member",
+    department: "Promotion",
+    firstName: "Paul",
+    lastName: "Crew",
+  },
+  {
+    key: "marketingManager",
+    email: "marketing-manager@e2e.test",
+    password: TEST_USER_PASSWORD,
+    role: "Department Manager",
+    department: "Marketing",
+    firstName: "Mira",
+    lastName: "Market",
+  },
 ] as const;
 
 export function testUser(key: string): TestUser {
