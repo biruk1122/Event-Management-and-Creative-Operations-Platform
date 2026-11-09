@@ -359,3 +359,49 @@
   rotate: 0deg;
   opacity: 1;
 }
+
+/*
+ * Sidebar scrollbar: "Option 1 · Minimal Modern" from the Lela Sidebar
+ * Scrollbar Options design. A 4px thumb and no track; it brightens while the
+ * pointer is over the sidebar, widens to 6px on hover, and is lightest while
+ * dragged. The 3px transparent border insets the visible thumb inside a 10px
+ * hit area, so it stays easy to grab.
+ *
+ * Chromium ignores ::-webkit-scrollbar once the standard scrollbar-color is
+ * set, so the standard properties are kept to Firefox, which supports nothing
+ * else: there it is a thin bar in the same colors.
+ */
+.shell-sidebar-navigation::-webkit-scrollbar {
+  width: 10px;
+}
+.shell-sidebar-navigation::-webkit-scrollbar-track {
+  margin-block: 8px;
+  background: transparent;
+}
+.shell-sidebar-navigation::-webkit-scrollbar-thumb {
+  min-height: 48px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-color: #9a6f7d;
+  background-clip: padding-box;
+}
+.shell-sidebar-navigation:hover::-webkit-scrollbar-thumb {
+  background-color: #ad8290;
+}
+.shell-sidebar-navigation::-webkit-scrollbar-thumb:hover {
+  border-width: 2px;
+  background-color: #c49aa8;
+}
+.shell-sidebar-navigation::-webkit-scrollbar-thumb:active {
+  border-width: 2px;
+  background-color: #e0bfc9;
+}
+@supports (-moz-appearance: none) {
+  .shell-sidebar-navigation {
+    scrollbar-width: thin;
+    scrollbar-color: #9a6f7d transparent;
+  }
+  .shell-sidebar-navigation:hover {
+    scrollbar-color: #ad8290 transparent;
+  }
+}
