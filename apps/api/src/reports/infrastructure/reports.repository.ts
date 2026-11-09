@@ -129,6 +129,16 @@ export class ReportsRepository {
     );
   }
 
+  /** EVE-234: the campaign that owns a workspace, or null. */
+  async findCampaignIdByWorkspace(workspaceId: string): Promise<string | null> {
+    if (!UUID.test(workspaceId)) return null;
+    const campaign = await this.db.campaign.findUnique({
+      where: { workspaceId },
+      select: { id: true },
+    });
+    return campaign?.id ?? null;
+  }
+
   async departmentExists(id: string): Promise<boolean> {
     if (!UUID.test(id)) return false;
     return (await this.db.department.count({ where: { id } })) > 0;

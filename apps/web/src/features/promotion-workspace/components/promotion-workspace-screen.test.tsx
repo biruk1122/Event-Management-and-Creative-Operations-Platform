@@ -69,6 +69,24 @@ vi.mock("./promotion-activities-view", () => ({
     <p>activities:{props.mode}</p>
   ),
 }));
+vi.mock("./promotion-overview", () => ({
+  PromotionOverview: () => <p>overview-dashboard</p>,
+}));
+vi.mock("./promotion-events-view", () => ({
+  PromotionEventsView: () => <p>event-promotions</p>,
+}));
+vi.mock("./promotion-calendar-view", () => ({
+  PromotionCalendarView: (props: {
+    departmentId: string | null;
+    sources: { events: boolean; activities: boolean; deadlines: boolean };
+  }) => (
+    <p>
+      calendar:{props.departmentId ?? "none"}:
+      {props.sources.events ? "events" : "-"}:
+      {props.sources.deadlines ? "deadlines" : "-"}
+    </p>
+  ),
+}));
 vi.mock("@/features/reports/components/reports-screen", () => ({
   ReportsScreen: (props: { readOnly?: boolean }) => (
     <p>reports:{props.readOnly ? "read-only" : "editable"}</p>
@@ -136,17 +154,39 @@ describe("PromotionWorkspaceScreen", () => {
       "page",
     );
     expect(screen.queryByText("View-only oversight")).not.toBeInTheDocument();
+    expect(screen.getByText("overview-dashboard")).toBeInTheDocument();
   });
 
-  it("shows the promotional activities list and calendar, built in this phase", () => {
+  it("shows team members section shortcuts instead of the campaign dashboard", () => {
+    signedIn({
+      role: "DEPARTMENT_MEMBER",
+      department: { id: "dept-promo", name: "Promotion", active: true },
+      grants: [{ permissionKey: "task.read", scope: "DEPARTMENT" }],
+    });
+    render(<PromotionWorkspaceScreen />, { wrapper });
+    expect(screen.queryByText("overview-dashboard")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Event Promotions" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Team Tasks/ }).length).toBe(
+      2,
+    );
+  });
+
+  it("shows the promotional activities list", () => {
     signedIn(promotionManager);
     state.search = "tab=activities";
-    const { unmount } = render(<PromotionWorkspaceScreen />, { wrapper });
+    render(<PromotionWorkspaceScreen />, { wrapper });
     expect(screen.getByText("activities:list")).toBeInTheDocument();
-    unmount();
+  });
+
+  it("shows the combined calendar with events and the team deadlines (EVE-234)", () => {
+    signedIn(promotionManager);
     state.search = "tab=calendar";
     render(<PromotionWorkspaceScreen />, { wrapper });
-    expect(screen.getByText("activities:calendar")).toBeInTheDocument();
+    expect(
+      screen.getByText("calendar:dept-promo:events:deadlines"),
+    ).toBeInTheDocument();
   });
 
   it("keeps the section in the URL", async () => {
@@ -191,13 +231,18 @@ describe("PromotionWorkspaceScreen", () => {
     expect(screen.getByText("creative-requests:read-only")).toBeInTheDocument();
   });
 
-  it("shows a clear coming-later state, never data, for sections not built yet", () => {
+  it("shows the event promotions, for the overseeing manager too (EVE-234)", () => {
     signedIn(promotionManager);
     state.search = "tab=event-promotions";
+    const { unmount } = render(<PromotionWorkspaceScreen />, { wrapper });
+    expect(screen.getByText("event-promotions")).toBeInTheDocument();
+    unmount();
+    signedIn(marketingManager);
     render(<PromotionWorkspaceScreen />, { wrapper });
+    expect(screen.getByText("event-promotions")).toBeInTheDocument();
     expect(
-      screen.getByText("Event Promotions is coming in a later phase"),
-    ).toBeInTheDocument();
+      screen.queryByText(/coming in a later phase/),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the budget section, read-only for the overseeing manager (EVE-233)", () => {

@@ -239,6 +239,9 @@ export async function listAllPromotionActivities(
     channel?: PromotionChannel;
     status?: CampaignActivityStatus;
     search?: string;
+    /** Activities starting at or after / before these instants (EVE-234). */
+    from?: string;
+    to?: string;
     sort?: "START_AT" | "NAME";
     page?: number;
     pageSize?: number;
@@ -254,6 +257,8 @@ export async function listAllPromotionActivities(
           ...(query.channel ? { channel: query.channel } : {}),
           ...(query.status ? { status: query.status } : {}),
           ...(query.search?.trim() ? { search: query.search.trim() } : {}),
+          ...(query.from ? { from: query.from } : {}),
+          ...(query.to ? { to: query.to } : {}),
           sort: query.sort ?? "START_AT",
           page: query.page ?? 1,
           pageSize: query.pageSize ?? PAGE_SIZE,

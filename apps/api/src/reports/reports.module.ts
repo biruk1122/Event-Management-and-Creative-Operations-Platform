@@ -12,6 +12,7 @@ import { TasksModule } from "../tasks/tasks.module.js";
 import { WorkspacesModule } from "../workspaces/workspaces.module.js";
 import { ReportsRepository } from "./infrastructure/reports.repository.js";
 import { ReportsSchedulerRepository } from "./infrastructure/reports-scheduler.repository.js";
+import { CampaignsModule } from "../campaigns/campaigns.module.js";
 import { ReportsController } from "./reports.controller.js";
 import { ReportsSchedulerService } from "./reports-scheduler.service.js";
 import { ReportsService } from "./reports.service.js";
@@ -21,6 +22,7 @@ import { ReportsSmsService } from "./reports-sms.service.js";
   imports: [
     AuditModule,
     AuthModule,
+    CampaignsModule,
     EventsModule,
     ExpensesModule,
     OutboxModule,

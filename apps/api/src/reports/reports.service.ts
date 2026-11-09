@@ -21,6 +21,7 @@ import {
   type ReportType,
 } from "../generated/prisma/client.js";
 import { WorkspacesService } from "../workspaces/workspaces.service.js";
+import { CampaignsService } from "../campaigns/campaigns.service.js";
 import { EventsReportFactsQuery } from "../events/events-report-facts.query.js";
 import { ExpensesReportFactsQuery } from "../expenses/expenses-report-facts.query.js";
 import { ProjectsReportFactsQuery } from "../projects/projects-report-facts.query.js";
@@ -44,6 +45,7 @@ import type {
   ReportResponse,
 } from "./reports.contracts.js";
 import {
+  reportCampaignRequired,
   reportInvalidRange,
   reportInvalidTransition,
   reportNotFound,
@@ -139,6 +141,7 @@ export class ReportsService {
     private readonly projectFacts: ProjectsReportFactsQuery,
     private readonly eventFacts: EventsReportFactsQuery,
     private readonly expenseFacts: ExpensesReportFactsQuery,
+    private readonly campaigns: CampaignsService,
   ) {}
 
   private async actorRole(userId: string): Promise<PlatformRole | null> {
@@ -284,6 +287,26 @@ export class ReportsService {
     }
   }
 
+  /** EVE-234: a completion report links exactly one campaign workspace, and
+   * the author must be able to read that campaign. The campaign check is
+   * department-aware (CampaignsService), so a Promotion manager can link
+   * their own department's campaign. */
+  private async checkCompletionCampaign(
+    userId: string,
+    ids: string[],
+  ): Promise<void> {
+    if (ids.length !== 1) throw reportCampaignRequired();
+    const campaignId = await this.repo.findCampaignIdByWorkspace(ids[0]!);
+    if (!campaignId) throw reportCampaignRequired();
+    try {
+      await this.campaigns.get(userId, campaignId);
+    } catch (error) {
+      if (error instanceof Error && error.name === "NotFoundException")
+        throw reportWorkspaceNotFound();
+      throw error;
+    }
+  }
+
   private async writeData(
     userId: string,
     input: CreateReportDto | UpdateReportDto,
@@ -318,7 +341,9 @@ export class ReportsService {
       input.workspaceIds ??
       existing?.workspaces.map((link) => link.workspaceId) ??
       [];
-    await this.checkWorkspaces(userId, workspaceIds);
+    if (type === "CAMPAIGN_COMPLETION")
+      await this.checkCompletionCampaign(userId, workspaceIds);
+    else await this.checkWorkspaces(userId, workspaceIds);
     const sections: Sections = {
       ...(existing && existing.type === type
         ? sectionsFrom(existing)

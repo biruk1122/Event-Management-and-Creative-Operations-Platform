@@ -88,6 +88,7 @@ describe("ReportsService.get - EOM-01 post-event facts", () => {
       projectFacts as never,
       eventFacts as never,
       expenseFacts as never,
+      {} as never,
     );
   });
 
@@ -211,6 +212,7 @@ describe("ReportsService - optional Under Review step (EOM-01)", () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
   });
 
@@ -319,6 +321,7 @@ describe("ReportsService - description field and attachments", () => {
     service = new ReportsService(
       repo as never,
       permissions as never,
+      {} as never,
       {} as never,
       {} as never,
       {} as never,

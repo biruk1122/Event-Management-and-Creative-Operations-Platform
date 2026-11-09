@@ -167,3 +167,47 @@ export class ListPromotionActivitiesQueryDto {
   @Max(100)
   pageSize = 25;
 }
+
+/** EVE-234: the read-only event schedule the Promotion team promotes. */
+export class ListPromotionEventsQueryDto {
+  @ApiPropertyOptional({
+    format: "date-time",
+    description:
+      "Events still running at or after this instant. Defaults to now.",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  from?: string;
+
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "Events starting at or before this instant.",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  to?: string;
+
+  @ApiPropertyOptional({
+    maxLength: 200,
+    description: "Matches the event name or location.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
+
+  @ApiPropertyOptional({ minimum: 1, default: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100, default: 25 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize = 25;
+}

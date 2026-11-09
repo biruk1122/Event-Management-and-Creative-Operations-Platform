@@ -206,6 +206,33 @@ describe("campaigns gateway reads", () => {
     ]);
   });
 
+  it("adds every department's upcoming events for a promotion campaign (EVE-234)", async () => {
+    get.mockImplementation(async (path: string) =>
+      path === "/api/v1/promotion/events/upcoming"
+        ? ok({
+            items: [
+              { id: "evt-1", name: "Orbit Launch" },
+              { id: "evt-2", name: "Other department gala" },
+            ],
+          })
+        : ok({ items: [{ id: "evt-1", name: "Orbit Launch" }] }),
+    );
+    expect(
+      await listAssignableEvents(undefined, {
+        includeUpcomingPromotionEvents: true,
+      }),
+    ).toEqual([
+      { id: "evt-1", name: "Orbit Launch" },
+      { id: "evt-2", name: "Other department gala" },
+    ]);
+    get.mockClear();
+    await listAssignableEvents();
+    expect(get).not.toHaveBeenCalledWith(
+      "/api/v1/promotion/events/upcoming",
+      expect.anything(),
+    );
+  });
+
   it("returns [] for assignable reads the caller cannot make", async () => {
     get.mockResolvedValue({ data: undefined, response: { status: 403 } });
 

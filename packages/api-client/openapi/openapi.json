@@ -2792,7 +2792,13 @@
             "type": "string"
           },
           "type": {
-            "enum": ["DAILY", "WEEKLY", "MONTHLY", "POST_EVENT"],
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY",
+              "POST_EVENT",
+              "CAMPAIGN_COMPLETION"
+            ],
             "type": "string"
           },
           "workspaceIds": {
@@ -7836,6 +7842,30 @@
         "required": ["items", "page", "pageSize", "total"],
         "type": "object"
       },
+      "PaginatedPromotionEventsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionEventResponse"
+            },
+            "type": "array"
+          },
+          "page": {
+            "example": 1,
+            "type": "number"
+          },
+          "pageSize": {
+            "example": 25,
+            "type": "number"
+          },
+          "total": {
+            "example": 4,
+            "type": "number"
+          }
+        },
+        "required": ["items", "page", "pageSize", "total"],
+        "type": "object"
+      },
       "PaginatedReportsResponse": {
         "properties": {
           "items": {
@@ -9091,6 +9121,45 @@
         "required": ["id", "email", "firstName", "lastName"],
         "type": "object"
       },
+      "PromotionBudgetTotal": {
+        "properties": {
+          "allocated": {
+            "example": "50000.00",
+            "type": "string"
+          },
+          "approved": {
+            "description": "Approved expenses.",
+            "example": "9800.00",
+            "type": "string"
+          },
+          "campaignCount": {
+            "example": 2,
+            "type": "number"
+          },
+          "currency": {
+            "example": "ETB",
+            "type": "string"
+          },
+          "overBudgetCount": {
+            "example": 0,
+            "type": "number"
+          },
+          "pending": {
+            "description": "Awaiting approval.",
+            "example": "1350.00",
+            "type": "string"
+          }
+        },
+        "required": [
+          "currency",
+          "allocated",
+          "approved",
+          "pending",
+          "campaignCount",
+          "overBudgetCount"
+        ],
+        "type": "object"
+      },
       "PromotionChannelProgress": {
         "properties": {
           "channel": {
@@ -9121,6 +9190,170 @@
           }
         },
         "required": ["total", "completed", "percent", "channel"],
+        "type": "object"
+      },
+      "PromotionEventCampaignResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "example": "ACTIVE",
+            "type": "string"
+          }
+        },
+        "required": ["id", "name", "status"],
+        "type": "object"
+      },
+      "PromotionEventResponse": {
+        "properties": {
+          "campaigns": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionEventCampaignResponse"
+            },
+            "type": "array"
+          },
+          "departmentName": {
+            "example": "Event Office",
+            "nullable": true,
+            "type": "string"
+          },
+          "endAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "eventType": {
+            "example": "CONCERT",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "location": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "organizerName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "startAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "example": "PLANNING",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "eventType",
+          "status",
+          "startAt",
+          "endAt",
+          "location",
+          "organizerName",
+          "departmentName",
+          "campaigns"
+        ],
+        "type": "object"
+      },
+      "PromotionMetricTotal": {
+        "properties": {
+          "campaignCount": {
+            "description": "Campaigns that recorded it.",
+            "example": 2,
+            "type": "number"
+          },
+          "key": {
+            "example": "REACH",
+            "type": "string"
+          },
+          "value": {
+            "example": "125000.00",
+            "type": "string"
+          }
+        },
+        "required": ["key", "value", "campaignCount"],
+        "type": "object"
+      },
+      "PromotionOverviewResponse": {
+        "properties": {
+          "budget": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionBudgetTotal"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "campaignsByStatus": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionStatusCount"
+            },
+            "type": "array"
+          },
+          "nextEvents": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionEventResponse"
+            },
+            "type": "array"
+          },
+          "partnershipsByStatus": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionStatusCount"
+            },
+            "nullable": true,
+            "type": "array"
+          },
+          "performance": {
+            "items": {
+              "$ref": "#/components/schemas/PromotionMetricTotal"
+            },
+            "type": "array"
+          },
+          "totalCampaigns": {
+            "example": 6,
+            "type": "number"
+          },
+          "upcomingEventCount": {
+            "example": 2,
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalCampaigns",
+          "campaignsByStatus",
+          "upcomingEventCount",
+          "nextEvents",
+          "partnershipsByStatus",
+          "budget",
+          "performance"
+        ],
+        "type": "object"
+      },
+      "PromotionStatusCount": {
+        "properties": {
+          "count": {
+            "example": 3,
+            "type": "number"
+          },
+          "status": {
+            "example": "ACTIVE",
+            "type": "string"
+          }
+        },
+        "required": ["status", "count"],
         "type": "object"
       },
       "PromotionTalentDto": {
@@ -9395,7 +9628,13 @@
             "type": "string"
           },
           "type": {
-            "enum": ["DAILY", "WEEKLY", "MONTHLY", "POST_EVENT"],
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY",
+              "POST_EVENT",
+              "CAMPAIGN_COMPLETION"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -9697,7 +9936,13 @@
             "type": "string"
           },
           "type": {
-            "enum": ["DAILY", "WEEKLY", "MONTHLY", "POST_EVENT"],
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY",
+              "POST_EVENT",
+              "CAMPAIGN_COMPLETION"
+            ],
             "type": "string"
           },
           "updatedAt": {
@@ -9818,7 +10063,13 @@
             "type": "string"
           },
           "type": {
-            "enum": ["DAILY", "WEEKLY", "MONTHLY", "POST_EVENT"],
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY",
+              "POST_EVENT",
+              "CAMPAIGN_COMPLETION"
+            ],
             "type": "string"
           }
         },
@@ -13335,7 +13586,13 @@
             "type": "string"
           },
           "type": {
-            "enum": ["DAILY", "WEEKLY", "MONTHLY", "POST_EVENT"],
+            "enum": [
+              "DAILY",
+              "WEEKLY",
+              "MONTHLY",
+              "POST_EVENT",
+              "CAMPAIGN_COMPLETION"
+            ],
             "type": "string"
           },
           "workspaceIds": {
@@ -36444,6 +36701,156 @@
         "tags": ["Campaign platform"]
       }
     },
+    "/api/v1/promotion/events/upcoming": {
+      "get": {
+        "operationId": "PromotionWorkspace_upcomingEvents_v1",
+        "parameters": [
+          {
+            "description": "Events still running at or after this instant. Defaults to now.",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Events starting at or before this instant.",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Matches the event name or location.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "pageSize",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ],
+              "default": 25,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedPromotionEventsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List upcoming events to promote, with their linked promotion campaigns",
+        "tags": ["Promotion operations"]
+      }
+    },
+    "/api/v1/promotion/overview": {
+      "get": {
+        "operationId": "PromotionWorkspace_overview_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionOverviewResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "Summarize the Promotion workspace",
+        "tags": ["Promotion operations"]
+      }
+    },
     "/api/v1/reports": {
       "get": {
         "operationId": "Reports_list_v1",
@@ -36453,7 +36860,13 @@
             "name": "type",
             "required": false,
             "schema": {
-              "enum": ["DAILY", "WEEKLY", "MONTHLY", "POST_EVENT"],
+              "enum": [
+                "DAILY",
+                "WEEKLY",
+                "MONTHLY",
+                "POST_EVENT",
+                "CAMPAIGN_COMPLETION"
+              ],
               "type": "string"
             }
           },

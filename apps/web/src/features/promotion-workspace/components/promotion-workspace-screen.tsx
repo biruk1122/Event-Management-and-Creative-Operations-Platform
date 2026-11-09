@@ -33,7 +33,13 @@ import { ReportsScreen } from "@/features/reports/components/reports-screen";
 import { listAssignableDepartments } from "@/features/tasks/api/tasks-gateway";
 import { TasksScreen } from "@/features/tasks/components/tasks-screen";
 
+import { canReadCampaigns } from "@/features/campaigns/lib/campaign-access";
+import { canReadTasks } from "@/features/tasks/lib/task-access";
+
 import { PromotionActivitiesView } from "./promotion-activities-view";
+import { PromotionCalendarView } from "./promotion-calendar-view";
+import { PromotionEventsView } from "./promotion-events-view";
+import { PromotionOverview } from "./promotion-overview";
 import {
   PROMOTION_DEPARTMENT,
   canEnterPromotionWorkspace,
@@ -72,8 +78,9 @@ const SECTION_SUMMARIES: Record<PromotionSection, string> = {
     "Posters, flyers, videos and other materials requested from Production.",
   "event-promotions": "Upcoming events and the campaigns promoting them.",
   budget: "Campaign and activity budgets, expenses and receipts.",
-  reports: "Daily, weekly and monthly reports sent to the Marketing Manager.",
-  calendar: "Campaign dates, activities and task deadlines in one view.",
+  reports:
+    "Daily, weekly, monthly and campaign completion reports sent to the Marketing Manager.",
+  calendar: "Events, promotional activities and task deadlines in one view.",
 };
 
 /**
@@ -195,16 +202,22 @@ export function PromotionWorkspaceScreen() {
 
       <section aria-label="Promotion workspace">
         {current === "overview" ? (
-          <PromotionOverview
-            sections={sections.filter((section) => section.id !== "overview")}
-            onNavigate={select}
-          />
+          canReadCampaigns(data) ? (
+            <PromotionOverview userId={data.userId} onNavigate={select} />
+          ) : (
+            <PromotionSectionLinks
+              sections={sections.filter((section) => section.id !== "overview")}
+              onNavigate={select}
+            />
+          )
         ) : definition?.comingInPhase ? (
           <ComingLater definition={definition} />
         ) : current === "activities" ? (
           <PromotionActivitiesView mode="list" />
         ) : current === "calendar" ? (
-          <PromotionActivitiesView mode="calendar" />
+          <PromotionCalendar access={data} />
+        ) : current === "event-promotions" ? (
+          <PromotionEventsView userId={data.userId} />
         ) : current === "campaigns" ? (
           <CampaignsScreen
             initialType="PROMOTION"
@@ -231,13 +244,7 @@ export function PromotionWorkspaceScreen() {
  * fixed to Promotion. A Promotion member or the overseeing manager already
  * knows the department's id; Super Admin looks it up by name.
  */
-function PromotionTeamTasks({
-  access,
-  readOnly,
-}: {
-  access: CurrentAccess;
-  readOnly: boolean;
-}) {
+function usePromotionDepartmentId(access: CurrentAccess) {
   const known = promotionDepartmentIdFromAccess(access);
   const departments = useQuery({
     queryKey: ["promotion-workspace", access.userId, "departments"],
@@ -252,6 +259,18 @@ function PromotionTeamTasks({
       (department) => department.name === PROMOTION_DEPARTMENT,
     )?.id ??
     null;
+  return { departmentId, isPending: known === null && departments.isPending };
+}
+
+function PromotionTeamTasks({
+  access,
+  readOnly,
+}: {
+  access: CurrentAccess;
+  readOnly: boolean;
+}) {
+  const departments = usePromotionDepartmentId(access);
+  const departmentId = departments.departmentId;
   if (departmentId) {
     return <TasksScreen readOnly={readOnly} departmentId={departmentId} />;
   }
@@ -265,7 +284,33 @@ function PromotionTeamTasks({
   );
 }
 
-function PromotionOverview({
+/**
+ * The combined calendar (EVE-234): events and activities for campaign
+ * readers, and the Promotion team's task deadlines for task readers.
+ */
+function PromotionCalendar({ access }: { access: CurrentAccess }) {
+  const campaigns = canReadCampaigns(access);
+  const tasks = canReadTasks(access);
+  const departments = usePromotionDepartmentId(access);
+  if (tasks && departments.isPending) {
+    return <p role="status">Loading the Promotion team…</p>;
+  }
+  return (
+    <PromotionCalendarView
+      userId={access.userId}
+      departmentId={departments.departmentId}
+      sources={{
+        events: campaigns,
+        activities: campaigns,
+        // Without the department, deadlines would not be Promotion's alone.
+        deadlines: tasks && departments.departmentId !== null,
+      }}
+    />
+  );
+}
+
+/** For viewers without campaign access (team members): where to go next. */
+function PromotionSectionLinks({
   sections,
   onNavigate,
 }: {

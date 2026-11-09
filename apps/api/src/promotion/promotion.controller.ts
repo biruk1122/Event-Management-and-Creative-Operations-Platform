@@ -40,13 +40,16 @@ import {
   PaginatedAssignableEmployeesResponse,
   PaginatedPromotionActivitiesResponse,
   PaginatedPromotionActivityListResponse,
+  PaginatedPromotionEventsResponse,
   PromotionActivityResponse,
+  PromotionOverviewResponse,
 } from "./promotion.contracts.js";
 import {
   AttachPromotionActivityDto,
   AssignPromotionTalentDto,
   ListAssignableEmployeesQueryDto,
   ListPromotionActivitiesQueryDto,
+  ListPromotionEventsQueryDto,
   UpdatePromotionChannelDto,
   UpdatePromotionDetailsDto,
 } from "./promotion.dto.js";
@@ -327,5 +330,42 @@ export class PromotionActivitiesController {
     @Query() query: ListPromotionActivitiesQueryDto,
   ) {
     return this.promotion.listAll(user(request), query);
+  }
+}
+
+/**
+ * EVE-234: the Promotion workspace's read-only summaries. Open to Promotion
+ * staff, the manager who oversees Promotion, and organization-wide campaign
+ * readers; the service refuses everyone else.
+ */
+@ApiTags("Promotion operations")
+@ApiCookieAuth("access_token")
+@ApiUnauthorizedResponse({ type: ProblemDetails })
+@ApiForbiddenResponse({ type: ProblemDetails })
+@UseGuards(AccessTokenGuard, PermissionsGuard)
+@Controller("promotion")
+export class PromotionWorkspaceController {
+  constructor(private readonly promotion: PromotionService) {}
+
+  @Get("overview")
+  @RequirePermissions("campaign.read")
+  @ApiOperation({ summary: "Summarize the Promotion workspace" })
+  @ApiOkResponse({ type: PromotionOverviewResponse })
+  overview(@Req() request: RequestWithContext) {
+    return this.promotion.overview(user(request));
+  }
+
+  @Get("events/upcoming")
+  @RequirePermissions("campaign.read")
+  @ApiOperation({
+    summary:
+      "List upcoming events to promote, with their linked promotion campaigns",
+  })
+  @ApiOkResponse({ type: PaginatedPromotionEventsResponse })
+  upcomingEvents(
+    @Req() request: RequestWithContext,
+    @Query() query: ListPromotionEventsQueryDto,
+  ) {
+    return this.promotion.upcomingEvents(user(request), query);
   }
 }

@@ -42,6 +42,14 @@ const APPLICABLE: Record<ReportType, readonly SectionKey[]> = {
     "lessonsLearned",
     "recommendations",
   ],
+  // EVE-234: outcomes and results (majorAchievements), what got in the way,
+  // what was learned, and what to do next time.
+  CAMPAIGN_COMPLETION: [
+    "majorAchievements",
+    "challenges",
+    "lessonsLearned",
+    "recommendations",
+  ],
 };
 
 export function parsePeriod(type: ReportType, start: string, end: string) {
@@ -61,6 +69,8 @@ export function parsePeriod(type: ReportType, start: string, end: string) {
   if (
     (type === ReportType.DAILY && days !== 0) ||
     (type === ReportType.WEEKLY && days !== 6) ||
+    // EVE-234: a completion report spans the campaign window, end on or after start.
+    (type === ReportType.CAMPAIGN_COMPLETION && days < 0) ||
     (type === ReportType.MONTHLY &&
       (from.getUTCDate() !== 1 ||
         end !==

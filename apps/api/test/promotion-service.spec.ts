@@ -87,6 +87,7 @@ describe("PromotionService", () => {
       permissions as never,
       repository as never,
       talentAssignments as never,
+      {} as never,
     );
   });
 
@@ -272,5 +273,162 @@ describe("PromotionService", () => {
         "req-1",
       ),
     ).rejects.toThrow("database unavailable");
+  });
+});
+
+describe("PromotionService workspace summaries (EVE-234)", () => {
+  const visibility = { organization: false, departmentId: "dept-promo" };
+  const campaigns = {
+    readableCampaignFilter: vi.fn(),
+    listBudgetSummaries: vi.fn(),
+  };
+  const permissions = {
+    hasGrant: vi.fn(),
+    getAccessContext: vi.fn(),
+    getOverseenDepartments: vi.fn(),
+  };
+  const partners = { statusCountsForDepartment: vi.fn() };
+  const repository = {
+    upcomingEvents: vi.fn(),
+    campaignStatusCounts: vi.fn(),
+    latestMetrics: vi.fn(),
+    findActiveDepartmentIdByName: vi.fn(),
+  };
+  const event = {
+    id: "event-1",
+    name: "Launch night",
+    eventType: "CONCERT",
+    status: "READY",
+    startAt: new Date("2026-12-01T18:00:00Z"),
+    endAt: null,
+    location: "Addis Ababa",
+    organizerName: null,
+    department: { name: "Event Office" },
+    campaigns: [{ id: "c-1", name: "Launch push", status: "ACTIVE" }],
+  };
+  let service: PromotionService;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    permissions.hasGrant.mockResolvedValue(false);
+    permissions.getAccessContext.mockResolvedValue({
+      role: "DEPARTMENT_MANAGER",
+      department: { id: "dept-promo", name: "Promotion", active: true },
+    });
+    permissions.getOverseenDepartments.mockResolvedValue([]);
+    campaigns.readableCampaignFilter.mockResolvedValue(visibility);
+    repository.upcomingEvents.mockResolvedValue({ items: [event], total: 3 });
+    repository.findActiveDepartmentIdByName.mockResolvedValue("dept-promo");
+    service = new PromotionService(
+      campaigns as never,
+      permissions as never,
+      repository as never,
+      {} as never,
+      partners as never,
+    );
+  });
+
+  it("refuses the event schedule to staff outside Promotion and its oversight", async () => {
+    permissions.getAccessContext.mockResolvedValue({
+      role: "DEPARTMENT_MEMBER",
+      department: { id: "dept-mkt", name: "Marketing", active: true },
+    });
+    await expect(
+      service.upcomingEvents(ACTOR, { page: 1, pageSize: 25 }),
+    ).rejects.toThrow(permissionDenied().message);
+    expect(repository.upcomingEvents).not.toHaveBeenCalled();
+  });
+
+  it("lets the manager overseeing Promotion read the schedule", async () => {
+    permissions.getAccessContext.mockResolvedValue({
+      role: "DEPARTMENT_MANAGER",
+      department: { id: "dept-mkt", name: "Marketing", active: true },
+    });
+    permissions.getOverseenDepartments.mockResolvedValue([
+      { id: "dept-promo", name: "Promotion" },
+    ]);
+    const result = await service.upcomingEvents(ACTOR, {
+      page: 1,
+      pageSize: 25,
+    });
+    expect(result.items[0]).toMatchObject({
+      name: "Launch night",
+      startAt: "2026-12-01T18:00:00.000Z",
+      departmentName: "Event Office",
+      campaigns: [{ id: "c-1" }],
+    });
+    expect(repository.upcomingEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ visibility }),
+    );
+  });
+
+  it("summarizes campaigns, budget per currency and the latest indicators", async () => {
+    repository.campaignStatusCounts.mockResolvedValue([
+      { status: "ACTIVE", count: 2 },
+      { status: "COMPLETED", count: 1 },
+    ]);
+    repository.latestMetrics.mockResolvedValue([
+      { campaignId: "c-1", key: "REACH", value: new Prisma.Decimal("1000.50") },
+      { campaignId: "c-2", key: "REACH", value: new Prisma.Decimal("250") },
+    ]);
+    partners.statusCountsForDepartment.mockResolvedValue([
+      { status: "COMMITTED", count: 1 },
+    ]);
+    campaigns.listBudgetSummaries.mockResolvedValue({
+      items: [
+        {
+          currency: "ETB",
+          allocated: "1000.00",
+          approved: "400.10",
+          pending: "100.00",
+          overBudget: false,
+        },
+        {
+          currency: "ETB",
+          allocated: null,
+          approved: "50.00",
+          pending: "0.00",
+          overBudget: true,
+        },
+        {
+          currency: null,
+          allocated: null,
+          approved: "0.00",
+          pending: "0.00",
+          overBudget: false,
+        },
+      ],
+      page: 1,
+      pageSize: 100,
+      total: 3,
+    });
+    const overview = await service.overview(ACTOR);
+    expect(overview).toMatchObject({
+      totalCampaigns: 3,
+      upcomingEventCount: 3,
+      partnershipsByStatus: [{ status: "COMMITTED", count: 1 }],
+      budget: [
+        {
+          currency: "ETB",
+          allocated: "1000.00",
+          approved: "450.10",
+          pending: "100.00",
+          campaignCount: 2,
+          overBudgetCount: 1,
+        },
+      ],
+      performance: [{ key: "REACH", value: "1250.50", campaignCount: 2 }],
+    });
+  });
+
+  it("leaves out the budget when the caller cannot read budgets", async () => {
+    repository.campaignStatusCounts.mockResolvedValue([]);
+    repository.latestMetrics.mockResolvedValue([]);
+    partners.statusCountsForDepartment.mockResolvedValue(null);
+    campaigns.listBudgetSummaries.mockRejectedValue(permissionDenied());
+    const overview = await service.overview(ACTOR);
+    expect(overview.budget).toBeNull();
+    expect(overview.partnershipsByStatus).toBeNull();
+    expect(overview.totalCampaigns).toBe(0);
   });
 });

@@ -3454,6 +3454,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/promotion/events/upcoming": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List upcoming events to promote, with their linked promotion campaigns */
+    get: operations["PromotionWorkspace_upcomingEvents_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/promotion/overview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Summarize the Promotion workspace */
+    get: operations["PromotionWorkspace_overview_v1"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/reports": {
     parameters: {
       query?: never;
@@ -6423,7 +6457,8 @@ export interface components {
       sourceReportIds?: string[];
       title: string;
       /** @enum {string} */
-      type: "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT";
+      type:
+        "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT" | "CAMPAIGN_COMPLETION";
       workspaceIds?: string[];
     };
     CreateRoleDto: {
@@ -8473,6 +8508,15 @@ export interface components {
       /** @example 4 */
       total: number;
     };
+    PaginatedPromotionEventsResponse: {
+      items: components["schemas"]["PromotionEventResponse"][];
+      /** @example 1 */
+      page: number;
+      /** @example 25 */
+      pageSize: number;
+      /** @example 4 */
+      total: number;
+    };
     PaginatedReportsResponse: {
       items: components["schemas"]["ReportResponse"][];
       page: number;
@@ -8972,6 +9016,26 @@ export interface components {
       id: string;
       lastName: string | null;
     };
+    PromotionBudgetTotal: {
+      /** @example 50000.00 */
+      allocated: string;
+      /**
+       * @description Approved expenses.
+       * @example 9800.00
+       */
+      approved: string;
+      /** @example 2 */
+      campaignCount: number;
+      /** @example ETB */
+      currency: string;
+      /** @example 0 */
+      overBudgetCount: number;
+      /**
+       * @description Awaiting approval.
+       * @example 1350.00
+       */
+      pending: string;
+    };
     PromotionChannelProgress: {
       /** @enum {string} */
       channel:
@@ -8985,6 +9049,60 @@ export interface components {
       completed: number;
       percent: number | null;
       total: number;
+    };
+    PromotionEventCampaignResponse: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+      /** @example ACTIVE */
+      status: string;
+    };
+    PromotionEventResponse: {
+      campaigns: components["schemas"]["PromotionEventCampaignResponse"][];
+      /** @example Event Office */
+      departmentName: string | null;
+      /** Format: date-time */
+      endAt: string | null;
+      /** @example CONCERT */
+      eventType: string;
+      /** Format: uuid */
+      id: string;
+      location: string | null;
+      name: string;
+      organizerName: string | null;
+      /** Format: date-time */
+      startAt: string;
+      /** @example PLANNING */
+      status: string;
+    };
+    PromotionMetricTotal: {
+      /**
+       * @description Campaigns that recorded it.
+       * @example 2
+       */
+      campaignCount: number;
+      /** @example REACH */
+      key: string;
+      /** @example 125000.00 */
+      value: string;
+    };
+    PromotionOverviewResponse: {
+      budget: components["schemas"]["PromotionBudgetTotal"][] | null;
+      campaignsByStatus: components["schemas"]["PromotionStatusCount"][];
+      nextEvents: components["schemas"]["PromotionEventResponse"][];
+      partnershipsByStatus:
+        components["schemas"]["PromotionStatusCount"][] | null;
+      performance: components["schemas"]["PromotionMetricTotal"][];
+      /** @example 6 */
+      totalCampaigns: number;
+      /** @example 2 */
+      upcomingEventCount: number;
+    };
+    PromotionStatusCount: {
+      /** @example 3 */
+      count: number;
+      /** @example ACTIVE */
+      status: string;
     };
     PromotionTalentDto: {
       /** @example Presenter */
@@ -9095,7 +9213,8 @@ export interface components {
       submittedAt: string | null;
       title: string;
       /** @enum {string} */
-      type: "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT";
+      type:
+        "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT" | "CAMPAIGN_COMPLETION";
       /** Format: date-time */
       updatedAt: string;
       workspaceIds: string[];
@@ -9181,7 +9300,8 @@ export interface components {
       submittedAt: string | null;
       title: string;
       /** @enum {string} */
-      type: "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT";
+      type:
+        "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT" | "CAMPAIGN_COMPLETION";
       /** Format: date-time */
       updatedAt: string;
       workspaceIds: string[];
@@ -9218,7 +9338,8 @@ export interface components {
         | "CHANGES_REQUESTED";
       title: string;
       /** @enum {string} */
-      type: "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT";
+      type:
+        "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT" | "CAMPAIGN_COMPLETION";
     };
     RescheduleEventShiftDto: {
       /** Format: date-time */
@@ -10538,7 +10659,8 @@ export interface components {
       sourceReportIds?: string[];
       title?: string;
       /** @enum {string} */
-      type?: "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT";
+      type?:
+        "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT" | "CAMPAIGN_COMPLETION";
       workspaceIds?: string[];
     };
     UpdateRoleDto: {
@@ -25419,10 +25541,90 @@ export interface operations {
       };
     };
   };
+  PromotionWorkspace_upcomingEvents_v1: {
+    parameters: {
+      query?: {
+        /** @description Events still running at or after this instant. Defaults to now. */
+        from?: string;
+        /** @description Events starting at or before this instant. */
+        to?: string;
+        /** @description Matches the event name or location. */
+        search?: string;
+        page?: components["schemas"]["Object"];
+        pageSize?: components["schemas"]["Object"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaginatedPromotionEventsResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
+  PromotionWorkspace_overview_v1: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PromotionOverviewResponse"];
+        };
+      };
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ProblemDetails"];
+        };
+      };
+    };
+  };
   Reports_list_v1: {
     parameters: {
       query?: {
-        type?: "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT";
+        type?:
+          "DAILY" | "WEEKLY" | "MONTHLY" | "POST_EVENT" | "CAMPAIGN_COMPLETION";
         status?:
           | "DRAFT"
           | "SUBMITTED"

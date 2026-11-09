@@ -4,6 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import { ReportDraftForm } from "./report-draft-form";
 
+const campaigns = vi.hoisted(() => ({ listCampaigns: vi.fn() }));
+vi.mock("@/features/campaigns/api/campaigns-gateway", () => ({
+  listCampaigns: campaigns.listCampaigns,
+}));
+
 describe("Report draft interactions", () => {
   it("preserves narrative values across period switches, but saves only current sections", async () => {
     const user = userEvent.setup();
@@ -120,5 +125,53 @@ describe("Report draft interactions", () => {
     await user.upload(input, file);
     await user.click(screen.getByRole("button", { name: "Save draft" }));
     expect(save).toHaveBeenCalledWith(expect.anything(), [file]);
+  });
+
+  it("links a completion report to exactly one chosen campaign (EVE-234)", async () => {
+    campaigns.listCampaigns.mockResolvedValue({
+      items: [
+        { id: "c1", workspaceId: "ws-c1", name: "Launch push" },
+        { id: "c2", workspaceId: "ws-c2", name: "Album tour" },
+      ],
+      page: 1,
+      pageSize: 100,
+      total: 2,
+    });
+    const user = userEvent.setup();
+    const save = vi.fn();
+    render(
+      <ReportDraftForm
+        workspaces={[{ id: "ws-other", name: "Another workspace" }]}
+        onCancel={vi.fn()}
+        onSave={save}
+      />,
+    );
+    await user.type(screen.getByLabelText("Title"), "Launch push results");
+    await user.selectOptions(
+      screen.getByLabelText("Report type"),
+      "CAMPAIGN_COMPLETION",
+    );
+    // The general workspace list gives way to the one campaign.
+    expect(screen.queryByText("Another workspace")).not.toBeInTheDocument();
+    await screen.findByRole("option", { name: "Album tour" });
+    await user.selectOptions(screen.getByLabelText("Campaign"), "ws-c2");
+    await user.type(
+      screen.getByLabelText("Results and achievements"),
+      "Sold out",
+    );
+    await user.type(screen.getByLabelText("Period start (UTC)"), "2026-10-01");
+    await user.type(screen.getByLabelText("Period end (UTC)"), "2026-10-31");
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(save).toHaveBeenCalledWith(
+      {
+        title: "Launch push results",
+        type: "CAMPAIGN_COMPLETION",
+        periodStart: "2026-10-01",
+        periodEnd: "2026-10-31",
+        workspaceIds: ["ws-c2"],
+        majorAchievements: "Sold out",
+      },
+      [],
+    );
   });
 });

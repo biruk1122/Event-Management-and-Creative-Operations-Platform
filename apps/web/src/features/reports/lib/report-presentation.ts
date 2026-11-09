@@ -32,6 +32,7 @@ export const REPORT_TYPES: readonly ReportType[] = [
   "WEEKLY",
   "MONTHLY",
   "POST_EVENT",
+  "CAMPAIGN_COMPLETION",
 ];
 export const REPORT_STATUSES: readonly ReportStatus[] = [
   "DRAFT",
@@ -46,6 +47,7 @@ export const TYPE_LABELS: Record<ReportType, string> = {
   WEEKLY: "Weekly",
   MONTHLY: "Monthly",
   POST_EVENT: "Post-event",
+  CAMPAIGN_COMPLETION: "Campaign completion",
 };
 
 /** `CHANGES_REQUESTED` displays as "Revision requested" (EOM-01) - a label
@@ -86,6 +88,12 @@ export const NARRATIVE_FIELDS: Record<
     { key: "challenges", label: "Challenges" },
     { key: "lessonsLearned", label: "Lessons learned" },
     { key: "recommendations", label: "Recommendations" },
+  ],
+  CAMPAIGN_COMPLETION: [
+    { key: "majorAchievements", label: "Results and achievements" },
+    { key: "challenges", label: "What got in the way" },
+    { key: "lessonsLearned", label: "Lessons learned" },
+    { key: "recommendations", label: "Recommendations for next time" },
   ],
 };
 
