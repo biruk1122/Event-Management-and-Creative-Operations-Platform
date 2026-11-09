@@ -183,7 +183,7 @@ export function PromotionWorkspaceScreen() {
         </ul>
       </nav>
 
-      <section aria-label={definition?.label ?? "Overview"}>
+      <section aria-label="Promotion workspace">
         {current === "overview" ? (
           <PromotionOverview
             sections={sections.filter((section) => section.id !== "overview")}

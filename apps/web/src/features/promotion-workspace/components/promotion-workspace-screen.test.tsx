@@ -158,6 +158,21 @@ describe("PromotionWorkspaceScreen", () => {
     expect(screen.getByText("partners:read-only")).toBeInTheDocument();
   });
 
+  it("names the outer workspace landmark the same on every section", () => {
+    signedIn(promotionManager);
+    state.search = "tab=activities";
+    const { unmount } = render(<PromotionWorkspaceScreen />);
+    expect(
+      screen.getByRole("region", { name: "Promotion workspace", exact: true }),
+    ).toBeInTheDocument();
+    unmount();
+    state.search = "tab=budget";
+    render(<PromotionWorkspaceScreen />);
+    expect(
+      screen.getByRole("region", { name: "Promotion workspace", exact: true }),
+    ).toBeInTheDocument();
+  });
+
   it("refuses anyone outside Promotion and its oversight", () => {
     signedIn({
       role: "DEPARTMENT_MEMBER",
