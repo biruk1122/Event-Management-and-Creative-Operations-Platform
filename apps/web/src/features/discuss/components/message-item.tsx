@@ -115,6 +115,63 @@ export function MessageItem({
         />
       ) : null}
       <div className={`${styles.bubble} space-y-1`}>
+        <div
+          className={styles.toolbar}
+          role="toolbar"
+          aria-label="Message actions"
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            onClick={() => onReply(message)}
+            aria-label="Reply"
+          >
+            <Reply aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={busy}
+            onClick={() => void handleTogglePin()}
+            aria-label={message.pinnedAt ? "Unpin message" : "Pin message"}
+          >
+            {message.pinnedAt ? (
+              <PinOff aria-hidden="true" />
+            ) : (
+              <Pin aria-hidden="true" />
+            )}
+          </Button>
+          {isAuthor ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                onClick={() => {
+                  setContent(message.content);
+                  setEditing(true);
+                }}
+                aria-label="Edit message"
+              >
+                <Pencil aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                onClick={() => void handleDelete()}
+                aria-label="Delete message"
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </>
+          ) : null}
+        </div>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-sm font-semibold">
@@ -147,59 +204,6 @@ export function MessageItem({
               </span>
             ) : null}
           </div>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => onReply(message)}
-              aria-label="Reply"
-            >
-              <Reply aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => void handleTogglePin()}
-              aria-label={message.pinnedAt ? "Unpin message" : "Pin message"}
-            >
-              {message.pinnedAt ? (
-                <PinOff aria-hidden="true" />
-              ) : (
-                <Pin aria-hidden="true" />
-              )}
-            </Button>
-            {isAuthor ? (
-              <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => {
-                    setContent(message.content);
-                    setEditing(true);
-                  }}
-                  aria-label="Edit message"
-                >
-                  <Pencil aria-hidden="true" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={busy}
-                  onClick={() => void handleDelete()}
-                  aria-label="Delete message"
-                >
-                  <Trash2 aria-hidden="true" />
-                </Button>
-              </>
-            ) : null}
-          </div>
         </div>
 
         {error ? (
@@ -209,9 +213,7 @@ export function MessageItem({
         ) : null}
 
         {parentPreview ? (
-          <p className="text-muted-foreground truncate border-l-2 pl-2 text-xs">
-            Replying to: {parentPreview}
-          </p>
+          <p className={styles.quote}>Replying to: {parentPreview}</p>
         ) : null}
 
         {editing ? (

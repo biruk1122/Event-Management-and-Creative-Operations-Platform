@@ -24,26 +24,14 @@ export default async function ChannelsPage({ params }: ChannelsPageProps) {
   );
 
   return (
-    <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
-      <h1 className="text-xl font-semibold tracking-tight text-balance">
-        Channels
-      </h1>
+    <main className="@container mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-5">
       {allowed ? (
-        <>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Public and private channels for a workspace, department, or team.
-          </p>
-          <div className="mt-6">
-            <DiscussScreen
-              kind="channel"
-              initialConversationId={channelId?.[0] ?? null}
-            />
-          </div>
-        </>
+        <DiscussScreen
+          kind="channel"
+          initialConversationId={channelId?.[0] ?? null}
+        />
       ) : (
-        <p role="alert" className="mt-6">
-          You do not have access to this area.
-        </p>
+        <p role="alert">You do not have access to this area.</p>
       )}
     </main>
   );

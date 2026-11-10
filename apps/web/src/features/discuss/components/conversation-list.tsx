@@ -73,7 +73,7 @@ export function ConversationList({
               type="button"
               onClick={() => onSelect(conversation.id)}
               aria-current={selected ? "true" : undefined}
-              className={`focus-visible:ring-ring flex w-full items-center justify-between gap-3 rounded-2xl px-3 py-3.5 text-left text-sm transition-colors focus-visible:ring-3 focus-visible:outline-none ${
+              className={`focus-visible:ring-ring flex w-full items-center justify-between gap-3 rounded-[1.125rem] px-3 py-3 text-left text-sm transition-colors focus-visible:ring-3 focus-visible:outline-none ${
                 selected ? "bg-accent" : "hover:bg-accent/50"
               }`}
             >

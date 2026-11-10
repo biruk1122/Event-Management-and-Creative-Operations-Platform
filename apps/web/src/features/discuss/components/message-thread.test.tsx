@@ -69,6 +69,11 @@ function setup(props: Partial<ComponentProps<typeof MessageThread>> = {}) {
 }
 
 describe("MessageThread", () => {
+  /** Message rows only: day dividers are list items too, marked by data-date-divider. */
+  const messageItems = () =>
+    screen
+      .getAllByRole("listitem")
+      .filter((item) => !item.hasAttribute("data-date-divider"));
   it("acknowledges a short conversation after leaving another thread scrolled up", () => {
     const focus = vi.spyOn(document, "hasFocus").mockReturnValue(true);
     const onReadLatest = vi.fn();
@@ -133,7 +138,7 @@ describe("MessageThread", () => {
         message({ id: "m1", content: "Read this" }),
       ],
     });
-    const items = screen.getAllByRole("listitem");
+    const items = messageItems();
     expect(items[0]?.querySelector('[aria-label="Read"]')).not.toBeNull();
     expect(items[1]?.querySelector('[aria-label="Sent"]')).not.toBeNull();
   });
@@ -196,7 +201,7 @@ describe("MessageThread", () => {
         }),
       ],
     });
-    const items = screen.getAllByRole("listitem");
+    const items = messageItems();
     expect(items[0]).toHaveTextContent("First");
     expect(items[1]).toHaveTextContent("Second");
   });
