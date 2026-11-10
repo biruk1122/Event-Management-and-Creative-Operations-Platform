@@ -167,6 +167,7 @@ test.describe("Lela calendar, meetings and to-do presentation", () => {
           }),
           contentType: "application/json",
         });
+        console.log("CALENDAR_LCP_DIAG", profile.name, JSON.stringify(metrics));
         expect(metrics.lcp).toBeGreaterThan(0);
         expect(metrics.lcp).toBeLessThanOrEqual(profile.lcp);
         expect(interactionBound).toBeLessThanOrEqual(profile.interaction);
