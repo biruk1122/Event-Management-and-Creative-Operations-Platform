@@ -26,7 +26,7 @@ export default async function DirectMessagesPage({
   );
 
   return (
-    <main className="@container mx-auto max-w-7xl px-5 py-8 sm:px-8">
+    <main className="@container mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-5">
       {allowed ? (
         <DiscussScreen
           kind="dm"

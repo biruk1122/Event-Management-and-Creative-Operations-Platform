@@ -11,11 +11,11 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 1.25rem;
-  padding: 1.25rem 1.5rem;
+  gap: 0.75rem 1.25rem;
+  padding: 0.75rem 1.25rem;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 1.5rem;
+  border-radius: 1.25rem;
   box-shadow: 0 2px 6px -4px var(--foreground);
 }
 .pageTitle {
@@ -26,12 +26,12 @@
 }
 .pageIcon {
   display: inline-flex;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border-radius: 1.125rem;
+  border-radius: 0.875rem;
   background: var(--primary);
   color: var(--primary-foreground);
 }
@@ -43,7 +43,7 @@
 }
 .pageHeading h1 {
   margin: 0;
-  font-size: 1.75rem;
+  font-size: 1.25rem;
   line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -51,7 +51,7 @@
 .pageHeading p {
   margin: 0;
   color: var(--muted-foreground);
-  font-size: 0.9375rem;
+  font-size: 0.8125rem;
 }
 .stack {
   display: flex;
@@ -64,11 +64,11 @@
 }
 .stackAvatar {
   display: inline-flex;
-  width: 2.375rem;
-  height: 2.375rem;
+  width: 2rem;
+  height: 2rem;
   align-items: center;
   justify-content: center;
-  border: 3px solid var(--card);
+  border: 2px solid var(--card);
   border-radius: 50%;
   background: var(--muted);
   color: var(--foreground);
@@ -106,7 +106,7 @@
 .layout {
   display: grid;
   grid-template-columns: 20rem minmax(0, 1fr);
-  height: var(--chat-available-height, calc(100svh - 18rem));
+  height: var(--chat-available-height, calc(100svh - 12rem));
   min-height: 16rem;
   max-height: 62rem;
   overflow: hidden;
@@ -174,9 +174,9 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 0.875rem;
-  padding: 1rem 1.5rem;
-  min-height: 5rem;
+  gap: 0.75rem;
+  padding: 0.625rem 1.25rem;
+  min-height: 3.5rem;
   background: var(--card);
   border-bottom: 1px solid var(--border);
 }
@@ -185,7 +185,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 1.5rem 2rem;
+  padding: 1rem 1.5rem;
   background: var(--background);
 }
 .messages {
@@ -214,7 +214,7 @@
 }
 .bubble {
   position: relative;
-  max-width: min(78%, 38rem);
+  max-width: min(82%, 46rem);
   min-width: 0;
   padding: 0.625rem 0.9375rem;
   background: var(--card);
@@ -281,7 +281,7 @@
 }
 .composer {
   flex-shrink: 0;
-  padding: 0.875rem 1.5rem 1rem;
+  padding: 0.5rem 1.25rem 0.625rem;
   border-top: 1px solid var(--border);
   background: var(--card);
 }
