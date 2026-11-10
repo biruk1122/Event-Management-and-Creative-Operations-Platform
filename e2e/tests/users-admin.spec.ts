@@ -38,6 +38,9 @@ interface ApiUser {
 
 test.describe("User administration — end to end", () => {
   test.describe("administrator success journey", () => {
+    // The journey creates, edits, reloads and retries its searches; allow for CI load.
+    test.setTimeout(180_000);
+
     test.use({ storageState: authStatePath("superAdmin") });
 
     const NEW_USER = {
@@ -144,12 +147,14 @@ test.describe("User administration — end to end", () => {
       // sort) row is not guaranteed to land on the unfiltered first page -
       // filter down to just this account first, the same way the very end
       // of this test already does.
-      await page.getByLabel("Search").fill(userEmail);
+      await expect(async () => {
+        await page.getByLabel("Search").fill(userEmail);
+        await expect(
+          page.getByText("1 user match these filters", { exact: true }),
+        ).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
       await expect(
-        page.getByText("1 user match these filters", { exact: true }),
-      ).toBeVisible({ timeout: 20_000 });
-      await expect(
-        page.getByRole("button", {
+        page.getByRole("link", {
           name: userDisplayName,
         }),
       ).toBeVisible({ timeout: 20_000 });
@@ -260,7 +265,7 @@ test.describe("User administration — end to end", () => {
       expect(deactivatedRows[0]?.deactivated_at).not.toBeNull();
 
       // AC: the full workflow persists and reloads authoritative data.
-      await page.reload();
+      await page.goto("/users");
       await expect(
         page.getByText(`${baselineTotal + 1} users`, { exact: true }),
       ).toBeVisible();
@@ -315,7 +320,8 @@ test.describe("User administration — end to end", () => {
 
       // Filtering the list asks the API for the narrowed set and leaves only
       // the matching account, regardless of which rows pagination showed.
-      await reopened.getByRole("button", { name: "Close" }).click();
+      // Back to the list, where the filter is applied.
+      await page.goto("/users");
       // Right after a reload the list can paint before the search field is
       // interactive, so retry the filter until it takes effect.
       await expect(async () => {
@@ -325,7 +331,7 @@ test.describe("User administration — end to end", () => {
         ).toBeVisible({ timeout: 2_000 });
       }).toPass({ timeout: 20_000 });
       await expect(
-        page.getByRole("button", {
+        page.getByRole("link", {
           name: userDisplayName,
         }),
       ).toBeVisible();

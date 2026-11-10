@@ -175,7 +175,6 @@ export function CreateUserDialog({
                   <Label htmlFor={ids.firstName}>First name</Label>
                   <Input
                     id={ids.firstName}
-                    autoFocus
                     required
                     value={values.firstName}
                     aria-invalid={fieldErrors.firstName ? true : undefined}

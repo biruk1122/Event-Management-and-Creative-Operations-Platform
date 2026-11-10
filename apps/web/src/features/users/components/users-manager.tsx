@@ -203,7 +203,10 @@ export function UsersManager({ access }: { access: CurrentAccess }) {
 
       <UserSummaryCards summary={summary} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        data-admin-toolbar
+        className="flex flex-wrap items-center justify-between gap-3"
+      >
         <p className="text-muted-foreground text-sm">
           {listQuery.isPending || listQuery.isError
             ? null
