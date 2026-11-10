@@ -7,6 +7,16 @@ import { UsersManager } from "./users-manager";
 import type { CurrentAccess } from "@/features/auth/api/access-queries";
 import type { PaginatedUsers, User } from "../lib/users-types";
 
+const { push, replace } = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 const { get, post, patch, put } = vi.hoisted(() => ({
   get: vi.fn(),
   post: vi.fn(),
@@ -144,8 +154,8 @@ describe("UsersManager API integration", () => {
     const user = userEvent.setup();
     setup();
 
-    expect(await screen.findByText("Page 1 of 2")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(await screen.findByText("Showing 1–10 of 15")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Next page" }));
 
     await waitFor(() =>
       expect(get).toHaveBeenCalledWith(

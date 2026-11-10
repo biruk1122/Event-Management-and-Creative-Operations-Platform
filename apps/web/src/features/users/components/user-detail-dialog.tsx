@@ -24,6 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { ShieldCheck, UserRound } from "lucide-react";
+
+import { FormSectionLegend } from "./form-section";
 import { getUser as defaultGetUser } from "../api/users-gateway";
 import type {
   AssignRole,
@@ -312,64 +315,69 @@ function UserDetailBody({
           </Alert>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor={ids.firstName}>First name</Label>
-            <Input
-              id={ids.firstName}
-              value={form.firstName}
-              onChange={(event) =>
-                setForm({ ...form, firstName: event.target.value })
-              }
-            />
+        <fieldset className="space-y-5">
+          <FormSectionLegend icon={UserRound}>
+            Personal details
+          </FormSectionLegend>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor={ids.firstName}>First name</Label>
+              <Input
+                id={ids.firstName}
+                value={form.firstName}
+                onChange={(event) =>
+                  setForm({ ...form, firstName: event.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={ids.lastName}>Last name</Label>
+              <Input
+                id={ids.lastName}
+                value={form.lastName}
+                onChange={(event) =>
+                  setForm({ ...form, lastName: event.target.value })
+                }
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor={ids.lastName}>Last name</Label>
-            <Input
-              id={ids.lastName}
-              value={form.lastName}
-              onChange={(event) =>
-                setForm({ ...form, lastName: event.target.value })
-              }
-            />
-          </div>
-        </div>
 
-        <div className="space-y-2">
-          <Label htmlFor={ids.email}>Email</Label>
-          <Input
-            id={ids.email}
-            type="email"
-            value={form.email}
-            onChange={(event) =>
-              setForm({ ...form, email: event.target.value })
-            }
-            required
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor={ids.email}>Email</Label>
+            <Input
+              id={ids.email}
+              type="email"
+              value={form.email}
+              onChange={(event) =>
+                setForm({ ...form, email: event.target.value })
+              }
+              required
+            />
+          </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor={ids.phone}>Phone</Label>
-            <Input
-              id={ids.phone}
-              value={form.phone}
-              onChange={(event) =>
-                setForm({ ...form, phone: event.target.value })
-              }
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor={ids.phone}>Phone</Label>
+              <Input
+                id={ids.phone}
+                value={form.phone}
+                onChange={(event) =>
+                  setForm({ ...form, phone: event.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor={ids.profileImage}>Profile photo</Label>
+              <Input
+                id={ids.profileImage}
+                value={form.profileImage}
+                onChange={(event) =>
+                  setForm({ ...form, profileImage: event.target.value })
+                }
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor={ids.profileImage}>Profile photo</Label>
-            <Input
-              id={ids.profileImage}
-              value={form.profileImage}
-              onChange={(event) =>
-                setForm({ ...form, profileImage: event.target.value })
-              }
-            />
-          </div>
-        </div>
+        </fieldset>
 
         <Button
           type="submit"
@@ -382,59 +390,62 @@ function UserDetailBody({
       </form>
 
       <div className="border-border space-y-3 border-t pt-4">
-        <div className="space-y-2">
-          <Label htmlFor={ids.role}>Role</Label>
-          <Select
-            value={user.role?.id ?? NO_ROLE}
-            onValueChange={(value) => void handleRoleChange(value)}
-            disabled={roleBusy || user.role?.name === "Super Admin"}
-          >
-            <SelectTrigger id={ids.role} aria-busy={roleBusy}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_ROLE} disabled>
-                Choose a role
-              </SelectItem>
-              {roles.map((role) => (
-                <SelectItem key={role.id} value={role.id}>
-                  {role.name}
+        <fieldset className="space-y-4">
+          <FormSectionLegend icon={ShieldCheck}>Access</FormSectionLegend>
+          <div className="space-y-2">
+            <Label htmlFor={ids.role}>Role</Label>
+            <Select
+              value={user.role?.id ?? NO_ROLE}
+              onValueChange={(value) => void handleRoleChange(value)}
+              disabled={roleBusy || user.role?.name === "Super Admin"}
+            >
+              <SelectTrigger id={ids.role} aria-busy={roleBusy}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_ROLE} disabled>
+                  Choose a role
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {roleError ? (
-            <p className="text-destructive text-sm" role="alert">
-              {roleError}
-            </p>
-          ) : null}
-        </div>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {roleError ? (
+              <p className="text-destructive text-sm" role="alert">
+                {roleError}
+              </p>
+            ) : null}
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor={ids.department}>Department</Label>
-          <Select
-            value={user.department?.id ?? NO_ROLE}
-            onValueChange={(value) => void handleDepartmentChange(value)}
-            disabled={roleBusy}
-          >
-            <SelectTrigger id={ids.department}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                value={NO_ROLE}
-                disabled={user.role?.name !== "Super Admin"}
-              >
-                No department (Super Admin only)
-              </SelectItem>
-              {departments.map((department) => (
-                <SelectItem key={department.id} value={department.id}>
-                  {department.name}
+          <div className="space-y-2">
+            <Label htmlFor={ids.department}>Department</Label>
+            <Select
+              value={user.department?.id ?? NO_ROLE}
+              onValueChange={(value) => void handleDepartmentChange(value)}
+              disabled={roleBusy}
+            >
+              <SelectTrigger id={ids.department}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  value={NO_ROLE}
+                  disabled={user.role?.name !== "Super Admin"}
+                >
+                  No department (Super Admin only)
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </fieldset>
 
         <div className="flex flex-wrap items-center gap-2">
           {user.status === "ACTIVE" ? (

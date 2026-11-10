@@ -12,6 +12,8 @@ function setup(overrides: Partial<Parameters<typeof UserFilters>[0]> = {}) {
     search: "",
     onStatusChange: vi.fn(),
     onSearchChange: vi.fn(),
+    onClear: vi.fn(),
+    active: false,
     ...overrides,
   };
   render(<UserFilters {...props} />);
@@ -31,6 +33,8 @@ function StatefulFilters({
       status={status}
       search={search}
       onStatusChange={setStatus}
+      onClear={() => undefined}
+      active={false}
       onSearchChange={(value) => {
         setSearch(value);
         onSearchChange(value);
@@ -64,5 +68,23 @@ describe("UserFilters", () => {
     expect(
       screen.getByRole("combobox", { name: "Filter by status" }),
     ).toHaveTextContent("Active");
+  });
+});
+
+describe("UserFilters clear action", () => {
+  it("disables Clear Filters when nothing is filtered", () => {
+    setup({ status: null, search: "" });
+    expect(
+      screen.getByRole("button", { name: "Clear Filters" }),
+    ).toBeDisabled();
+  });
+
+  it("clears both filters in one action when a filter is active", async () => {
+    const onClear = vi.fn();
+    setup({ status: "ACTIVE", search: "ada", active: true, onClear });
+    const clear = screen.getByRole("button", { name: "Clear Filters" });
+    expect(clear).toBeEnabled();
+    await userEvent.click(clear);
+    expect(onClear).toHaveBeenCalledTimes(1);
   });
 });
