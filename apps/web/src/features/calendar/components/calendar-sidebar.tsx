@@ -57,7 +57,7 @@ export function CalendarSidebar({
         <span className={styles.brandIcon} aria-hidden="true">
           <CalendarDays />
         </span>
-        <span className={styles.brandName}>Calendar</span>
+        <h1 className={styles.brandName}>Calendar</h1>
       </div>
 
       <Button type="button" className={styles.newButton} onClick={onCreate}>

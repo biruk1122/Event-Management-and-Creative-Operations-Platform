@@ -694,7 +694,7 @@
 .plannerMain .entryChip[data-compact] .entryTime {
   flex-shrink: 0;
   font-size: 0.7rem;
-  color: var(--muted-foreground);
+  color: #5c4a50;
 }
 
 /* Entry hues, from the design. */
