@@ -412,6 +412,7 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
                 <Button
                   key={meeting.id}
                   data-meeting-item
+                  data-period={meetingPeriod(meeting)}
                   variant="outline"
                   className={styles.meetingCard}
                   onClick={() => setSelectedId(meeting.id)}
@@ -587,6 +588,17 @@ function MeetingDetail({
     meeting.status === "SCHEDULED" &&
     (isOrganizer || participant !== null);
 
+  // Opens the notes editor with the current notes, from the banner or the card.
+  function startNotes() {
+    setMinutesDraft(meeting.minutes ?? "");
+    setEditingNotes(true);
+  }
+  // A meeting that has finished but is still open for notes gets a recap prompt.
+  const showRecapPrompt =
+    canOrganize &&
+    meeting.status !== "CANCELLED" &&
+    meetingPeriod(meeting) === "past";
+
   async function submitActionItem() {
     const title = actionItemTitle.trim();
     if (!title) return;
@@ -615,7 +627,9 @@ function MeetingDetail({
             >
               {meeting.title}
             </h2>
-            <Badge>{MEETING_STATUS_LABELS[meeting.status]}</Badge>
+            <Badge className={styles.statusPill}>
+              {MEETING_STATUS_LABELS[meeting.status]}
+            </Badge>
           </div>
           <p className={styles.detailMeta}>
             <CalendarDays aria-hidden="true" />
@@ -635,6 +649,23 @@ function MeetingDetail({
           ) : null}
         </div>
       </div>
+      {showRecapPrompt ? (
+        <div className={styles.endedBanner}>
+          <div>
+            <strong>This meeting ended at {formatTime(meeting.endAt)}</strong>
+            <span>Capture notes and follow-ups while it is still fresh.</span>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={startNotes}
+            disabled={editingNotes}
+          >
+            <FileText aria-hidden="true" />
+            {meeting.minutes ? "Edit recap" : "Write recap"}
+          </Button>
+        </div>
+      ) : null}
       {meeting.description ? (
         <p className="mt-4 text-sm">{meeting.description}</p>
       ) : null}
@@ -728,6 +759,7 @@ function MeetingDetail({
       </div>
       <section
         className={styles.detailSection}
+        data-empty={meeting.minutes ? "false" : "true"}
         aria-labelledby={`${minutesId}-title`}
       >
         <h3 id={`${minutesId}-title`}>
@@ -777,14 +809,7 @@ function MeetingDetail({
               {meeting.minutes || "No notes added yet."}
             </p>
             {canOrganize ? (
-              <Button
-                ref={notesButtonRef}
-                size="sm"
-                onClick={() => {
-                  setMinutesDraft(meeting.minutes ?? "");
-                  setEditingNotes(true);
-                }}
-              >
+              <Button ref={notesButtonRef} size="sm" onClick={startNotes}>
                 <FileText aria-hidden="true" />
                 {meeting.minutes ? "Edit meeting notes" : "Add meeting notes"}
               </Button>
