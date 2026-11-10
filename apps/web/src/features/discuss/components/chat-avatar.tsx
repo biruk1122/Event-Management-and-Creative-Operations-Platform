@@ -4,12 +4,14 @@ import styles from "./discuss.module.css";
 export function ChatAvatar({
   name,
   kind = "DIRECT",
+  size,
 }: {
   name: string;
   kind?: string;
+  size?: "small";
 }) {
   return (
-    <span className={styles.avatar} aria-hidden="true">
+    <span className={styles.avatar} data-size={size} aria-hidden="true">
       {kind === "CHANNEL" ? (
         <Hash className="size-5" />
       ) : kind === "GROUP" ? (

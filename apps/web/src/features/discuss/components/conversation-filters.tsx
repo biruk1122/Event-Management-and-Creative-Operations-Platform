@@ -20,7 +20,7 @@ export function ConversationFilters({
     <div className="relative flex-1">
       <Search
         aria-hidden="true"
-        className="text-muted-foreground pointer-events-none absolute top-3 left-3 size-4"
+        className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2"
       />
       <Label htmlFor={searchId} className="sr-only">
         Search
@@ -31,7 +31,7 @@ export function ConversationFilters({
         placeholder="Search conversations…"
         value={search}
         onChange={(event) => onSearchChange(event.target.value)}
-        className="bg-muted/50 rounded-xl pl-9"
+        className="bg-muted/60 h-11 rounded-full border-transparent pl-10"
       />
     </div>
   );

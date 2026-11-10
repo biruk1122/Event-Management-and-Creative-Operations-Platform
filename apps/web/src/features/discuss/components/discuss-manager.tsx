@@ -11,6 +11,7 @@ import { useRealtimeConnection } from "@/features/realtime";
 import { uploadMessageFile } from "../api/message-files-gateway";
 import { conversationTitle } from "../lib/discuss-types";
 import { ChatAvatar } from "./chat-avatar";
+import { DiscussHeader } from "./discuss-header";
 import styles from "./discuss.module.css";
 
 import { Button } from "@/components/ui/button";
@@ -210,274 +211,296 @@ export function DiscussManager({
   );
 
   return (
-    <div ref={layout} className={styles.layout}>
-      <aside
-        className={styles.sidebar}
-        data-selected={Boolean(selectedId)}
-        aria-label={kind === "dm" ? "Conversation sidebar" : "Channel sidebar"}
-      >
-        <div className={styles.sidebarHeader}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="font-semibold">
-                {kind === "dm" ? "Messages" : "Channels"}
-              </h2>
-              <p className="text-muted-foreground mt-1 text-xs">
-                Your people. Your conversations.
-              </p>
+    <div className={styles.page}>
+      <DiscussHeader
+        kind={kind}
+        count={conversations?.length ?? 0}
+        hasMore={Boolean(listQuery.hasNextPage)}
+        groupCount={
+          conversations?.filter((c) => c.type === "GROUP").length ?? 0
+        }
+        initials={(conversations ?? []).slice(0, 4).map((c) =>
+          conversationTitle(c, access.userId)
+            .split(/s+/)
+            .slice(0, 2)
+            .map((part) => part[0])
+            .join("")
+            .toUpperCase(),
+        )}
+      />
+      <div ref={layout} className={styles.layout}>
+        <aside
+          className={styles.sidebar}
+          data-selected={Boolean(selectedId)}
+          aria-label={
+            kind === "dm" ? "Conversation sidebar" : "Channel sidebar"
+          }
+        >
+          <div className={styles.sidebarHeader}>
+            <div className={styles.sidebarTitle}>
+              <div>
+                <h2>{kind === "dm" ? "Messages" : "Channels"}</h2>
+                <p>Your people. Your conversations.</p>
+              </div>
+              <Button
+                type="button"
+                className={styles.newButton}
+                aria-label={kind === "dm" ? "New conversation" : "New channel"}
+                onClick={() =>
+                  kind === "dm"
+                    ? setStartOpen(true)
+                    : setCreateChannelOpen(true)
+                }
+              >
+                <Plus aria-hidden="true" data-icon="inline-start" />
+                New
+              </Button>
             </div>
-            <Button
-              type="button"
-              onClick={() =>
-                kind === "dm" ? setStartOpen(true) : setCreateChannelOpen(true)
-              }
-            >
-              <Plus aria-hidden="true" data-icon="inline-start" />
-              {kind === "dm" ? "New conversation" : "New channel"}
-            </Button>
-          </div>
-          <div className="mt-4">
             <ConversationFilters
               search={search}
               onSearchChange={(value) => {
                 setSearch(value);
               }}
             />
+            <span className={styles.recentLabel}>Recent</span>
           </div>
-        </div>
 
-        <p aria-live="polite" role="status" className="sr-only">
-          {announcement}
-        </p>
+          <p aria-live="polite" role="status" className="sr-only">
+            {announcement}
+          </p>
 
-        <div className={styles.list}>
-          {listQuery.isError ? (
-            <div role="alert" className="space-y-2">
-              <p>{(listQuery.error as Error).message}</p>
-              <Button
-                variant="outline"
-                onClick={() => void listQuery.refetch()}
-              >
-                Try again
-              </Button>
-            </div>
-          ) : (
-            <ConversationList
-              conversations={listQuery.isPending ? null : conversations}
-              viewerId={access.userId}
-              selectedId={selectedId}
-              kind={kind}
-              onSelect={selectConversation}
-              searching={Boolean(debouncedSearch.trim())}
-            />
-          )}
-          {listQuery.hasNextPage ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={listQuery.isFetching}
-              onClick={() => void listQuery.fetchNextPage()}
-            >
-              Load more conversations
-            </Button>
-          ) : null}
-        </div>
-      </aside>
-
-      <section
-        className={styles.conversation}
-        data-selected={Boolean(selectedId)}
-        aria-label="Active conversation"
-      >
-        {selected ? (
-          <>
-            <div className={styles.header}>
-              <Button
-                type="button"
-                variant="ghost"
-                className="sm:hidden"
-                onClick={() => selectConversation(null)}
-              >
-                <ArrowLeft aria-hidden="true" />
-                <span className="sr-only">Back</span>
-              </Button>
-              <ChatAvatar
-                name={conversationTitle(selected, access.userId)}
-                kind={selected.type}
-              />
-              <div className="min-w-0 flex-1">
-                <h2 className="truncate font-semibold">
-                  {conversationTitle(selected, access.userId)}
-                </h2>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  {selected.type === "DIRECT"
-                    ? "Direct message"
-                    : `${selected.members.length} members`}
-                  {connection.state.status !== "connected"
-                    ? " · Reconnecting to live updates"
-                    : ""}
-                </p>
+          <div className={styles.list}>
+            {listQuery.isError ? (
+              <div role="alert" className="space-y-2">
+                <p>{(listQuery.error as Error).message}</p>
+                <Button
+                  variant="outline"
+                  onClick={() => void listQuery.refetch()}
+                >
+                  Try again
+                </Button>
               </div>
-              {selected.type !== "DIRECT" ? (
+            ) : (
+              <ConversationList
+                conversations={listQuery.isPending ? null : conversations}
+                viewerId={access.userId}
+                selectedId={selectedId}
+                kind={kind}
+                onSelect={selectConversation}
+                searching={Boolean(debouncedSearch.trim())}
+              />
+            )}
+            {listQuery.hasNextPage ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={listQuery.isFetching}
+                onClick={() => void listQuery.fetchNextPage()}
+              >
+                Load more conversations
+              </Button>
+            ) : null}
+          </div>
+        </aside>
+
+        <section
+          className={styles.conversation}
+          data-selected={Boolean(selectedId)}
+          aria-label="Active conversation"
+        >
+          {selected ? (
+            <>
+              <div className={styles.header}>
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setMembersOpen(true)}
+                  variant="ghost"
+                  className="sm:hidden"
+                  onClick={() => selectConversation(null)}
                 >
-                  Members ({selected.members.length})
+                  <ArrowLeft aria-hidden="true" />
+                  <span className="sr-only">Back</span>
                 </Button>
-              ) : null}
-            </div>
+                <ChatAvatar
+                  name={conversationTitle(selected, access.userId)}
+                  kind={selected.type}
+                />
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate font-semibold">
+                    {conversationTitle(selected, access.userId)}
+                  </h2>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {selected.type === "DIRECT"
+                      ? "Direct message"
+                      : `${selected.members.length} members`}
+                    {connection.state.status !== "connected"
+                      ? " · Reconnecting to live updates"
+                      : ""}
+                  </p>
+                </div>
+                {selected.type !== "DIRECT" ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMembersOpen(true)}
+                  >
+                    Members ({selected.members.length})
+                  </Button>
+                ) : null}
+              </div>
 
-            <MessageThread
-              conversation={selected}
-              messages={messagesQuery.isPending ? null : messages}
-              error={
-                messagesQuery.isError
-                  ? "We could not load the messages. Try again."
-                  : null
-              }
-              viewerId={access.userId}
-              onRetry={() => void messagesQuery.refetch()}
-              onEdit={(messageId, content) =>
-                mutations.editMessage.mutateAsync({
-                  conversationId: selected.id,
-                  messageId,
-                  content,
-                })
-              }
-              onDelete={(messageId) =>
-                mutations.deleteMessage.mutateAsync({
-                  conversationId: selected.id,
-                  messageId,
-                })
-              }
-              onTogglePin={(messageId, pinned) =>
-                mutations.setPin.mutateAsync({
-                  conversationId: selected.id,
-                  messageId,
-                  pinned,
-                })
-              }
-              onReply={setReplyTarget}
-              attachmentScope={keys.all}
-              onReadLatest={markRead}
-              hasOlder={messagesQuery.hasNextPage}
-              loadingOlder={messagesQuery.isFetchingNextPage}
-              onLoadOlder={() => void messagesQuery.fetchNextPage()}
-            />
-
-            <MessageComposer
-              key={selected.id}
-              replyTarget={replyTarget}
-              onCancelReply={() => setReplyTarget(null)}
-              onUpload={(messageId, file) =>
-                uploadMessageFile(selected.id, messageId, file)
-              }
-              onAttachmentsSent={reconcile}
-              onSend={async (values) => {
-                const outcome = await mutations.sendMessage.mutateAsync({
-                  conversationId: selected.id,
-                  values,
-                });
-                if (outcome.status === "success") {
-                  setAnnouncement("Message sent.");
-                  setReplyTarget(null);
+              <MessageThread
+                conversation={selected}
+                messages={messagesQuery.isPending ? null : messages}
+                error={
+                  messagesQuery.isError
+                    ? "We could not load the messages. Try again."
+                    : null
                 }
-                return outcome;
-              }}
-            />
-          </>
-        ) : selectedId && selectedQuery.isPending ? (
-          <div className={styles.empty} role="status">
-            Loading conversation…
-          </div>
-        ) : selectedId && selectedQuery.isError ? (
-          <div className={styles.empty}>
-            <div role="alert" className="space-y-3">
-              <p>{selectedQuery.error.message}</p>
-              <Button
-                variant="outline"
-                onClick={() => void selectedQuery.refetch()}
-              >
-                Try again
-              </Button>
-              <Button variant="ghost" onClick={() => selectConversation(null)}>
-                Back to conversations
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className={styles.empty}>
-            <div>
-              <MessageSquare
-                aria-hidden="true"
-                className="text-primary mx-auto mb-4 size-10"
+                viewerId={access.userId}
+                onRetry={() => void messagesQuery.refetch()}
+                onEdit={(messageId, content) =>
+                  mutations.editMessage.mutateAsync({
+                    conversationId: selected.id,
+                    messageId,
+                    content,
+                  })
+                }
+                onDelete={(messageId) =>
+                  mutations.deleteMessage.mutateAsync({
+                    conversationId: selected.id,
+                    messageId,
+                  })
+                }
+                onTogglePin={(messageId, pinned) =>
+                  mutations.setPin.mutateAsync({
+                    conversationId: selected.id,
+                    messageId,
+                    pinned,
+                  })
+                }
+                onReply={setReplyTarget}
+                attachmentScope={keys.all}
+                onReadLatest={markRead}
+                hasOlder={messagesQuery.hasNextPage}
+                loadingOlder={messagesQuery.isFetchingNextPage}
+                onLoadOlder={() => void messagesQuery.fetchNextPage()}
               />
-              <h2 className="text-foreground mb-2 font-semibold">
-                A little conversation goes a long way
-              </h2>
-              <p className="text-sm">
-                Select a {KIND_LABEL[kind]} to view messages.
-              </p>
-              {selectedId ? (
+
+              <MessageComposer
+                key={selected.id}
+                replyTarget={replyTarget}
+                onCancelReply={() => setReplyTarget(null)}
+                onUpload={(messageId, file) =>
+                  uploadMessageFile(selected.id, messageId, file)
+                }
+                onAttachmentsSent={reconcile}
+                onSend={async (values) => {
+                  const outcome = await mutations.sendMessage.mutateAsync({
+                    conversationId: selected.id,
+                    values,
+                  });
+                  if (outcome.status === "success") {
+                    setAnnouncement("Message sent.");
+                    setReplyTarget(null);
+                  }
+                  return outcome;
+                }}
+              />
+            </>
+          ) : selectedId && selectedQuery.isPending ? (
+            <div className={styles.empty} role="status">
+              Loading conversation…
+            </div>
+          ) : selectedId && selectedQuery.isError ? (
+            <div className={styles.empty}>
+              <div role="alert" className="space-y-3">
+                <p>{selectedQuery.error.message}</p>
+                <Button
+                  variant="outline"
+                  onClick={() => void selectedQuery.refetch()}
+                >
+                  Try again
+                </Button>
                 <Button
                   variant="ghost"
                   onClick={() => selectConversation(null)}
                 >
                   Back to conversations
                 </Button>
-              ) : null}
+              </div>
             </div>
-          </div>
-        )}
-      </section>
+          ) : (
+            <div className={styles.empty}>
+              <div>
+                <MessageSquare
+                  aria-hidden="true"
+                  className="text-primary mx-auto mb-4 size-10"
+                />
+                <h2 className="text-foreground mb-2 font-semibold">
+                  A little conversation goes a long way
+                </h2>
+                <p className="text-sm">
+                  Select a {KIND_LABEL[kind]} to view messages.
+                </p>
+                {selectedId ? (
+                  <Button
+                    variant="ghost"
+                    onClick={() => selectConversation(null)}
+                  >
+                    Back to conversations
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          )}
+        </section>
 
-      <NewConversationDialog
-        open={startOpen}
-        onOpenChange={setStartOpen}
-        listAssignablePeople={gateway.listAssignablePeople}
-        onStart={mutations.startConversation.mutateAsync}
-        onStarted={(conversation) => {
-          selectConversation(conversation.id);
-          setAnnouncement("Conversation started.");
-        }}
-      />
-
-      <CreateChannelDialog
-        open={createChannelOpen}
-        onOpenChange={setCreateChannelOpen}
-        listChannelOwners={gateway.listChannelOwners}
-        onCreate={mutations.createChannel.mutateAsync}
-        onCreated={(conversation) => {
-          selectConversation(conversation.id);
-          setAnnouncement("Channel created.");
-        }}
-      />
-
-      {selected && selected.type !== "DIRECT" ? (
-        <ConversationMembersDialog
-          key={selected.id}
-          open={membersOpen}
-          onOpenChange={setMembersOpen}
-          conversation={selected}
+        <NewConversationDialog
+          open={startOpen}
+          onOpenChange={setStartOpen}
           listAssignablePeople={gateway.listAssignablePeople}
-          onAddMember={(conversationId, userId) =>
-            mutations.addMember.mutateAsync({ conversationId, userId })
-          }
-          onRemoveMember={(conversationId, userId) =>
-            mutations.removeMember.mutateAsync({ conversationId, userId })
-          }
-          onUpdateChannel={(values) =>
-            mutations.updateChannel.mutateAsync({
-              conversationId: selected.id,
-              values,
-            })
-          }
-          onChanged={() => void listQuery.refetch()}
+          onStart={mutations.startConversation.mutateAsync}
+          onStarted={(conversation) => {
+            selectConversation(conversation.id);
+            setAnnouncement("Conversation started.");
+          }}
         />
-      ) : null}
+
+        <CreateChannelDialog
+          open={createChannelOpen}
+          onOpenChange={setCreateChannelOpen}
+          listChannelOwners={gateway.listChannelOwners}
+          onCreate={mutations.createChannel.mutateAsync}
+          onCreated={(conversation) => {
+            selectConversation(conversation.id);
+            setAnnouncement("Channel created.");
+          }}
+        />
+
+        {selected && selected.type !== "DIRECT" ? (
+          <ConversationMembersDialog
+            key={selected.id}
+            open={membersOpen}
+            onOpenChange={setMembersOpen}
+            conversation={selected}
+            listAssignablePeople={gateway.listAssignablePeople}
+            onAddMember={(conversationId, userId) =>
+              mutations.addMember.mutateAsync({ conversationId, userId })
+            }
+            onRemoveMember={(conversationId, userId) =>
+              mutations.removeMember.mutateAsync({ conversationId, userId })
+            }
+            onUpdateChannel={(values) =>
+              mutations.updateChannel.mutateAsync({
+                conversationId: selected.id,
+                values,
+              })
+            }
+            onChanged={() => void listQuery.refetch()}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

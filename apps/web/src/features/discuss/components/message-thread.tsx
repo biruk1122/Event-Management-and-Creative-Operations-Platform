@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import styles from "./discuss.module.css";
 
 import { Button } from "@/components/ui/button";
+import { APP_TIME_ZONE, formatInZone } from "@/lib/app-timezone";
 
 import type {
   ScopedDeleteMessage as DeleteMessage,
@@ -27,6 +28,15 @@ interface MessageThreadProps {
   hasOlder?: boolean;
   loadingOlder?: boolean;
   onLoadOlder?: () => void;
+}
+
+/** The calendar day an instant falls on, in the app timezone. */
+function dayKey(iso: string): string {
+  return formatInZone(
+    iso,
+    { year: "numeric", month: "2-digit", day: "2-digit" },
+    APP_TIME_ZONE,
+  );
 }
 
 export function MessageThread({
@@ -194,19 +204,35 @@ export function MessageThread({
               ? "Read"
               : `Read by ${readers.length} ${readers.length === 1 ? "member" : "members"}`
             : undefined;
+          const previous = index > 0 ? chronological[index - 1] : undefined;
+          const newDay =
+            !previous ||
+            dayKey(previous.createdAt) !== dayKey(message.createdAt);
           return (
-            <MessageItem
-              key={message.id}
-              message={message}
-              viewerId={viewerId}
-              parentPreview={parent ? parent.content : null}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onTogglePin={onTogglePin}
-              onReply={onReply}
-              {...(readLabel ? { readLabel } : {})}
-              {...(attachmentScope ? { attachmentScope } : {})}
-            />
+            <Fragment key={message.id}>
+              {newDay ? (
+                <li data-date-divider="true" className={styles.dateDivider}>
+                  <time dateTime={message.createdAt}>
+                    {formatInZone(
+                      message.createdAt,
+                      { weekday: "short", day: "numeric", month: "short" },
+                      APP_TIME_ZONE,
+                    )}
+                  </time>
+                </li>
+              ) : null}
+              <MessageItem
+                message={message}
+                viewerId={viewerId}
+                parentPreview={parent ? parent.content : null}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onTogglePin={onTogglePin}
+                onReply={onReply}
+                {...(readLabel ? { readLabel } : {})}
+                {...(attachmentScope ? { attachmentScope } : {})}
+              />
+            </Fragment>
           );
         })}
       </ul>
