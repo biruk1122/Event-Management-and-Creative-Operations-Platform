@@ -81,7 +81,9 @@ test.describe("User administration — end to end", () => {
       const before = await page.request.get(`${apiBaseUrl}/api/v1/users`);
       expect(before.ok()).toBe(true);
       const baselineTotal = ((await before.json()) as { total: number }).total;
-      await expect(page.getByText(`${baselineTotal} users`)).toBeVisible();
+      await expect(
+        page.getByText(`${baselineTotal} users`, { exact: true }),
+      ).toBeVisible();
       await expectNoWcag22AaViolations(page, "users list");
 
       // Create a user through the dialog with an operator-set password.
@@ -132,7 +134,9 @@ test.describe("User administration — end to end", () => {
         .not.toBeNull();
 
       // It lands in the list as well as the authoritative store.
-      await expect(page.getByText(`${baselineTotal + 1} users`)).toBeVisible({
+      await expect(
+        page.getByText(`${baselineTotal + 1} users`, { exact: true }),
+      ).toBeVisible({
         timeout: 20_000,
       });
       // The suite's other specs create their own disposable users in this
@@ -257,7 +261,9 @@ test.describe("User administration — end to end", () => {
 
       // AC: the full workflow persists and reloads authoritative data.
       await page.reload();
-      await expect(page.getByText(`${baselineTotal + 1} users`)).toBeVisible();
+      await expect(
+        page.getByText(`${baselineTotal + 1} users`, { exact: true }),
+      ).toBeVisible();
       // A reload drops the client-side search filter along with the current
       // page, so the row is once again not guaranteed to land on the
       // unfiltered first page - see the identical note above.

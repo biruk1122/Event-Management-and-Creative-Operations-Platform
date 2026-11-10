@@ -187,7 +187,11 @@ test.describe("Lela administration presentation", () => {
             exact: true,
           })
           .fill(name);
-        const row = page.getByRole("button", { name: new RegExp(name) });
+        // Users rows are links to the details page; other areas use row buttons.
+        const row =
+          area.endpoint === "users"
+            ? page.getByRole("link", { name: new RegExp(name) })
+            : page.getByRole("button", { name: new RegExp(name) });
         await expect(row).toBeVisible();
 
         for (const viewport of [
@@ -222,28 +226,45 @@ test.describe("Lela administration presentation", () => {
         }
 
         await page.setViewportSize({ width: 360, height: 800 });
-        await row.focus();
-        await page.keyboard.press("Enter");
-        const detail = page.getByRole("dialog");
-        await expect(
-          detail.getByRole("heading", { name: new RegExp(name) }),
-        ).toBeVisible();
-        await expectNoWcag22AaViolations(
-          page,
-          `${area.title} detail mobile dark`,
-        );
-        expect(
-          await detail.evaluate(
-            (element) => element.scrollWidth <= element.clientWidth,
-          ),
-        ).toBe(true);
-        await page.screenshot({
-          path: testInfo.outputPath(`${area.endpoint}-detail-mobile-dark.png`),
-          fullPage: true,
-        });
-        await page.keyboard.press("Escape");
-        await expect(detail).toHaveCount(0);
-        await expect(row).toBeFocused();
+        if (area.endpoint === "users") {
+          // Enter opens the details page; check it and return to the list.
+          await row.focus();
+          await page.keyboard.press("Enter");
+          await expect(
+            page.getByRole("heading", { level: 1, name: new RegExp(name) }),
+          ).toBeVisible();
+          await expectNoWcag22AaViolations(
+            page,
+            `${area.title} details mobile dark`,
+          );
+          await page.goBack();
+          await expect(row).toBeVisible();
+        } else {
+          await row.focus();
+          await page.keyboard.press("Enter");
+          const detail = page.getByRole("dialog");
+          await expect(
+            detail.getByRole("heading", { name: new RegExp(name) }),
+          ).toBeVisible();
+          await expectNoWcag22AaViolations(
+            page,
+            `${area.title} detail mobile dark`,
+          );
+          expect(
+            await detail.evaluate(
+              (element) => element.scrollWidth <= element.clientWidth,
+            ),
+          ).toBe(true);
+          await page.screenshot({
+            path: testInfo.outputPath(
+              `${area.endpoint}-detail-mobile-dark.png`,
+            ),
+            fullPage: true,
+          });
+          await page.keyboard.press("Escape");
+          await expect(detail).toHaveCount(0);
+          await expect(row).toBeFocused();
+        }
 
         const createButton = page.getByRole("button", {
           name: area.action,
