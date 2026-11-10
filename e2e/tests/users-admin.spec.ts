@@ -173,12 +173,14 @@ test.describe("User administration — end to end", () => {
       );
       expect(credentialRows).toEqual([{ must_change_password: true }]);
 
-      // Edit profile fields through the detail dialog.
+      // Open the user's details page, then edit through the editor.
       await page
-        .getByRole("button", {
+        .getByRole("link", {
           name: userDisplayName,
         })
+        .first()
         .click();
+      await page.getByRole("button", { name: "Edit user" }).click();
       const detailDialog = page.getByRole("dialog");
       await expect(
         detailDialog.getByRole("heading", {
@@ -259,15 +261,21 @@ test.describe("User administration — end to end", () => {
       // A reload drops the client-side search filter along with the current
       // page, so the row is once again not guaranteed to land on the
       // unfiltered first page - see the identical note above.
-      await page.getByLabel("Search").fill(userEmail);
-      await expect(
-        page.getByText("1 user match these filters", { exact: true }),
-      ).toBeVisible();
+      // Right after a reload the list can paint before the search field is
+      // interactive, so retry the filter until it takes effect.
+      await expect(async () => {
+        await page.getByLabel("Search").fill(userEmail);
+        await expect(
+          page.getByText("1 user match these filters", { exact: true }),
+        ).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
       await page
-        .getByRole("button", {
+        .getByRole("link", {
           name: userDisplayName,
         })
+        .first()
         .click();
+      await page.getByRole("button", { name: "Edit user" }).click();
       const reopened = page.getByRole("dialog");
       await expect(reopened.getByText("Inactive")).toBeVisible();
       await expect(
@@ -302,10 +310,14 @@ test.describe("User administration — end to end", () => {
       // Filtering the list asks the API for the narrowed set and leaves only
       // the matching account, regardless of which rows pagination showed.
       await reopened.getByRole("button", { name: "Close" }).click();
-      await page.getByLabel("Search").fill(userEmail);
-      await expect(
-        page.getByText("1 user match these filters", { exact: true }),
-      ).toBeVisible();
+      // Right after a reload the list can paint before the search field is
+      // interactive, so retry the filter until it takes effect.
+      await expect(async () => {
+        await page.getByLabel("Search").fill(userEmail);
+        await expect(
+          page.getByText("1 user match these filters", { exact: true }),
+        ).toBeVisible({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
       await expect(
         page.getByRole("button", {
           name: userDisplayName,

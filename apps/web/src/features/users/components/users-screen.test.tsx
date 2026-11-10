@@ -10,6 +10,16 @@ import {
 import { UsersScreen } from "./users-screen";
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
+const { push, replace } = vi.hoisted(() => ({
+  push: vi.fn(),
+  replace: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace }),
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 vi.mock("@/lib/api/browser", () => ({ browserApi: { GET: get } }));
 
 const fullAccess: CurrentAccess = {

@@ -1,8 +1,9 @@
 "use client";
 
 import { useId } from "react";
-import { Search } from "lucide-react";
+import { RotateCcw, Search } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -26,6 +27,9 @@ interface UserFiltersProps {
   search: string;
   onStatusChange: (status: UserStatus | null) => void;
   onSearchChange: (search: string) => void;
+  /** Resets both filters at once. */
+  onClear: () => void;
+  active: boolean;
 }
 
 export function UserFilters({
@@ -33,6 +37,8 @@ export function UserFilters({
   search,
   onStatusChange,
   onSearchChange,
+  onClear,
+  active,
 }: UserFiltersProps) {
   const statusId = useId();
   const searchId = useId();
@@ -42,7 +48,7 @@ export function UserFilters({
       data-admin-filters
       className="flex flex-col gap-3 sm:flex-row sm:items-end"
     >
-      <div className="space-y-2 sm:w-48">
+      <div className="space-y-2 sm:w-56">
         <Label htmlFor={statusId}>Status</Label>
         <Select
           value={status ?? ALL}
@@ -50,7 +56,11 @@ export function UserFilters({
             onStatusChange(value === ALL ? null : (value as UserStatus))
           }
         >
-          <SelectTrigger id={statusId} aria-label="Filter by status">
+          <SelectTrigger
+            id={statusId}
+            aria-label="Filter by status"
+            className="w-full"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -74,13 +84,24 @@ export function UserFilters({
           <Input
             id={searchId}
             type="search"
-            placeholder="Name or email"
+            placeholder="Name or email…"
             className="pl-9"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
           />
         </div>
       </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onClear}
+        disabled={!active}
+        className="sm:self-end"
+      >
+        <RotateCcw aria-hidden="true" data-icon="inline-start" />
+        Clear Filters
+      </Button>
     </div>
   );
 }

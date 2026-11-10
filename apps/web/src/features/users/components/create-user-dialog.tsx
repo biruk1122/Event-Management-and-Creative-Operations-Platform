@@ -22,6 +22,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { ShieldCheck, UserRoundPlus, UserRound } from "lucide-react";
+
+import { FormSectionLegend } from "./form-section";
 import type { CreateUser, CreateUserValues } from "../lib/users-outcome";
 import type { User, UserRoleSummary } from "../lib/users-types";
 
@@ -137,179 +140,210 @@ export function CreateUserDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>New user</DialogTitle>
-          <DialogDescription>
-            Create an account with a temporary password the user must change on
-            first sign-in.
-          </DialogDescription>
+      <DialogContent className="flex max-h-[92vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="border-border from-accent to-card flex-row items-center gap-3 border-b bg-linear-to-br px-6 py-5 text-left">
+          <span className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-xl">
+            <UserRoundPlus aria-hidden="true" className="size-6" />
+          </span>
+          <div>
+            <DialogTitle className="text-xl">New user</DialogTitle>
+            <DialogDescription>
+              Create an account with a temporary password the user must change
+              on first sign-in.
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
-        <form
-          aria-label="Create user"
-          className="space-y-4"
-          onSubmit={(event) => void handleSubmit(event)}
-        >
-          {formError ? (
-            <Alert variant="destructive" aria-live="assertive">
-              <AlertTitle>{formError}</AlertTitle>
-            </Alert>
-          ) : null}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={ids.firstName}>First name</Label>
-              <Input
-                id={ids.firstName}
-                autoFocus
-                required
-                value={values.firstName}
-                aria-invalid={fieldErrors.firstName ? true : undefined}
-                onChange={(event) => set("firstName", event.target.value)}
-              />
-              {fieldErrors.firstName ? (
-                <p className="text-destructive text-sm">
-                  {fieldErrors.firstName}
-                </p>
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          <form
+            aria-label="Create user"
+            className="space-y-8"
+            onSubmit={(event) => void handleSubmit(event)}
+          >
+            <fieldset className="space-y-5">
+              <FormSectionLegend icon={UserRound}>
+                Personal details
+              </FormSectionLegend>
+              {formError ? (
+                <Alert variant="destructive" aria-live="assertive">
+                  <AlertTitle>{formError}</AlertTitle>
+                </Alert>
               ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={ids.lastName}>Last name</Label>
-              <Input
-                id={ids.lastName}
-                required
-                value={values.lastName}
-                aria-invalid={fieldErrors.lastName ? true : undefined}
-                onChange={(event) => set("lastName", event.target.value)}
-              />
-              {fieldErrors.lastName ? (
-                <p className="text-destructive text-sm">
-                  {fieldErrors.lastName}
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor={ids.firstName}>First name</Label>
+                  <Input
+                    id={ids.firstName}
+                    autoFocus
+                    required
+                    value={values.firstName}
+                    aria-invalid={fieldErrors.firstName ? true : undefined}
+                    onChange={(event) => set("firstName", event.target.value)}
+                  />
+                  {fieldErrors.firstName ? (
+                    <p className="text-destructive text-sm">
+                      {fieldErrors.firstName}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={ids.lastName}>Last name</Label>
+                  <Input
+                    id={ids.lastName}
+                    required
+                    value={values.lastName}
+                    aria-invalid={fieldErrors.lastName ? true : undefined}
+                    onChange={(event) => set("lastName", event.target.value)}
+                  />
+                  {fieldErrors.lastName ? (
+                    <p className="text-destructive text-sm">
+                      {fieldErrors.lastName}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor={ids.email}>Email</Label>
+                <Input
+                  id={ids.email}
+                  type="email"
+                  autoComplete="off"
+                  required
+                  value={values.email}
+                  aria-invalid={fieldErrors.email ? true : undefined}
+                  onChange={(event) => set("email", event.target.value)}
+                />
+                {fieldErrors.email ? (
+                  <p className="text-destructive text-sm">
+                    {fieldErrors.email}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor={ids.phone}>Phone (optional)</Label>
+                  <Input
+                    id={ids.phone}
+                    value={values.phone}
+                    onChange={(event) => set("phone", event.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={ids.profileImage}>
+                    Profile photo (optional)
+                  </Label>
+                  <Input
+                    id={ids.profileImage}
+                    placeholder="URL or storage key"
+                    value={values.profileImage}
+                    onChange={(event) =>
+                      set("profileImage", event.target.value)
+                    }
+                  />
+                </div>
+              </div>
+            </fieldset>
+
+            <fieldset className="space-y-5">
+              <FormSectionLegend icon={ShieldCheck}>
+                Account and access
+              </FormSectionLegend>
+              <div className="space-y-2">
+                <Label htmlFor={ids.password}>Temporary password</Label>
+                <Input
+                  id={ids.password}
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  minLength={8}
+                  value={values.temporaryPassword}
+                  aria-invalid={
+                    fieldErrors.temporaryPassword ? true : undefined
+                  }
+                  onChange={(event) =>
+                    set("temporaryPassword", event.target.value)
+                  }
+                />
+                {fieldErrors.temporaryPassword ? (
+                  <p className="text-destructive text-sm">
+                    {fieldErrors.temporaryPassword}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor={ids.role}>Role</Label>
+                <Select
+                  value={values.roleId ?? NO_ROLE}
+                  onValueChange={(value) =>
+                    set("roleId", value === NO_ROLE ? null : value)
+                  }
+                >
+                  <SelectTrigger id={ids.role}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_ROLE}>Choose a role</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor={ids.department}>Department</Label>
+                <Select
+                  value={values.departmentId ?? NO_ROLE}
+                  onValueChange={(value) =>
+                    set("departmentId", value === NO_ROLE ? null : value)
+                  }
+                >
+                  <SelectTrigger id={ids.department}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_ROLE}>Choose a department</SelectItem>
+                    {departments.map((department) => (
+                      <SelectItem key={department.id} value={department.id}>
+                        {department.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-muted-foreground text-sm">
+                  Required for department managers and members.
                 </p>
-              ) : null}
-            </div>
-          </div>
+              </div>
+            </fieldset>
 
-          <div className="space-y-2">
-            <Label htmlFor={ids.email}>Email</Label>
-            <Input
-              id={ids.email}
-              type="email"
-              autoComplete="off"
-              required
-              value={values.email}
-              aria-invalid={fieldErrors.email ? true : undefined}
-              onChange={(event) => set("email", event.target.value)}
-            />
-            {fieldErrors.email ? (
-              <p className="text-destructive text-sm">{fieldErrors.email}</p>
-            ) : null}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor={ids.phone}>Phone (optional)</Label>
-              <Input
-                id={ids.phone}
-                value={values.phone}
-                onChange={(event) => set("phone", event.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={ids.profileImage}>Profile photo (optional)</Label>
-              <Input
-                id={ids.profileImage}
-                placeholder="URL or storage key"
-                value={values.profileImage}
-                onChange={(event) => set("profileImage", event.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={ids.password}>Temporary password</Label>
-            <Input
-              id={ids.password}
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-              value={values.temporaryPassword}
-              aria-invalid={fieldErrors.temporaryPassword ? true : undefined}
-              onChange={(event) => set("temporaryPassword", event.target.value)}
-            />
-            {fieldErrors.temporaryPassword ? (
-              <p className="text-destructive text-sm">
-                {fieldErrors.temporaryPassword}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={ids.role}>Role</Label>
-            <Select
-              value={values.roleId ?? NO_ROLE}
-              onValueChange={(value) =>
-                set("roleId", value === NO_ROLE ? null : value)
-              }
-            >
-              <SelectTrigger id={ids.role}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_ROLE}>Choose a role</SelectItem>
-                {roles.map((role) => (
-                  <SelectItem key={role.id} value={role.id}>
-                    {role.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={ids.department}>Department</Label>
-            <Select
-              value={values.departmentId ?? NO_ROLE}
-              onValueChange={(value) =>
-                set("departmentId", value === NO_ROLE ? null : value)
-              }
-            >
-              <SelectTrigger id={ids.department}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_ROLE}>Choose a department</SelectItem>
-                {departments.map((department) => (
-                  <SelectItem key={department.id} value={department.id}>
-                    {department.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-sm">
-              Required for department managers and members.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting} aria-busy={submitting}>
-              {submitting ? "Creating…" : "Create user"}
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  reset();
+                  onOpenChange(false);
+                }}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting}
+                aria-busy={submitting}
+              >
+                {submitting ? "Creating…" : "Create user"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
   );
