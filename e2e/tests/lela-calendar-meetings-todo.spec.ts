@@ -139,7 +139,7 @@ test.describe("Lela calendar, meetings and to-do presentation", () => {
         });
         await page.goto("/calendar");
         const opener = page.getByRole("button", {
-          name: "Add entry",
+          name: "New entry",
           exact: true,
         });
         await expect(opener).toBeVisible();
@@ -294,7 +294,7 @@ test.describe("Lela calendar, meetings and to-do presentation", () => {
       // Keyboard entry and focus restoration through the calendar create dialog.
       await ownerPage.goto("/calendar");
       const addEntry = ownerPage.getByRole("button", {
-        name: "Add entry",
+        name: "New entry",
         exact: true,
       });
       await addEntry.focus();

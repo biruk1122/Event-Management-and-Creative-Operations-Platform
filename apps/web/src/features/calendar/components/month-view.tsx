@@ -5,7 +5,12 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import { EntryChip } from "./entry-chip";
-import { buildMonthGrid, entriesForDay, isSameDay } from "../lib/calendar-date";
+import {
+  buildMonthGrid,
+  entriesForDay,
+  isoWeekNumber,
+  isSameDay,
+} from "../lib/calendar-date";
 import type { CalendarEntry } from "../lib/calendar-types";
 import styles from "./calendar-presentation.module.css";
 
@@ -41,6 +46,7 @@ export function MonthView({
     >
       <div className={styles.monthCanvas}>
         <div className={styles.weekdays}>
+          <div aria-hidden="true" />
           {WEEKDAY_LABELS.map((label) => (
             <div key={label} className="py-2">
               {label}
@@ -48,8 +54,15 @@ export function MonthView({
           ))}
         </div>
         <div className={styles.monthGrid}>
-          {weeks.flatMap((week) =>
-            week.map((day) => {
+          {weeks.flatMap((week) => [
+            <div
+              key={`week-${week[0]!.toISOString()}`}
+              className={styles.weekLabel}
+              aria-hidden="true"
+            >
+              W{isoWeekNumber(week[0]!)}
+            </div>,
+            ...week.map((day) => {
               const dayEntries = entriesForDay(entries, day);
               const visible = dayEntries.slice(0, MAX_VISIBLE_PER_DAY);
               const overflow = dayEntries.length - visible.length;
@@ -113,7 +126,7 @@ export function MonthView({
                 </div>
               );
             }),
-          )}
+          ])}
         </div>
       </div>
     </div>

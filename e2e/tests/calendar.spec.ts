@@ -109,7 +109,7 @@ test.describe("Calendar and personal schedules — end to end", () => {
       ).toBeVisible();
       await expectNoWcag22AaViolations(page, "calendar page, empty");
 
-      await page.getByRole("button", { name: "Add entry" }).click();
+      await page.getByRole("button", { name: "New entry" }).click();
       const createDialog = page.getByRole("dialog");
       await expect(
         createDialog.getByRole("heading", { name: "New entry" }),
@@ -122,17 +122,19 @@ test.describe("Calendar and personal schedules — end to end", () => {
       await createDialog.getByRole("button", { name: "Create entry" }).click();
       await expect(createDialog).toBeHidden();
 
-      const entryChip = page.getByText(title, { exact: true });
+      const entryChip = page.locator(`[data-entry-item][title^="${title}, "]`);
       await expect(entryChip).toBeVisible();
       await expectNoWcag22AaViolations(page, "calendar page, with an entry");
 
       // Reload proves REST persistence, not client cache.
       await page.reload();
-      await expect(page.getByText(title, { exact: true })).toBeVisible();
+      await expect(
+        page.locator(`[data-entry-item][title^="${title}, "]`),
+      ).toBeVisible();
 
       // Edit: the Type control must be disabled - the real update contract
       // has no such field, so the UI must not offer to change it.
-      await page.getByText(title, { exact: true }).click();
+      await page.locator(`[data-entry-item][title^="${title}, "]`).click();
       const editDialog = page.getByRole("dialog");
       await expect(
         editDialog.getByRole("heading", { name: "Edit entry" }),
@@ -141,23 +143,31 @@ test.describe("Calendar and personal schedules — end to end", () => {
       await editDialog.getByLabel("Title").fill(updatedTitle);
       await editDialog.getByRole("button", { name: "Save changes" }).click();
       await expect(editDialog).toBeHidden();
-      await expect(page.getByText(updatedTitle, { exact: true })).toBeVisible();
+      await expect(
+        page.locator(`[data-entry-item][title^="${updatedTitle}, "]`),
+      ).toBeVisible();
 
       // Reload again: the edit is authoritative, not just an optimistic
       // local update.
       await page.reload();
-      await expect(page.getByText(updatedTitle, { exact: true })).toBeVisible();
-      await expect(page.getByText(title, { exact: true })).not.toBeVisible();
+      await expect(
+        page.locator(`[data-entry-item][title^="${updatedTitle}, "]`),
+      ).toBeVisible();
+      await expect(
+        page.locator(`[data-entry-item][title^="${title}, "]`),
+      ).not.toBeVisible();
 
       // Delete, then confirm through both the UI and the database directly -
       // not just that the chip disappeared from a component that could,
       // hypothetically, hide it without actually deleting anything.
-      await page.getByText(updatedTitle, { exact: true }).click();
+      await page
+        .locator(`[data-entry-item][title^="${updatedTitle}, "]`)
+        .click();
       const deleteDialog = page.getByRole("dialog");
       await deleteDialog.getByRole("button", { name: "Delete" }).click();
       await expect(deleteDialog).toBeHidden();
       await expect(
-        page.getByText(updatedTitle, { exact: true }),
+        page.locator(`[data-entry-item][title^="${updatedTitle}, "]`),
       ).not.toBeVisible();
 
       const rows = await queryInSchema(
@@ -203,7 +213,7 @@ test.describe("Calendar and personal schedules — end to end", () => {
         });
 
         await pageA.goto("/calendar");
-        await pageA.getByRole("button", { name: "Add entry" }).click();
+        await pageA.getByRole("button", { name: "New entry" }).click();
         const dialogA = pageA.getByRole("dialog");
         await dialogA.getByLabel("Title").fill(titleA);
         await dialogA.getByLabel("Start").fill(todayAt(11, 0));
@@ -222,7 +232,9 @@ test.describe("Calendar and personal schedules — end to end", () => {
 
         // User B never sees user A's entry through the real UI.
         await pageB.goto("/calendar");
-        await expect(pageB.getByText(titleA, { exact: true })).toHaveCount(0);
+        await expect(
+          pageB.locator(`[data-entry-item][title^="${titleA}, "]`),
+        ).toHaveCount(0);
 
         // Nor can user B reach it directly by id - ownership-scoped, so a
         // cross-user attempt looks like it does not exist (404), not 403.
@@ -294,7 +306,7 @@ test.describe("Calendar and personal schedules — end to end", () => {
         await expect(
           disposablePage.getByRole("heading", { level: 1, name: "Calendar" }),
         ).toBeVisible();
-        await disposablePage.getByRole("button", { name: "Add entry" }).click();
+        await disposablePage.getByRole("button", { name: "New entry" }).click();
         const createDialog = disposablePage.getByRole("dialog");
         await createDialog.getByLabel("Title").fill(title);
         await createDialog.getByLabel("Start").fill(todayAt(9, 0));
@@ -303,7 +315,7 @@ test.describe("Calendar and personal schedules — end to end", () => {
           .click();
         await expect(createDialog).toBeHidden();
         await expect(
-          disposablePage.getByText(title, { exact: true }),
+          disposablePage.locator(`[data-entry-item][title^="${title}, "]`),
         ).toBeVisible();
 
         const me = await disposablePage.request.get(
@@ -351,7 +363,7 @@ test.describe("Calendar and personal schedules — end to end", () => {
           disposablePage.getByRole("heading", { level: 1, name: "Calendar" }),
         ).toBeVisible();
         await expect(
-          disposablePage.getByText(title, { exact: true }),
+          disposablePage.locator(`[data-entry-item][title^="${title}, "]`),
         ).toBeVisible();
       } finally {
         await disposablePage.close();
