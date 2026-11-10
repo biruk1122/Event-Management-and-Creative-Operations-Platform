@@ -190,6 +190,35 @@ describe("DiscussManager", () => {
     );
   });
 
+  it("shows the page header on the list and hides it while a conversation is open", async () => {
+    mockGet({
+      "/api/v1/conversations": {
+        items: [conversation()],
+        page: 1,
+        pageSize: 25,
+        total: 1,
+      },
+      "/api/v1/conversations/{id}/messages": {
+        items: [message()],
+        page: 1,
+        pageSize: 50,
+        total: 1,
+      },
+    });
+    const { user } = setup();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Direct messages" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Morgan Lead/ }),
+    );
+    await screen.findByRole("list", { name: "Messages" });
+    expect(
+      screen.queryByRole("heading", { level: 1, name: "Direct messages" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("loads messages for the selected conversation from the real API", async () => {
     mockGet({
       "/api/v1/conversations": {

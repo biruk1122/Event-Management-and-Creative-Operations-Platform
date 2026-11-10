@@ -212,22 +212,24 @@ export function DiscussManager({
 
   return (
     <div className={styles.page}>
-      <DiscussHeader
-        kind={kind}
-        count={conversations?.length ?? 0}
-        hasMore={Boolean(listQuery.hasNextPage)}
-        groupCount={
-          conversations?.filter((c) => c.type === "GROUP").length ?? 0
-        }
-        initials={(conversations ?? []).slice(0, 4).map((c) =>
-          conversationTitle(c, access.userId)
-            .split(/s+/)
-            .slice(0, 2)
-            .map((part) => part[0])
-            .join("")
-            .toUpperCase(),
-        )}
-      />
+      {selectedId ? null : (
+        <DiscussHeader
+          kind={kind}
+          count={conversations?.length ?? 0}
+          hasMore={Boolean(listQuery.hasNextPage)}
+          groupCount={
+            conversations?.filter((c) => c.type === "GROUP").length ?? 0
+          }
+          initials={(conversations ?? []).slice(0, 4).map((c) =>
+            conversationTitle(c, access.userId)
+              .split(/s+/)
+              .slice(0, 2)
+              .map((part) => part[0])
+              .join("")
+              .toUpperCase(),
+          )}
+        />
+      )}
       <div ref={layout} className={styles.layout}>
         <aside
           className={styles.sidebar}
