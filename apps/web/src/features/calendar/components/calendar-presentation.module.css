@@ -319,3 +319,453 @@
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Planner layout (design option 2): a sidebar with the brand, New entry, a
+ * mini month, My calendars and today's schedule, beside the main calendar.
+ * Colours come from the Lela tokens; the entry hues follow the design.
+ * ------------------------------------------------------------------------- */
+
+.planner {
+  display: grid;
+  grid-template-columns: minmax(16rem, 19rem) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.plannerMain {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+  padding: 1.5rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+}
+
+.sidebar {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+  align-content: start;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 0.25rem;
+}
+
+.brandIcon {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.7rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.brandIcon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.brandName {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.newButton {
+  height: 3rem;
+  border-radius: 0.875rem;
+  font-weight: 700;
+  justify-content: center;
+}
+
+.panel {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.125rem;
+}
+
+.panelTitle {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.miniHeader {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.miniWeekdays,
+.miniGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  text-align: center;
+}
+
+.miniWeekdays {
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.miniGrid {
+  row-gap: 0.125rem;
+}
+
+.miniDay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.125rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--foreground);
+}
+
+.miniDay[data-outside-month] {
+  color: var(--muted-foreground);
+}
+
+.miniNumber {
+  display: inline-flex;
+  width: 1.85rem;
+  height: 1.85rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.miniDay[data-today] .miniNumber {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 800;
+}
+
+.miniDot {
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.calendarList {
+  display: grid;
+  gap: 0.125rem;
+}
+
+.calendarRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.5rem;
+  padding: 0 0.375rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+
+.calendarRow:hover {
+  background: var(--muted);
+}
+
+.calendarRow > svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.calendarName {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.calendarCount {
+  min-width: 1.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.todayPanel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: 1.125rem;
+}
+
+.todayHeader {
+  color: color-mix(in srgb, var(--primary-foreground) 75%, transparent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.todayEmpty {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.todayList {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todayItem {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.todayTime {
+  width: 2.75rem;
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.todayText {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.todayTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.todaySub {
+  color: color-mix(in srgb, var(--primary-foreground) 75%, transparent);
+  font-size: 0.75rem;
+}
+
+.plannerHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.plannerTitle {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.monthTitle {
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.headerControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.navGroup {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.navGroup button {
+  border-radius: 0;
+}
+
+.todayButton {
+  padding-inline: 0.875rem;
+  border-inline: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.plannerMain .viewSwitch {
+  display: inline-flex;
+  padding: 0.25rem;
+  border-radius: 0.75rem;
+  background: var(--muted);
+}
+
+.plannerMain .viewSwitch button {
+  height: 2.25rem;
+  padding-inline: 1rem;
+  border-radius: 0.6rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+.plannerMain .viewSwitch button[data-selected] {
+  background: var(--card);
+  color: var(--primary);
+  font-weight: 700;
+  box-shadow: 0 1px 3px -1px var(--foreground);
+}
+
+.plannerMain .timezone {
+  justify-self: end;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+/* Month grid: a week-number column, then seven day columns. */
+.plannerMain .weekdays,
+.plannerMain .monthGrid {
+  grid-template-columns: 2.75rem repeat(7, minmax(0, 1fr));
+}
+
+.weekLabel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.plannerMain .entryChip[data-compact] {
+  padding: 0.3rem 0.45rem;
+  border-radius: 0.5rem;
+}
+
+.plannerMain .entryChip[data-compact] .entryIcon {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 0.2rem;
+}
+
+.plannerMain .entryChip[data-compact] .entryIcon svg {
+  display: none;
+}
+
+.plannerMain .entryChip[data-compact] .entryContent {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.plannerMain .entryChip[data-compact] .entryTime {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+}
+
+/* Entry hues, from the design. */
+.plannerMain .entryChip[data-entry-type="EVENT"] {
+  background: #fdf2f5;
+  color: #23111a;
+}
+.plannerMain .entryChip[data-entry-type="TASK"] {
+  background: #f0f8fe;
+  color: #23111a;
+}
+.plannerMain .entryChip[data-entry-type="MEETING"] {
+  background: #f6f4fe;
+  color: #23111a;
+}
+.plannerMain .entryChip[data-entry-type="PROJECT"] {
+  background: #fef9e7;
+  color: #23111a;
+}
+.plannerMain .entryChip[data-entry-type="PERSONAL"] {
+  background: #f0fdf4;
+  color: #23111a;
+}
+.plannerMain .entryChip[data-entry-type="REMINDER"] {
+  background: #fff6ec;
+  color: #23111a;
+}
+
+.plannerMain .entryChip[data-entry-type="EVENT"] .entryIcon {
+  background: #e11d48;
+}
+.plannerMain .entryChip[data-entry-type="TASK"] .entryIcon {
+  background: #0284c7;
+}
+.plannerMain .entryChip[data-entry-type="MEETING"] .entryIcon {
+  background: #7c3aed;
+}
+.plannerMain .entryChip[data-entry-type="PROJECT"] .entryIcon {
+  background: #d97706;
+}
+.plannerMain .entryChip[data-entry-type="PERSONAL"] .entryIcon {
+  background: #16a34a;
+}
+.plannerMain .entryChip[data-entry-type="REMINDER"] .entryIcon {
+  background: #ea580c;
+}
+
+.miniDot[data-entry-type="EVENT"] {
+  background: #e11d48;
+}
+.miniDot[data-entry-type="TASK"] {
+  background: #0284c7;
+}
+.miniDot[data-entry-type="MEETING"] {
+  background: #7c3aed;
+}
+.miniDot[data-entry-type="PROJECT"] {
+  background: #d97706;
+}
+.miniDot[data-entry-type="PERSONAL"] {
+  background: #16a34a;
+}
+.miniDot[data-entry-type="REMINDER"] {
+  background: #ea580c;
+}
+
+@media (max-width: 960px) {
+  .planner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .plannerMain {
+    padding: 1rem;
+  }
+}

@@ -260,7 +260,7 @@ describe("CalendarManager", () => {
     );
   });
 
-  it("creates a new entry through the real API via the toolbar's Add entry action", async () => {
+  it("creates a new entry through the real API via the sidebar New entry action", async () => {
     const created = {
       ...personalEntry(),
       id: "personal-2",
@@ -271,9 +271,9 @@ describe("CalendarManager", () => {
       .mockResolvedValueOnce(ok({ items: [created] }));
     post.mockResolvedValue(ok(created));
     const { user } = setup();
-    await screen.findByRole("button", { name: "Add entry" });
+    await screen.findByRole("button", { name: "New entry" });
 
-    await user.click(screen.getByRole("button", { name: "Add entry" }));
+    await user.click(screen.getByRole("button", { name: "New entry" }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Title"), "Vet visit");
     await user.click(
@@ -293,7 +293,7 @@ describe("CalendarManager", () => {
   it("navigating to the next month requests a different range from the API", async () => {
     get.mockResolvedValue(ok({ items: [] }));
     const { user } = setup();
-    await screen.findByText("September 2026");
+    await screen.findByRole("heading", { level: 2, name: "September 2026" });
     const initialQuery = get.mock.calls[0]?.[1]?.params?.query as {
       from: string;
       to: string;
@@ -301,7 +301,9 @@ describe("CalendarManager", () => {
 
     await user.click(screen.getByRole("button", { name: "Next month" }));
 
-    expect(screen.getByText("October 2026")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "October 2026" }),
+    ).toBeVisible();
     await waitFor(() => {
       const latestQuery = get.mock.calls.at(-1)?.[1]?.params?.query as {
         from: string;
@@ -329,7 +331,7 @@ describe("CalendarManager", () => {
     // must stay on screen rather than the whole view unmounting to a loading
     // paragraph - the same `keepPreviousData` behavior every other paginated
     // list manager in this repo relies on.
-    expect(screen.getByRole("button", { name: "Add entry" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "New entry" })).toBeVisible();
     expect(
       screen.queryByText("Loading your calendar…"),
     ).not.toBeInTheDocument();
@@ -357,7 +359,7 @@ describe("CalendarManager", () => {
   it("shows a reconnecting banner while the live connection drops", async () => {
     get.mockResolvedValue(ok({ items: [] }));
     const { fake } = setup();
-    await screen.findByRole("button", { name: "Add entry" });
+    await screen.findByRole("button", { name: "New entry" });
 
     fake.emit({ status: "reconnecting", detail: null, rooms: [] });
 
@@ -367,7 +369,7 @@ describe("CalendarManager", () => {
   it("shows a live-updates-unavailable notice when the connection is denied", async () => {
     get.mockResolvedValue(ok({ items: [] }));
     const { fake } = setup();
-    await screen.findByRole("button", { name: "Add entry" });
+    await screen.findByRole("button", { name: "New entry" });
 
     fake.emit({ status: "denied", detail: "Sign in again.", rooms: [] });
 
@@ -381,7 +383,7 @@ describe("CalendarManager", () => {
   it("reconciles (refetches) the calendar after reconnecting, but not on the first connect", async () => {
     get.mockResolvedValue(ok({ items: [] }));
     const { fake } = setup();
-    await screen.findByRole("button", { name: "Add entry" });
+    await screen.findByRole("button", { name: "New entry" });
     const callsAfterFirstLoad = get.mock.calls.length;
 
     fake.emit({ status: "connected", detail: null, rooms: [] });

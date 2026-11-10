@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +14,7 @@ import {
 } from "@/features/realtime";
 
 import { AgendaView } from "./agenda-view";
+import { CalendarSidebar } from "./calendar-sidebar";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { DayView } from "./day-view";
 import { EntryDetailDialog } from "./entry-detail-dialog";
@@ -35,7 +35,9 @@ import {
 import {
   addDays,
   addMonths,
+  isoWeekNumber,
   rangeForView,
+  resolvedTimeZone,
   startOfDay,
 } from "../lib/calendar-date";
 import type { DeleteCalendarEntryOutcome } from "../lib/calendar-outcome";
@@ -201,68 +203,84 @@ export function CalendarManager({
     );
   }
 
+  const monthEntryCount = entries.filter((entry) => {
+    const date = new Date(entry.startAt);
+    return (
+      date.getFullYear() === anchor.getFullYear() &&
+      date.getMonth() === anchor.getMonth()
+    );
+  }).length;
   return (
-    <div className={`${styles.surface} space-y-4`}>
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => openCreate(anchor)}>
-          <Plus aria-hidden="true" />
-          Add entry
-        </Button>
+    <div className={`${styles.surface}`}>
+      <div className={styles.planner}>
+        <CalendarSidebar
+          anchor={anchor}
+          entries={entries}
+          activeTypes={activeTypes}
+          onToggleType={toggleType}
+          onCreate={() => openCreate(anchor)}
+          onSelectDate={(date) => setAnchor(date)}
+          onSelectEntry={selectEntry}
+        />
+        <div className={styles.plannerMain}>
+          {connection.state.status === "denied" ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              Live updates are unavailable. Refresh to see changes made
+              elsewhere.
+            </p>
+          ) : connection.state.status === "reconnecting" ? (
+            <p role="status" className="text-muted-foreground text-sm">
+              Reconnecting…
+            </p>
+          ) : null}
+
+          <CalendarToolbar
+            view={view}
+            anchor={anchor}
+            weekNumber={isoWeekNumber(anchor)}
+            monthEntryCount={monthEntryCount}
+            onChangeView={setView}
+            onNavigate={navigate}
+          />
+
+          {view === "month" ? (
+            <MonthView
+              anchor={anchor}
+              entries={visibleEntries}
+              onOpenDay={(date) => {
+                setAnchor(date);
+                setView("day");
+              }}
+              onCreateAt={openCreate}
+              onSelectEntry={selectEntry}
+            />
+          ) : null}
+          {view === "week" ? (
+            <WeekView
+              anchor={anchor}
+              entries={visibleEntries}
+              onCreateAt={openCreate}
+              onSelectEntry={selectEntry}
+            />
+          ) : null}
+          {view === "day" ? (
+            <DayView
+              anchor={anchor}
+              entries={visibleEntries}
+              onCreateAt={openCreate}
+              onSelectEntry={selectEntry}
+            />
+          ) : null}
+          {view === "agenda" ? (
+            <AgendaView
+              anchor={anchor}
+              entries={visibleEntries}
+              onSelectEntry={selectEntry}
+            />
+          ) : null}
+          <p className={styles.timezone}>Times in {resolvedTimeZone()}</p>
+        </div>
       </div>
-      {connection.state.status === "denied" ? (
-        <p role="status" className="text-muted-foreground text-sm">
-          Live updates are unavailable. Refresh to see changes made elsewhere.
-        </p>
-      ) : connection.state.status === "reconnecting" ? (
-        <p role="status" className="text-muted-foreground text-sm">
-          Reconnecting…
-        </p>
-      ) : null}
-
-      <CalendarToolbar
-        view={view}
-        anchor={anchor}
-        activeTypes={activeTypes}
-        onChangeView={setView}
-        onNavigate={navigate}
-        onToggleType={toggleType}
-      />
-
-      {view === "month" ? (
-        <MonthView
-          anchor={anchor}
-          entries={visibleEntries}
-          onOpenDay={(date) => {
-            setAnchor(date);
-            setView("day");
-          }}
-          onCreateAt={openCreate}
-          onSelectEntry={selectEntry}
-        />
-      ) : null}
-      {view === "week" ? (
-        <WeekView
-          anchor={anchor}
-          entries={visibleEntries}
-          onCreateAt={openCreate}
-          onSelectEntry={selectEntry}
-        />
-      ) : null}
-      {view === "day" ? (
-        <DayView
-          anchor={anchor}
-          entries={visibleEntries}
-          onCreateAt={openCreate}
-          onSelectEntry={selectEntry}
-        />
-      ) : null}
-      {view === "agenda" ? (
-        <AgendaView
-          anchor={anchor}
-          entries={visibleEntries}
-          onSelectEntry={selectEntry}
-        />
-      ) : null}
 
       <EntryDialog
         key={dialogInstanceKey}

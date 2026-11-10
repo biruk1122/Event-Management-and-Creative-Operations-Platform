@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDays,
   addMonths,
+  isoWeekNumber,
   buildMonthGrid,
   buildWeekDays,
   entriesForDay,
@@ -180,5 +181,18 @@ describe("formatRangeLabel", () => {
     for (const view of ["day", "week", "month", "agenda"] as const) {
       expect(formatRangeLabel(view, anchor).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("isoWeekNumber", () => {
+  it("matches the ISO week, which the design shows as Week 46 for 10 November 2026", () => {
+    expect(isoWeekNumber(new Date(2026, 10, 10))).toBe(46);
+  });
+
+  it("handles the first and last weeks of a year", () => {
+    // 1 January 2026 is a Thursday, so it falls in week 1.
+    expect(isoWeekNumber(new Date(2026, 0, 1))).toBe(1);
+    // 2026 has 53 ISO weeks; 31 December 2026 is a Thursday in week 53.
+    expect(isoWeekNumber(new Date(2026, 11, 31))).toBe(53);
   });
 });

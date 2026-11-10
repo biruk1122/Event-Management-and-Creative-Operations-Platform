@@ -166,3 +166,23 @@ export function formatRangeLabel(view: CalendarViewMode, anchor: Date): string {
   }
   return formatMonthLabel(anchor);
 }
+
+/** The ISO-8601 week number of a date (weeks run Monday to Sunday). */
+export function isoWeekNumber(date: Date): number {
+  const target = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+  );
+  const dayNumber = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayNumber + 3);
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+  const firstDayNumber = (firstThursday.getUTCDay() + 6) % 7;
+  return (
+    1 +
+    Math.round(
+      ((target.getTime() - firstThursday.getTime()) / 86_400_000 -
+        3 +
+        firstDayNumber) /
+        7,
+    )
+  );
+}
