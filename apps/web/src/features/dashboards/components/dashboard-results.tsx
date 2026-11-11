@@ -215,7 +215,7 @@ export function DashboardResults({
   }
   if ("count" in data)
     return (
-      <p className="py-2 text-4xl font-semibold tracking-tight tabular-nums">
+      <p className="py-2 text-[40px] leading-none font-extrabold tracking-[-0.03em] tabular-nums">
         {data.count}
       </p>
     );

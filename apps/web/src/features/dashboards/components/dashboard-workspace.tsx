@@ -239,6 +239,31 @@ export function DashboardWorkspace({
               ))}
           </nav>
         ) : null}
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+          <Button
+            type="button"
+            onClick={() => {
+              if (!refreshing) onRefresh?.();
+            }}
+            disabled={!onRefresh}
+            aria-disabled={refreshing}
+            className="aria-disabled:opacity-50"
+          >
+            {refreshing ? "Refreshing…" : "Refresh dashboard"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            aria-describedby={`${id}-export`}
+          >
+            Export dashboard
+          </Button>
+          <p id={`${id}-export`} className="text-muted-foreground text-sm">
+            Export is unavailable: the approved dashboard contract does not
+            provide exports.
+          </p>
+        </div>
       </section>
       {groups.length > 0 ? (
         <nav aria-label="Dashboard sections" className="flex flex-wrap gap-2">
@@ -351,30 +376,7 @@ export function DashboardWorkspace({
                 ))}
             </select>
           </div>
-          <Button
-            type="button"
-            onClick={() => {
-              if (!refreshing) onRefresh?.();
-            }}
-            disabled={!onRefresh}
-            aria-disabled={refreshing}
-            className="aria-disabled:opacity-50"
-          >
-            {refreshing ? "Refreshing…" : "Refresh dashboard"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled
-            aria-describedby={`${id}-export`}
-          >
-            Export dashboard
-          </Button>
         </div>
-        <p id={`${id}-export`} className="text-muted-foreground text-sm">
-          Export is unavailable: the approved dashboard contract does not
-          provide exports.
-        </p>
         <form
           className={styles.filters}
           onSubmit={(event) => {
@@ -520,6 +522,7 @@ export function DashboardWorkspace({
           </p>
         ) : null}
         {groups.map((group) => {
+          const groupCards = cards.filter((item) => item.group === group);
           const { icon: Icon, description } = groupPresentation[group];
           return (
             <section
@@ -543,175 +546,197 @@ export function DashboardWorkspace({
                   </p>
                 </div>
               </div>
-              <div className="flex min-w-0 flex-wrap justify-center gap-4 @min-[64rem]:gap-5">
-                {cards
-                  .filter((item) => item.group === group)
-                  .map((item) => {
-                    const panel = panels[item.key] ?? {
-                      state: "disconnected" as const,
-                    };
-                    const supplied = "data" in panel;
-                    const icon = cardIcons[item.key];
-                    const hasDestination = Boolean(
-                      item.href &&
-                      permittedRoutes.has(item.href) &&
-                      (panel.state === "ready" ||
-                        panel.state === "empty" ||
-                        panel.state === "partial"),
-                    );
-                    return (
-                      <Card
-                        key={item.key}
-                        className={`${styles.card} min-w-0 shrink grow-0 basis-80 gap-3 @min-[48rem]:basis-72 ${group === "Overview" ? "@min-[64rem]:basis-88" : "@min-[64rem]:basis-96"} ${hasDestination ? "transition-shadow hover:shadow-md" : ""}`}
-                      >
-                        <CardHeader className="flex-row items-start gap-3 space-y-0">
-                          {icon ? (
-                            <DashboardIconBadge
-                              icon={icon.icon}
-                              tone={icon.tone}
-                            />
-                          ) : null}
-                          <div className="min-w-0 flex-1">
-                            <h3
-                              id={`${id}-${item.key}`}
-                              className="font-semibold"
-                            >
-                              {item.title}
-                            </h3>
-                            {"scope" in panel && panel.scope ? (
-                              <p className="text-muted-foreground text-sm">
-                                Scope: {panel.scope}
+              <div
+                className={
+                  group === "Today"
+                    ? "grid min-w-0 grid-cols-1 gap-4 @min-[48rem]:grid-cols-2"
+                    : "flex min-w-0 flex-wrap justify-center gap-4 @min-[64rem]:gap-5"
+                }
+              >
+                {(group === "Today"
+                  ? [groupCards.slice(0, 3), groupCards.slice(3)]
+                  : [groupCards]
+                ).map((column, columnIndex) => (
+                  <div
+                    key={columnIndex}
+                    className={
+                      group === "Today"
+                        ? "flex min-w-0 flex-col gap-4"
+                        : "contents"
+                    }
+                  >
+                    {column.map((item) => {
+                      const panel = panels[item.key] ?? {
+                        state: "disconnected" as const,
+                      };
+                      const supplied = "data" in panel;
+                      const icon = cardIcons[item.key];
+                      const hasDestination = Boolean(
+                        item.href &&
+                        permittedRoutes.has(item.href) &&
+                        (panel.state === "ready" ||
+                          panel.state === "empty" ||
+                          panel.state === "partial"),
+                      );
+                      return (
+                        <Card
+                          key={item.key}
+                          className={`${styles.card} min-w-0 shrink grow-0 basis-80 gap-3 @min-[48rem]:basis-72 ${group === "Overview" ? "@min-[64rem]:basis-88" : "@min-[64rem]:basis-96"} ${hasDestination ? "transition-shadow hover:shadow-md" : ""}`}
+                        >
+                          <CardHeader className="flex-row items-start gap-3 space-y-0">
+                            {icon ? (
+                              <DashboardIconBadge
+                                icon={icon.icon}
+                                tone={icon.tone}
+                              />
+                            ) : null}
+                            <div className="min-w-0 flex-1">
+                              <h3
+                                id={`${id}-${item.key}`}
+                                className="font-semibold"
+                              >
+                                {item.title}
+                              </h3>
+                              {"scope" in panel && panel.scope ? (
+                                <p className="text-muted-foreground text-sm">
+                                  Scope: {panel.scope}
+                                </p>
+                              ) : null}
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {"asOf" in panel && panel.asOf ? (
+                              <p className="text-muted-foreground text-sm break-words">
+                                Refreshed{" "}
+                                <time dateTime={panel.asOf}>
+                                  {panel.asOf} (UTC)
+                                </time>
                               </p>
                             ) : null}
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {"asOf" in panel && panel.asOf ? (
-                            <p className="text-muted-foreground text-sm break-words">
-                              Refreshed{" "}
-                              <time dateTime={panel.asOf}>
-                                {panel.asOf} (UTC)
-                              </time>
-                            </p>
-                          ) : null}
-                          {staleKeys.includes(item.key) && supplied ? (
-                            <p
-                              role="status"
-                              className="flex items-center gap-2"
-                            >
-                              <Badge variant="warning">Stale</Badge>
-                              <span>
-                                Stale: last successful results in this account
-                                and scope. Refresh to update.
-                              </span>
-                            </p>
-                          ) : null}
-                          {panel.state === "loading" ? (
-                            <p role="status">
-                              Loading {item.title.toLowerCase()}…
-                            </p>
-                          ) : panel.state === "disconnected" ? (
-                            <p className="text-muted-foreground text-sm">
-                              Not connected. Results will appear after live
-                              integration.
-                            </p>
-                          ) : panel.state === "selectionRequired" ? (
-                            <p>
-                              Choose a promotion campaign above to see results.
-                            </p>
-                          ) : panel.state === "unavailable" ? (
-                            <div className="space-y-2">
-                              <p role="status">
-                                This card is unavailable. Other cards remain
-                                usable.
+                            {staleKeys.includes(item.key) && supplied ? (
+                              <p
+                                role="status"
+                                className="flex items-center gap-2"
+                              >
+                                <Badge variant="warning">Stale</Badge>
+                                <span>
+                                  Stale: last successful results in this account
+                                  and scope. Refresh to update.
+                                </span>
                               </p>
-                              {panel.requestId ? (
-                                <p className="text-sm break-all">
-                                  Support reference: {panel.requestId}
+                            ) : null}
+                            {panel.state === "loading" ? (
+                              <p role="status">
+                                Loading {item.title.toLowerCase()}…
+                              </p>
+                            ) : panel.state === "disconnected" ? (
+                              <p className="text-muted-foreground text-sm">
+                                Not connected. Results will appear after live
+                                integration.
+                              </p>
+                            ) : panel.state === "selectionRequired" ? (
+                              <p>
+                                Choose a promotion campaign above to see
+                                results.
+                              </p>
+                            ) : panel.state === "unavailable" ? (
+                              <div className="space-y-2">
+                                <p role="status">
+                                  This card is unavailable. Other cards remain
+                                  usable.
                                 </p>
-                              ) : null}
-                              {panel.retryable && onRetry ? (
-                                <Button
-                                  variant="outline"
-                                  aria-disabled={refreshing}
-                                  className="aria-disabled:opacity-50"
-                                  onClick={() => {
-                                    if (!refreshing) onRetry(item.key);
-                                  }}
-                                >
-                                  Retry {item.title.toLowerCase()}
-                                </Button>
-                              ) : (
-                                <p className="text-sm">
-                                  {panel.retryable
-                                    ? "Retry will be available after live integration."
-                                    : "Retry is not available for this failure."}
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <>
-                              {panel.state === "partial" ? (
-                                <p
-                                  role="status"
-                                  className="flex items-center gap-2"
-                                >
-                                  <Badge variant="warning">Partial</Badge>
-                                  Some sources could not be loaded. The
-                                  successful sources are shown.
-                                </p>
-                              ) : null}
-                              {panel.sources ? (
-                                <ul className="text-muted-foreground text-sm">
-                                  {Object.entries(panel.sources)
-                                    .filter(
-                                      ([, source]) => source.state !== "denied",
-                                    )
-                                    .map(([source, value]) => (
-                                      <li key={source}>
-                                        {source}: {value.state}
-                                        {value.retryable ? " (retryable)" : ""}
-                                      </li>
-                                    ))}
-                                </ul>
-                              ) : null}
-                              <DashboardResults
-                                card={panel}
-                                cardKey={item.key}
-                              />
-                              {panel.state === "partial" &&
-                              (panel.retryable ||
-                                Object.values(panel.sources ?? {}).some(
-                                  (source) =>
-                                    source.state === "unavailable" &&
-                                    source.retryable,
-                                )) &&
-                              onRetry ? (
-                                <Button
-                                  variant="outline"
-                                  aria-disabled={refreshing}
-                                  className="aria-disabled:opacity-50"
-                                  onClick={() => {
-                                    if (!refreshing) onRetry(item.key);
-                                  }}
-                                >
-                                  Retry {item.title.toLowerCase()}
-                                </Button>
-                              ) : null}
-                            </>
-                          )}
-                          {hasDestination && item.href ? (
-                            <Link
-                              href={item.href}
-                              className={styles.destination}
-                            >
-                              Open {item.title.toLowerCase()} workspace
-                            </Link>
-                          ) : null}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                                {panel.requestId ? (
+                                  <p className="text-sm break-all">
+                                    Support reference: {panel.requestId}
+                                  </p>
+                                ) : null}
+                                {panel.retryable && onRetry ? (
+                                  <Button
+                                    variant="outline"
+                                    aria-disabled={refreshing}
+                                    className="aria-disabled:opacity-50"
+                                    onClick={() => {
+                                      if (!refreshing) onRetry(item.key);
+                                    }}
+                                  >
+                                    Retry {item.title.toLowerCase()}
+                                  </Button>
+                                ) : (
+                                  <p className="text-sm">
+                                    {panel.retryable
+                                      ? "Retry will be available after live integration."
+                                      : "Retry is not available for this failure."}
+                                  </p>
+                                )}
+                              </div>
+                            ) : (
+                              <>
+                                {panel.state === "partial" ? (
+                                  <p
+                                    role="status"
+                                    className="flex items-center gap-2"
+                                  >
+                                    <Badge variant="warning">Partial</Badge>
+                                    Some sources could not be loaded. The
+                                    successful sources are shown.
+                                  </p>
+                                ) : null}
+                                {panel.sources ? (
+                                  <ul className="text-muted-foreground text-sm">
+                                    {Object.entries(panel.sources)
+                                      .filter(
+                                        ([, source]) =>
+                                          source.state !== "denied",
+                                      )
+                                      .map(([source, value]) => (
+                                        <li key={source}>
+                                          {source}: {value.state}
+                                          {value.retryable
+                                            ? " (retryable)"
+                                            : ""}
+                                        </li>
+                                      ))}
+                                  </ul>
+                                ) : null}
+                                <DashboardResults
+                                  card={panel}
+                                  cardKey={item.key}
+                                />
+                                {panel.state === "partial" &&
+                                (panel.retryable ||
+                                  Object.values(panel.sources ?? {}).some(
+                                    (source) =>
+                                      source.state === "unavailable" &&
+                                      source.retryable,
+                                  )) &&
+                                onRetry ? (
+                                  <Button
+                                    variant="outline"
+                                    aria-disabled={refreshing}
+                                    className="aria-disabled:opacity-50"
+                                    onClick={() => {
+                                      if (!refreshing) onRetry(item.key);
+                                    }}
+                                  >
+                                    Retry {item.title.toLowerCase()}
+                                  </Button>
+                                ) : null}
+                              </>
+                            )}
+                            {hasDestination && item.href ? (
+                              <Link
+                                href={item.href}
+                                className={styles.destination}
+                              >
+                                Open {item.title.toLowerCase()} workspace
+                              </Link>
+                            ) : null}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </section>
           );
