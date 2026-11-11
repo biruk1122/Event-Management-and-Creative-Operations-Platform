@@ -353,7 +353,7 @@ export function DashboardWorkspace({
       ) : null}
       <section
         aria-label="Dashboard controls"
-        className={`${styles.controls} bg-card space-y-4 rounded-2xl border p-4 sm:p-6`}
+        className={`${styles.controls} bg-card flex flex-col gap-3.5 rounded-2xl border p-[18px]`}
       >
         <form
           className={styles.filters}
@@ -579,7 +579,7 @@ export function DashboardWorkspace({
                       return (
                         <Card
                           key={item.key}
-                          className={`${styles.card} min-w-0 shrink grow-0 basis-80 gap-3 @min-[48rem]:basis-72 ${group === "Overview" ? "@min-[64rem]:basis-88" : "@min-[64rem]:basis-96"} ${hasDestination ? "transition-shadow hover:shadow-md" : ""}`}
+                          className={`${styles.card} min-w-0 shrink grow-0 basis-80 gap-3 @min-[48rem]:basis-72 ${group === "Overview" ? "min-h-44 gap-2 p-[18px_18px_8px] @min-[64rem]:basis-88" : "@min-[64rem]:basis-96"} ${hasDestination ? "transition-shadow hover:shadow-md" : ""}`}
                         >
                           <CardHeader
                             className={
