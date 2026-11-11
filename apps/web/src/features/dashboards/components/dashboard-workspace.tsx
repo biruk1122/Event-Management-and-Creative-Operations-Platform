@@ -6,10 +6,14 @@ import Link from "next/link";
 import {
   BarChart3,
   CalendarDays,
+  LayoutGrid,
   Layers3,
-  MessageSquare,
+  LineChart,
   ListChecks,
+  MessageSquare,
+  MessagesSquare,
 } from "lucide-react";
+import { BrandLogo } from "@/components/branding/brand-logo";
 import { destinations } from "@/components/shell/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +56,22 @@ export interface DashboardWorkspaceProps {
   onApply?: (filters: DashboardFilters) => void;
   onCheckAccess?: () => void;
 }
+const tabIcons: Record<string, typeof LayoutGrid> = {
+  Overview: BarChart3,
+  Today: CalendarDays,
+  Communication: MessagesSquare,
+  Analytics: LineChart,
+};
+
+/** Pill-shaped section tab; `active` fills it with the brand colour. */
+function tabClass(active: boolean): string {
+  return `inline-flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors ${
+    active
+      ? "bg-primary text-primary-foreground border-primary"
+      : "bg-card text-foreground hover:bg-accent"
+  }`;
+}
+
 /** A calendar day (YYYY-MM-DD) as shown to users, e.g. 11 Nov 2026. */
 function appliedDay(day: string): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -204,7 +224,11 @@ export function DashboardWorkspace({
         aria-labelledby={`${id}-view-title`}
       >
         <div>
-          <p className="text-primary mb-2 text-sm font-semibold">
+          <p className="bg-card text-foreground mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-semibold">
+            <span
+              aria-hidden="true"
+              className="bg-primary size-2 rounded-full"
+            />
             {context ? `${context.role} · ${context.scope}` : "Your dashboard"}
           </p>
           <h2
@@ -226,6 +250,9 @@ export function DashboardWorkspace({
                 : "Focus on what needs your attention. These results remain limited to your own assignments, records and conversation memberships.")}
           </p>
         </div>
+        {access.role === "SUPER_ADMIN" ? (
+          <BrandLogo decorative className="hidden h-16 w-auto lg:block" />
+        ) : null}
         {routes.some(
           (route) => route.href === "/reports" || route.href === "/analytics",
         ) ? (
@@ -249,7 +276,7 @@ export function DashboardWorkspace({
               ))}
           </nav>
         ) : null}
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-end">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:items-start">
           <Button
             type="button"
             onClick={() => {
@@ -278,19 +305,26 @@ export function DashboardWorkspace({
       {groups.length > 0 ? (
         <nav aria-label="Dashboard sections" className="flex flex-wrap gap-2">
           {access.role === "SUPER_ADMIN" ? (
-            <a href={`#${id}-departments`} className={styles.destination}>
+            <a href={`#${id}-departments`} className={tabClass(true)}>
+              <LayoutGrid aria-hidden="true" className="size-4" />
               Department workspaces
             </a>
           ) : null}
-          {groups.map((group) => (
-            <a
-              key={group}
-              href={`#${id}-${group}`}
-              className={styles.destination}
-            >
-              {group}
-            </a>
-          ))}
+          {groups.map((group, index) => {
+            const TabIcon = tabIcons[group] ?? LayoutGrid;
+            return (
+              <a
+                key={group}
+                href={`#${id}-${group}`}
+                className={tabClass(
+                  access.role !== "SUPER_ADMIN" && index === 0,
+                )}
+              >
+                <TabIcon aria-hidden="true" className="size-4" />
+                {group}
+              </a>
+            );
+          })}
         </nav>
       ) : null}
       {access.role === "SUPER_ADMIN" ? (
