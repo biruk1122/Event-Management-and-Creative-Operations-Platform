@@ -53,3 +53,16 @@ host commands use the root `DATABASE_URL` unchanged.
 These authentication variables reserve and validate the configuration contract only. They do not
 implement authentication. Generate separate secrets for each environment and rotate them through
 the deployment secret manager.
+
+## Local page speed
+
+The Docker web service runs `next dev` with the repository bind-mounted from Windows. In that mode each page is compiled the first time it is visited, so the first visit to a route can take several seconds. Later visits are much faster. This cost does not exist in a deployed build.
+
+To see the speed a deployed system will have, run the production build against the running API:
+
+```bash
+pnpm --filter @event-platform/web build
+pnpm --filter @event-platform/web start -- --port 3201
+```
+
+Then open `http://localhost:3201`. Visiting a route once in dev mode also warms it for the rest of the session.

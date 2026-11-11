@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { Injectable } from "@nestjs/common";
 
 import type { PermissionScope } from "../../generated/prisma/client.js";
@@ -21,6 +23,38 @@ export interface EffectiveGrant {
 }
 
 /**
+ * Per-HTTP-request memo for permission lookups. A request often checks the same
+ * user's grants many times (the access guard, then one check per handler call);
+ * this makes each lookup run once per request. It is never shared between
+ * requests and has no time-based expiry, so the next request always reads fresh
+ * data. Code that changes grants, roles, status or department during a request
+ * must call {@link clearPermissionMemo} afterwards.
+ */
+const requestMemo = new AsyncLocalStorage<Map<string, Promise<unknown>>>();
+
+/** Runs `next` inside a fresh permission memo (installed once per request). */
+export function runWithPermissionMemo<T>(next: () => T): T {
+  return requestMemo.run(new Map(), next);
+}
+
+/** Forgets cached lookups for the current request after a grant-affecting write. */
+export function clearPermissionMemo(): void {
+  requestMemo.getStore()?.clear();
+}
+
+function memoized<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const memo = requestMemo.getStore();
+  if (!memo) return load();
+  const cached = memo.get(key);
+  if (cached) return cached as Promise<T>;
+  const pending = load();
+  memo.set(key, pending);
+  // A failed lookup must not poison the rest of the request.
+  pending.catch(() => memo.delete(key));
+  return pending;
+}
+
+/**
  * Resolves an acting user's effective permission grants: the baseline grants
  * every authenticated user holds, plus the grants of their assigned role (if
  * any), from `user_role_assignments`. There is no inheritance beyond this
@@ -31,6 +65,13 @@ export class PermissionsService {
   constructor(private readonly db: DatabaseService) {}
 
   async getEffectiveGrants(userId: string): Promise<EffectiveGrant[]> {
+    const grants = await memoized(`grants:${userId}`, () =>
+      this.loadEffectiveGrants(userId),
+    );
+    return grants.map((grant) => ({ ...grant }));
+  }
+
+  private async loadEffectiveGrants(userId: string): Promise<EffectiveGrant[]> {
     const [baseline, assignment] = await Promise.all([
       this.db.baselineGrant.findMany({
         select: { permissionKey: true, scope: true },
@@ -57,6 +98,12 @@ export class PermissionsService {
   }
 
   async getAccessContext(userId: string): Promise<DepartmentAccessContext> {
+    return memoized(`context:${userId}`, () => this.loadAccessContext(userId));
+  }
+
+  private async loadAccessContext(
+    userId: string,
+  ): Promise<DepartmentAccessContext> {
     const assignment = await this.db.userRoleAssignment.findUnique({
       where: { userId },
       include: { role: true, user: { include: { department: true } } },

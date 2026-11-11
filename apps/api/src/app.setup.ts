@@ -1,11 +1,13 @@
 import { RequestMethod, ValidationPipe, VersioningType } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
+import type { NextFunction, Request, Response } from "express";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 
 import { AuditRequestFailureService } from "./audit/audit-request-failure.service.js";
 import { ProblemDetailsFilter } from "./common/http/problem-details.filter.js";
+import { runWithPermissionMemo } from "./common/security/permissions.service.js";
 import { createValidationException } from "./common/http/validation-exception.js";
 import {
   ENVIRONMENT,
@@ -19,6 +21,10 @@ export function configureApplication(app: NestExpressApplication): void {
 
   app.use(helmet());
   app.use(cookieParser());
+  // Each request gets its own permission memo (see permissions.service.ts).
+  app.use((_request: Request, _response: Response, next: NextFunction) =>
+    runWithPermissionMemo(next),
+  );
   app.enableCors({
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

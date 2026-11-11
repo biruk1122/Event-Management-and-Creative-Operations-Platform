@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { PermissionsService } from "../src/common/security/permissions.service.js";
+import {
+  clearPermissionMemo,
+  PermissionsService,
+  runWithPermissionMemo,
+} from "../src/common/security/permissions.service.js";
 import type { DatabaseService } from "../src/database/database.service.js";
 
 interface Grant {
@@ -129,5 +133,78 @@ describe("PermissionsService", () => {
         service.hasGrant("user-1", "role.delete", "ORGANIZATION"),
       ).resolves.toBe(false);
     });
+  });
+});
+
+describe("request-scoped permission memo", () => {
+  function counted(options: {
+    baseline?: Grant[];
+    roleGrants?: Grant[] | null;
+  }) {
+    const db = makeDb(options) as unknown as {
+      baselineGrant: { findMany: ReturnType<typeof vi.fn> };
+      userRoleAssignment: { findUnique: ReturnType<typeof vi.fn> };
+    };
+    return {
+      db,
+      service: new PermissionsService(db as unknown as DatabaseService),
+    };
+  }
+
+  it("loads a user's grants once per request however often they are checked", async () => {
+    const { db, service } = counted({
+      baseline: [{ permissionKey: "profile.read", scope: "SELF" }],
+      roleGrants: [{ permissionKey: "role.read", scope: "ORGANIZATION" }],
+    });
+    await runWithPermissionMemo(async () => {
+      await service.getEffectiveGrants("user-1");
+      await service.hasGrant("user-1", "role.read", "ORGANIZATION");
+      await service.getPermissionKeys("user-1");
+      await service.getAccessContext("user-1");
+      await service.getAccessContext("user-1");
+    });
+    expect(db.baselineGrant.findMany).toHaveBeenCalledTimes(1);
+    // Grants and access context are separate lookups, one assignment read each.
+    expect(db.userRoleAssignment.findUnique).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not cache outside a request", async () => {
+    const { db, service } = counted({ baseline: [] });
+    await service.getEffectiveGrants("user-1");
+    await service.getEffectiveGrants("user-1");
+    expect(db.baselineGrant.findMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("never serves one user's lookup to another user in the same request", async () => {
+    const { db, service } = counted({ baseline: [] });
+    await runWithPermissionMemo(async () => {
+      await service.getEffectiveGrants("user-1");
+      await service.getEffectiveGrants("user-2");
+    });
+    expect(db.baselineGrant.findMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads fresh grants after a write clears the memo in the same request", async () => {
+    const { db, service } = counted({ baseline: [] });
+    await runWithPermissionMemo(async () => {
+      await service.getEffectiveGrants("user-1");
+      clearPermissionMemo();
+      await service.getEffectiveGrants("user-1");
+    });
+    expect(db.baselineGrant.findMany).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not keep a failed lookup, so a retry in the same request can succeed", async () => {
+    const { db, service } = counted({ baseline: [] });
+    db.baselineGrant.findMany
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValueOnce([]);
+    await runWithPermissionMemo(async () => {
+      await expect(service.getEffectiveGrants("user-1")).rejects.toThrow(
+        "database unavailable",
+      );
+      await expect(service.getEffectiveGrants("user-1")).resolves.toEqual([]);
+    });
+    expect(db.baselineGrant.findMany).toHaveBeenCalledTimes(2);
   });
 });

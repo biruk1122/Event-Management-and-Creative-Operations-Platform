@@ -1,3 +1,4 @@
+import { clearPermissionMemo } from "../../common/security/permissions.service.js";
 import { Injectable } from "@nestjs/common";
 
 import {
@@ -615,11 +616,13 @@ export class EmployeesRepository {
             where: { id: current.userId },
             data: { status: "INACTIVE", deactivatedAt: new Date() },
           });
+          clearPermissionMemo();
         } else if (status === "ACTIVE") {
           await tx.user.update({
             where: { id: current.userId },
             data: { status: "ACTIVE", deactivatedAt: null },
           });
+          clearPermissionMemo();
         }
         return tx.employeeProfile.update({
           where: { id },

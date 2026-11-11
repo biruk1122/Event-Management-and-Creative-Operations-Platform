@@ -1,3 +1,4 @@
+import { clearPermissionMemo } from "../../common/security/permissions.service.js";
 import { Injectable } from "@nestjs/common";
 
 import { Prisma, type PermissionScope } from "../../generated/prisma/client.js";
@@ -134,6 +135,7 @@ export class RbacRepository {
   async deleteRole(id: string): Promise<"not_found" | "in_use" | "deleted"> {
     try {
       await this.db.role.delete({ where: { id } });
+      clearPermissionMemo();
       return "deleted";
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
@@ -162,6 +164,7 @@ export class RbacRepository {
       await this.db.rolePermission.create({
         data: { roleId, permissionKey, scope },
       });
+      clearPermissionMemo();
       return "added";
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.uniqueViolation)) {
@@ -181,6 +184,7 @@ export class RbacRepository {
       await this.db.rolePermission.delete({
         where: { roleId_permissionKey_scope: { roleId, permissionKey, scope } },
       });
+      clearPermissionMemo();
       return "removed";
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
