@@ -24,6 +24,9 @@ export class AnalyticsPeriodDto {
   })
   @Matches(/^\d{4}-\d{2}-\d{2}$/)
   toExclusive!: string;
+
+  /** Internal: calendar zone for the boundaries. Set by the dashboard only; defaults to UTC. */
+  timeZone?: string;
 }
 export class AnalyticsPageDto {
   @ApiPropertyOptional({ type: Number, minimum: 1, maximum: 10001, default: 1 })

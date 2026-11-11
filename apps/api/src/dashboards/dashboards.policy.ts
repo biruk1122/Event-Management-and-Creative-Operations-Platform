@@ -1,5 +1,9 @@
 import { BadRequestException } from "@nestjs/common";
-import { analyticsPeriod } from "../analytics/analytics.policy.js";
+import {
+  analyticsPeriod,
+  APP_CALENDAR_TIME_ZONE,
+  localDayStartUtc,
+} from "../analytics/analytics.policy.js";
 import type { EffectiveGrant } from "../common/security/permissions.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
 import type {
@@ -76,6 +80,11 @@ export function requireAudience(
   )
     throw permissionDenied();
 }
+/** The calendar date (YYYY-MM-DD) of `instant` in `zone`. */
+export function localDateInZone(instant: Date, zone: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: zone }).format(instant);
+}
+
 export function dashboardQuery(
   audience: Audience,
   dto: DashboardQueryDto,
@@ -100,27 +109,29 @@ export function dashboardQuery(
     invalidQuery();
   const limit = dto.limit ?? 5;
   if (!Number.isInteger(limit) || limit < 1 || limit > 10) invalidQuery();
-  const day = dto.day ?? now.toISOString().slice(0, 10);
-  const start = new Date(day + "T00:00:00.000Z");
+  // Dashboard dates are Addis Ababa calendar days (EAT), converted to UTC instants below.
+  const zone = APP_CALENDAR_TIME_ZONE;
+  const todayYmd = localDateInZone(now, zone);
+  const day = dto.day ?? todayYmd;
+  const start = localDayStartUtc(day, zone);
   if (
     !/^\d{4}-\d{2}-\d{2}$/.test(day) ||
     day.startsWith("0000-") ||
     !Number.isFinite(start.getTime()) ||
-    start.toISOString().slice(0, 10) !== day
+    new Date(day + "T00:00:00.000Z").toISOString().slice(0, 10) !== day
   )
     invalidQuery();
   const m = dto as ManagementDashboardQueryDto;
-  const monthStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
-  );
-  const nextMonth = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
-  );
+  const [todayYear = 0, todayMonth = 0] = todayYmd.split("-").map(Number);
+  const monthStart = `${todayYmd.slice(0, 8)}01`;
+  const nextMonth = new Date(Date.UTC(todayYear, todayMonth, 1))
+    .toISOString()
+    .slice(0, 10);
   if ((m.from === undefined) !== (m.toExclusive === undefined)) invalidQuery();
-  const from = m.from ?? monthStart.toISOString().slice(0, 10),
-    toExclusive = m.toExclusive ?? nextMonth.toISOString().slice(0, 10);
+  const from = m.from ?? monthStart,
+    toExclusive = m.toExclusive ?? nextMonth;
   try {
-    analyticsPeriod({ from, toExclusive });
+    analyticsPeriod({ from, toExclusive, timeZone: zone });
   } catch {
     invalidQuery();
   }
@@ -140,6 +151,7 @@ export function dashboardQuery(
     from,
     toExclusive,
     months,
+    timeZone: zone,
     promotionCampaignId: m.promotionCampaignId,
     today: {
       from: start,
@@ -154,12 +166,11 @@ export function dashboardQuery(
       limit,
     },
     monthly: {
-      from: new Date(
-        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - months + 1, 1),
-      )
+      from: new Date(Date.UTC(todayYear, todayMonth - 1 - (months - 1), 1))
         .toISOString()
         .slice(0, 10),
-      toExclusive: nextMonth.toISOString().slice(0, 10),
+      toExclusive: nextMonth,
+      timeZone: zone,
     },
   };
 }
