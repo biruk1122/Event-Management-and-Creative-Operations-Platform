@@ -199,7 +199,7 @@ export function DashboardWorkspace({
           </p>
           <h2
             id={`${id}-view-title`}
-            className="text-2xl font-semibold tracking-tight sm:text-3xl"
+            className="text-3xl font-extrabold tracking-tight sm:text-4xl"
           >
             {context
               ? context.role === "Super Admin"
@@ -240,11 +240,32 @@ export function DashboardWorkspace({
           </nav>
         ) : null}
       </section>
+      {groups.length > 0 ? (
+        <nav aria-label="Dashboard sections" className="flex flex-wrap gap-2">
+          {access.role === "SUPER_ADMIN" ? (
+            <a href={`#${id}-departments`} className={styles.destination}>
+              Department workspaces
+            </a>
+          ) : null}
+          {groups.map((group) => (
+            <a
+              key={group}
+              href={`#${id}-${group}`}
+              className={styles.destination}
+            >
+              {group}
+            </a>
+          ))}
+        </nav>
+      ) : null}
       {access.role === "SUPER_ADMIN" ? (
         <section aria-labelledby={`${id}-departments`} className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 id={`${id}-departments`} className="text-lg font-semibold">
+              <h3
+                id={`${id}-departments`}
+                className="text-2xl font-extrabold tracking-tight"
+              >
                 Department workspaces
               </h3>
               <p className="text-muted-foreground text-sm">
@@ -511,7 +532,10 @@ export function DashboardWorkspace({
                   <Icon aria-hidden="true" size={20} />
                 </span>
                 <div>
-                  <h2 id={`${id}-${group}`} className="text-xl font-semibold">
+                  <h2
+                    id={`${id}-${group}`}
+                    className="text-2xl font-extrabold tracking-tight"
+                  >
                     {group}
                   </h2>
                   <p className="text-muted-foreground mt-1 text-sm">
