@@ -36,7 +36,7 @@ export function dashboardFilterError(
   audience: Audience,
   filters: DashboardFilters,
 ): string | null {
-  if (!validDate(filters.day)) return "Choose a valid UTC day.";
+  if (!validDate(filters.day)) return "Choose a valid EAT day.";
   if (
     !Number.isInteger(filters.limit) ||
     filters.limit < 1 ||
@@ -49,10 +49,10 @@ export function dashboardFilterError(
     filters.months < 1 ||
     filters.months > 12
   )
-    return "Choose 1 to 12 UTC months.";
+    return "Choose 1 to 12 EAT months.";
   if (filters.from || filters.toExclusive) {
     if (!validDate(filters.from) || !validDate(filters.toExclusive))
-      return "Supply both valid UTC cohort dates.";
+      return "Supply both valid EAT cohort dates.";
     const days =
       (Date.parse(filters.toExclusive) - Date.parse(filters.from)) / 86_400_000;
     if (days <= 0 || days > 366)

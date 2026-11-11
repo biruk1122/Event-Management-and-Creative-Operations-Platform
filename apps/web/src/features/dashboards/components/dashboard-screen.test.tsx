@@ -174,9 +174,9 @@ describe("live dashboard integration", () => {
     const user = userEvent.setup();
     await user.clear(screen.getByLabelText("Items per list (1–10)"));
     await user.type(screen.getByLabelText("Items per list (1–10)"), "10");
-    await user.type(screen.getByLabelText("Cohort start (UTC)"), "2026-09-01");
+    await user.type(screen.getByLabelText("Cohort start (EAT)"), "2026-09-01");
     await user.type(
-      screen.getByLabelText("Cohort end (excluded, UTC)"),
+      screen.getByLabelText("Cohort end, excluded (EAT)"),
       "2026-10-01",
     );
     await user.click(screen.getByRole("button", { name: "Apply filters" }));

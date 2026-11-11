@@ -52,6 +52,16 @@ export interface DashboardWorkspaceProps {
   onApply?: (filters: DashboardFilters) => void;
   onCheckAccess?: () => void;
 }
+/** A calendar day (YYYY-MM-DD) as shown to users, e.g. 11 Nov 2026. */
+function appliedDay(day: string): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${day}T00:00:00Z`));
+}
+
 const groupPresentation = {
   Overview: {
     icon: Layers3,
@@ -397,14 +407,14 @@ export function DashboardWorkspace({
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`${id}-day`}>Today (UTC)</Label>
+            <Label htmlFor={`${id}-day`}>Today (EAT)</Label>
             <Input
               id={`${id}-day`}
               type="date"
               value={draftDay}
               onChange={(event) => setDraftDay(event.target.value)}
               disabled={!onApply || refreshing}
-              className="w-auto"
+              className="w-full min-w-0"
             />
           </div>
           {audience === "management" ? (
@@ -438,25 +448,25 @@ export function DashboardWorkspace({
           {audience === "management" ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor={`${id}-from`}>Cohort start (UTC)</Label>
+                <Label htmlFor={`${id}-from`}>Cohort start (EAT)</Label>
                 <Input
                   id={`${id}-from`}
                   type="date"
                   value={from}
                   onChange={(event) => setFrom(event.target.value)}
                   disabled={!onApply || refreshing}
-                  className="w-auto"
+                  className="w-full min-w-0"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor={`${id}-end`}>Cohort end (excluded, UTC)</Label>
+                <Label htmlFor={`${id}-end`}>Cohort end, excluded (EAT)</Label>
                 <Input
                   id={`${id}-end`}
                   type="date"
                   value={toExclusive}
                   onChange={(event) => setToExclusive(event.target.value)}
                   disabled={!onApply || refreshing}
-                  className="w-auto"
+                  className="w-full min-w-0"
                 />
               </div>
               <div className="space-y-2">
@@ -486,14 +496,14 @@ export function DashboardWorkspace({
         {audience === "management" ? (
           <p className="text-muted-foreground text-sm">
             Cohort dates affect task/department analytics only; leave both blank
-            for the current UTC month. Maximum 366 days. Monthly buckets end in
-            the current, partial UTC month. Lists are bounded previews, not
+            for the current EAT month. Maximum 366 days. Monthly buckets end in
+            the current, partial EAT month. Lists are bounded previews, not
             paginated full workspaces.
           </p>
         ) : null}
         {error ? <p role="alert">{error}</p> : null}
         <p className="text-muted-foreground text-sm">
-          {day ? `Applied day: ${day} (UTC). ` : ""}
+          {day ? `Applied day: ${appliedDay(day)} (EAT). ` : ""}
           {audience === "management"
             ? "Overview totals are current all-time state. Operational cards may have narrower scope."
             : "Your assignments, personal records and conversation memberships only."}{" "}
