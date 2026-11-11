@@ -34,7 +34,10 @@ export function useCurrentAccess() {
         throw new Error("We could not check your permissions. Try again.");
       return data;
     },
-    staleTime: 30_000,
+    // Permissions change rarely; the API enforces every check, so a short
+    // staleness window only delays UI updates. Feature code invalidates this key
+    // after role or department changes.
+    staleTime: 2 * 60_000,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
     retry: false,

@@ -1,3 +1,4 @@
+import { clearPermissionMemo } from "../../common/security/permissions.service.js";
 import { Injectable } from "@nestjs/common";
 
 import { Prisma } from "../../generated/prisma/client.js";
@@ -236,6 +237,7 @@ export class UsersRepository {
         },
         select: USER_SELECT,
       });
+      clearPermissionMemo();
       return toRecord(updated);
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
@@ -260,6 +262,7 @@ export class UsersRepository {
         data: { status, deactivatedAt },
         select: USER_SELECT,
       });
+      clearPermissionMemo();
       return toRecord(updated);
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
@@ -295,6 +298,7 @@ export class UsersRepository {
           update: { roleId },
         });
       }
+      clearPermissionMemo();
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.foreignKeyViolation)) {
         return "role_not_found";

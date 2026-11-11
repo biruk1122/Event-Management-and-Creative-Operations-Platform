@@ -1,3 +1,4 @@
+import { clearPermissionMemo } from "../../common/security/permissions.service.js";
 import { Injectable } from "@nestjs/common";
 
 import { Prisma } from "../../generated/prisma/client.js";
@@ -325,6 +326,7 @@ export class DepartmentsRepository {
         where: { id: userId },
         data: { departmentId },
       });
+      clearPermissionMemo();
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.recordNotFound)) {
         return "user_not_found";
@@ -370,6 +372,7 @@ export class DepartmentsRepository {
       where: { id: userId },
       data: { departmentId: null },
     });
+    clearPermissionMemo();
     return (await this.findById(departmentId))!;
   }
 }
