@@ -296,7 +296,8 @@ describe("CreateTaskDialog", () => {
   });
 
   it("adds checkpoints and submits them in order after the task is created", async () => {
-    const user = userEvent.setup();
+    // No artificial delay between keystrokes: the test is slow only because of typing time.
+    const user = userEvent.setup({ delay: null });
     const onCreate = vi.fn(() => Promise.resolve(createdTask()));
     renderDialog({ onCreate });
 
