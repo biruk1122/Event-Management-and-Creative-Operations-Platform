@@ -100,12 +100,15 @@ describe("dashboard presentation", () => {
         const article = heading.closest('[data-slot="card"]') as HTMLElement;
         if (card.group !== "Analytics")
           expect(within(article).getByText("17")).toBeVisible();
-        expect(within(article).getByText(/Scope:/)).toHaveTextContent(
-          audience === "management" ? "organization" : "self",
-        );
-        expect(
-          within(article).getByText("2026-10-07T12:00:00Z (UTC)"),
-        ).toBeVisible();
+        if (card.group === "Overview") {
+          expect(within(article).queryByText(/Scope:/)).toBeNull();
+        } else {
+          expect(within(article).getByText(/Scope:/)).toHaveTextContent(
+            audience === "management" ? "organization" : "self",
+          );
+        }
+        expect(within(article).queryByText(/Refreshed/)).toBeNull();
+        expect(within(article).queryByText(/UTC/)).toBeNull();
       }
     },
   );

@@ -355,28 +355,6 @@ export function DashboardWorkspace({
         aria-label="Dashboard controls"
         className={`${styles.controls} bg-card space-y-4 rounded-2xl border p-4 sm:p-6`}
       >
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-2">
-            <Label htmlFor={`${id}-audience`}>Dashboard view</Label>
-            <select
-              id={`${id}-audience`}
-              value={audience}
-              disabled={!onAudienceChange || refreshing}
-              onChange={(event) =>
-                onAudienceChange?.(event.target.value as Audience)
-              }
-              className="bg-background border-input focus-visible:outline-ring min-h-10 rounded-md border px-3 focus-visible:outline-2"
-            >
-              {(["management", "employee"] as const)
-                .filter((value) => canEnter(access, value))
-                .map((value) => (
-                  <option key={value} value={value}>
-                    {value === "management" ? "Management overview" : "My work"}
-                  </option>
-                ))}
-            </select>
-          </div>
-        </div>
         <form
           className={styles.filters}
           onSubmit={(event) => {
@@ -398,6 +376,26 @@ export function DashboardWorkspace({
             onApply?.(next);
           }}
         >
+          <div className="space-y-2">
+            <Label htmlFor={`${id}-audience`}>Dashboard view</Label>
+            <select
+              id={`${id}-audience`}
+              value={audience}
+              disabled={!onAudienceChange || refreshing}
+              onChange={(event) =>
+                onAudienceChange?.(event.target.value as Audience)
+              }
+              className="bg-background border-input focus-visible:outline-ring min-h-10 rounded-md border px-3 focus-visible:outline-2"
+            >
+              {(["management", "employee"] as const)
+                .filter((value) => canEnter(access, value))
+                .map((value) => (
+                  <option key={value} value={value}>
+                    {value === "management" ? "Management overview" : "My work"}
+                  </option>
+                ))}
+            </select>
+          </div>
           <div className="space-y-2">
             <Label htmlFor={`${id}-day`}>Today (UTC)</Label>
             <Input
@@ -583,7 +581,13 @@ export function DashboardWorkspace({
                           key={item.key}
                           className={`${styles.card} min-w-0 shrink grow-0 basis-80 gap-3 @min-[48rem]:basis-72 ${group === "Overview" ? "@min-[64rem]:basis-88" : "@min-[64rem]:basis-96"} ${hasDestination ? "transition-shadow hover:shadow-md" : ""}`}
                         >
-                          <CardHeader className="flex-row items-start gap-3 space-y-0">
+                          <CardHeader
+                            className={
+                              group === "Overview"
+                                ? "flex-col items-start gap-3 space-y-0"
+                                : "flex-row items-start gap-3 space-y-0"
+                            }
+                          >
                             {icon ? (
                               <DashboardIconBadge
                                 icon={icon.icon}
@@ -597,7 +601,9 @@ export function DashboardWorkspace({
                               >
                                 {item.title}
                               </h3>
-                              {"scope" in panel && panel.scope ? (
+                              {"scope" in panel &&
+                              panel.scope &&
+                              group !== "Overview" ? (
                                 <p className="text-muted-foreground text-sm">
                                   Scope: {panel.scope}
                                 </p>
@@ -605,14 +611,6 @@ export function DashboardWorkspace({
                             </div>
                           </CardHeader>
                           <CardContent>
-                            {"asOf" in panel && panel.asOf ? (
-                              <p className="text-muted-foreground text-sm break-words">
-                                Refreshed{" "}
-                                <time dateTime={panel.asOf}>
-                                  {panel.asOf} (UTC)
-                                </time>
-                              </p>
-                            ) : null}
                             {staleKeys.includes(item.key) && supplied ? (
                               <p
                                 role="status"
