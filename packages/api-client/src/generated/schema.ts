@@ -16098,7 +16098,7 @@ export interface operations {
       query?: {
         /** @description Comma-separated unique audience card keys; omitted means all. */
         cards?: string;
-        /** @description UTC day; defaults to current UTC date. */
+        /** @description Addis Ababa calendar day (EAT); defaults to the current EAT date. */
         day?: string;
         limit?: number;
       };
@@ -16155,7 +16155,7 @@ export interface operations {
       query?: {
         /** @description Comma-separated unique audience card keys; omitted means all. */
         cards?: string;
-        /** @description UTC day; defaults to current UTC date. */
+        /** @description Addis Ababa calendar day (EAT); defaults to the current EAT date. */
         day?: string;
         limit?: number;
         from?: string;
