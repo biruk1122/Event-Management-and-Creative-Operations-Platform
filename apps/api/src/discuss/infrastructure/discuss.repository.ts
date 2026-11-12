@@ -202,6 +202,22 @@ export class DiscussRepository {
     private readonly outbox: OutboxWriterService,
   ) {}
 
+  /** Every active person, for Direct message and channel pickers. */
+  async listActivePeople(): Promise<
+    {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string;
+    }[]
+  > {
+    return this.db.user.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, firstName: true, lastName: true, email: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { id: "asc" }],
+    });
+  }
+
   async findUserDepartmentId(userId: string): Promise<string | null> {
     if (!isUuid(userId)) return null;
     const user = await this.db.user.findUnique({

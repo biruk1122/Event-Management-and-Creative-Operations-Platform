@@ -212,6 +212,11 @@ export class DiscussService {
     return toConversationResponse(conversation);
   }
 
+  /** Every active person in the company, for Direct message and channel pickers. */
+  async listPeople() {
+    return this.repository.listActivePeople();
+  }
+
   async createDirectOrGroup(
     actingUserId: string,
     dto: CreateConversationDto,
@@ -241,19 +246,10 @@ export class DiscussService {
       (value) => value !== undefined,
     ).length;
     if (ownerCount > 1) throw channelOwnerInvalid();
-    const scope = channelOwnerScope(dto);
-    if (scope === "ORGANIZATION") {
-      if (
-        !(await this.hasGrant(actingUserId, "channel.create", "ORGANIZATION"))
-      ) {
-        throw permissionDenied();
-      }
-    } else {
-      if (
-        !(await this.hasGrant(actingUserId, "channel.create", "DEPARTMENT"))
-      ) {
-        throw permissionDenied();
-      }
+    // Every user holds `channel.create` (baseline, SELF), so any user may create
+    // a general or department channel. A department-owned channel still has to
+    // belong to the caller's own department.
+    if (channelOwnerScope(dto) === "DEPARTMENT") {
       const ownDepartmentId =
         await this.repository.findUserDepartmentId(actingUserId);
       if (!ownDepartmentId || ownDepartmentId !== dto.departmentId) {

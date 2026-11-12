@@ -36,6 +36,7 @@ import { RequirePermissions } from "../common/security/permissions.decorator.js"
 import { PermissionsGuard } from "../common/security/permissions.guard.js";
 import {
   ConversationResponse,
+  DiscussPersonSummary,
   MessageResponse,
   PaginatedConversationsResponse,
   PaginatedMessagesResponse,
@@ -123,6 +124,19 @@ export class DiscussController {
     @Body() body: CreateChannelDto,
   ): Promise<ConversationResponse> {
     return this.discuss.createChannel(actingUserId(request), body);
+  }
+
+  // Gated on `conversation.create`, not `directory.read`: Department Members
+  // are denied every organization-scope grant (see constrainDepartmentGrants),
+  // but every role holds this SELF-scope baseline grant to start conversations.
+  @Get("people")
+  @RequirePermissions("conversation.create")
+  @ApiOperation({
+    summary: "List every active person for Direct message and channel pickers",
+  })
+  @ApiOkResponse({ type: [DiscussPersonSummary] })
+  async people(): Promise<DiscussPersonSummary[]> {
+    return this.discuss.listPeople();
   }
 
   @Get(":id")

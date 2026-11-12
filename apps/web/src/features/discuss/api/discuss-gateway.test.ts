@@ -181,29 +181,24 @@ describe("discuss gateway reads", () => {
     );
   });
 
-  it("maps the users page down to assignable people", async () => {
+  it("maps the people list down to assignable people", async () => {
     get.mockResolvedValue(
-      ok({
-        items: [
-          {
-            id: "u1",
-            email: "m@x.com",
-            firstName: "Morgan",
-            lastName: "Lead",
-            status: "ACTIVE",
-          },
-        ],
-        page: 1,
-        pageSize: 100,
-        total: 1,
-      }),
+      ok([
+        {
+          id: "u1",
+          email: "m@x.com",
+          firstName: "Morgan",
+          lastName: "Lead",
+        },
+      ]),
     );
     await expect(listAssignablePeople()).resolves.toEqual([
       { id: "u1", email: "m@x.com", firstName: "Morgan", lastName: "Lead" },
     ]);
+    expect(get.mock.calls[0]?.[0]).toBe("/api/v1/conversations/people");
   });
 
-  it("resolves an empty people list when the caller cannot read users", async () => {
+  it("resolves an empty people list when the request fails", async () => {
     get.mockResolvedValue({
       data: undefined,
       response: { ok: false, status: 403 },
