@@ -212,6 +212,11 @@ export class DiscussService {
     return toConversationResponse(conversation);
   }
 
+  /** Every active person in the company, for Direct message and channel pickers. */
+  async listPeople() {
+    return this.repository.listActivePeople();
+  }
+
   async createDirectOrGroup(
     actingUserId: string,
     dto: CreateConversationDto,

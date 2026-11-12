@@ -754,6 +754,51 @@ describe("discuss (conversations, channels, and messages) API", () => {
     );
   });
 
+  it("lists every active person to a Department Member, across departments, and nothing else", async () => {
+    const unauthenticated = await request(http).get(
+      "/api/v1/conversations/people",
+    );
+    expect(unauthenticated.status).toBe(401);
+
+    const inactive = await prisma.user.create({
+      data: {
+        email: "inactive-person@discuss.test",
+        status: "INACTIVE",
+        deactivatedAt: new Date(),
+        credential: { create: { passwordHash: credentialHash } },
+      },
+    });
+
+    const response = await as(member, "get", "/api/v1/conversations/people");
+    expect(response.status).toBe(200);
+    const people = body<
+      {
+        id: string;
+        email: string;
+        firstName: string | null;
+        lastName: string | null;
+      }[]
+    >(response);
+    const ids = people.map((person) => person.id);
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        member.id,
+        secondMember.id,
+        thirdMember.id,
+        superAdmin.id,
+      ]),
+    );
+    expect(ids).not.toContain(inactive.id);
+    for (const person of people) {
+      expect(Object.keys(person).sort()).toEqual([
+        "email",
+        "firstName",
+        "id",
+        "lastName",
+      ]);
+    }
+  });
+
   it("rejects unauthenticated requests and out-of-range pagination", async () => {
     const unauthenticated = await request(http).get("/api/v1/conversations");
     expect(unauthenticated.status).toBe(401);

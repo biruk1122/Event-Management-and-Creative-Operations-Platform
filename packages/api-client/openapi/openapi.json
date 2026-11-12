@@ -19387,6 +19387,64 @@
         "tags": ["Discuss"]
       }
     },
+    "/api/v1/conversations/people": {
+      "get": {
+        "operationId": "Discuss_people_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DiscussPersonSummary"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Invalid request fields or channel owner"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not authenticated"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Missing permission, outside the resolved scope, or invalid CSRF token"
+          }
+        },
+        "security": [
+          {
+            "access_token": []
+          }
+        ],
+        "summary": "List every active person for Direct message and channel pickers",
+        "tags": ["Discuss"]
+      }
+    },
     "/api/v1/conversations/{conversationId}/files/upload-intents": {
       "post": {
         "operationId": "MessageFileManagement_createUploadIntent_v1",
