@@ -4,6 +4,8 @@ import type { DatabaseService } from "./database.service.js";
 export interface ReadPeriod {
   from: Date;
   toExclusive: Date;
+  /** Calendar zone for month grouping; UTC when omitted. */
+  zone?: string;
 }
 export interface ReadPage {
   page: number;
@@ -55,7 +57,7 @@ export function creationCounts(
   period: ReadPeriod,
 ): Promise<MonthlyCount[]> {
   return db.readModel<MonthlyCount>(Prisma.sql`
-    SELECT to_char(date_trunc('month', created_at AT TIME ZONE 'UTC'), 'YYYY-MM') AS month,
+    SELECT to_char(date_trunc('month', created_at AT TIME ZONE ${period.zone ?? "UTC"}), 'YYYY-MM') AS month,
       count(*)::int AS total FROM ${table}
     WHERE created_at >= ${period.from} AND created_at < ${period.toExclusive}
     GROUP BY 1 ORDER BY 1`);

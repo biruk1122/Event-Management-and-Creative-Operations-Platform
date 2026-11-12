@@ -91,7 +91,9 @@ export function analyticsPeriod(
     )
       throw analyticsInvalidRange();
   }
-  return { from, toExclusive };
+  return dto.timeZone
+    ? { from, toExclusive, zone: dto.timeZone }
+    : { from, toExclusive };
 }
 export function analyticsPage(page: ReadPage): ReadPage {
   if (

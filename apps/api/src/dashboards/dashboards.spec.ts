@@ -484,7 +484,11 @@ describe("dashboard calendar days use Africa/Addis_Ababa (EAT)", () => {
   it("builds the cohort range as inclusive EAT start and exclusive EAT end", () => {
     const q = dashboardQuery(
       "management",
-      { limit: 5, from: "2026-11-01", toExclusive: "2026-11-08" },
+      {
+        limit: 5,
+        from: "2026-11-01",
+        toExclusive: "2026-11-08",
+      } as Parameters<typeof dashboardQuery>[1],
       new Date("2026-11-10T12:00:00Z"),
     );
     expect(q.from).toBe("2026-11-01");

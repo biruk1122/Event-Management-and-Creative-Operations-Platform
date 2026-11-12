@@ -86,7 +86,7 @@ export class TasksAnalyticsQuery {
   }
   completions(period: ReadPeriod): Promise<MonthlyCount[]> {
     return this.db.readModel<MonthlyCount>(Prisma.sql`
-      SELECT to_char(date_trunc('month', occurred_at AT TIME ZONE 'UTC'), 'YYYY-MM') AS month,
+      SELECT to_char(date_trunc('month', occurred_at AT TIME ZONE ${period.zone ?? "UTC"}), 'YYYY-MM') AS month,
         count(DISTINCT task_id)::int AS total FROM task_activities
       WHERE occurred_at >= ${period.from} AND occurred_at < ${period.toExclusive}
         AND type = 'STATUS_CHANGED' AND details ->> 'to' = 'COMPLETED' GROUP BY 1 ORDER BY 1`);
