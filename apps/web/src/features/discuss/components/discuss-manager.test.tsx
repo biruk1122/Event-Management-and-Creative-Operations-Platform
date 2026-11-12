@@ -109,6 +109,9 @@ function setup(initialConversationId: string | null = null) {
 
 function mockGet(routes: Record<string, unknown>) {
   get.mockImplementation(async (path: string, options?: unknown) => {
+    if (path === "/api/v1/conversations/people") {
+      return { data: [], response: { ok: true, status: 200 } };
+    }
     // The "dm" screen fetches DIRECT and GROUP in two parallel calls; only
     // answer the DIRECT leg so list fixtures aren't duplicated.
     if (path === "/api/v1/conversations") {
@@ -304,6 +307,9 @@ describe("DiscussManager", () => {
   it("shows a list error with a retry action", async () => {
     let failed = false;
     get.mockImplementation(async (path: string, options?: unknown) => {
+      if (path === "/api/v1/conversations/people") {
+        return { data: [], response: { ok: true, status: 200 } };
+      }
       if (path !== "/api/v1/conversations") {
         return {
           data: { items: [], page: 1, pageSize: 100, total: 0 },
