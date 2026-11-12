@@ -10,7 +10,6 @@ import { PromotionAnalyticsQuery } from "../promotion/promotion-analytics.query.
 import { TasksAnalyticsQuery } from "../tasks/tasks-analytics.query.js";
 import { UsersAnalyticsQuery } from "../users/users-analytics.query.js";
 import type {
-  AnalyticsPeriodDto,
   CampaignAnalyticsDto,
   DepartmentAnalyticsDto,
   EmployeeAnalyticsDto,
