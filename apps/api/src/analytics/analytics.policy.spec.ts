@@ -143,3 +143,45 @@ describe("analytics policies", () => {
     expect(() => analyticsPage(page)).toThrow();
   });
 });
+
+describe("analytics period boundaries by zone", () => {
+  it("keeps UTC as the default for the analytics page", () => {
+    const period = analyticsPeriod({
+      from: "2026-11-01",
+      toExclusive: "2026-11-08",
+    });
+    expect(period.from.toISOString()).toBe("2026-11-01T00:00:00.000Z");
+  });
+
+  it("converts Addis Ababa days to UTC instants when the zone is set", () => {
+    const period = analyticsPeriod({
+      from: "2026-11-01",
+      toExclusive: "2026-11-08",
+      timeZone: "Africa/Addis_Ababa",
+    });
+    expect(period.from.toISOString()).toBe("2026-10-31T21:00:00.000Z");
+    expect(period.toExclusive.toISOString()).toBe("2026-11-07T21:00:00.000Z");
+  });
+
+  it("validates monthly ranges on local calendar months in the zone", () => {
+    const period = analyticsPeriod(
+      {
+        from: "2026-11-01",
+        toExclusive: "2026-12-01",
+        timeZone: "Africa/Addis_Ababa",
+      },
+      true,
+    );
+    expect(period.from.toISOString()).toBe("2026-10-31T21:00:00.000Z");
+    expect(() =>
+      analyticsPeriod(
+        {
+          from: "2026-11-02",
+          toExclusive: "2026-12-01",
+          timeZone: "Africa/Addis_Ababa",
+        },
+        true,
+      ),
+    ).toThrow();
+  });
+});

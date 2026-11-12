@@ -23,7 +23,8 @@ export class DashboardQueryDto {
   cards?: string;
   @ApiPropertyOptional({
     format: "date",
-    description: "UTC day; defaults to current UTC date.",
+    description:
+      "Addis Ababa calendar day (EAT); defaults to the current EAT date.",
   })
   @IsOptional()
   @Matches(/^\d{4}-\d{2}-\d{2}$/)

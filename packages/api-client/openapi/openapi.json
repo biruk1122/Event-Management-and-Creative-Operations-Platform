@@ -22076,7 +22076,7 @@
             }
           },
           {
-            "description": "UTC day; defaults to current UTC date.",
+            "description": "Addis Ababa calendar day (EAT); defaults to the current EAT date.",
             "in": "query",
             "name": "day",
             "required": false,
@@ -22173,7 +22173,7 @@
             }
           },
           {
-            "description": "UTC day; defaults to current UTC date.",
+            "description": "Addis Ababa calendar day (EAT); defaults to the current EAT date.",
             "in": "query",
             "name": "day",
             "required": false,

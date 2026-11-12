@@ -55,9 +55,9 @@ test.beforeAll(async () => {
         index === 3 ? fixture.managerId : fixture.employeeId,
         `${prefix} calendar ${index}`,
         [
-          "2001-09-15T00:00:00Z",
-          "2001-09-15T23:59:59.999Z",
-          "2001-09-16T00:00:00Z",
+          "2001-09-14T21:00:00Z",
+          "2001-09-15T20:59:59.999Z",
+          "2001-09-15T21:00:00Z",
           "2001-09-15T12:00:00Z",
         ][index],
       ],
@@ -236,11 +236,8 @@ test.describe("DSH-06 management validation", () => {
     await login(page, "manager");
     await page.goto(selection());
     const card = cardByTitle(page, "Pending tasks");
-    await expect(card.getByText(/Refreshed/)).toBeVisible();
-    const timestamp = await card
-      .locator("time")
-      .first()
-      .getAttribute("datetime");
+    await expect(card.locator(".tabular-nums").first()).toBeVisible();
+    const shown = await card.locator(".tabular-nums").first().innerText();
     await page.route("**/api/v1/dashboards/management?*", (route) =>
       route.abort("failed"),
     );
@@ -253,9 +250,7 @@ test.describe("DSH-06 management validation", () => {
     await expect(
       card.getByText(/Stale: last successful results/),
     ).toBeVisible();
-    expect(await card.locator("time").first().getAttribute("datetime")).toBe(
-      timestamp,
-    );
+    expect(await card.locator(".tabular-nums").first().innerText()).toBe(shown);
     await expect(refresh).toBeFocused();
     await page.unroute("**/api/v1/dashboards/management?*");
     await refresh.click();
@@ -272,7 +267,7 @@ test.describe("DSH-06 management validation", () => {
     // Login redirects to the default dashboard before its aggregate finishes.
     // Settle that valid navigation before counting reads for the invalid URL.
     await expect(
-      cardByTitle(page, "Pending tasks").getByText(/Refreshed/),
+      cardByTitle(page, "Pending tasks").locator(".tabular-nums").first(),
     ).toBeVisible();
     let reads = 0;
     page.on("request", (request) => {
@@ -303,7 +298,7 @@ test.describe("DSH-06 management validation", () => {
     await login(page, "manager");
     await page.goto(selection());
     const card = cardByTitle(page, "Pending tasks");
-    await expect(card.getByText(/Refreshed/)).toBeVisible();
+    await expect(card.locator(".tabular-nums").first()).toBeVisible();
     const db = analyticsDatabaseUrl(),
       schema = schemaOf(db);
     assertSchemaName(schema);
@@ -341,7 +336,7 @@ test.describe("DSH-06 management validation", () => {
       await lock.end();
     }
     await card.getByRole("button", { name: "Retry pending tasks" }).click();
-    await expect(card.getByText(/Refreshed/)).toBeVisible();
+    await expect(card.locator(".tabular-nums").first()).toBeVisible();
   });
 });
 
@@ -391,7 +386,7 @@ test.describe("DSH-06 personal and access boundaries", () => {
       );
     }
   });
-  test("self-owned schedule uses UTC half-open boundaries and To-Do stays bounded and floating", async ({
+  test("self-owned schedule uses Addis Ababa half-open day boundaries and To-Do stays bounded and floating", async ({
     page,
   }) => {
     await login(page, "member");
@@ -560,7 +555,7 @@ test.describe("DSH-06 quality gates", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(selection());
     await expect(
-      cardByTitle(page, "Pending tasks").getByText(/Refreshed/),
+      cardByTitle(page, "Pending tasks").locator(".tabular-nums").first(),
     ).toBeVisible();
     for (const [width, height] of [
       [360, 800],
@@ -661,7 +656,7 @@ test.describe("DSH-06 Ethiopian-network profiles", () => {
       });
       await page.goto(selection());
       await expect(
-        cardByTitle(page, "Pending tasks").getByText(/Refreshed/),
+        cardByTitle(page, "Pending tasks").locator(".tabular-nums").first(),
       ).toBeVisible();
       await page
         .getByRole("button", { name: "Refresh dashboard", exact: true })

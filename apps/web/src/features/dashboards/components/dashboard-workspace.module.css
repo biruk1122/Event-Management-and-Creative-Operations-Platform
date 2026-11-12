@@ -36,18 +36,17 @@
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 168px), 1fr));
   align-items: end;
-  gap: 1rem;
-  padding-block: 1rem;
-  border-block: 1px solid var(--border);
+  gap: 14px;
 }
 
 .filters > div {
   min-width: 0;
 }
 
-.filters input {
+.filters input,
+.filters select {
   width: 100%;
   min-width: 0;
 }

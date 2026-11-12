@@ -10,7 +10,6 @@ import { PromotionAnalyticsQuery } from "../promotion/promotion-analytics.query.
 import { TasksAnalyticsQuery } from "../tasks/tasks-analytics.query.js";
 import { UsersAnalyticsQuery } from "../users/users-analytics.query.js";
 import type {
-  AnalyticsPeriodDto,
   CampaignAnalyticsDto,
   DepartmentAnalyticsDto,
   EmployeeAnalyticsDto,
@@ -29,6 +28,7 @@ import type {
 import {
   analyticsScope,
   analyticsPeriod,
+  type AnalyticsPeriodInput,
   analyticsPage,
 } from "./analytics.policy.js";
 import { analyticsUnavailable } from "./analytics.errors.js";
@@ -76,7 +76,7 @@ export class AnalyticsService {
 
   taskCompletion(
     userId: string,
-    dto: AnalyticsPeriodDto,
+    dto: AnalyticsPeriodInput,
   ): Promise<TaskAnalyticsResponse> {
     return this.execute(
       userId,
@@ -239,7 +239,7 @@ export class AnalyticsService {
   }
   monthlyActivity(
     userId: string,
-    dto: AnalyticsPeriodDto,
+    dto: AnalyticsPeriodInput,
   ): Promise<MonthlyAnalyticsResponse> {
     return this.execute(
       userId,
@@ -256,12 +256,15 @@ export class AnalyticsService {
           this.tasks.completions(period),
         ]);
         const items: MonthlyAnalyticsItem[] = [];
-        for (
-          const cursor = new Date(period.from);
-          cursor < period.toExclusive;
-          cursor.setUTCMonth(cursor.getUTCMonth() + 1)
-        ) {
-          const month = cursor.toISOString().slice(0, 7);
+        // Calendar months come from the requested dates, so zone offsets cannot shift a bucket.
+        const [startYear = 0, startMonth = 0] = dto.from.split("-").map(Number);
+        const [endYear = 0, endMonth = 0] = dto.toExclusive
+          .split("-")
+          .map(Number);
+        const monthCount = (endYear - startYear) * 12 + (endMonth - startMonth);
+        for (let index = 0; index < monthCount; index += 1) {
+          const monthIndex = startMonth - 1 + index;
+          const month = `${startYear + Math.floor(monthIndex / 12)}-${String((monthIndex % 12) + 1).padStart(2, "0")}`;
           const counts = sources.map(
             (rows) => rows.find((row) => row.month === month)?.total ?? 0,
           );

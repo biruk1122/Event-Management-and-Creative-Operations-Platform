@@ -109,7 +109,10 @@ test.describe("Connected workspace ownership — end to end", () => {
       const baseline = ((await before.json()) as { total: number }).total;
 
       await page.goto("/");
-      const navigation = page.getByRole("link", { name: "Workspaces" });
+      const navigation = page.getByRole("link", {
+        name: "Workspaces",
+        exact: true,
+      });
       await expect(navigation).toBeVisible();
       await navigation.click();
       await expect(page).toHaveURL("/workspaces");

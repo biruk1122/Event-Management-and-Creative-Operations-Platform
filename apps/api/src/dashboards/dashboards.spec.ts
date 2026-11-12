@@ -34,11 +34,12 @@ describe("dashboard query contract", () => {
     const q = dashboardQuery("management", { limit: 5 }, now);
     expect(q.cards).toHaveLength(27);
     expect(q.day).toBe("2026-10-06");
-    expect(q.today.to.toISOString()).toBe("2026-10-07T00:00:00.000Z");
+    expect(q.today.to.toISOString()).toBe("2026-10-06T21:00:00.000Z");
     expect(q.upcoming.to.toISOString()).toBe("2026-10-13T12:00:00.000Z");
     expect(q.monthly).toEqual({
       from: "2026-08-01",
       toExclusive: "2026-11-01",
+      timeZone: "Africa/Addis_Ababa",
     });
   });
   it.each([
@@ -444,5 +445,64 @@ describe("dashboard composition", () => {
         "unavailable",
       );
     });
+  });
+});
+
+describe("dashboard calendar days use Africa/Addis_Ababa (EAT)", () => {
+  // EAT is UTC+3 with no daylight saving, so local midnight is 21:00 UTC the day before.
+  it("treats a selected day as the Addis Ababa calendar day", () => {
+    const q = dashboardQuery(
+      "management",
+      { limit: 5, day: "2026-11-10" },
+      new Date("2026-11-10T12:00:00Z"),
+    );
+    expect(q.today.from.toISOString()).toBe("2026-11-09T21:00:00.000Z");
+    expect(q.today.to.toISOString()).toBe("2026-11-10T21:00:00.000Z");
+  });
+
+  it("uses the EAT date for the default day across the UTC midnight transition", () => {
+    // 22:30 UTC on 9 Nov is 01:30 on 10 Nov in Addis Ababa.
+    const q = dashboardQuery(
+      "management",
+      { limit: 5 },
+      new Date("2026-11-09T22:30:00Z"),
+    );
+    expect(q.day).toBe("2026-11-10");
+    expect(q.today.from.toISOString()).toBe("2026-11-09T21:00:00.000Z");
+  });
+
+  it("keeps the previous EAT day just before the Addis midnight", () => {
+    // 20:30 UTC on 9 Nov is 23:30 on 9 Nov in Addis Ababa.
+    const q = dashboardQuery(
+      "management",
+      { limit: 5 },
+      new Date("2026-11-09T20:30:00Z"),
+    );
+    expect(q.day).toBe("2026-11-09");
+  });
+
+  it("builds the cohort range as inclusive EAT start and exclusive EAT end", () => {
+    const q = dashboardQuery(
+      "management",
+      {
+        limit: 5,
+        from: "2026-11-01",
+        toExclusive: "2026-11-08",
+      } as Parameters<typeof dashboardQuery>[1],
+      new Date("2026-11-10T12:00:00Z"),
+    );
+    expect(q.from).toBe("2026-11-01");
+    expect(q.toExclusive).toBe("2026-11-08");
+    expect(q.timeZone).toBe("Africa/Addis_Ababa");
+  });
+
+  it("does not change stored UTC data: boundaries are only query inputs", () => {
+    const q = dashboardQuery(
+      "management",
+      { limit: 5, day: "2026-11-10" },
+      new Date("2026-11-10T12:00:00Z"),
+    );
+    expect(q.today.from).toBeInstanceOf(Date);
+    expect(q.today.from.getUTCHours()).toBe(21);
   });
 });

@@ -1,5 +1,6 @@
 import type { components } from "@event-platform/api-client";
 import { AnalyticsResults } from "@/features/analytics";
+import { formatInZone } from "@/lib/app-timezone";
 import {
   CategoryBarChart,
   progressRows,
@@ -8,6 +9,11 @@ import {
 import type { DashboardCard } from "../lib/dashboard-presentation";
 
 type Schemas = components["schemas"];
+
+/** Displays an instant in the application time zone (Africa/Addis_Ababa, EAT). */
+function eat(iso: string): string {
+  return `${formatInZone(iso, { dateStyle: "medium", timeStyle: "short" })} EAT`;
+}
 
 export function DashboardResults({
   card,
@@ -181,11 +187,11 @@ export function DashboardResults({
                     </p>
                   ) : null}
                   {[
-                    item.startAt && `Starts ${item.startAt} (UTC)`,
-                    item.endAt && `Ends ${item.endAt} (UTC)`,
-                    item.dueAt && `Due ${item.dueAt} (UTC)`,
+                    item.startAt && `Starts ${eat(item.startAt)}`,
+                    item.endAt && `Ends ${eat(item.endAt)}`,
+                    item.dueAt && `Due ${eat(item.dueAt)}`,
                     item.occurredAt &&
-                      `${item.activityType ?? "Activity"}: ${item.occurredAt} (UTC)`,
+                      `${item.activityType ?? "Activity"}: ${eat(item.occurredAt)}`,
                   ]
                     .filter(Boolean)
                     .map((text) => (
@@ -215,7 +221,7 @@ export function DashboardResults({
   }
   if ("count" in data)
     return (
-      <p className="py-2 text-4xl font-semibold tracking-tight tabular-nums">
+      <p className="py-2 text-[40px] leading-none font-extrabold tracking-[-0.03em] tabular-nums">
         {data.count}
       </p>
     );
