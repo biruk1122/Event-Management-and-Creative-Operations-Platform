@@ -24,6 +24,9 @@ export default async function DashboardPage() {
       <h1 className="mb-5 text-3xl font-semibold tracking-tight">
         {context?.title ?? "Dashboard"}
       </h1>
+      {/* Server-rendered so the description is the first paint (LCP), not
+          behind the client-side access and data fetch. The workspace intro
+          does not repeat it. */}
       <p className="text-muted-foreground bg-card mb-6 rounded-xl border p-4 text-sm leading-relaxed">
         {context ? (
           context.description
