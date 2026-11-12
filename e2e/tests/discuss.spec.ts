@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { memberAssignmentFor } from "../fixtures/test-data.js";
 import { expect, request, test, type Page } from "@playwright/test";
 
@@ -430,41 +431,30 @@ test.describe("Direct messages and channels — end to end", () => {
     // storageState is revoked by auth-session.spec.ts, see that file).
     test.use({ storageState: authStatePath("deptManager") });
 
-    test("a Department Manager cannot create a general channel, and the attempt preserves their input", async ({
+    test("a Department Manager cannot create a channel for a department they do not belong to", async ({
       page,
     }) => {
       const suffix = fixtureName("denied-channel");
       const forbiddenName = `E2E Denied Channel ${suffix}`;
 
       // Highest-risk path: a direct, correctly-formed privileged mutation is
-      // refused with a stable code and writes nothing.
+      // refused with a stable code and writes nothing. Any user may create a
+      // general channel, so the denial is the department-ownership rule.
       const attempt = await page.request.post(
         `${apiBaseUrl}/api/v1/conversations/channels`,
         {
           headers: { "x-csrf-token": await csrfToken(page) },
-          data: { name: forbiddenName, visibility: "PUBLIC" },
+          data: {
+            name: forbiddenName,
+            visibility: "PRIVATE",
+            departmentId: randomUUID(),
+          },
         },
       );
       expect(attempt.status()).toBe(403);
       expect((await attempt.json()) as { code: string }).toMatchObject({
         code: "PERMISSION_DENIED",
       });
-
-      // The same denial through the real UI: the dialog surfaces the error
-      // and preserves the typed input instead of clearing or closing.
-      await page.goto("/discuss/channels");
-      await page.getByRole("button", { name: "New channel" }).click();
-      const dialog = page.getByRole("dialog");
-      await dialog.getByLabel("Name").fill(forbiddenName);
-      await dialog.getByRole("button", { name: "Create channel" }).click();
-
-      await expect(
-        dialog.getByText(
-          "You do not have permission to create a channel there.",
-        ),
-      ).toBeVisible();
-      await expect(dialog.getByLabel("Name")).toHaveValue(forbiddenName);
-      await expect(dialog).toBeVisible();
 
       const leaked = await queryInSchema(
         runDatabaseUrl(),
