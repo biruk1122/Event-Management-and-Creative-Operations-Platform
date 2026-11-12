@@ -24,15 +24,22 @@ export default async function DashboardPage() {
       <h1 className="mb-5 text-3xl font-semibold tracking-tight">
         {context?.title ?? "Dashboard"}
       </h1>
-      {context ? null : (
-        <p className="text-muted-foreground bg-card mb-6 rounded-xl border p-4 text-sm leading-relaxed">
-          See current work, schedules, communication and delivery rates
-          permitted for your account. Management totals describe current
-          organizational state; personal work remains yours alone. Today uses
-          UTC dates. Lists are bounded previews; open the source workspace for
-          full details. Refresh to check the latest authoritative results.
-        </p>
-      )}
+      {/* Server-rendered so the description is the first paint (LCP), not
+          behind the client-side access and data fetch. The workspace intro
+          does not repeat it. */}
+      <p className="text-muted-foreground bg-card mb-6 rounded-xl border p-4 text-sm leading-relaxed">
+        {context ? (
+          context.description
+        ) : (
+          <>
+            See current work, schedules, communication and delivery rates
+            permitted for your account. Management totals describe current
+            organizational state; personal work remains yours alone. Today uses
+            UTC dates. Lists are bounded previews; open the source workspace for
+            full details. Refresh to check the latest authoritative results.
+          </>
+        )}
+      </p>
       {canEnter(data, "management") || canEnter(data, "employee") ? (
         <Suspense fallback={<p role="status">Checking dashboard access…</p>}>
           <DashboardScreen />

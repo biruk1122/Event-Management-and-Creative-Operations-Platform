@@ -243,12 +243,6 @@ export function DashboardWorkspace({
                 ? "Management overview"
                 : "Your work today"}
           </h2>
-          <p className="text-muted-foreground mt-3 max-w-2xl text-sm leading-relaxed">
-            {context?.description ??
-              (audience === "management"
-                ? "Review permitted organizational results and scoped operational work. Each card identifies its own scope and refresh time."
-                : "Focus on what needs your attention. These results remain limited to your own assignments, records and conversation memberships.")}
-          </p>
         </div>
         {access.role === "SUPER_ADMIN" ? (
           <BrandLogo decorative className="hidden h-16 w-auto lg:block" />
