@@ -322,7 +322,9 @@ test.describe("Lela calendar, meetings and to-do presentation", () => {
         .getByRole("button", { name: `Mark "${todoTitle}" as completed` })
         .click();
       await ownerPage.reload();
-      await ownerPage.getByRole("button", { name: "Completed" }).click();
+      await ownerPage
+        .getByRole("button", { name: "Completed", exact: true })
+        .click();
       await expect(
         ownerPage.getByText(todoTitle, { exact: true }),
       ).toBeVisible();
