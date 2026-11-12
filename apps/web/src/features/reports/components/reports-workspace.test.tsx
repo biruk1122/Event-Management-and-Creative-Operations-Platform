@@ -85,8 +85,8 @@ describe("ReportsWorkspace", () => {
     render(<ReportsWorkspace {...base} canCreate onSaveDraft={save} />);
     await user.click(screen.getByRole("button", { name: "New report" }));
     await user.type(screen.getByLabelText("Title"), "Keep my draft");
-    await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-01");
-    await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period start (EAT)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period end (EAT)"), "2024-02-01");
     await user.type(
       screen.getByLabelText("Problems encountered"),
       "Unsaved narrative",
@@ -153,10 +153,10 @@ describe("ReportsWorkspace", () => {
       />,
     );
     await user.selectOptions(screen.getByLabelText("Type"), "WEEKLY");
-    await user.type(screen.getByLabelText("Period from (UTC)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period from (EAT)"), "2024-02-01");
     expect(screen.getByRole("alert")).toHaveTextContent("both period dates");
     expect(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
-    await user.type(screen.getByLabelText("Period to (UTC)"), "2024-03-01");
+    await user.type(screen.getByLabelText("Period to (EAT)"), "2024-03-01");
     await user.click(screen.getByRole("button", { name: "Apply" }));
     expect(onFiltersChange).toHaveBeenCalledWith({
       type: "WEEKLY",
@@ -288,8 +288,8 @@ describe("ReportsWorkspace", () => {
     expect(screen.getByLabelText("Major achievements")).toBeVisible();
     expect(screen.getByLabelText("Challenges")).toBeVisible();
     expect(screen.queryByLabelText("Next day's plan")).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-01");
-    await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-29");
+    await user.type(screen.getByLabelText("Period start (EAT)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period end (EAT)"), "2024-02-29");
     await user.click(screen.getByLabelText("Production workspace"));
     await user.type(screen.getByLabelText("Major achievements"), "Launch");
     await user.click(screen.getByRole("button", { name: "Save draft" }));

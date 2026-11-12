@@ -228,7 +228,7 @@ export function ReportDraftForm({
           />
         ) : null}
         <div className="space-y-2">
-          <Label htmlFor={`${prefix}-start`}>Period start (UTC)</Label>
+          <Label htmlFor={`${prefix}-start`}>Period start (EAT)</Label>
           <Input
             id={`${prefix}-start`}
             name="periodStart"
@@ -239,7 +239,7 @@ export function ReportDraftForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`${prefix}-end`}>Period end (UTC)</Label>
+          <Label htmlFor={`${prefix}-end`}>Period end (EAT)</Label>
           <Input
             id={`${prefix}-end`}
             name="periodEnd"
@@ -252,8 +252,8 @@ export function ReportDraftForm({
       </fieldset>
       <p className="text-muted-foreground text-sm">
         {completion
-          ? "A campaign completion report covers the campaign from its start to its end. All dates use UTC."
-          : "Daily reports cover one day, weekly reports seven days, and monthly reports a whole calendar month. All dates use UTC."}
+          ? "A campaign completion report covers the campaign from its start to its end. All dates use Ethiopian time (EAT)."
+          : "Daily reports cover one day, weekly reports seven days, and monthly reports a whole calendar month. All dates use Ethiopian time (EAT)."}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold">Your work narrative</h3>

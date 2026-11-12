@@ -184,8 +184,8 @@ test("a campaign completion report goes to the Marketing Manager for review", as
   await form
     .getByLabel("Campaign")
     .selectOption({ label: promoted.campaignName });
-  await form.getByLabel("Period start (UTC)").fill(start);
-  await form.getByLabel("Period end (UTC)").fill(start);
+  await form.getByLabel("Period start (EAT)").fill(start);
+  await form.getByLabel("Period end (EAT)").fill(start);
   await form
     .getByLabel("Results and achievements")
     .fill("Sold out the launch night.");

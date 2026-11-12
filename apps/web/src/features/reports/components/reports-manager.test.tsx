@@ -141,8 +141,8 @@ describe("ReportsManager", () => {
     expect(await screen.findByText("12 reports")).toBeVisible();
     await user.selectOptions(screen.getByLabelText("Type"), "WEEKLY");
     await user.selectOptions(screen.getByLabelText("Status"), "SUBMITTED");
-    await user.type(screen.getByLabelText("Period from (UTC)"), "2024-02-01");
-    await user.type(screen.getByLabelText("Period to (UTC)"), "2024-03-01");
+    await user.type(screen.getByLabelText("Period from (EAT)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period to (EAT)"), "2024-03-01");
     await user.click(screen.getByRole("button", { name: "Apply" }));
     await waitFor(() =>
       expect(get).toHaveBeenCalledWith(
@@ -206,8 +206,8 @@ describe("ReportsManager", () => {
     await screen.findByText("1 report");
     await user.click(screen.getByRole("button", { name: "New report" }));
     await user.type(screen.getByLabelText("Title"), "Daily work");
-    await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-29");
-    await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-29");
+    await user.type(screen.getByLabelText("Period start (EAT)"), "2024-02-29");
+    await user.type(screen.getByLabelText("Period end (EAT)"), "2024-02-29");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith(
@@ -265,10 +265,10 @@ describe("ReportsManager", () => {
       await user.click(screen.getByRole("button", { name: "New report" }));
       await user.type(screen.getByLabelText("Title"), "Daily work");
       await user.type(
-        screen.getByLabelText("Period start (UTC)"),
+        screen.getByLabelText("Period start (EAT)"),
         "2024-02-29",
       );
-      await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-29");
+      await user.type(screen.getByLabelText("Period end (EAT)"), "2024-02-29");
       const file = new File(["notes"], "notes.txt", { type: "text/plain" });
       const input = screen
         .getByText("Attachments")

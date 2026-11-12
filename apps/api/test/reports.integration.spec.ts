@@ -523,4 +523,71 @@ describe("report API", () => {
     );
     expect(deniedList.status).toBe(403);
   });
+
+  it("starts a review on a submitted report and records the decision", async () => {
+    const created = await as(member, "post", "/api/v1/reports").send({
+      type: "DAILY",
+      title: "Review start",
+      periodStart: "2026-09-27",
+      periodEnd: "2026-09-27",
+    });
+    expect(created.status).toBe(201);
+    const path = `/api/v1/reports/${body<ReportBody>(created).id}`;
+    expect(
+      (
+        await as(member, "patch", path).send({
+          problemsEncountered: "None",
+          nextDayPlan: "Prepare venue",
+        })
+      ).status,
+    ).toBe(200);
+    expect((await as(member, "post", `${path}/submit`)).status).toBe(200);
+
+    expect((await as(member, "post", `${path}/start-review`)).status).toBe(403);
+    const started = await as(reviewer, "post", `${path}/start-review`);
+    expect(started.status).toBe(200);
+    expect(body<ReportBody>(started).status).toBe("UNDER_REVIEW");
+
+    const decided = await as(reviewer, "post", `${path}/reviews`).send({
+      outcome: "REVIEWED",
+    });
+    expect(body<ReportBody>(decided).status).toBe("REVIEWED");
+  });
+
+  it("counts a task finished just after Addis Ababa midnight toward that calendar day", async () => {
+    // 2026-09-28T22:30Z is 01:30 on 29 September in Addis Ababa (UTC+3).
+    const task = await prisma.task.create({
+      data: {
+        title: "Finished after midnight",
+        createdById: member.id,
+        departmentId,
+        status: "COMPLETED",
+      },
+    });
+    await prisma.taskActivity.create({
+      data: {
+        taskId: task.id,
+        actorId: member.id,
+        type: "STATUS_CHANGED",
+        details: { from: "IN_PROGRESS", to: "COMPLETED" },
+        occurredAt: new Date("2026-09-28T22:30:00.000Z"),
+      },
+    });
+    const created = await as(member, "post", "/api/v1/reports").send({
+      type: "DAILY",
+      title: "Early morning",
+      periodStart: "2026-09-29",
+      periodEnd: "2026-09-29",
+    });
+    expect(created.status).toBe(201);
+    const detail = await as(
+      member,
+      "get",
+      `/api/v1/reports/${body<ReportBody>(created).id}`,
+    );
+    expect(
+      body<{ facts: { completedTasksInPeriod: number } }>(detail).facts
+        .completedTasksInPeriod,
+    ).toBe(1);
+  });
 });

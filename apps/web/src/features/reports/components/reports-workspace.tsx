@@ -320,7 +320,7 @@ function ReportDetailPanel({
           Work facts
         </h3>
         <p className="text-muted-foreground text-xs">
-          Completed tasks are for this UTC period. Open tasks and projects are
+          Completed tasks are for this EAT period. Open tasks and projects are
           current as of {report.facts.asOf}.
         </p>
         <dl className="flex flex-wrap justify-center gap-2">
@@ -509,7 +509,7 @@ function ReportRows({
                 Report
               </th>
               <th scope="col" className="px-4 py-3 font-medium">
-                Period (UTC)
+                Period (EAT)
               </th>
               {audience === "management" ? (
                 <th scope="col" className="px-4 py-3 font-medium">
@@ -878,7 +878,7 @@ export function ReportsWorkspace({
           </div>
         ) : null}
         <div className="space-y-1">
-          <Label htmlFor="report-filter-from">Period from (UTC)</Label>
+          <Label htmlFor="report-filter-from">Period from (EAT)</Label>
           <Input
             id="report-filter-from"
             type="date"
@@ -892,7 +892,7 @@ export function ReportsWorkspace({
           />
         </div>
         <div className="space-y-1">
-          <Label htmlFor="report-filter-to">Period to (UTC)</Label>
+          <Label htmlFor="report-filter-to">Period to (EAT)</Label>
           <Input
             id="report-filter-to"
             type="date"
