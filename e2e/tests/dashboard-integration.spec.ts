@@ -60,8 +60,8 @@ test.describe("dashboard authoritative integration", () => {
       card.getByText(String(count + 1), { exact: true }),
     ).toBeVisible();
     await page.getByLabel("Items per list (1–10)").fill("10");
-    await page.getByLabel("Cohort start (UTC)").fill("2026-09-01");
-    await page.getByLabel("Cohort end (excluded, UTC)").fill("2026-10-01");
+    await page.getByLabel("Cohort start (EAT)").fill("2026-09-01");
+    await page.getByLabel("Cohort end, excluded (EAT)").fill("2026-10-01");
     await page.getByLabel("Monthly buckets (1–12)").fill("6");
     const filtered = page.waitForResponse(
       (response) =>
