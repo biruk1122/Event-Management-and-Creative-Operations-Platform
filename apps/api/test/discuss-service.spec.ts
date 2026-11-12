@@ -269,15 +269,16 @@ describe("DiscussService", () => {
     );
     expect(repository.createChannel).not.toHaveBeenCalled();
 
-    await expectCode(
+    // Any user may create a general channel (channel.create is a baseline grant).
+    await expect(
       service.createChannel(ACTOR, {
         name: "General",
         visibility: ChannelVisibility.PUBLIC,
       }),
-      "PERMISSION_DENIED",
-    );
+    ).resolves.toBeDefined();
+    expect(repository.createChannel).toHaveBeenCalledTimes(1);
 
-    grantOnly(["channel.create", "DEPARTMENT"]);
+    // A department channel must belong to the caller's own department.
     repository.findUserDepartmentId!.mockResolvedValue("department-1");
     await expectCode(
       service.createChannel(ACTOR, {
@@ -288,7 +289,6 @@ describe("DiscussService", () => {
       "PERMISSION_DENIED",
     );
 
-    grantOnly(["channel.create", "ORGANIZATION"]);
     repository.workspaceExists!.mockResolvedValue(false);
     await expectCode(
       service.createChannel(ACTOR, {

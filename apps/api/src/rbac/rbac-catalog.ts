@@ -607,6 +607,7 @@ export const BASELINE_GRANTS: readonly GrantDefinition[] = [
   { permissionKey: "profile.read", scope: "SELF" },
   { permissionKey: "profile.update", scope: "SELF" },
   { permissionKey: "directory.read", scope: "ORGANIZATION" },
+  { permissionKey: "channel.create", scope: "SELF" },
   { permissionKey: "share.read", scope: "SELF" },
   { permissionKey: "dashboard.read", scope: "SELF" },
   { permissionKey: "notification.read", scope: "SELF" },

@@ -559,12 +559,20 @@ describe("discuss (conversations, channels, and messages) API", () => {
     ).send({ name: "Announcements", visibility: "PUBLIC" });
     expect(generalChannel.status).toBe(201);
 
-    const deniedGeneral = await as(
+    // channel.create is a baseline grant, so any user may create a general channel.
+    const generalByManager = await as(
       departmentManager,
       "post",
       "/api/v1/conversations/channels",
-    ).send({ name: "Should not exist", visibility: "PUBLIC" });
-    expect(deniedGeneral.status).toBe(403);
+    ).send({ name: "Manager general", visibility: "PUBLIC" });
+    expect(generalByManager.status).toBe(201);
+
+    const generalByMember = await as(
+      member,
+      "post",
+      "/api/v1/conversations/channels",
+    ).send({ name: "Member general", visibility: "PUBLIC" });
+    expect(generalByMember.status).toBe(201);
 
     const deptChannel = await as(
       departmentManager,
