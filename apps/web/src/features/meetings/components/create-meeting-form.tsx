@@ -91,7 +91,7 @@ function ParticipantPicker({
       ) : null}
       {unavailable ? (
         <p className="text-muted-foreground text-xs">
-          The user directory is unavailable for your role.
+          Participants could not be loaded. Try again later.
         </p>
       ) : (
         <div className="relative">

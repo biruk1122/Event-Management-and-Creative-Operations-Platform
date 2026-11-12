@@ -452,30 +452,26 @@ describe("MeetingsManager", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("offers the user directory in the searchable participant picker when user.read is granted", async () => {
+  it("offers every active person in the participant picker to a meeting creator without user.read", async () => {
     const user = userEvent.setup();
     get.mockImplementation(async (path: string) => ({
       data:
-        path === "/api/v1/users"
-          ? {
-              items: [
-                {
-                  id: "colleague-1",
-                  email: "colleague@example.com",
-                  firstName: "Cole",
-                  lastName: "League",
-                },
-                // The current user themself must never appear as a candidate.
-                {
-                  ...meeting.organizer,
-                  id: access.userId,
-                  email: "self@example.com",
-                },
-              ],
-              page: 1,
-              pageSize: 100,
-              total: 2,
-            }
+        path === "/api/v1/conversations/people"
+          ? [
+              {
+                id: "colleague-1",
+                email: "colleague@example.com",
+                firstName: "Cole",
+                lastName: "League",
+              },
+              // The current user themself must never appear as a candidate.
+              {
+                id: access.userId,
+                email: "self@example.com",
+                firstName: "Self",
+                lastName: "User",
+              },
+            ]
           : { items: [], page: 1, pageSize: 25, total: 0 },
       response: { status: 200 },
     }));
@@ -483,8 +479,7 @@ describe("MeetingsManager", () => {
       ...access,
       grants: [
         ...access.grants,
-        { permissionKey: "meeting.create", scope: "ORGANIZATION" },
-        { permissionKey: "user.read", scope: "ORGANIZATION" },
+        { permissionKey: "meeting.create", scope: "DEPARTMENT" },
       ],
     });
     await screen.findByRole("heading", { name: "No meetings to show" });
@@ -495,7 +490,7 @@ describe("MeetingsManager", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("self@example.com")).not.toBeInTheDocument();
     expect(
-      screen.queryByText("The user directory is unavailable for your role."),
+      screen.queryByText("Participants could not be loaded. Try again later."),
     ).not.toBeInTheDocument();
   });
 

@@ -1,7 +1,6 @@
 import type { components } from "@event-platform/api-client";
 
 import { browserApi } from "@/lib/api/browser";
-import { listAllUsers } from "@/lib/api/user-directory";
 import { readCsrfToken } from "@/lib/api/csrf";
 
 export type Meeting = components["schemas"]["MeetingResponse"];
@@ -54,8 +53,12 @@ export interface AssignableMeetingPerson {
 export async function listAssignablePeople(
   signal?: AbortSignal,
 ): Promise<AssignableMeetingPerson[]> {
-  const { data } = await listAllUsers(signal);
-  return (data?.items ?? []).map((user) => ({
+  // Every active person, served to any signed-in user; the full user directory stays permission-gated.
+  const { data } = await browserApi.GET("/api/v1/conversations/people", {
+    ...(signal ? { signal } : {}),
+    cache: "no-store",
+  });
+  return (data ?? []).map((user) => ({
     id: user.id,
     email: user.email,
     firstName: user.firstName,

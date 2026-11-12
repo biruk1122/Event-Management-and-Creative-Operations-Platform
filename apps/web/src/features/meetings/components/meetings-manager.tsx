@@ -228,18 +228,12 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
       grant.permissionKey === "meeting.create" &&
       (grant.scope === "ORGANIZATION" || grant.scope === "DEPARTMENT"),
   );
-  // `GET /api/v1/users` requires `user.read` at ORGANIZATION scope (Super
-  // Admin only) - a Department Manager can create meetings but cannot
-  // browse the full directory, same constraint productions' own "Add
-  // member" picker already has.
-  const canListPeople = access.grants.some(
-    (grant) =>
-      grant.permissionKey === "user.read" && grant.scope === "ORGANIZATION",
-  );
+  // Anyone who can create a meeting can pick participants from every active
+  // person (the people endpoint needs no directory grant).
   const people = useQuery({
     queryKey: ["meetings", "assignable-people"],
     queryFn: ({ signal }) => listAssignablePeople(signal),
-    enabled: canCreate && canListPeople,
+    enabled: canCreate,
     retry: false,
     staleTime: 60_000,
   });
@@ -343,7 +337,7 @@ export function MeetingsManager({ access, connect }: MeetingsManagerProps) {
           people={(people.data ?? []).filter(
             (person) => person.id !== access.userId,
           )}
-          peopleUnavailable={!canListPeople}
+          peopleUnavailable={people.isError}
           onCreate={mutations.create.mutateAsync}
           onCancel={() => setCreating(false)}
           onCreated={(meeting) => {
