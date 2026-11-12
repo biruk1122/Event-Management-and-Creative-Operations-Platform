@@ -177,8 +177,9 @@ export class DashboardsService {
             (s) => s.data && "hasMore" in s.data && s.data.hasMore,
           ),
       };
+      // A denied source is an expected permission boundary, not a failure.
       const incomplete = Object.values(states).some(
-        (s) => s.state === "unavailable" || s.state === "denied",
+        (s) => s.state === "unavailable",
       );
       const scopes = Object.values(states).flatMap((s) =>
         s.scope ? [s.scope] : [],
