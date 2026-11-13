@@ -188,10 +188,10 @@ describe("CreateMeetingForm", () => {
     );
   });
 
-  it("explains when the user directory is unavailable instead of showing an empty picker", () => {
+  it("explains when participants cannot be loaded instead of showing an empty picker", () => {
     setup({ people: [], peopleUnavailable: true });
     expect(
-      screen.getByText("The user directory is unavailable for your role."),
+      screen.getByText("Participants could not be loaded. Try again later."),
     ).toBeInTheDocument();
     expect(
       screen.queryByLabelText("Participants (optional)"),
