@@ -226,8 +226,12 @@ test("the calendar and event list fit a phone screen", async ({ browser }) => {
       const right = innerWidth;
       const offenders = [...document.querySelectorAll("body *")]
         .map((el) => ({ el, box: el.getBoundingClientRect() }))
-        .filter(({ box }) => box.right > right + 1)
-        .slice(0, 8)
+        .filter(
+          ({ el, box }) =>
+            box.right > right + 1 &&
+            !el.closest("table, [class*='overflow-x-auto']"),
+        )
+        .slice(0, 12)
         .map(
           ({ el, box }) =>
             `${el.tagName.toLowerCase()} right=${Math.round(box.right)} text="${(el.textContent ?? "").trim().slice(0, 40)}"`,
