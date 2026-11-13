@@ -221,31 +221,10 @@ test("the calendar and event list fit a phone screen", async ({ browser }) => {
       page.getByRole("region", { name: "Promotion workspace" }),
     ).toBeVisible();
     await page.waitForLoadState("networkidle");
-    // Diagnostic on failure: name the elements that extend past the screen.
-    const layout = await page.evaluate(() => {
-      const right = innerWidth;
-      const offenders = [...document.querySelectorAll("body *")]
-        .map((el) => ({ el, box: el.getBoundingClientRect() }))
-        .filter(
-          ({ el, box }) =>
-            box.right > right + 1 &&
-            !el.closest("table, [class*='overflow-x-auto']"),
-        )
-        .slice(0, 12)
-        .map(
-          ({ el, box }) =>
-            `${el.tagName.toLowerCase()} right=${Math.round(box.right)} text="${(el.textContent ?? "").trim().slice(0, 40)}"`,
-        );
-      return {
-        url: location.pathname + location.search,
-        innerWidth: right,
-        scrollWidth: document.documentElement.scrollWidth,
-        offenders,
-      };
-    });
     expect(
-      layout.scrollWidth <= layout.innerWidth,
-      JSON.stringify(layout),
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
     ).toBe(true);
   }
 });
