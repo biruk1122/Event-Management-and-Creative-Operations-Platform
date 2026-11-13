@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
 
+import {
+  APP_CALENDAR_TIME_ZONE,
+  localDayStartUtc,
+} from "../analytics/analytics.policy.js";
 import { PermissionsService } from "../common/security/permissions.service.js";
 import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { permissionDenied } from "../common/security/security.errors.js";
@@ -428,7 +432,16 @@ export class ReportsService {
   async get(userId: string, id: string): Promise<ReportDetailResponse> {
     const report = await this.load(userId, id, "report.read");
     const asOf = new Date();
-    const endExclusive = new Date(report.periodEnd.getTime() + 86_400_000);
+    // Report periods are Addis Ababa calendar days. The stored dates are
+    // midnight UTC, so the task window starts at local midnight in that zone.
+    const windowStart = localDayStartUtc(
+      dateOnly(report.periodStart),
+      APP_CALENDAR_TIME_ZONE,
+    );
+    const endExclusive = localDayStartUtc(
+      dateOnly(new Date(report.periodEnd.getTime() + 86_400_000)),
+      APP_CALENDAR_TIME_ZONE,
+    );
     // A post-event report's event is the workspace it links, resolved
     // live through the existing ReportWorkspace join - never a stored
     // snapshot (EOM-01).
@@ -439,7 +452,7 @@ export class ReportsService {
     const [tasks, projects, event, expense] = await Promise.all([
       this.taskFacts.forAuthor(
         report.authorId,
-        report.periodStart,
+        windowStart,
         endExclusive,
         asOf,
       ),

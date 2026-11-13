@@ -214,8 +214,8 @@ test.describe("Reporting — end to end", () => {
         );
         await form.getByLabel("Title").fill(title);
         await form.getByLabel("Report type").selectOption(item.type);
-        await form.getByLabel("Period start (UTC)").fill(item.start);
-        await form.getByLabel("Period end (UTC)").fill(item.end);
+        await form.getByLabel("Period start (EAT)").fill(item.start);
+        await form.getByLabel("Period end (EAT)").fill(item.end);
         for (const [label, value] of Object.entries(item.sections)) {
           await form.getByLabel(label).fill(value);
         }
@@ -283,8 +283,8 @@ test.describe("Reporting — end to end", () => {
       await expect(
         employee.getByText("3 reports", { exact: true }),
       ).toBeVisible();
-      await filters.getByLabel("Period from (UTC)").fill("2024-01-01");
-      await filters.getByLabel("Period to (UTC)").fill("2025-02-01");
+      await filters.getByLabel("Period from (EAT)").fill("2024-01-01");
+      await filters.getByLabel("Period to (EAT)").fill("2025-02-01");
       await expect(
         filters.getByText("Choose a range of at most 366 days."),
       ).toBeVisible();
@@ -647,8 +647,8 @@ test.describe("Reporting — end to end", () => {
       const form = page.getByRole("form", { name: "Report draft" });
       const title = `E2E linked report ${randomUUID().slice(0, 8)}`;
       await form.getByLabel("Title").fill(title);
-      await form.getByLabel("Period start (UTC)").fill("2022-11-01");
-      await form.getByLabel("Period end (UTC)").fill("2022-11-01");
+      await form.getByLabel("Period start (EAT)").fill("2022-11-01");
+      await form.getByLabel("Period end (EAT)").fill("2022-11-01");
       await form.getByLabel("Problems encountered").fill("Linked fixture");
       await form.getByLabel("Next day's plan").fill("Check relation");
       await form
@@ -684,8 +684,8 @@ test.describe("Reporting — end to end", () => {
       const filters = page.getByRole("region", { name: "Report filters" });
       await filters.getByLabel("Type").selectOption("DAILY");
       await filters.getByLabel("Author").selectOption(author.id);
-      await filters.getByLabel("Period from (UTC)").fill("2022-12-01");
-      await filters.getByLabel("Period to (UTC)").fill("2022-12-11");
+      await filters.getByLabel("Period from (EAT)").fill("2022-12-01");
+      await filters.getByLabel("Period to (EAT)").fill("2022-12-11");
       await filters.getByRole("button", { name: "Apply" }).click();
       await expect(page.getByText("11 reports", { exact: true })).toBeVisible();
       await expect(page.getByText("Page 1 of 2")).toBeVisible();

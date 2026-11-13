@@ -343,7 +343,10 @@ describe("EVE-167 report verification", () => {
     return method === "get" ? call : call.set("x-csrf-token", actor.csrf);
   }
 
-  it("returns exact UTC-window and live-state facts for all three report types", async () => {
+  // Report windows are Addis Ababa calendar days (UTC+3). A completion at
+  // 2024-02-29T23:59:59.999Z is 03:00 on 1 March locally, so it leaves
+  // February 29 and February; 2024-03-01T00:00Z is still outside both.
+  it("returns exact EAT-window and live-state facts for all three report types", async () => {
     const daily = body<ReportBody>(
       await as(member, "get", `${api}/${dailyId}`),
     );
@@ -369,7 +372,7 @@ describe("EVE-167 report verification", () => {
       periodEnd: "2024-02-29",
     });
     expect(daily.facts).toMatchObject({
-      completedTasksInPeriod: 2,
+      completedTasksInPeriod: 1,
       inProgressTasksNow: 1,
       pendingTasksNow: 4,
       overdueTasksNow: 2,
@@ -385,7 +388,7 @@ describe("EVE-167 report verification", () => {
       totalProjectsNow: null,
     });
     expect(monthly.facts).toMatchObject({
-      completedTasksInPeriod: 3,
+      completedTasksInPeriod: 2,
       inProgressTasksNow: 1,
       pendingTasksNow: 4,
       overdueTasksNow: 2,

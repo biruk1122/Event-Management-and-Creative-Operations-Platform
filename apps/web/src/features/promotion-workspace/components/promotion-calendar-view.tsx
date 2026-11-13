@@ -328,7 +328,7 @@ export function PromotionCalendarView({
           </div>
         )
       ) : (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="w-full min-w-[42rem] table-fixed border-collapse text-xs">
             <caption className="sr-only">
               {monthHeading(month)}: events, activities and task deadlines

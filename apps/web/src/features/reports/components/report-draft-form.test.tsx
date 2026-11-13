@@ -32,8 +32,8 @@ describe("Report draft interactions", () => {
     expect(screen.getByLabelText("Problems encountered")).toHaveValue(
       "Keep this blocker",
     );
-    await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-01");
-    await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period start (EAT)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period end (EAT)"), "2024-02-01");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
     expect(save).toHaveBeenCalledWith(
       {
@@ -78,8 +78,8 @@ describe("Report draft interactions", () => {
       screen.getByLabelText("Description"),
       "A quick summary of today.",
     );
-    await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-01");
-    await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period start (EAT)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period end (EAT)"), "2024-02-01");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
     expect(save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -108,8 +108,8 @@ describe("Report draft interactions", () => {
       />,
     );
     await user.type(screen.getByLabelText("Title"), "Daily progress");
-    await user.type(screen.getByLabelText("Period start (UTC)"), "2024-02-01");
-    await user.type(screen.getByLabelText("Period end (UTC)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period start (EAT)"), "2024-02-01");
+    await user.type(screen.getByLabelText("Period end (EAT)"), "2024-02-01");
 
     const file = new File(["notes"], "notes.txt", { type: "text/plain" });
     const input = screen
@@ -159,8 +159,8 @@ describe("Report draft interactions", () => {
       screen.getByLabelText("Results and achievements"),
       "Sold out",
     );
-    await user.type(screen.getByLabelText("Period start (UTC)"), "2026-10-01");
-    await user.type(screen.getByLabelText("Period end (UTC)"), "2026-10-31");
+    await user.type(screen.getByLabelText("Period start (EAT)"), "2026-10-01");
+    await user.type(screen.getByLabelText("Period end (EAT)"), "2026-10-31");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
     expect(save).toHaveBeenCalledWith(
       {
